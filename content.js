@@ -2496,12 +2496,16 @@
     const wantedArtist = normalizeForCompare(artist);
     const gotArtist = normalizeForCompare(item.artistName || item.artist_name || item.artist || "");
 
+    // 曲名だけが同じ別アーティストを採用しない。以前はタイトル完全一致だけで
+    // 100点になり、Queenなど有名曲の歌詞が同名の日本語曲へ入ることがあった。
+    if (!searchResultMatchesTrack(item, title, artist, duration)) return -999;
+
     let score = 0;
     if (gotTitle === wantedTitle) score += 100;
     else if (gotTitle && (gotTitle.includes(wantedTitle) || wantedTitle.includes(gotTitle))) score += 55;
 
     if (wantedArtist && gotArtist === wantedArtist) score += 60;
-    else if (wantedArtist && gotArtist && (gotArtist.includes(wantedArtist) || wantedArtist.includes(gotArtist))) score += 30;
+    else if (wantedArtist && gotArtist && artistsLikelySame(artist, item.artistName || item.artist_name || item.artist || "")) score += 45;
 
     if (item.syncedLyrics || item.synced_lyrics || item.ttml) score += 35;
     else if (item.plainLyrics || item.plain_lyrics || item.lyrics) score += 10;
@@ -2517,12 +2521,90 @@
     return score;
   }
 
+  function normalizedArtistForCompare(value) {
+    return normalizeForCompare(
+      cleanArtist(value || "")
+        .normalize("NFKD")
+        .replace(/[\u0300-\u036f]/g, "")
+    );
+  }
+
+  function artistTokens(value) {
+    return cleanArtist(value || "")
+      .normalize("NFKD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .replace(/\b(?:official|music|channel|topic|vevo)\b/g, " ")
+      .match(/[\p{L}\p{N}]+/gu) || [];
+  }
+
+  function singleArtistLikelySame(wanted, got) {
+    const a = normalizedArtistForCompare(wanted);
+    const b = normalizedArtistForCompare(got);
+    if (!a || !b) return false;
+    if (a === b) return true;
+    if (Math.min(a.length, b.length) >= 3 && (a.includes(b) || b.includes(a))) return true;
+
+    // "Masayoshi Oishi" と "Oishi Masayoshi" のような語順違いを許可する。
+    const aTokens = [...new Set(artistTokens(wanted))];
+    const bTokens = [...new Set(artistTokens(got))];
+    if (aTokens.length < 2 || bTokens.length < 2) return false;
+    const shorter = aTokens.length <= bTokens.length ? aTokens : bTokens;
+    const longer = aTokens.length <= bTokens.length ? bTokens : aTokens;
+    return shorter.every((token) => longer.includes(token));
+  }
+
+  function artistsLikelySame(wanted, got) {
+    const splitArtists = (value) => uniq(
+      cleanArtist(value || "").split(/\s*(?:,|、|&|＆|×|\bx\b|\/|／|;|；)\s*/i)
+    );
+    const wantedParts = splitArtists(wanted);
+    const gotParts = splitArtists(got);
+    if (!wantedParts.length || !gotParts.length) return false;
+    return wantedParts.some((a) => gotParts.some((b) => singleArtistLikelySame(a, b)));
+  }
+
+  function titlesLikelySameForSearch(wanted, got) {
+    const a = normalizeForCompare(stripFeaturing(cleanTitle(wanted || "")));
+    const b = normalizeForCompare(stripFeaturing(cleanTitle(got || "")));
+    if (!a || !b) return false;
+    return a === b || (Math.min(a.length, b.length) >= 5 && (a.includes(b) || b.includes(a)));
+  }
+
+  function searchResultMatchesTrack(item, title, artist, duration) {
+    if (!item) return false;
+    const gotTitle = item.trackName || item.track_name || item.song || item.name || "";
+    const gotArtist = item.artistName || item.artist_name || item.artist || "";
+    if (!titlesLikelySameForSearch(title, gotTitle)) return false;
+
+    // 検索対象に歌手名がある場合、結果側の歌手名も必須とし、不一致なら拒否する。
+    // 「見つからない」方を「別人の同名曲」より優先する安全側の判定。
+    if (String(artist || "").trim()) {
+      if (!String(gotArtist || "").trim() || !artistsLikelySame(artist, gotArtist)) return false;
+    }
+
+    const wantedDuration = Number(duration);
+    const gotDuration = Number(item.duration);
+    if (Number.isFinite(wantedDuration) && wantedDuration > 0 && Number.isFinite(gotDuration) && gotDuration > 0) {
+      const maxDifference = Math.max(12, wantedDuration * 0.06);
+      if (Math.abs(gotDuration - wantedDuration) > maxDifference) return false;
+    }
+    return true;
+  }
+
+  function hasSearchResultMetadata(item) {
+    if (!item || typeof item !== "object") return false;
+    const title = item.trackName || item.track_name || item.song || item.name || "";
+    const artist = item.artistName || item.artist_name || item.artist || "";
+    return Boolean(String(title).trim() || String(artist).trim());
+  }
+
   function bestSearchResult(arr, title, artist, duration) {
     if (!Array.isArray(arr) || !arr.length) return null;
     const scored = arr
       .map((item) => ({ item, score: scoreResult(item, title, artist, duration) }))
       .sort((a, b) => b.score - a.score);
-    return scored[0] && scored[0].score >= 55 ? scored[0].item : null;
+    return scored[0] && scored[0].score >= 120 ? scored[0].item : null;
   }
 
   function buildBoiduParams(info, duration) {
@@ -2876,6 +2958,10 @@
 
       const res = await fetchJson(`https://lyrics-api.boidu.dev/getLyrics?${p.toString()}`);
       if (res.ok && res.data && typeof res.data.ttml === "string") {
+        if (hasSearchResultMetadata(res.data) && !searchResultMatchesTrack(res.data, x.title, x.artist, duration)) {
+          await sleep(120);
+          continue;
+        }
         const parsed = parseTTML(res.data.ttml);
         if (parsed.lines.length) {
           return {
@@ -2974,7 +3060,7 @@
       }
 
       const best = res.data.results[0];
-      if (scoreResult(best, x.title, x.artist, duration) < 45) {
+      if (scoreResult(best, x.title, x.artist, duration) < 120) {
         await sleep(100);
         continue;
       }
@@ -3065,7 +3151,7 @@
       if (x.duration) p.set("duration", String(Math.round(x.duration)));
       const res = await fetchJson(`https://lrclib.net/api/get?${p.toString()}`);
       if (res.ok && res.data && (res.data.syncedLyrics || res.data.plainLyrics)) {
-        if (res.data.syncedLyrics) {
+        if (res.data.syncedLyrics && scoreResult(res.data, x.t, x.a, x.duration) >= 120) {
           return {
             lines: parseLRC(res.data.syncedLyrics),
             syncLevel: "line",
@@ -3143,6 +3229,7 @@
     const p = buildBoiduParams(info, duration);
     const res = await fetchJson(`https://lyrics-api.boidu.dev/${provider}/getLyrics?${p.toString()}`);
     if (!res.ok || !res.data) return null;
+    if (hasSearchResultMetadata(res.data) && !searchResultMatchesTrack(res.data, info.title, info.artist, duration)) return null;
 
     if (typeof res.data.ttml === "string") {
       const parsed = parseTTML(res.data.ttml);
@@ -3183,7 +3270,7 @@
         if (duration) p.set("duration", String(Math.round(duration)));
         const res = await fetchJson(`https://www.karalyr.com/api/get?${p.toString()}`);
         if (res.ok && res.data && (res.data.syncedLyrics || res.data.plainLyrics)) {
-          if (res.data.syncedLyrics) {
+          if (res.data.syncedLyrics && (!hasSearchResultMetadata(res.data) || searchResultMatchesTrack(res.data, t, a, duration))) {
             return { lines: parseLRC(res.data.syncedLyrics), syncLevel: "line", _source: "Karalyr" };
           }
         }
@@ -3624,7 +3711,8 @@
   // ---------- 歌詞キャッシュ（同じ曲は保存済みを使い回す） ----------
   // v1.8.0: 言語処理と標準歌詞フォールバックを作り直したため旧キャッシュを引き継がない。
   // 壊れた永続キャッシュを新コードへ持ち込まないため、保存キーを更新して完全に分離する。
-  const LYRICS_CACHE_STORAGE_KEY = "ytmlsLyricsCacheV181";
+  // v1.9.8: 同名別アーティストを採用していた旧キャッシュを引き継がない。
+  const LYRICS_CACHE_STORAGE_KEY = "ytmlsLyricsCacheV198";
   const LYRICS_CACHE_MAX_ENTRIES = 150;
   const MANUAL_SEARCH_STORAGE_KEY = "ytmlsManualSearchOverridesV190";
   const MANUAL_SEARCH_MAX_ENTRIES = 200;
