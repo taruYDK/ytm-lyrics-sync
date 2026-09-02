@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>バックアップ・復元 | YT Music 歌詞シンクロ</title>
+<style>
+  :root { color-scheme:dark; --bg:#111214; --card:#1b1d21; --border:rgba(255,255,255,.1); --text:#f5f5f5; --sub:#aeb3bb; --accent:#ff3d4f; }
+  * { box-sizing:border-box; }
+  body { margin:0; min-height:100vh; padding:40px 20px; background:var(--bg); color:var(--text); font-family:"Segoe UI","Hiragino Sans","Noto Sans JP",sans-serif; }
+  main { width:min(620px,100%); margin:0 auto; }
+  h1 { margin:0 0 8px; font-size:24px; }
+  .lead { margin:0 0 22px; color:var(--sub); font-size:14px; line-height:1.7; }
+  .card { margin-bottom:14px; padding:20px; border:1px solid var(--border); border-radius:15px; background:var(--card); }
+  h2 { margin:0 0 7px; font-size:16px; }
+  p { margin:0 0 14px; color:var(--sub); font-size:13px; line-height:1.65; }
+  button { min-width:180px; padding:10px 16px; border:1px solid rgba(255,255,255,.15); border-radius:9px; background:#282b31; color:var(--text); font:700 13px inherit; cursor:pointer; }
+  button.primary { border-color:var(--accent); background:var(--accent); }
+  button:hover { filter:brightness(1.08); }
+  button:disabled { opacity:.55; cursor:wait; }
+  #importFile { display:none; }
+  #status { min-height:24px; margin-top:15px; color:#d8dbe0; font-size:13px; line-height:1.6; }
+  #status.success { color:#80dfaa; }
+  #status.error { color:#ff8d98; }
+  .note { padding:13px 15px; border-radius:11px; background:rgba(255,255,255,.045); color:var(--sub); font-size:12px; line-height:1.65; }
+</style>
+</head>
+<body>
+<main>
+  <h1>バックアップ・復元</h1>
+  <p class="lead">曲ごとの歌詞タイミング補正、手動検索内容、表示設定をJSONファイルで移せます。歌詞本文や認証情報は保存しません。</p>
+
+  <section class="card">
+    <h2>バックアップ</h2>
+    <p>現在の設定と補正値をファイルとして保存します。</p>
+    <button type="button" id="exportButton" class="primary">バックアップを書き出す</button>
+  </section>
+
+  <section class="card">
+    <h2>復元</h2>
+    <p>以前に書き出したバックアップを読み込み、現在の設定を上書きします。</p>
+    <button type="button" id="importButton">バックアップを読み込む</button>
+    <input type="file" id="importFile" accept="application/json,.json" />
+  </section>
+
+  <div class="note">復元後は、開いているYouTube Musicのタブを再読み込みしてください。</div>
+  <div id="status" role="status" aria-live="polite"></div>
+</main>
+<script src="backup.js"></script>
+</body>
+</html>

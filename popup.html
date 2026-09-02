@@ -37,12 +37,14 @@
   .provider-move:hover { border-color:rgba(255,61,79,.65); }
   .provider-move:disabled { opacity:.3; cursor:default; }
   .provider-note { min-height:16px; margin-top:7px; color:var(--sub); font-size:10.5px; line-height:1.45; }
+  .data-button { display:block; width:100%; padding:10px 12px; border:1px solid rgba(255,255,255,.13); border-radius:9px; background:var(--card2); color:var(--text); font-size:12px; font-weight:700; text-align:center; text-decoration:none; }
+  .data-button:hover { border-color:rgba(255,61,79,.65); }
   .footer-note { padding:0 3px; color:#858b94; font-size:10.5px; line-height:1.55; }
 </style>
 </head>
 <body>
   <div class="header">
-    <div><h1>YT Music 歌詞シンクロ</h1><div class="version">v1.9.6</div></div>
+    <div><h1>YT Music 歌詞シンクロ</h1><div class="version">v1.9.7</div></div>
     <label class="switch" title="拡張機能を有効/無効"><input type="checkbox" id="enabledToggle" /><span class="slider"></span></label>
   </div>
 
@@ -80,6 +82,12 @@
     <div class="hint" style="margin-bottom:9px;">有効化する取得元と優先順位。上の提供元ほど優先します。</div>
     <div id="providerList" class="provider-list"></div>
     <div id="providerNote" class="provider-note"></div>
+  </section>
+
+  <section class="section">
+    <div class="section-title">データ保護</div>
+    <div class="hint" style="margin-bottom:9px;">曲ごとの補正値や表示設定をファイルに保存し、別のインストールでも復元できます。</div>
+    <a class="data-button" href="backup.html" target="_blank" rel="noopener">バックアップ・復元を開く</a>
   </section>
 
   <div class="footer-note">自動表示ONでは、「次のコンテンツ」表示中の最後のクリック・キー操作・スクロールから2秒間何もしなければ歌詞へ移動します。手動スクロール後は3.5秒で現在位置へ戻ります。追跡停止や曲ID不一致を検出した場合は自動復旧します。</div>
