@@ -1,4 +1,4 @@
-// YT Music 歌詞シンクロ - player bridge v1.9.6
+// YT Music 歌詞シンクロ - player bridge v2.0.0
 // MAIN world から YouTube Music プレイヤー本体の状態を毎フレーム取得する。
 (() => {
   'use strict';

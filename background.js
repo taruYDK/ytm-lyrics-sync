@@ -37,7 +37,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
       // LRCLIB専用。別Providerには絶対に送らない。
       if (url.hostname === "lrclib.net" || url.hostname === "www.lrclib.net") {
-        headers["Lrclib-Client"] = "YT-Music-Lyrics-Sync/1.9.6";
+        headers["Lrclib-Client"] = "YT-Music-Lyrics-Sync/2.0.0";
       }
 
       if (message.headers && typeof message.headers === "object") {

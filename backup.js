@@ -5,7 +5,7 @@ const statusEl = document.getElementById("status");
 
 const BACKUP_FORMAT = "ytm-lyrics-sync-backup";
 const BACKUP_VERSION = 1;
-const MAX_BACKUP_BYTES = 2 * 1024 * 1024;
+const MAX_BACKUP_BYTES = 64 * 1024 * 1024;
 const SYNC_KEYS = [
   "enabled",
   "fontSize",
@@ -20,6 +20,9 @@ const SYNC_KEYS = [
 const LOCAL_KEYS = [
   "ytmlsTrackTimingOffsetsV174",
   "ytmlsManualSearchOverridesV190",
+  "ytmlsLyricsEditsV199",
+  "ytmlsPinnedLyricsV200",
+  "ytmlsLocalLyricsV200",
 ];
 
 function storageGet(area, keys) {
@@ -120,7 +123,7 @@ importFile.addEventListener("change", async () => {
     if (!Object.keys(syncData).length && !Object.keys(localData).length) {
       throw new Error("復元できる設定が含まれていません");
     }
-    if (!window.confirm("現在の設定と補正値をバックアップの内容で上書きします。復元しますか？")) {
+    if (!window.confirm("現在の設定と保存済み歌詞データをバックアップの内容で上書きします。復元しますか？")) {
       showStatus("復元をキャンセルしました。");
       return;
     }

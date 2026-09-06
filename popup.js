@@ -46,6 +46,34 @@ function saveProviderConfig(message = "設定を保存しました") {
 
 function renderProviderList() {
   providerList.replaceChildren();
+
+  const localRow = document.createElement("div");
+  localRow.className = "provider-row";
+  localRow.dataset.fixed = "true";
+  localRow.title = "この曲に保存したローカル歌詞は、常にほかの提供元より先に使用されます";
+
+  const localCheckbox = document.createElement("input");
+  localCheckbox.type = "checkbox";
+  localCheckbox.className = "provider-enabled";
+  localCheckbox.checked = true;
+  localCheckbox.disabled = true;
+  localCheckbox.setAttribute("aria-label", "ローカル歌詞は常に有効です");
+
+  const localRank = document.createElement("span");
+  localRank.className = "provider-rank";
+  localRank.textContent = "★";
+
+  const localName = document.createElement("span");
+  localName.className = "provider-name";
+  localName.textContent = "ローカル歌詞 ★最優先";
+
+  const fixedBadge = document.createElement("span");
+  fixedBadge.className = "provider-fixed-badge";
+  fixedBadge.textContent = "固定";
+
+  localRow.append(localCheckbox, localRank, localName, fixedBadge);
+  providerList.appendChild(localRow);
+
   currentProviderOrder.forEach((key, index) => {
     const provider = PROVIDERS.find((item) => item.key === key);
     if (!provider) return;
@@ -71,7 +99,7 @@ function renderProviderList() {
 
     const rank = document.createElement("span");
     rank.className = "provider-rank";
-    rank.textContent = String(index + 1);
+    rank.textContent = String(index + 2);
 
     const name = document.createElement("span");
     name.className = "provider-name";

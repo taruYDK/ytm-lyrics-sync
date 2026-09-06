@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "YT Music 歌詞シンクロ",
-  "version": "1.9.8",
-  "description": "同名の別アーティスト歌詞を拒否し、誤った歌詞キャッシュを無効化。",
+  "version": "2.0.0",
+  "description": "歌詞候補の固定、ローカルLRC、同期歌詞作成、診断情報のコピーに対応。",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEApZe/sWz1TIwRd0/mQ+ZwnCUZK+GQt62M9Qy11IUXklxsS7Izm3JTtLaAR+VqvaD9i8kCiSklqU86DXxuW0T8upeuHlLfyfZTc/OVuEmebLqEchO50sy83h3HgPFKxnyZz8+MSnVR7SDOknUkZD6SzX1KjW51ptfQEN6gw7NtzDhDdjRNsIjYgKE354T4TXx2vALaqjo3vRNETaqOkn6CZsBYoXUubxaL2KMBXZfssp4rywb49wWFN/htPN6GQiCF0jY2n7VitFdZ+dUcqiBTuneAuJIbiRbauqBRixB8Mlkp/om6fFhwFv+kq2KAzZzVfiQea4cyxmvY/7dbJoVmOwIDAQAB",
   "icons": {
     "16": "icons/icon-16.png",
@@ -11,7 +11,8 @@
     "128": "icons/icon-128.png"
   },
   "permissions": [
-    "storage"
+    "storage",
+    "unlimitedStorage"
   ],
   "host_permissions": [
     "https://music.youtube.com/*",

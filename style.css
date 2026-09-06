@@ -26,12 +26,47 @@ ytmusic-tab-renderer[page-type="MUSIC_PAGE_TYPE_TRACK_LYRICS"].ytmls-replaced > 
 #ytmls-tools {
   flex: 0 0 auto;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: flex-end;
   gap: 8px;
   padding: 10px 24px 2px;
   box-sizing: border-box;
 }
+
+#ytmls-diagnostics {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  min-width: 0;
+  padding: 3px 24px 2px;
+  box-sizing: border-box;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 10px;
+  line-height: 1.35;
+}
+
+.ytmls-diagnostics-summary {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ytmls-diagnostics-button {
+  flex: 0 0 auto;
+  padding: 3px 8px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  color: rgba(255, 255, 255, 0.68);
+  background: rgba(255, 255, 255, 0.05);
+  font: inherit;
+  cursor: pointer;
+}
+
+.ytmls-diagnostics-button:hover { background: rgba(255, 255, 255, 0.11); }
 
 .ytmls-tool-button,
 .ytmls-tools-close,
@@ -66,14 +101,16 @@ ytmusic-tab-renderer[page-type="MUSIC_PAGE_TYPE_TRACK_LYRICS"].ytmls-replaced > 
 }
 
 .ytmls-tool-button:disabled,
-.ytmls-tools-secondary:disabled {
+.ytmls-tools-secondary:disabled,
+.ytmls-tools-primary:disabled,
+.ytmls-candidate-pin:disabled {
   opacity: 0.42;
   cursor: default;
 }
 
 #ytmls-tools-pane {
   flex: 0 0 auto;
-  max-height: 300px;
+  max-height: min(420px, 55vh);
   margin: 8px 24px 0;
   padding: 14px;
   overflow-y: auto;
@@ -99,16 +136,42 @@ ytmusic-tab-renderer[page-type="MUSIC_PAGE_TYPE_TRACK_LYRICS"].ytmls-replaced > 
   line-height: 1.45;
 }
 
-.ytmls-candidate-item {
+.ytmls-candidate-row {
   width: 100%;
+  display: flex;
+  align-items: stretch;
+  gap: 7px;
+  margin-top: 7px;
+}
+
+.ytmls-candidate-item {
+  min-width: 0;
+  flex: 1 1 auto;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 14px;
-  margin-top: 7px;
   padding: 10px 12px;
   border-radius: 10px;
   text-align: left;
+}
+
+.ytmls-candidate-pin {
+  flex: 0 0 auto;
+  min-width: 126px;
+  padding: 7px 10px;
+  border: 1px solid rgba(255, 202, 92, 0.28);
+  border-radius: 10px;
+  color: rgba(255, 226, 154, 0.9);
+  background: rgba(255, 202, 92, 0.08);
+  font: 700 10.5px/1.35 "Roboto", "Noto Sans JP", sans-serif;
+  cursor: pointer;
+}
+
+.ytmls-candidate-pin:hover,
+.ytmls-candidate-row[data-pinned="true"] .ytmls-candidate-pin {
+  border-color: rgba(255, 202, 92, 0.68);
+  background: rgba(255, 202, 92, 0.16);
 }
 
 .ytmls-candidate-item[data-active="true"] {
@@ -198,6 +261,123 @@ ytmusic-tab-renderer[page-type="MUSIC_PAGE_TYPE_TRACK_LYRICS"].ytmls-replaced > 
   gap: 8px;
 }
 
+.ytmls-edit-note {
+  margin: -2px 0 10px;
+  color: rgba(255, 255, 255, 0.62);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.ytmls-edit-form {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.ytmls-edit-textarea,
+.ytmls-local-lrc-textarea {
+  width: 100%;
+  min-height: 190px;
+  resize: vertical;
+  box-sizing: border-box;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 10px;
+  padding: 11px 12px;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.07);
+  font: 13px/1.65 "Roboto", "Noto Sans JP", sans-serif;
+  outline: none;
+}
+
+.ytmls-edit-textarea:focus,
+.ytmls-local-lrc-textarea:focus { border-color: rgba(255, 61, 79, 0.82); }
+
+.ytmls-local-file-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 10px;
+  border: 1px dashed rgba(255, 255, 255, 0.17);
+  border-radius: 9px;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.ytmls-local-lrc-file {
+  min-width: 0;
+  max-width: 68%;
+  color: rgba(255, 255, 255, 0.62);
+  font: inherit;
+}
+
+.ytmls-local-message {
+  min-height: 0;
+  color: rgba(127, 229, 169, 0.92);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.ytmls-local-message:not(:empty) { min-height: 16px; }
+.ytmls-local-message[data-error="true"] { color: #ff9aa4; }
+
+.ytmls-sync-progress {
+  color: rgba(255, 255, 255, 0.58);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.ytmls-sync-current-line {
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 61, 79, 0.42);
+  border-radius: 10px;
+  color: #fff;
+  background: rgba(255, 61, 79, 0.11);
+  font-size: 16px;
+  font-weight: 750;
+}
+
+.ytmls-sync-timeline {
+  max-height: 170px;
+  margin: 9px 0;
+  overflow-y: auto;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 9px;
+}
+
+.ytmls-sync-timeline-row {
+  display: grid;
+  grid-template-columns: 84px minmax(0, 1fr);
+  gap: 8px;
+  padding: 6px 9px;
+  color: rgba(255, 255, 255, 0.56);
+  font-size: 11px;
+}
+
+.ytmls-sync-timeline-row + .ytmls-sync-timeline-row { border-top: 1px solid rgba(255, 255, 255, 0.06); }
+.ytmls-sync-timeline-row[data-current="true"] { color: #fff; background: rgba(255, 255, 255, 0.06); }
+.ytmls-sync-recorded-time { color: #9fc6ff; font-variant-numeric: tabular-nums; }
+
+.ytmls-edit-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ytmls-edit-message {
+  min-height: 0;
+  color: rgba(127, 229, 169, 0.92);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.ytmls-edit-message:not(:empty) { min-height: 16px; }
+.ytmls-edit-message[data-error="true"] { color: #ff9aa4; }
+
 .ytmls-tools-primary,
 .ytmls-tools-secondary,
 .ytmls-tools-close {
@@ -214,7 +394,7 @@ ytmusic-tab-renderer[page-type="MUSIC_PAGE_TYPE_TRACK_LYRICS"].ytmls-replaced > 
   color: #fff;
 }
 
-.ytmls-tools-primary:hover { background: #ff5262; }
+.ytmls-tools-primary:hover:not(:disabled) { background: #ff5262; }
 
 .ytmls-tools-close { margin-top: 10px; }
 

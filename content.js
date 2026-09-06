@@ -1,4 +1,4 @@
-  // YT Music 歌詞シンクロ - content script v1.9.6
+  // YT Music 歌詞シンクロ - content script v2.0.0
 // YouTube Music の「歌詞」タブ内に同期歌詞を表示します。
 // 同期歌詞だけを使用し、候補選択・手動検索・取得元の優先順位をサポートします。
 // YouTube Music標準歌詞は原曲言語判定のヒントにのみ使用し、表示には使いません。
@@ -112,6 +112,14 @@
     activeSearchInfo: null,
     manualSearchOverrides: {},
     manualSearchOverridesLoaded: false,
+    lyricsEdits: {},
+    lyricsEditsLoaded: false,
+    pinnedLyrics: {},
+    pinnedLyricsLoaded: false,
+    localLyrics: {},
+    localLyricsLoaded: false,
+    localLyricsDrafts: {},
+    activeProviderKey: "",
   };
 
   let panelEl = null;
@@ -137,8 +145,13 @@
   let lyricsToolsEl = null;
   let candidateButtonEl = null;
   let manualSearchButtonEl = null;
+  let editLyricsButtonEl = null;
+  let localLyricsButtonEl = null;
   let lyricsToolsPaneEl = null;
   let lyricsToolsPaneMode = "";
+  let diagnosticsEl = null;
+  let diagnosticsSummaryEl = null;
+  let diagnosticsCopyButtonEl = null;
 
   // 手動スクロール後は追跡スクロールを一時停止。
   // 操作が止まってから少し待って現在行へ戻す。
@@ -174,6 +187,7 @@
   }
 
   function providerPriority(providerKey) {
+    if (String(providerKey || "") === "local") return -1;
     const index = STATE.providerOrder.indexOf(String(providerKey || ""));
     return index >= 0 ? index : STATE.providerOrder.length + 1;
   }
@@ -365,7 +379,23 @@
         }
       );
 
-      chrome.storage.onChanged.addListener((changes) => {
+      chrome.storage.onChanged.addListener((changes, areaName) => {
+        if (!areaName || areaName === "local") {
+          if (changes[PINNED_LYRICS_STORAGE_KEY]) {
+            const value = changes[PINNED_LYRICS_STORAGE_KEY].newValue;
+            STATE.pinnedLyrics = value && typeof value === "object" ? value : {};
+            STATE.pinnedLyricsLoaded = true;
+          }
+          if (changes[LOCAL_LYRICS_STORAGE_KEY]) {
+            const value = changes[LOCAL_LYRICS_STORAGE_KEY].newValue;
+            STATE.localLyrics = value && typeof value === "object" ? value : {};
+            STATE.localLyricsLoaded = true;
+          }
+          if (changes[PINNED_LYRICS_STORAGE_KEY] || changes[LOCAL_LYRICS_STORAGE_KEY]) {
+            updateLyricsToolsUi();
+          }
+        }
+
         if (changes.enabled) {
           STATE.enabled = changes.enabled.newValue !== false;
           if (STATE.enabled) STATE.lastTrackKey = null;
@@ -1000,7 +1030,21 @@
       candidateButtonEl.disabled = count === 0;
       candidateButtonEl.title = count ? "取得した同期歌詞から選択" : "候補を検索中です";
     }
+    if (editLyricsButtonEl) {
+      editLyricsButtonEl.disabled = !STATE.hasLyricsResult || !Array.isArray(STATE.lines) || !STATE.lines.length;
+      editLyricsButtonEl.title = editLyricsButtonEl.disabled
+        ? "同期歌詞を表示すると編集できます"
+        : "歌詞の文章をタイミングを変えずに編集";
+    }
+    if (localLyricsButtonEl) {
+      const info = STATE.activeBaseInfo || STATE.activeSearchInfo;
+      const videoId = String((info && info.videoId) || getAuthoritativeVideoId() || "");
+      const ready = Boolean(videoId && STATE.lastTrackKey);
+      localLyricsButtonEl.disabled = !ready;
+      localLyricsButtonEl.title = ready ? "LRCの追加・読み込み・同期歌詞作成" : "曲の読み込みが完了すると使用できます";
+    }
     if (lyricsToolsEl) lyricsToolsEl.hidden = !STATE.enabled;
+    updateDiagnosticsSummary();
   }
 
   function closeLyricsToolsPane() {
@@ -1010,6 +1054,8 @@
     lyricsToolsPaneMode = "";
     if (candidateButtonEl) candidateButtonEl.setAttribute("aria-pressed", "false");
     if (manualSearchButtonEl) manualSearchButtonEl.setAttribute("aria-pressed", "false");
+    if (editLyricsButtonEl) editLyricsButtonEl.setAttribute("aria-pressed", "false");
+    if (localLyricsButtonEl) localLyricsButtonEl.setAttribute("aria-pressed", "false");
   }
 
   function selectLyricsCandidate(candidateId) {
@@ -1019,10 +1065,14 @@
     STATE.manualSelectedCandidateId = candidateId;
     STATE.activeCandidateId = candidateId;
     if (applyLyricsResult(candidate.result, info, STATE.lastTrackKey, STATE.searchGeneration)) {
-      const baseCacheKey = lyricsCacheKey(STATE.activeBaseInfo || info);
-      const searchCacheKey = lyricsCacheKey(info);
-      if (baseCacheKey) rememberLyricsInCache(baseCacheKey, candidate.result);
-      if (searchCacheKey && searchCacheKey !== baseCacheKey) rememberLyricsInCache(searchCacheKey, candidate.result);
+      // ローカル歌詞は専用ストレージが正本。通常キャッシュへ複製すると、
+      // 削除後にキャッシュから復活するため保存しない。
+      if (candidate.result._providerKey !== "local") {
+        const baseCacheKey = lyricsCacheKey(STATE.activeBaseInfo || info);
+        const searchCacheKey = lyricsCacheKey(info);
+        if (baseCacheKey) rememberLyricsInCache(baseCacheKey, candidate.result);
+        if (searchCacheKey && searchCacheKey !== baseCacheKey) rememberLyricsInCache(searchCacheKey, candidate.result);
+      }
     }
     closeLyricsToolsPane();
   }
@@ -1036,6 +1086,8 @@
     lyricsToolsPaneMode = "candidates";
     if (candidateButtonEl) candidateButtonEl.setAttribute("aria-pressed", "true");
     if (manualSearchButtonEl) manualSearchButtonEl.setAttribute("aria-pressed", "false");
+    if (editLyricsButtonEl) editLyricsButtonEl.setAttribute("aria-pressed", "false");
+    if (localLyricsButtonEl) localLyricsButtonEl.setAttribute("aria-pressed", "false");
     lyricsToolsPaneEl.replaceChildren();
     lyricsToolsPaneEl.hidden = false;
 
@@ -1049,11 +1101,25 @@
     recommendationNote.textContent = "おすすめ度は、同期精度・言語一致・提供元の優先順位・歌詞行数から自動計算した目安です。";
     lyricsToolsPaneEl.appendChild(recommendationNote);
 
+    const pinMessage = document.createElement("div");
+    pinMessage.className = "ytmls-local-message";
+    pinMessage.setAttribute("role", "status");
+    lyricsToolsPaneEl.appendChild(pinMessage);
+
+    const info = STATE.activeSearchInfo || STATE.activeBaseInfo;
+    const videoId = String((info && info.videoId) || getAuthoritativeVideoId() || "");
+    const pinned = getPinnedLyricsEntry(videoId);
+
     for (const candidate of STATE.lyricCandidates) {
       const result = candidate.result;
+      const row = document.createElement("div");
+      row.className = "ytmls-candidate-row";
+      row.dataset.candidateId = candidate.id;
+      if (pinned && pinned.candidateId === candidate.id) row.dataset.pinned = "true";
+
       const button = document.createElement("button");
       button.type = "button";
-      button.className = "ytmls-candidate-item";
+      button.className = "ytmls-candidate-item ytmls-candidate-select";
       if (candidate.id === STATE.activeCandidateId) button.dataset.active = "true";
 
       const textWrap = document.createElement("span");
@@ -1077,7 +1143,41 @@
       textWrap.append(label, meta);
       button.append(textWrap, badge);
       button.addEventListener("click", () => selectLyricsCandidate(candidate.id));
-      lyricsToolsPaneEl.appendChild(button);
+
+      const pinButton = document.createElement("button");
+      pinButton.type = "button";
+      pinButton.className = "ytmls-candidate-pin";
+      const isPinned = Boolean(pinned && pinned.candidateId === candidate.id);
+      pinButton.textContent = isPinned ? "📌 固定済み（解除）" : "📌 この歌詞を固定";
+      pinButton.setAttribute("aria-label", isPinned ? `${result._source || "この歌詞"}の固定を解除` : `${result._source || "この歌詞"}をこの曲で固定`);
+      pinButton.addEventListener("click", async () => {
+        if (!videoId) return;
+        pinButton.disabled = true;
+        if (isPinned) {
+          const removed = await deletePinnedLyricsEntry(videoId);
+          if (!removed.ok) {
+            pinMessage.textContent = removed.message;
+            pinMessage.dataset.error = "true";
+            pinButton.disabled = false;
+            return;
+          }
+          deleteLyricsCacheForVideoId(videoId);
+          closeLyricsToolsPane();
+          restartLyricsSearch("固定を解除し、歌詞候補を検索中…");
+          return;
+        }
+        const saved = await savePinnedLyricsCandidate(videoId, candidate, info);
+        if (!saved.ok) {
+          pinMessage.textContent = saved.message;
+          pinMessage.dataset.error = "true";
+          pinButton.disabled = false;
+          return;
+        }
+        selectLyricsCandidate(candidate.id);
+      });
+
+      row.append(button, pinButton);
+      lyricsToolsPaneEl.appendChild(row);
     }
 
     const close = document.createElement("button");
@@ -1097,6 +1197,8 @@
     lyricsToolsPaneMode = "manual";
     if (candidateButtonEl) candidateButtonEl.setAttribute("aria-pressed", "false");
     if (manualSearchButtonEl) manualSearchButtonEl.setAttribute("aria-pressed", "true");
+    if (editLyricsButtonEl) editLyricsButtonEl.setAttribute("aria-pressed", "false");
+    if (localLyricsButtonEl) localLyricsButtonEl.setAttribute("aria-pressed", "false");
     lyricsToolsPaneEl.replaceChildren();
     lyricsToolsPaneEl.hidden = false;
 
@@ -1172,6 +1274,569 @@
     requestAnimationFrame(() => titleInput.focus());
   }
 
+  function editableLineText(line) {
+    if (line && Array.isArray(line.words) && line.words.length) {
+      return line.words.map((word) => String((word && word.text) || "")).join("");
+    }
+    return String((line && line.text) || "");
+  }
+
+  function activeOriginalLyricsCandidate() {
+    return STATE.lyricCandidates.find((candidate) => candidate.id === STATE.activeCandidateId) || null;
+  }
+
+  function renderLyricsEditPane() {
+    if (!lyricsToolsPaneEl || !STATE.hasLyricsResult || !STATE.lines.length) return;
+    if (!lyricsToolsPaneEl.hidden && lyricsToolsPaneMode === "edit") {
+      closeLyricsToolsPane();
+      return;
+    }
+
+    const candidate = activeOriginalLyricsCandidate();
+    const info = STATE.activeSearchInfo || STATE.activeBaseInfo;
+    const videoId = String((info && info.videoId) || getAuthoritativeVideoId() || "");
+    if (!candidate || !info || !videoId || !STATE.lastTrackKey) return;
+
+    lyricsToolsPaneMode = "edit";
+    if (candidateButtonEl) candidateButtonEl.setAttribute("aria-pressed", "false");
+    if (manualSearchButtonEl) manualSearchButtonEl.setAttribute("aria-pressed", "false");
+    if (editLyricsButtonEl) editLyricsButtonEl.setAttribute("aria-pressed", "true");
+    if (localLyricsButtonEl) localLyricsButtonEl.setAttribute("aria-pressed", "false");
+    lyricsToolsPaneEl.replaceChildren();
+    lyricsToolsPaneEl.hidden = false;
+
+    const originalLines = candidate.result.lines || [];
+    if (!originalLines.length) {
+      closeLyricsToolsPane();
+      return;
+    }
+    const savedEdit = getLyricsEditEntry(videoId, candidate.id);
+
+    const heading = document.createElement("div");
+    heading.className = "ytmls-tools-heading";
+    heading.textContent = "歌詞を書き換え・削除";
+
+    const note = document.createElement("div");
+    note.className = "ytmls-edit-note";
+    note.textContent = "1行が1つのタイミングです。不要な行は空欄にして保存すると表示から削除されます。改行の数は変えないでください。";
+
+    const form = document.createElement("form");
+    form.className = "ytmls-edit-form";
+
+    const textarea = document.createElement("textarea");
+    textarea.className = "ytmls-edit-textarea";
+    textarea.value = originalLines.map((line, index) => {
+      if (savedEdit && Object.prototype.hasOwnProperty.call(savedEdit.replacements, index)) {
+        return String(savedEdit.replacements[index] ?? "");
+      }
+      return editableLineText(line).trim();
+    }).join("\n");
+    textarea.setAttribute("aria-label", "歌詞の文章");
+    textarea.spellcheck = false;
+
+    const message = document.createElement("div");
+    message.className = "ytmls-edit-message";
+    message.setAttribute("role", "status");
+
+    const actions = document.createElement("div");
+    actions.className = "ytmls-edit-actions";
+
+    const save = document.createElement("button");
+    save.type = "submit";
+    save.className = "ytmls-tools-primary";
+    save.textContent = "変更を保存";
+
+    const deleteSelectedLines = document.createElement("button");
+    deleteSelectedLines.type = "button";
+    deleteSelectedLines.className = "ytmls-tools-secondary";
+    deleteSelectedLines.textContent = "選択行を削除";
+    deleteSelectedLines.title = "カーソルがある行、または選択範囲の行を空欄にします";
+    deleteSelectedLines.addEventListener("click", () => {
+      const value = textarea.value.replace(/\r/g, "");
+      const lines = value.split("\n");
+      const selectionStart = Math.max(0, Number(textarea.selectionStart) || 0);
+      const selectionEnd = Math.max(selectionStart, Number(textarea.selectionEnd) || selectionStart);
+      const startLine = value.slice(0, selectionStart).split("\n").length - 1;
+      const adjustedEnd = selectionEnd > selectionStart && value[selectionEnd - 1] === "\n"
+        ? selectionEnd - 1
+        : selectionEnd;
+      const endLine = value.slice(0, adjustedEnd).split("\n").length - 1;
+      for (let index = startLine; index <= endLine && index < lines.length; index++) lines[index] = "";
+      textarea.value = lines.join("\n");
+      const caret = lines.slice(0, startLine).reduce((length, line) => length + line.length + 1, 0);
+      textarea.focus();
+      textarea.setSelectionRange(caret, caret);
+      message.textContent = startLine === endLine
+        ? `${startLine + 1}行目を削除対象にしました。「変更を保存」で確定します。`
+        : `${startLine + 1}〜${endLine + 1}行目を削除対象にしました。「変更を保存」で確定します。`;
+      delete message.dataset.error;
+    });
+
+    const reset = document.createElement("button");
+    reset.type = "button";
+    reset.className = "ytmls-tools-secondary";
+    reset.textContent = "元の歌詞に戻す";
+    reset.disabled = !getLyricsEditEntry(videoId, candidate.id);
+    reset.addEventListener("click", () => {
+      if (!window.confirm("この歌詞候補に保存した書き換えを削除し、元の歌詞に戻しますか？")) return;
+      deleteLyricsEditEntry(videoId, candidate.id);
+      applyLyricsResult(candidate.result, info, STATE.lastTrackKey, STATE.searchGeneration);
+      closeLyricsToolsPane();
+    });
+
+    const close = document.createElement("button");
+    close.type = "button";
+    close.className = "ytmls-tools-secondary";
+    close.textContent = "キャンセル";
+    close.addEventListener("click", closeLyricsToolsPane);
+
+    actions.append(save, deleteSelectedLines, reset, close);
+    form.append(textarea, message, actions);
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const editedTexts = textarea.value.replace(/\r/g, "").split("\n").map((line) => line.trim());
+      if (editedTexts.length !== originalLines.length) {
+        message.textContent = `行数が変わっています（元 ${originalLines.length}行 / 編集後 ${editedTexts.length}行）。不要な行の文字だけを空にし、改行は残してください。`;
+        message.dataset.error = "true";
+        return;
+      }
+      if (!editedTexts.some(Boolean)) {
+        message.textContent = "歌詞をすべて空にはできません。";
+        message.dataset.error = "true";
+        return;
+      }
+
+      const replacements = {};
+      originalLines.forEach((line, index) => {
+        if (editedTexts[index] !== editableLineText(line).trim()) replacements[index] = editedTexts[index];
+      });
+      saveLyricsEditEntry(videoId, candidate.id, replacements, info, candidate.result._source || "");
+      applyLyricsResult(candidate.result, info, STATE.lastTrackKey, STATE.searchGeneration);
+      closeLyricsToolsPane();
+    });
+
+    lyricsToolsPaneEl.append(heading, note, form);
+    requestAnimationFrame(() => textarea.focus());
+  }
+
+  function formatLrcTimestamp(seconds) {
+    const centiseconds = Math.max(0, Math.round((Number(seconds) || 0) * 100));
+    const minutes = Math.floor(centiseconds / 6000);
+    const remainder = centiseconds - minutes * 6000;
+    const wholeSeconds = Math.floor(remainder / 100);
+    const fraction = remainder % 100;
+    return `[${String(minutes).padStart(2, "0")}:${String(wholeSeconds).padStart(2, "0")}.${String(fraction).padStart(2, "0")}]`;
+  }
+
+  function roundLrcSeconds(seconds) {
+    return Math.max(0, Math.round((Number(seconds) || 0) * 100)) / 100;
+  }
+
+  function plainLyricsRows(value) {
+    return String(value || "")
+      .replace(/^\uFEFF/, "")
+      .split(/\r?\n/)
+      .map((line) => line
+        .replace(/^\s*(?:\[\d{1,3}:\d{2}(?:[.:]\d{1,3})?\]\s*)+/, "")
+        .trim())
+      .filter((line) => line && !/^\[(?:ar|al|ti|by|offset|re|ve):/i.test(line));
+  }
+
+  function applyLocalLyricsNow(info, result) {
+    if (!info || !result || !STATE.lastTrackKey) return false;
+    // 進行中の外部検索を無効化し、完了時にローカル歌詞を上書き・消去させない。
+    const generation = ++STATE.searchGeneration;
+    STATE.lyricCandidates = STATE.lyricCandidates.filter((candidate) => candidate.id !== result._candidateId);
+    upsertLyricsCandidate(result);
+    STATE.manualSelectedCandidateId = result._candidateId;
+    const applied = applyLyricsResult(result, info, STATE.lastTrackKey, generation);
+    if (applied) STATE.isSearching = false;
+    return applied;
+  }
+
+  function renderSyncLyricsAuthoring(info, rows) {
+    if (!lyricsToolsPaneEl || !info || !info.videoId || !rows.length) return;
+    const videoId = String(info.videoId);
+    lyricsToolsPaneMode = "sync-author";
+    lyricsToolsPaneEl.replaceChildren();
+    lyricsToolsPaneEl.hidden = false;
+
+    const heading = document.createElement("div");
+    heading.className = "ytmls-tools-heading";
+    heading.textContent = "♪ 同期歌詞作成モード";
+
+    const note = document.createElement("div");
+    note.className = "ytmls-edit-note";
+    note.textContent = "曲を再生し、表示中の行を歌い始めた瞬間に「この行を記録して次へ」を押してください。補正前の再生時刻を記録します。";
+
+    const progress = document.createElement("div");
+    progress.className = "ytmls-sync-progress";
+
+    const currentLine = document.createElement("div");
+    currentLine.className = "ytmls-sync-current-line";
+
+    const timeline = document.createElement("div");
+    timeline.className = "ytmls-sync-timeline";
+
+    const message = document.createElement("div");
+    message.className = "ytmls-local-message";
+    message.setAttribute("role", "status");
+
+    const actions = document.createElement("div");
+    actions.className = "ytmls-edit-actions";
+
+    const record = document.createElement("button");
+    record.type = "button";
+    record.className = "ytmls-tools-primary";
+    record.textContent = "この行を記録して次へ";
+
+    const undo = document.createElement("button");
+    undo.type = "button";
+    undo.className = "ytmls-tools-secondary";
+    undo.textContent = "1行戻す";
+
+    const seekStart = document.createElement("button");
+    seekStart.type = "button";
+    seekStart.className = "ytmls-tools-secondary";
+    seekStart.textContent = "曲の先頭へ";
+
+    const restart = document.createElement("button");
+    restart.type = "button";
+    restart.className = "ytmls-tools-secondary";
+    restart.textContent = "記録をやり直す";
+
+    const save = document.createElement("button");
+    save.type = "button";
+    save.className = "ytmls-tools-primary";
+    save.textContent = "同期歌詞を保存";
+
+    const times = new Array(rows.length).fill(null);
+    let nextIndex = 0;
+
+    const cancel = document.createElement("button");
+    cancel.type = "button";
+    cancel.className = "ytmls-tools-secondary";
+    cancel.textContent = "入力画面に戻る";
+    cancel.addEventListener("click", () => {
+      const draftText = rows.map((text, index) =>
+        Number.isFinite(times[index]) ? `${formatLrcTimestamp(times[index])}${text}` : text
+      ).join("\n");
+      STATE.localLyricsDrafts[videoId] = draftText;
+      renderLocalLyricsPane({ draftText });
+    });
+
+    const renderAuthorState = () => {
+      const completed = nextIndex >= rows.length;
+      progress.textContent = `${Math.min(nextIndex, rows.length)} / ${rows.length} 行を記録済み`;
+      currentLine.dataset.index = String(Math.min(nextIndex, rows.length - 1));
+      currentLine.textContent = completed ? "すべての行を記録しました。内容を保存できます。" : rows[nextIndex];
+      timeline.replaceChildren();
+      rows.forEach((text, index) => {
+        const row = document.createElement("div");
+        row.className = "ytmls-sync-timeline-row";
+        if (index === nextIndex && !completed) row.dataset.current = "true";
+        const time = document.createElement("span");
+        time.className = "ytmls-sync-recorded-time";
+        time.textContent = Number.isFinite(times[index]) ? formatLrcTimestamp(times[index]) : "[--:--.--]";
+        const lyric = document.createElement("span");
+        lyric.textContent = text;
+        row.append(time, lyric);
+        timeline.appendChild(row);
+      });
+      record.disabled = completed;
+      undo.disabled = nextIndex === 0;
+      save.disabled = !completed;
+    };
+
+    record.addEventListener("click", () => {
+      const currentVideoId = String(getAuthoritativeVideoId() || "");
+      if (!currentVideoId || currentVideoId !== videoId) {
+        message.textContent = "曲が切り替わったため記録を停止しました。元の曲に戻ってやり直してください。";
+        message.dataset.error = "true";
+        record.disabled = true;
+        return;
+      }
+      const currentTime = getAuthoritativePlaybackTime(getVideoElement());
+      if (!Number.isFinite(currentTime)) {
+        message.textContent = "現在の再生時刻を取得できませんでした。";
+        message.dataset.error = "true";
+        return;
+      }
+      const roundedTime = roundLrcSeconds(currentTime);
+      if (nextIndex > 0 && roundedTime <= times[nextIndex - 1]) {
+        message.textContent = "前の行より前、または同じ時刻です。再生位置を進めてから記録してください。";
+        message.dataset.error = "true";
+        return;
+      }
+      times[nextIndex] = roundedTime;
+      nextIndex += 1;
+      message.textContent = nextIndex >= rows.length ? "全行を記録しました。「同期歌詞を保存」で確定してください。" : "";
+      delete message.dataset.error;
+      renderAuthorState();
+    });
+
+    undo.addEventListener("click", () => {
+      if (nextIndex <= 0) return;
+      nextIndex -= 1;
+      times[nextIndex] = null;
+      message.textContent = `${nextIndex + 1}行目を記録し直せます。`;
+      delete message.dataset.error;
+      renderAuthorState();
+    });
+
+    seekStart.addEventListener("click", () => {
+      requestPlayerSeek(videoId, 0);
+      message.textContent = "曲の先頭へ移動しました。再生して記録を始めてください。";
+      delete message.dataset.error;
+    });
+
+    restart.addEventListener("click", () => {
+      times.fill(null);
+      nextIndex = 0;
+      message.textContent = "記録を最初からやり直します。";
+      delete message.dataset.error;
+      renderAuthorState();
+    });
+
+    save.addEventListener("click", async () => {
+      if (times.some((time) => !Number.isFinite(time))) return;
+      if (String(getAuthoritativeVideoId() || "") !== videoId) {
+        message.textContent = "曲が切り替わっているため保存できません。";
+        message.dataset.error = "true";
+        return;
+      }
+      const lrc = rows.map((text, index) => `${formatLrcTimestamp(times[index])}${text}`).join("\n");
+      save.disabled = true;
+      const stored = await saveLocalLyricsEntry(videoId, lrc, info);
+      if (!stored.ok) {
+        message.textContent = stored.message;
+        message.dataset.error = "true";
+        save.disabled = false;
+        return;
+      }
+      delete STATE.localLyricsDrafts[videoId];
+      applyLocalLyricsNow(info, stored.result);
+      closeLyricsToolsPane();
+    });
+
+    actions.append(record, undo, seekStart, restart, save, cancel);
+    lyricsToolsPaneEl.append(heading, note, progress, currentLine, timeline, message, actions);
+    renderAuthorState();
+  }
+
+  function renderLocalLyricsPane(options = {}) {
+    if (!lyricsToolsPaneEl) return;
+    if (!lyricsToolsPaneEl.hidden && lyricsToolsPaneMode === "local") {
+      closeLyricsToolsPane();
+      return;
+    }
+
+    const info = STATE.activeBaseInfo || STATE.activeSearchInfo || getTrackInfo();
+    const videoId = String((info && info.videoId) || getAuthoritativeVideoId() || "");
+    if (!info || !videoId || !STATE.lastTrackKey) return;
+
+    lyricsToolsPaneMode = "local";
+    if (candidateButtonEl) candidateButtonEl.setAttribute("aria-pressed", "false");
+    if (manualSearchButtonEl) manualSearchButtonEl.setAttribute("aria-pressed", "false");
+    if (editLyricsButtonEl) editLyricsButtonEl.setAttribute("aria-pressed", "false");
+    if (localLyricsButtonEl) localLyricsButtonEl.setAttribute("aria-pressed", "true");
+    lyricsToolsPaneEl.replaceChildren();
+    lyricsToolsPaneEl.hidden = false;
+
+    const heading = document.createElement("div");
+    heading.className = "ytmls-tools-heading";
+    heading.textContent = "ローカル歌詞を追加";
+
+    const note = document.createElement("div");
+    note.className = "ytmls-edit-note";
+    note.textContent = "[00:14.32]歌詞 の形式で貼り付けるか、.lrcファイルを読み込んでください。この曲だけに保存され、常に最優先で表示されます。";
+
+    const textarea = document.createElement("textarea");
+    textarea.className = "ytmls-local-lrc-textarea";
+    textarea.setAttribute("aria-label", "ローカルLRC歌詞");
+    textarea.placeholder = "[00:14.32]最初の歌詞\n[00:18.75]次の歌詞";
+    textarea.spellcheck = false;
+    const suppliedDraft = options && typeof options.draftText === "string" ? options.draftText : null;
+    const hasRememberedDraft = Object.prototype.hasOwnProperty.call(STATE.localLyricsDrafts, videoId);
+    textarea.value = suppliedDraft != null
+      ? suppliedDraft
+      : hasRememberedDraft
+        ? STATE.localLyricsDrafts[videoId]
+        : (getLocalLyricsEntry(videoId) || {}).rawLrc || "";
+    textarea.addEventListener("input", () => {
+      STATE.localLyricsDrafts[videoId] = textarea.value;
+    });
+
+    const fileRow = document.createElement("label");
+    fileRow.className = "ytmls-local-file-row";
+    const fileLabel = document.createElement("span");
+    fileLabel.textContent = ".lrcファイルを読み込む";
+    const fileInput = document.createElement("input");
+    fileInput.type = "file";
+    fileInput.accept = ".lrc,text/plain";
+    fileInput.className = "ytmls-local-lrc-file";
+    fileRow.append(fileLabel, fileInput);
+
+    const message = document.createElement("div");
+    message.className = "ytmls-local-message";
+    message.setAttribute("role", "status");
+
+    fileInput.addEventListener("change", async () => {
+      const file = fileInput.files && fileInput.files[0];
+      if (!file) return;
+      if (file.size > LOCAL_LYRICS_MAX_CHARS * 4) {
+        message.textContent = "LRCファイルが大きすぎます。";
+        message.dataset.error = "true";
+        return;
+      }
+      try {
+        textarea.value = (await file.text()).replace(/^\uFEFF/, "").replace(/\r\n?/g, "\n");
+        STATE.localLyricsDrafts[videoId] = textarea.value;
+        message.textContent = `${file.name} を読み込みました。`;
+        delete message.dataset.error;
+      } catch (_) {
+        message.textContent = "LRCファイルを読み込めませんでした。";
+        message.dataset.error = "true";
+      }
+    });
+
+    const actions = document.createElement("div");
+    actions.className = "ytmls-edit-actions";
+
+    const save = document.createElement("button");
+    save.type = "button";
+    save.className = "ytmls-tools-primary";
+    save.textContent = "ローカル歌詞を保存";
+    save.addEventListener("click", async () => {
+      save.disabled = true;
+      const stored = await saveLocalLyricsEntry(videoId, textarea.value, info);
+      if (!stored.ok) {
+        message.textContent = stored.message;
+        message.dataset.error = "true";
+        save.disabled = false;
+        return;
+      }
+      delete STATE.localLyricsDrafts[videoId];
+      applyLocalLyricsNow(info, stored.result);
+      closeLyricsToolsPane();
+    });
+
+    const createSync = document.createElement("button");
+    createSync.type = "button";
+    createSync.className = "ytmls-tools-secondary ytmls-sync-create-button";
+    createSync.textContent = "♪ 同期歌詞作成モード";
+    createSync.addEventListener("click", () => {
+      const rows = plainLyricsRows(textarea.value);
+      if (!rows.length) {
+        message.textContent = "同期を付ける歌詞を1行ずつ入力してください。";
+        message.dataset.error = "true";
+        return;
+      }
+      STATE.localLyricsDrafts[videoId] = textarea.value;
+      renderSyncLyricsAuthoring(info, rows);
+    });
+
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.className = "ytmls-tools-secondary";
+    remove.textContent = "ローカル歌詞を削除";
+    remove.disabled = !getLocalLyricsEntry(videoId);
+    remove.addEventListener("click", async () => {
+      if (!window.confirm("この曲に保存したローカル歌詞を本当に削除しますか？")) return;
+      remove.disabled = true;
+      const removed = await deleteLocalLyricsEntry(videoId);
+      if (!removed.ok) {
+        message.textContent = removed.message;
+        message.dataset.error = "true";
+        remove.disabled = false;
+        return;
+      }
+      delete STATE.localLyricsDrafts[videoId];
+      closeLyricsToolsPane();
+      restartLyricsSearch("ローカル歌詞を削除し、通常の歌詞を検索中…");
+    });
+
+    const close = document.createElement("button");
+    close.type = "button";
+    close.className = "ytmls-tools-secondary";
+    close.textContent = "閉じる";
+    close.addEventListener("click", closeLyricsToolsPane);
+
+    actions.append(save, createSync, remove, close);
+    lyricsToolsPaneEl.append(heading, note, textarea, fileRow, message, actions);
+    requestAnimationFrame(() => textarea.focus());
+  }
+
+  function diagnosticSnapshot() {
+    let version = "unknown";
+    try {
+      version = chrome.runtime.getManifest().version || version;
+    } catch (_) {}
+    const videoId = String(getAuthoritativeVideoId() || STATE.displayedVideoId || "");
+    const player = getFreshPlayerSnapshot();
+    return {
+      version,
+      health: lyricsHealthState(),
+      videoId: videoId || "none",
+      provider: STATE.source || "none",
+      sync: STATE.syncLevel || "none",
+      candidates: STATE.lyricCandidates.length,
+      offsetPoints: videoId ? getTrackTimingPoints(videoId).length : 0,
+      playerSource: String((player && player.timeSource) || (getVideoElement() ? "media" : "none")),
+      pinned: Boolean(getPinnedLyricsEntry(videoId)),
+      local: Boolean(getLocalLyricsEntry(videoId)),
+    };
+  }
+
+  function diagnosticText(snapshot = diagnosticSnapshot()) {
+    return [
+      `Extension: ${snapshot.version}`,
+      `State: ${snapshot.health.label}`,
+      `Video ID: ${snapshot.videoId}`,
+      `Provider: ${snapshot.provider}`,
+      `Sync: ${snapshot.sync}`,
+      `Candidates: ${snapshot.candidates}`,
+      `Offset points: ${snapshot.offsetPoints}`,
+      `Player source: ${snapshot.playerSource}`,
+      `Pinned lyrics: ${snapshot.pinned ? "yes" : "no"}`,
+      `Local lyrics: ${snapshot.local ? "yes" : "no"}`,
+    ].join("\n");
+  }
+
+  function updateDiagnosticsSummary() {
+    if (!diagnosticsSummaryEl) return;
+    const snapshot = diagnosticSnapshot();
+    const sync = syncLevelShortLabel(snapshot.sync);
+    const summary = `状態：${snapshot.health.label}  •  曲ID：${snapshot.videoId}  •  歌詞：${snapshot.provider}  •  同期：${sync}  •  候補：${snapshot.candidates}件`;
+    if (diagnosticsSummaryEl.textContent !== summary) diagnosticsSummaryEl.textContent = summary;
+    diagnosticsSummaryEl.title = diagnosticText(snapshot);
+  }
+
+  async function copyDiagnostics() {
+    const text = diagnosticText();
+    let copied = false;
+    try {
+      await navigator.clipboard.writeText(text);
+      copied = true;
+    } catch (_) {}
+    if (!copied) {
+      const textarea = document.createElement("textarea");
+      textarea.value = text;
+      textarea.style.position = "fixed";
+      textarea.style.opacity = "0";
+      document.body.appendChild(textarea);
+      textarea.select();
+      try { copied = document.execCommand("copy"); } catch (_) {}
+      textarea.remove();
+    }
+    if (!diagnosticsCopyButtonEl) return;
+    const original = "診断情報をコピー";
+    diagnosticsCopyButtonEl.textContent = copied ? "コピーしました" : "コピーできませんでした";
+    window.setTimeout(() => {
+      if (diagnosticsCopyButtonEl) diagnosticsCopyButtonEl.textContent = original;
+    }, 1800);
+  }
+
   function createPanel() {
     if (panelEl) return;
 
@@ -1201,8 +1866,34 @@
     manualSearchButtonEl.setAttribute("aria-pressed", "false");
     manualSearchButtonEl.addEventListener("click", renderManualSearchPane);
 
-    lyricsToolsEl.append(candidateButtonEl, manualSearchButtonEl);
+    editLyricsButtonEl = document.createElement("button");
+    editLyricsButtonEl.type = "button";
+    editLyricsButtonEl.className = "ytmls-tool-button";
+    editLyricsButtonEl.textContent = "歌詞編集";
+    editLyricsButtonEl.setAttribute("aria-pressed", "false");
+    editLyricsButtonEl.addEventListener("click", renderLyricsEditPane);
+
+    localLyricsButtonEl = document.createElement("button");
+    localLyricsButtonEl.type = "button";
+    localLyricsButtonEl.className = "ytmls-tool-button ytmls-local-lyrics-button";
+    localLyricsButtonEl.textContent = "歌詞を追加";
+    localLyricsButtonEl.setAttribute("aria-pressed", "false");
+    localLyricsButtonEl.addEventListener("click", renderLocalLyricsPane);
+
+    lyricsToolsEl.append(candidateButtonEl, manualSearchButtonEl, editLyricsButtonEl, localLyricsButtonEl);
     panelEl.appendChild(lyricsToolsEl);
+
+    diagnosticsEl = document.createElement("div");
+    diagnosticsEl.id = "ytmls-diagnostics";
+    diagnosticsSummaryEl = document.createElement("span");
+    diagnosticsSummaryEl.className = "ytmls-diagnostics-summary";
+    diagnosticsCopyButtonEl = document.createElement("button");
+    diagnosticsCopyButtonEl.type = "button";
+    diagnosticsCopyButtonEl.className = "ytmls-diagnostics-button";
+    diagnosticsCopyButtonEl.textContent = "診断情報をコピー";
+    diagnosticsCopyButtonEl.addEventListener("click", copyDiagnostics);
+    diagnosticsEl.append(diagnosticsSummaryEl, diagnosticsCopyButtonEl);
+    panelEl.appendChild(diagnosticsEl);
 
     lyricsToolsPaneEl = document.createElement("div");
     lyricsToolsPaneEl.id = "ytmls-tools-pane";
@@ -1311,6 +2002,7 @@
     STATE.statusText = text;
     if (statusEl) statusEl.textContent = text;
     updatePlayerBarHealth();
+    updateDiagnosticsSummary();
   }
 
   function sourceLabel(source, syncLevel) {
@@ -1472,9 +2164,10 @@
   // ---------- 曲ごとの歌詞タイミング補正 ----------
   const TRACK_TIMING_OFFSETS_STORAGE_KEY = "ytmlsTrackTimingOffsetsV174";
   const TRACK_TIMING_OFFSETS_MAX_ENTRIES = 500;
+  const TRACK_TIMING_OFFSET_LIMIT_MS = 20000;
 
   function clampTrackOffsetMs(value) {
-    return Math.max(-10000, Math.min(10000, Math.round((Number(value) || 0) / 100) * 100));
+    return Math.max(-TRACK_TIMING_OFFSET_LIMIT_MS, Math.min(TRACK_TIMING_OFFSET_LIMIT_MS, Math.round((Number(value) || 0) / 100) * 100));
   }
 
   function formatOffsetMs(value, withSign = true) {
@@ -1705,7 +2398,7 @@
             <strong class="ytmls-track-offset-value">0.0秒</strong>
           </span>
         </div>
-        <input class="ytmls-track-offset-range" type="range" min="-10000" max="10000" step="100" value="0" aria-label="歌詞タイミング補正" />
+        <input class="ytmls-track-offset-range" type="range" min="-${TRACK_TIMING_OFFSET_LIMIT_MS}" max="${TRACK_TIMING_OFFSET_LIMIT_MS}" step="100" value="0" aria-label="歌詞タイミング補正" />
         <div class="ytmls-track-offset-quick">
           <button type="button" data-delta="-500">−0.5</button><button type="button" data-delta="-100">−0.1</button>
           <button type="button" data-reset-point="1">0</button>
@@ -2256,7 +2949,7 @@
       globalOffset = Number.isFinite(raw) ? (Math.abs(raw) < 20 && String(offsetMatch[1]).includes(".") ? raw : raw / 1000) : 0;
     }
 
-    const timeTagRe = /\[(\d{1,2}):(\d{2}(?:\.\d{1,3})?)\]/g;
+    const timeTagRe = /\[(\d{1,3}):(\d{2}(?:\.\d{1,3})?)\]/g;
 
     (lrcText || "").split(/\r?\n/).forEach((rawLine) => {
       const tags = [...rawLine.matchAll(timeTagRe)];
@@ -3716,6 +4409,257 @@
   const LYRICS_CACHE_MAX_ENTRIES = 150;
   const MANUAL_SEARCH_STORAGE_KEY = "ytmlsManualSearchOverridesV190";
   const MANUAL_SEARCH_MAX_ENTRIES = 200;
+  const LYRICS_EDITS_STORAGE_KEY = "ytmlsLyricsEditsV199";
+  const LYRICS_EDITS_MAX_TRACKS = 250;
+  const PINNED_LYRICS_STORAGE_KEY = "ytmlsPinnedLyricsV200";
+  // 固定・ローカル歌詞はユーザーデータなので、キャッシュのように件数で自動削除しない。
+  const PINNED_LYRICS_MAX_TRACKS = null;
+  const LOCAL_LYRICS_STORAGE_KEY = "ytmlsLocalLyricsV200";
+  const LOCAL_LYRICS_MAX_TRACKS = null;
+  const LOCAL_LYRICS_MAX_CHARS = 500000;
+
+  function checkedLocalStorageGet(defaults) {
+    return new Promise((resolve, reject) => {
+      try {
+        chrome.storage.local.get(defaults, (data) => {
+          const error = chrome.runtime && chrome.runtime.lastError;
+          if (error) {
+            reject(new Error(error.message || "保存データを読み込めませんでした。"));
+            return;
+          }
+          resolve(data || {});
+        });
+      } catch (error) {
+        reject(error);
+      }
+    });
+  }
+
+  function checkedLocalStorageSet(value) {
+    return new Promise((resolve, reject) => {
+      try {
+        chrome.storage.local.set(value, () => {
+          const error = chrome.runtime && chrome.runtime.lastError;
+          if (error) {
+            reject(new Error(error.message || "保存できませんでした。"));
+            return;
+          }
+          resolve();
+        });
+      } catch (error) {
+        reject(error);
+      }
+    });
+  }
+
+  async function mutateStoredTrackMap(storageKey, fallbackMap, videoId, entry, maxEntries, isValid) {
+    const data = await checkedLocalStorageGet({ [storageKey]: fallbackMap || {} });
+    const stored = data && data[storageKey];
+    const next = stored && typeof stored === "object" ? { ...stored } : { ...(fallbackMap || {}) };
+    if (entry == null) delete next[videoId];
+    else next[videoId] = entry;
+    const limited = limitedTrackMap(next, maxEntries, isValid);
+    await checkedLocalStorageSet({ [storageKey]: limited });
+    return limited;
+  }
+
+  function limitedTrackMap(value, maxEntries, isValid) {
+    let entries = Object.entries(value || {})
+      .filter(([videoId, entry]) => videoId && entry && (!isValid || isValid(entry)))
+      .sort((a, b) => Number(b[1].updatedAt || 0) - Number(a[1].updatedAt || 0));
+    if (Number.isFinite(maxEntries) && maxEntries > 0) entries = entries.slice(0, maxEntries);
+    return Object.fromEntries(entries);
+  }
+
+  function getPinnedLyricsEntry(videoId) {
+    const entry = STATE.pinnedLyrics && STATE.pinnedLyrics[String(videoId || "")];
+    return entry && entry.result && Array.isArray(entry.result.lines) && entry.result.lines.length ? entry : null;
+  }
+
+  async function savePinnedLyricsCandidate(videoId, candidate, info) {
+    const id = String(videoId || "");
+    if (!id || !candidate || !candidate.result || !Array.isArray(candidate.result.lines)) {
+      return { ok: false, message: "この歌詞候補を固定できませんでした。" };
+    }
+    const candidateId = String(candidate.id || lyricCandidateIdentity(candidate.result));
+    let result;
+    try {
+      result = JSON.parse(JSON.stringify({
+        lines: candidate.result.lines,
+        syncLevel: candidate.result.syncLevel || "line",
+        _source: candidate.result._source || "歌詞",
+        _providerKey: candidate.result._providerKey || "",
+        _candidateId: candidateId,
+        _recommendationScore: Number(candidate.result._recommendationScore || 0),
+      }));
+    } catch (_) {
+      return { ok: false, message: "この歌詞候補を固定できませんでした。" };
+    }
+    const entry = {
+      candidateId,
+      result,
+      title: String((info && info.title) || ""),
+      artist: String((info && info.artist) || ""),
+      updatedAt: Date.now(),
+    };
+    try {
+      STATE.pinnedLyrics = await mutateStoredTrackMap(
+        PINNED_LYRICS_STORAGE_KEY,
+        STATE.pinnedLyrics,
+        id,
+        entry,
+        PINNED_LYRICS_MAX_TRACKS,
+        (value) => value.result && Array.isArray(value.result.lines) && value.result.lines.length
+      );
+      updateDiagnosticsSummary();
+      return { ok: true };
+    } catch (_) {
+      return { ok: false, message: "固定を保存できませんでした。拡張機能を再読み込みして、もう一度お試しください。" };
+    }
+  }
+
+  async function deletePinnedLyricsEntry(videoId) {
+    const id = String(videoId || "");
+    if (!id) return { ok: false, message: "曲IDを取得できませんでした。" };
+    try {
+      STATE.pinnedLyrics = await mutateStoredTrackMap(
+        PINNED_LYRICS_STORAGE_KEY,
+        STATE.pinnedLyrics,
+        id,
+        null,
+        PINNED_LYRICS_MAX_TRACKS,
+        (value) => value.result && Array.isArray(value.result.lines) && value.result.lines.length
+      );
+      updateDiagnosticsSummary();
+      return { ok: true };
+    } catch (_) {
+      return { ok: false, message: "固定の解除を保存できませんでした。" };
+    }
+  }
+
+  function loadPinnedLyrics() {
+    try {
+      chrome.storage.local.get({ [PINNED_LYRICS_STORAGE_KEY]: {} }, (data) => {
+        const stored = data && data[PINNED_LYRICS_STORAGE_KEY];
+        STATE.pinnedLyrics = stored && typeof stored === "object" ? stored : {};
+        STATE.pinnedLyricsLoaded = true;
+        tick();
+      });
+    } catch (_) {
+      STATE.pinnedLyricsLoaded = true;
+    }
+  }
+
+  function localLyricsCandidateId(videoId) {
+    return `local::${String(videoId || "")}`;
+  }
+
+  function getLocalLyricsEntry(videoId) {
+    const entry = STATE.localLyrics && STATE.localLyrics[String(videoId || "")];
+    return entry && typeof entry.rawLrc === "string" && entry.rawLrc.trim() ? entry : null;
+  }
+
+  function localLyricsResult(videoId, entry = getLocalLyricsEntry(videoId)) {
+    const id = String(videoId || "");
+    if (!id || !entry) return null;
+    const parsed = parseLRC(entry.rawLrc)
+      .filter((line) => line && Number.isFinite(Number(line.time)) && editableLineText(line).trim());
+    if (!parsed.length) return null;
+    return {
+      lines: rebuildFilteredLineEnds(parsed, "line"),
+      syncLevel: "line",
+      _source: "ローカル歌詞",
+      _providerKey: "local",
+      _candidateId: localLyricsCandidateId(id),
+      _recommendationScore: 100,
+    };
+  }
+
+  async function saveLocalLyricsEntry(videoId, rawLrc, info) {
+    const id = String(videoId || "");
+    const text = String(rawLrc || "").replace(/^\uFEFF/, "").replace(/\r\n?/g, "\n").trim();
+    if (!id) return { ok: false, message: "再生中の曲IDを取得できませんでした。" };
+    if (!text) return { ok: false, message: "LRC歌詞を入力してください。" };
+    if (text.length > LOCAL_LYRICS_MAX_CHARS) return { ok: false, message: "LRCファイルが大きすぎます。" };
+    const entry = {
+      rawLrc: text,
+      title: String((info && info.title) || ""),
+      artist: String((info && info.artist) || ""),
+      updatedAt: Date.now(),
+    };
+    const result = localLyricsResult(id, entry);
+    if (!result) return { ok: false, message: "[00:14.32] のような時刻付き歌詞が見つかりません。" };
+
+    try {
+      STATE.localLyrics = await mutateStoredTrackMap(
+        LOCAL_LYRICS_STORAGE_KEY,
+        STATE.localLyrics,
+        id,
+        entry,
+        LOCAL_LYRICS_MAX_TRACKS,
+        (value) => typeof value.rawLrc === "string" && value.rawLrc.trim()
+      );
+      deleteLyricsEditEntry(id, localLyricsCandidateId(id));
+      updateDiagnosticsSummary();
+      return { ok: true, entry, result };
+    } catch (_) {
+      return { ok: false, message: "ローカル歌詞を保存できませんでした。空き容量を確認して、もう一度お試しください。" };
+    }
+  }
+
+  async function deleteLocalLyricsEntry(videoId) {
+    const id = String(videoId || "");
+    if (!id) return { ok: false, message: "曲IDを取得できませんでした。" };
+    try {
+      const data = await checkedLocalStorageGet({
+        [LOCAL_LYRICS_STORAGE_KEY]: STATE.localLyrics || {},
+        [PINNED_LYRICS_STORAGE_KEY]: STATE.pinnedLyrics || {},
+      });
+      const nextLocal = { ...((data[LOCAL_LYRICS_STORAGE_KEY] && typeof data[LOCAL_LYRICS_STORAGE_KEY] === "object")
+        ? data[LOCAL_LYRICS_STORAGE_KEY]
+        : STATE.localLyrics || {}) };
+      const nextPinned = { ...((data[PINNED_LYRICS_STORAGE_KEY] && typeof data[PINNED_LYRICS_STORAGE_KEY] === "object")
+        ? data[PINNED_LYRICS_STORAGE_KEY]
+        : STATE.pinnedLyrics || {}) };
+      delete nextLocal[id];
+      if (nextPinned[id] && nextPinned[id].candidateId === localLyricsCandidateId(id)) delete nextPinned[id];
+      const localToStore = limitedTrackMap(
+        nextLocal,
+        LOCAL_LYRICS_MAX_TRACKS,
+        (value) => typeof value.rawLrc === "string" && value.rawLrc.trim()
+      );
+      const pinnedToStore = limitedTrackMap(
+        nextPinned,
+        PINNED_LYRICS_MAX_TRACKS,
+        (value) => value.result && Array.isArray(value.result.lines) && value.result.lines.length
+      );
+      await checkedLocalStorageSet({
+        [LOCAL_LYRICS_STORAGE_KEY]: localToStore,
+        [PINNED_LYRICS_STORAGE_KEY]: pinnedToStore,
+      });
+      STATE.localLyrics = localToStore;
+      STATE.pinnedLyrics = pinnedToStore;
+      deleteLyricsCacheForVideoId(id);
+      deleteLyricsEditEntry(id, localLyricsCandidateId(id));
+      updateDiagnosticsSummary();
+      return { ok: true };
+    } catch (_) {
+      return { ok: false, message: "ローカル歌詞を削除できませんでした。" };
+    }
+  }
+
+  function loadLocalLyrics() {
+    try {
+      chrome.storage.local.get({ [LOCAL_LYRICS_STORAGE_KEY]: {} }, (data) => {
+        const stored = data && data[LOCAL_LYRICS_STORAGE_KEY];
+        STATE.localLyrics = stored && typeof stored === "object" ? stored : {};
+        STATE.localLyricsLoaded = true;
+        tick();
+      });
+    } catch (_) {
+      STATE.localLyricsLoaded = true;
+    }
+  }
 
   function loadManualSearchOverrides() {
     try {
@@ -3739,6 +4683,113 @@
     try {
       chrome.storage.local.set({ [MANUAL_SEARCH_STORAGE_KEY]: STATE.manualSearchOverrides });
     } catch (_) {}
+  }
+
+  function getLyricsEditEntry(videoId, candidateId) {
+    const track = STATE.lyricsEdits && STATE.lyricsEdits[String(videoId || "")];
+    const candidates = track && track.candidates;
+    const entry = candidates && candidates[String(candidateId || "")];
+    return entry && entry.replacements && typeof entry.replacements === "object" ? entry : null;
+  }
+
+  function saveLyricsEditsToStorage() {
+    const entries = Object.entries(STATE.lyricsEdits || {})
+      .filter(([videoId, value]) => videoId && value && value.candidates && Object.keys(value.candidates).length)
+      .sort((a, b) => Number(b[1].updatedAt || 0) - Number(a[1].updatedAt || 0))
+      .slice(0, LYRICS_EDITS_MAX_TRACKS);
+    STATE.lyricsEdits = Object.fromEntries(entries);
+    try {
+      chrome.storage.local.set({ [LYRICS_EDITS_STORAGE_KEY]: STATE.lyricsEdits });
+    } catch (_) {}
+  }
+
+  function saveLyricsEditEntry(videoId, candidateId, replacements, info, source) {
+    const id = String(videoId || "");
+    const key = String(candidateId || "");
+    if (!id || !key) return;
+    if (!STATE.lyricsEdits || typeof STATE.lyricsEdits !== "object") STATE.lyricsEdits = {};
+    const track = STATE.lyricsEdits[id] && typeof STATE.lyricsEdits[id] === "object"
+      ? STATE.lyricsEdits[id]
+      : { candidates: {} };
+    if (!track.candidates || typeof track.candidates !== "object") track.candidates = {};
+
+    if (!replacements || !Object.keys(replacements).length) {
+      delete track.candidates[key];
+      if (!Object.keys(track.candidates).length) delete STATE.lyricsEdits[id];
+    } else {
+      const now = Date.now();
+      track.candidates[key] = {
+        replacements,
+        originalLineCount: (activeOriginalLyricsCandidate()?.result.lines || []).length,
+        title: String((info && info.title) || ""),
+        artist: String((info && info.artist) || ""),
+        source: String(source || ""),
+        updatedAt: now,
+      };
+      track.updatedAt = now;
+      STATE.lyricsEdits[id] = track;
+    }
+    saveLyricsEditsToStorage();
+  }
+
+  function deleteLyricsEditEntry(videoId, candidateId) {
+    const id = String(videoId || "");
+    const key = String(candidateId || "");
+    const track = STATE.lyricsEdits && STATE.lyricsEdits[id];
+    if (!track || !track.candidates || !track.candidates[key]) return;
+    delete track.candidates[key];
+    if (!Object.keys(track.candidates).length) delete STATE.lyricsEdits[id];
+    saveLyricsEditsToStorage();
+  }
+
+  function applySavedLyricsEdits(result, info) {
+    const candidateId = lyricCandidateIdentity(result);
+    const videoId = String((info && info.videoId) || "");
+    const entry = getLyricsEditEntry(videoId, candidateId);
+    if (!entry || Number(entry.originalLineCount) !== result.lines.length) {
+      return { result, candidateId, edited: false };
+    }
+
+    let changed = false;
+    const lines = [];
+    result.lines.forEach((line, index) => {
+      if (!Object.prototype.hasOwnProperty.call(entry.replacements, index)) {
+        lines.push(line);
+        return;
+      }
+      const text = String(entry.replacements[index] ?? "");
+      if (text === editableLineText(line).trim()) {
+        lines.push(line);
+        return;
+      }
+      changed = true;
+      if (!text) return;
+      lines.push({ ...line, text, words: [] });
+    });
+    if (!changed) return { result, candidateId, edited: false };
+    return {
+      result: { ...result, lines, _candidateId: candidateId, _lyricsEdited: true },
+      candidateId,
+      edited: true,
+    };
+  }
+
+  function loadLyricsEdits() {
+    try {
+      chrome.storage.local.get({ [LYRICS_EDITS_STORAGE_KEY]: {} }, (data) => {
+        const stored = data && data[LYRICS_EDITS_STORAGE_KEY];
+        STATE.lyricsEdits = stored && typeof stored === "object" ? stored : {};
+        STATE.lyricsEditsLoaded = true;
+        const candidate = activeOriginalLyricsCandidate();
+        const info = STATE.activeSearchInfo || STATE.activeBaseInfo;
+        if (candidate && info && STATE.lastTrackKey) {
+          applyLyricsResult(candidate.result, info, STATE.lastTrackKey, STATE.searchGeneration);
+        }
+        updateLyricsToolsUi();
+      });
+    } catch (_) {
+      STATE.lyricsEditsLoaded = true;
+    }
   }
 
   function effectiveSearchInfo(baseInfo) {
@@ -3849,12 +4900,15 @@
     }
 
     const firstResultForTrack = !STATE.hasLyricsResult || STATE.lastDisplayedTrackKey !== trackKey;
-    STATE.lines = result.lines;
-    STATE.syncLevel = result.syncLevel || "none";
+    const edited = applySavedLyricsEdits(result, info);
+    const displayResult = edited.result;
+    STATE.lines = displayResult.lines;
+    STATE.syncLevel = displayResult.syncLevel || "none";
     STATE.hasSync = STATE.syncLevel !== "none" && STATE.lines.some((line) => line.time != null);
     STATE.hasLyricsResult = true;
-    STATE.source = result._source || "歌詞";
-    STATE.activeCandidateId = lyricCandidateIdentity(result);
+    STATE.source = displayResult._source || "歌詞";
+    STATE.activeProviderKey = displayResult._providerKey || "";
+    STATE.activeCandidateId = edited.candidateId;
     STATE.lyricsAppliedAt = performance.now();
     STATE.recoveryActiveUntil = 0;
     STATE.recoveryReason = "";
@@ -3870,11 +4924,13 @@
     const inferredLanguage = inferTrackLanguage(info);
     const langSuffix = inferredLanguage !== "unknown" ? `  •  ${languageLabel(inferredLanguage)}` : "";
     const manualSuffix = info._manualSearch ? "  •  手動検索" : "";
-    setStatus(`${info.title} - ${info.artist}  •  ${sourceLabel(STATE.source, STATE.syncLevel)}${langSuffix}${manualSuffix}`);
+    const editSuffix = edited.edited ? "  •  歌詞編集済み" : "";
+    setStatus(`${info.title} - ${info.artist}  •  ${sourceLabel(STATE.source, STATE.syncLevel)}${langSuffix}${manualSuffix}${editSuffix}`);
     ensureLyricsMount();
     // 新曲の最初の歌詞では必ず先頭から開始。旧曲のscrollTopを持ち越さない。
     renderLines({ resetScroll: firstResultForTrack });
     applySettings();
+    updateLyricsToolsUi();
     updateTrackTimingControl();
     // 最初の歌詞取得完了時にもタブを開く。曲変更直後にタブDOMがまだ無かったケースを救済する。
     // 後続プロバイダの品質アップグレードでは、ユーザーが後から選んだタブを奪わない。
@@ -3889,6 +4945,7 @@
     STATE.hasSync = false;
     STATE.hasLyricsResult = false;
     STATE.source = "";
+    STATE.activeProviderKey = "";
     STATE.lyricCandidates = [];
     STATE.activeCandidateId = "";
     STATE.manualSelectedCandidateId = "";
@@ -3897,6 +4954,7 @@
     STATE.currentIndex = -1;
     STATE.currentWordIndex = -1;
     STATE.isSearching = true;
+    closeLyricsToolsPane();
     manualScrollUntil = 0;
     pendingReturnToCurrent = false;
     autoScrollUntil = 0;
@@ -4366,7 +5424,7 @@
 
     let info = getTrackInfo();
     if (!info) return;
-    if (!STATE.manualSearchOverridesLoaded) return;
+    if (!STATE.manualSearchOverridesLoaded || !STATE.pinnedLyricsLoaded || !STATE.localLyricsLoaded) return;
 
     // 自動次曲ではvideoIdだけ先に次曲へ変わり、タイトルだけ終了曲のまま残る場合がある。
     // その混在情報で検索しない。1.2秒以上同じなら同名曲の可能性を考慮して先へ進める。
@@ -4421,6 +5479,30 @@
     updateLyricsToolsUi();
     const oldNativeSignature = STATE.previousNativeSignature;
     STATE.previousNativeSignature = "";
+
+    // ローカル歌詞と固定候補は、通常キャッシュやネット検索より常に優先する。
+    // 歌詞データ一式を保存しているため、提供サイト側で後から取得できなくても再表示できる。
+    const savedLocalResult = localLyricsResult(info.videoId);
+    if (savedLocalResult) {
+      upsertLyricsCandidate(savedLocalResult);
+      if (applyLyricsResult(savedLocalResult, info, key, myGeneration)) {
+        STATE.manualSelectedCandidateId = savedLocalResult._candidateId;
+        STATE.isSearching = false;
+        return;
+      }
+    }
+
+    const pinnedEntry = getPinnedLyricsEntry(info.videoId);
+    if (pinnedEntry) {
+      const pinnedResult = pinnedEntry.result;
+      pinnedResult._candidateId = pinnedEntry.candidateId || pinnedResult._candidateId || lyricCandidateIdentity(pinnedResult);
+      upsertLyricsCandidate(pinnedResult);
+      if (applyLyricsResult(pinnedResult, info, key, myGeneration)) {
+        STATE.manualSelectedCandidateId = pinnedResult._candidateId;
+        STATE.isSearching = false;
+        return;
+      }
+    }
 
     // 同じ曲(タイトル+アーティスト)なら、保存済みの歌詞をすぐ表示して
     // プロバイダへの再検索をスキップする。表示が速くなり、
@@ -4954,9 +6036,11 @@
       checkTrackChange();
       runAutoRecoveryWatchdog();
       updatePlayerBarHealth();
+      updateDiagnosticsSummary();
     } else {
       applySettings();
       updatePlayerBarHealth();
+      updateDiagnosticsSummary();
     }
   }
 
@@ -4966,6 +6050,9 @@
     loadTrackTimingOffsets();
     loadLyricsCacheFromStorage();
     loadManualSearchOverrides();
+    loadLyricsEdits();
+    loadPinnedLyrics();
+    loadLocalLyrics();
     setInterval(tick, 300);
     tick();
     // ページを開いた時点ですでに「次のコンテンツ」なら、無操作時だけ歌詞へ移動する。

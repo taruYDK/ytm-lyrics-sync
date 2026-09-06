@@ -36,6 +36,11 @@
   .provider-move { width:28px; height:26px; padding:0; border:1px solid rgba(255,255,255,.12); border-radius:7px; color:var(--text); background:var(--card2); cursor:pointer; }
   .provider-move:hover { border-color:rgba(255,61,79,.65); }
   .provider-move:disabled { opacity:.3; cursor:default; }
+  .provider-row[data-fixed="true"] { border-color:rgba(255,202,92,.34); background:rgba(255,202,92,.08); }
+  .provider-row[data-fixed="true"] .provider-enabled { accent-color:#ffca5c; cursor:not-allowed; }
+  .provider-row[data-fixed="true"] .provider-rank,
+  .provider-row[data-fixed="true"] .provider-name { color:#ffe29a; }
+  .provider-fixed-badge { padding:3px 7px; border:1px solid rgba(255,202,92,.32); border-radius:999px; color:#ffe29a; background:rgba(255,202,92,.08); font-size:10px; font-weight:800; }
   .provider-note { min-height:16px; margin-top:7px; color:var(--sub); font-size:10.5px; line-height:1.45; }
   .data-button { display:block; width:100%; padding:10px 12px; border:1px solid rgba(255,255,255,.13); border-radius:9px; background:var(--card2); color:var(--text); font-size:12px; font-weight:700; text-align:center; text-decoration:none; }
   .data-button:hover { border-color:rgba(255,61,79,.65); }
@@ -44,7 +49,7 @@
 </head>
 <body>
   <div class="header">
-    <div><h1>YT Music 歌詞シンクロ</h1><div class="version">v1.9.8</div></div>
+    <div><h1>YT Music 歌詞シンクロ</h1><div class="version">v2.0.0</div></div>
     <label class="switch" title="拡張機能を有効/無効"><input type="checkbox" id="enabledToggle" /><span class="slider"></span></label>
   </div>
 
@@ -79,14 +84,14 @@
 
   <section class="section">
     <div class="section-title">歌詞提供元</div>
-    <div class="hint" style="margin-bottom:9px;">有効化する取得元と優先順位。上の提供元ほど優先します。</div>
+    <div class="hint" style="margin-bottom:9px;">ローカル歌詞は常に最優先です。その下の5つの取得元は、有効・無効と優先順位を変更できます。</div>
     <div id="providerList" class="provider-list"></div>
     <div id="providerNote" class="provider-note"></div>
   </section>
 
   <section class="section">
     <div class="section-title">データ保護</div>
-    <div class="hint" style="margin-bottom:9px;">曲ごとの補正値や表示設定をファイルに保存し、別のインストールでも復元できます。</div>
+    <div class="hint" style="margin-bottom:9px;">曲ごとの補正値、固定した歌詞、追加・作成したローカル歌詞、書き換えた歌詞、表示設定をファイルに保存して復元できます。</div>
     <a class="data-button" href="backup.html" target="_blank" rel="noopener">バックアップ・復元を開く</a>
   </section>
 
