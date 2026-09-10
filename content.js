@@ -1162,6 +1162,7 @@
             return;
           }
           deleteLyricsCacheForVideoId(videoId);
+          if (String(getAuthoritativeVideoId() || "") !== videoId) return;
           closeLyricsToolsPane();
           restartLyricsSearch("固定を解除し、歌詞候補を検索中…");
           return;
@@ -1173,7 +1174,7 @@
           pinButton.disabled = false;
           return;
         }
-        selectLyricsCandidate(candidate.id);
+        if (String(getAuthoritativeVideoId() || "") === videoId) selectLyricsCandidate(candidate.id);
       });
 
       row.append(button, pinButton);
@@ -1444,6 +1445,8 @@
 
   function applyLocalLyricsNow(info, result) {
     if (!info || !result || !STATE.lastTrackKey) return false;
+    // 保存の完了待ち中に別曲へ移った場合、その曲の検索世代や候補を変更しない。
+    if (!info.videoId || String(getAuthoritativeVideoId() || "") !== String(info.videoId)) return false;
     // 進行中の外部検索を無効化し、完了時にローカル歌詞を上書き・消去させない。
     const generation = ++STATE.searchGeneration;
     STATE.lyricCandidates = STATE.lyricCandidates.filter((candidate) => candidate.id !== result._candidateId);
@@ -1530,8 +1533,8 @@
       progress.textContent = `${Math.min(nextIndex, rows.length)} / ${rows.length} 行を記録済み`;
       currentLine.dataset.index = String(Math.min(nextIndex, rows.length - 1));
       currentLine.textContent = completed ? "すべての行を記録しました。内容を保存できます。" : rows[nextIndex];
-      timeline.replaceChildren();
-      rows.forEach((text, index) => {
+      // 行DOMは初回だけ作成し、記録・取り消し時は表示値だけ更新する。
+      if (!timeline.children.length) rows.forEach((text, index) => {
         const row = document.createElement("div");
         row.className = "ytmls-sync-timeline-row";
         if (index === nextIndex && !completed) row.dataset.current = "true";
@@ -1542,6 +1545,13 @@
         lyric.textContent = text;
         row.append(time, lyric);
         timeline.appendChild(row);
+      });
+      Array.from(timeline.children).forEach((row, index) => {
+        const active = index === nextIndex && !completed;
+        if (active) row.dataset.current = "true";
+        else delete row.dataset.current;
+        const label = Number.isFinite(times[index]) ? formatLrcTimestamp(times[index]) : "[--:--.--]";
+        if (row.firstChild.textContent !== label) row.firstChild.textContent = label;
       });
       record.disabled = completed;
       undo.disabled = nextIndex === 0;
@@ -1615,8 +1625,7 @@
         return;
       }
       delete STATE.localLyricsDrafts[videoId];
-      applyLocalLyricsNow(info, stored.result);
-      closeLyricsToolsPane();
+      if (applyLocalLyricsNow(info, stored.result) && save.isConnected) closeLyricsToolsPane();
     });
 
     actions.append(record, undo, seekStart, restart, save, cancel);
@@ -1717,8 +1726,7 @@
         return;
       }
       delete STATE.localLyricsDrafts[videoId];
-      applyLocalLyricsNow(info, stored.result);
-      closeLyricsToolsPane();
+      if (applyLocalLyricsNow(info, stored.result) && save.isConnected) closeLyricsToolsPane();
     });
 
     const createSync = document.createElement("button");
@@ -1752,6 +1760,7 @@
         return;
       }
       delete STATE.localLyricsDrafts[videoId];
+      if (String(getAuthoritativeVideoId() || "") !== videoId || !remove.isConnected) return;
       closeLyricsToolsPane();
       restartLyricsSearch("ローカル歌詞を削除し、通常の歌詞を検索中…");
     });
@@ -2163,7 +2172,6 @@
 
   // ---------- 曲ごとの歌詞タイミング補正 ----------
   const TRACK_TIMING_OFFSETS_STORAGE_KEY = "ytmlsTrackTimingOffsetsV174";
-  const TRACK_TIMING_OFFSETS_MAX_ENTRIES = 500;
   const TRACK_TIMING_OFFSET_LIMIT_MS = 20000;
 
   function clampTrackOffsetMs(value) {
@@ -2288,11 +2296,7 @@
 
   function saveTrackTimingOffsets() {
     try {
-      const entries = Object.entries(STATE.trackTimingOffsets || {});
-      if (entries.length > TRACK_TIMING_OFFSETS_MAX_ENTRIES) {
-        entries.sort((a, b) => Number((b[1] && b[1].updatedAt) || 0) - Number((a[1] && a[1].updatedAt) || 0));
-        STATE.trackTimingOffsets = Object.fromEntries(entries.slice(0, TRACK_TIMING_OFFSETS_MAX_ENTRIES));
-      }
+      // 手動補正はキャッシュではないため、曲数で自動削除しない。
       chrome.storage.local.set({ [TRACK_TIMING_OFFSETS_STORAGE_KEY]: STATE.trackTimingOffsets });
     } catch (_) {}
   }
@@ -4410,7 +4414,6 @@
   const MANUAL_SEARCH_STORAGE_KEY = "ytmlsManualSearchOverridesV190";
   const MANUAL_SEARCH_MAX_ENTRIES = 200;
   const LYRICS_EDITS_STORAGE_KEY = "ytmlsLyricsEditsV199";
-  const LYRICS_EDITS_MAX_TRACKS = 250;
   const PINNED_LYRICS_STORAGE_KEY = "ytmlsPinnedLyricsV200";
   // 固定・ローカル歌詞はユーザーデータなので、キャッシュのように件数で自動削除しない。
   const PINNED_LYRICS_MAX_TRACKS = null;
@@ -4695,8 +4698,7 @@
   function saveLyricsEditsToStorage() {
     const entries = Object.entries(STATE.lyricsEdits || {})
       .filter(([videoId, value]) => videoId && value && value.candidates && Object.keys(value.candidates).length)
-      .sort((a, b) => Number(b[1].updatedAt || 0) - Number(a[1].updatedAt || 0))
-      .slice(0, LYRICS_EDITS_MAX_TRACKS);
+      .sort((a, b) => Number(b[1].updatedAt || 0) - Number(a[1].updatedAt || 0));
     STATE.lyricsEdits = Object.fromEntries(entries);
     try {
       chrome.storage.local.set({ [LYRICS_EDITS_STORAGE_KEY]: STATE.lyricsEdits });
