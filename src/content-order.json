@@ -1,0 +1,18 @@
+[
+  "state.js",
+  "player-bridge.js",
+  "settings.js",
+  "auto-open.js",
+  "lyrics-panel.js",
+  "health.js",
+  "timing-offset.js",
+  "track-info.js",
+  "lyrics-parser.js",
+  "remote-fetch.js",
+  "providers.js",
+  "language-filter.js",
+  "lyrics-storage.js",
+  "track-search.js",
+  "tracking.js",
+  "main.js"
+]

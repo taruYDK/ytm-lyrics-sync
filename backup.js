@@ -60,8 +60,13 @@ function showStatus(message, type = "") {
 }
 
 function setBusy(busy) {
+  managerBusy = busy;
   exportButton.disabled = busy;
   importButton.disabled = busy;
+  document.getElementById("deleteTracks").disabled = busy || selectedTracks.size === 0;
+  document.getElementById("refreshTracks").disabled = busy;
+  document.getElementById("trackFilter").disabled = busy;
+  document.querySelectorAll("#savedTracks input").forEach(input => { input.disabled = busy; });
 }
 
 exportButton.addEventListener("click", async () => {
@@ -129,8 +134,9 @@ importFile.addEventListener("change", async () => {
     }
     await Promise.all([
       Object.keys(syncData).length ? storageSet(chrome.storage.sync, syncData) : Promise.resolve(),
-      Object.keys(localData).length ? storageSet(chrome.storage.local, localData) : Promise.resolve(),
+      Object.keys(localData).length ? mutateData({ action: "restore", data: localData }) : Promise.resolve(),
     ]);
+    await refreshSavedTracks();
     showStatus("復元しました。YouTube Musicのタブを再読み込みしてください。", "success");
   } catch (error) {
     showStatus(`復元に失敗しました: ${error.message}`, "error");

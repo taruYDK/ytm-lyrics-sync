@@ -1,8 +1,13 @@
+importScripts('storage-broker.js');
 // Cross-origin fetch helper for Manifest V3.
 // Provider-specific headers are isolated here to avoid CORS/preflight mistakes.
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (!message || !message.url) return;
   if (message.type !== "YTMLS_FETCH" && message.type !== "YTMLS_FETCH_JSON") return;
+  if (sender.id !== chrome.runtime.id) {
+    sendResponse({ ok: false, status: 0, data: null, error: "blocked sender" });
+    return;
+  }
 
   const allowedHosts = new Set([
     "lrclib.net",
@@ -37,12 +42,18 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
       // LRCLIB専用。別Providerには絶対に送らない。
       if (url.hostname === "lrclib.net" || url.hostname === "www.lrclib.net") {
-        headers["Lrclib-Client"] = "YT-Music-Lyrics-Sync/2.0.0";
+        headers["Lrclib-Client"] = `YT-Music-Lyrics-Sync/${chrome.runtime.getManifest().version}`;
       }
 
       if (message.headers && typeof message.headers === "object") {
         for (const [key, value] of Object.entries(message.headers)) {
-          if (typeof value === "string") headers[key] = value;
+          // Only the two content types currently needed by our providers.
+          // Never allow overrides of Accept, Lrclib-Client, Cookie or Authorization.
+          if (key.toLowerCase() === "content-type" && typeof value === "string" &&
+              !/[\r\n]/.test(value) &&
+              /^(application\/json|application\/x-www-form-urlencoded)(;\s*charset=utf-8)?$/i.test(value)) {
+            headers["Content-Type"] = value;
+          }
         }
       }
 

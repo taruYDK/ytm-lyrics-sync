@@ -178,3 +178,15 @@ focusFadeToggle.addEventListener("change", () => chrome.storage.sync.set({ focus
 trackingToggle.addEventListener("change", () => chrome.storage.sync.set({ trackingEnabled: trackingToggle.checked }));
 autoLyricsOnIdleToggle.addEventListener("change", () => chrome.storage.sync.set({ autoLyricsOnIdle: autoLyricsOnIdleToggle.checked }));
 wordTrackingStyleSelect.addEventListener("change", () => chrome.storage.sync.set({ wordTrackingStyle: wordTrackingStyleSelect.value }));
+
+const userDataKeys = ["ytmlsTrackTimingOffsetsV174", "ytmlsManualSearchOverridesV190", "ytmlsLyricsEditsV199", "ytmlsPinnedLyricsV200", "ytmlsLocalLyricsV200"];
+chrome.storage.local.get(userDataKeys, data => {
+  const summary = document.getElementById("savedDataSummary");
+  if (chrome.runtime.lastError) { summary.textContent = "保存件数を取得できませんでした。"; return; }
+  const ids = new Set(userDataKeys.flatMap(key => Object.keys(data[key] || {})));
+  chrome.storage.local.getBytesInUse(userDataKeys, bytes => {
+    summary.textContent = chrome.runtime.lastError ? `保存済み ${ids.size}曲（使用量取得失敗）`
+      : `保存済み ${ids.size}曲 / ${(bytes / 1024 / 1024).toFixed(2)} MB`;
+  });
+});
+document.getElementById("extensionVersion").textContent = `v${chrome.runtime.getManifest().version}`;
