@@ -987,3 +987,10 @@ ytmusic-tab-renderer[page-type="MUSIC_PAGE_TYPE_TRACK_LYRICS"].ytmls-replaced {
 .ytmls-diagnostic-details .ytmls-diagnostics-summary { white-space:normal; overflow-wrap:anywhere; }
 /* A recycled renderer must never expose the lyrics UI on another page. */
 [page-type]:not([page-type="MUSIC_PAGE_TYPE_TRACK_LYRICS"]) > #ytmls-panel { display:none !important; }
+#ytmls-external-tab { position: fixed; z-index: 100; border: 0; padding: 0; background: transparent; color: rgba(255,255,255,.7); font: inherit; font-weight: 600; cursor: pointer; }
+#ytmls-external-tab[aria-expanded="true"] { border-bottom: 2px solid white; color: white; }
+#ytmls-external-tab:focus-visible { outline: 2px solid white; outline-offset: -4px; }
+#ytmls-external-view { position: fixed; z-index: 99; background: transparent; overflow: hidden; }
+.ytmls-external-obscured { visibility: hidden !important; pointer-events: none !important; }
+.ytmls-external-native-label, .ytmls-external-native-label * { color: transparent !important; text-shadow: none !important; }
+#ytmls-external-tab[hidden], #ytmls-external-view[hidden] { display: none !important; }

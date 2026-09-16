@@ -3,6 +3,7 @@
   "player-bridge.js",
   "settings.js",
   "auto-open.js",
+  "external-tab.js",
   "lyrics-panel.js",
   "health.js",
   "timing-offset.js",

@@ -1055,7 +1055,8 @@
   }
 
   function ensureLyricsMount() {
-    const renderer = findLyricsRenderer();
+    maintainExternalLyricsTab();
+    const renderer = externalLyricsOpen ? externalLyricsHost : findLyricsRenderer();
     if (!renderer) {
       if (lyricsRendererEl) lyricsRendererEl.classList.remove("ytmls-replaced");
       lyricsRendererEl = null;
@@ -1111,6 +1112,7 @@
   }
 
   function isLyricsPanelActive() {
+    if (externalLyricsOpen && STATE.enabled && lyricsRendererEl === externalLyricsHost && panelEl?.parentElement === externalLyricsHost) return true;
     if (!lyricsRendererEl || !lyricsRendererEl.isConnected ||
         lyricsRendererEl.getAttribute("page-type") !== "MUSIC_PAGE_TYPE_TRACK_LYRICS" ||
         panelEl?.parentElement !== lyricsRendererEl) return false;
@@ -1147,6 +1149,8 @@
     if (trackTimingButtonEl) trackTimingButtonEl.hidden = !STATE.enabled;
     updateLyricsToolsUi();
     if (!STATE.enabled) {
+      closeExternalLyrics();
+      if (externalLyricsButton) externalLyricsButton.hidden = true;
       closeTrackTimingPopover();
       closeLyricsToolsPane();
     }

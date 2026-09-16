@@ -140,6 +140,7 @@
   }
 
   function isLyricsViewVisible() {
+    if (externalLyricsOpen && externalLyricsHost && !externalLyricsHost.hidden) return true;
     const renderer = findLyricsRenderer();
     if (!renderer) return false;
     try {
@@ -455,7 +456,8 @@
     if (now - idleStart < AUTO_LYRICS_IDLE_DELAY_MS) return;
 
     const lyricsTab = findLyricsTabButton();
-    if (!lyricsTab || lyricsTab.getAttribute('aria-disabled') === 'true' || lyricsTab.hasAttribute('disabled')) return;
+    if (!lyricsTab) return;
+    if (nativeLyricsDisabled(lyricsTab)) { openExternalLyrics(); return; }
     if (isLyricsTabSelected(lyricsTab) || isLyricsViewVisible()) {
       requestAnimationFrame(() => ensureLyricsMount());
       resetLyricsAutoOpenIdle();
