@@ -29,6 +29,7 @@
   #dataManager button { margin:4px 0; }
   .note { padding:13px 15px; border-radius:11px; background:rgba(255,255,255,.045); color:var(--sub); font-size:12px; line-height:1.65; }
 </style>
+<link rel="stylesheet" href="settings-theme.css">
 </head>
 <body>
 <main>
@@ -49,7 +50,9 @@
   </section>
 
   <section class="card" id="dataManager">
-    <h2>保存データの管理</h2>
+    <h2>保存曲・お気に入り／履歴</h2>
+    <p>固定した歌詞をお気に入りとして表示します。履歴は保存済みデータの更新順です（再生履歴ではありません）。</p>
+    <label>表示 <select id="trackView"><option value="recent">最近保存・編集した曲</option><option value="pinned">お気に入り（固定した曲）</option><option value="name">すべて・曲名順</option></select></label>
     <p id="storageUsage" role="status">使用量を確認中…</p>
     <p>選択した曲の補正・編集・固定歌詞・ローカル歌詞・手動検索条件を削除します。元に戻すには事前のバックアップが必要です。通常の歌詞キャッシュや表示設定は削除しません。</p>
     <label>曲名・アーティスト・曲IDで検索 <input type="search" id="trackFilter" /></label>
@@ -61,7 +64,9 @@
   </section>
   <div class="note">削除・復元後は、開いているYouTube Musicのタブを再読み込みしてください。歌詞を表示中の場合、削除した歌詞が再読み込みまで画面に残ることがあります。</div>
   <div id="status" role="status" aria-live="polite"></div>
+<p id="backupReminder" role="status" hidden></p>
 </main>
+<script src="backup-reminder.js"></script>
 <script src="backup.js"></script>
 <script src="data-manager.js"></script>
 </body>

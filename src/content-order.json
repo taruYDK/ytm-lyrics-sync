@@ -1,5 +1,6 @@
 [
   "state.js",
+  "theme.js",
   "player-bridge.js",
   "settings.js",
   "auto-open.js",

@@ -1,6 +1,7 @@
   // ---------- メイン ----------
   function tick() {
     if (!runtimeAvailable()) return;
+    updateLyricsTheme();
     ensureLyricsMount();
     ensureVideoListener();
     ensurePlayerBarTimingControl();

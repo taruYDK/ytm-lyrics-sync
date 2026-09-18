@@ -70,6 +70,7 @@ function setBusy(busy) {
 }
 
 exportButton.addEventListener("click", async () => {
+  const exportStartedAt = Date.now();
   setBusy(true);
   showStatus("バックアップを作成しています…");
   try {
@@ -95,7 +96,11 @@ exportButton.addEventListener("click", async () => {
     link.click();
     link.remove();
     window.setTimeout(() => URL.revokeObjectURL(url), 1000);
-    showStatus("バックアップを書き出しました。", "success");
+    // Download initiation is not proof that the user retained the file.
+    if (window.confirm("バックアップファイルが保存されたことを確認できましたか？\n確認できた場合、バックアップ通知の件数をリセットします。")) {
+      await storageSet(chrome.storage.local, { ytmlsBackupExportStartedAt: exportStartedAt });
+    }
+    showStatus("バックアップのダウンロードを開始しました。保存先をご確認ください。", "success");
   } catch (error) {
     showStatus(`書き出しに失敗しました: ${error.message}`, "error");
   } finally {

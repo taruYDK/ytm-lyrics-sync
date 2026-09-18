@@ -90,6 +90,8 @@
   }
 
   function closeLyricsToolsPane() {
+    authorShortcutController?.abort();
+    authorShortcutController = null;
     if (!lyricsToolsPaneEl) return;
     lyricsToolsPaneEl.hidden = true;
     lyricsToolsPaneEl.replaceChildren();
@@ -180,7 +182,7 @@
       const score = Number(result._recommendationScore || candidateRecommendationScore(result));
       const badge = document.createElement("span");
       badge.className = "ytmls-recommendation-badge";
-      badge.dataset.level = score >= 85 ? "top" : score >= 70 ? "high" : score >= 55 ? "mid" : "low";
+      badge.dataset.level = score >= 85 ? "high" : score >= 70 ? "medium" : "low";
       badge.textContent = `おすすめ度 ${score} • ${recommendationLabel(score)}`;
 
       textWrap.append(label, meta);
@@ -578,6 +580,11 @@
 
     const progress = document.createElement("div");
     progress.className = "ytmls-sync-progress";
+    const progressBar = document.createElement("progress");
+    progressBar.className = "ytmls-author-progress";
+    progressBar.max = rows.length;
+    progressBar.setAttribute("aria-label", "同期歌詞の記録進捗");
+    note.textContent += " Space：記録して次へ ／ Ctrl+Z：1行戻す（文字入力中は通常の入力操作を優先します）。";
 
     const currentLine = document.createElement("div");
     currentLine.className = "ytmls-sync-current-line";
@@ -635,6 +642,7 @@
     const renderAuthorState = () => {
       const completed = nextIndex >= rows.length;
       progress.textContent = `${Math.min(nextIndex, rows.length)} / ${rows.length} 行を記録済み`;
+      progressBar.value = Math.min(nextIndex, rows.length);
       currentLine.dataset.index = String(Math.min(nextIndex, rows.length - 1));
       currentLine.textContent = completed ? "すべての行を記録しました。内容を保存できます。" : rows[nextIndex];
       // 行DOMは初回だけ作成し、記録・取り消し時は表示値だけ更新する。
@@ -733,7 +741,20 @@
     });
 
     actions.append(record, undo, seekStart, restart, save, cancel);
-    lyricsToolsPaneEl.append(heading, note, progress, currentLine, timeline, message, actions);
+    lyricsToolsPaneEl.append(heading, note, progress, progressBar, currentLine, timeline, message, actions);
+    // One active handler only; never intercept typing or another track's controls.
+    if (authorShortcutController) authorShortcutController.abort();
+    authorShortcutController = new AbortController();
+    document.addEventListener("keydown", event => {
+      if (!record.isConnected || lyricsToolsPaneEl.hidden || !isLyricsPanelActive() || !STATE.enabled ||
+          String(getAuthoritativeVideoId() || "") !== videoId || event.isComposing ||
+          event.target.closest?.('input, textarea, select, [contenteditable="true"], [role="textbox"]')) return;
+      const space = event.code === "Space" && !event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey;
+      const back = event.key.toLowerCase() === "z" && (event.ctrlKey || event.metaKey) && !event.altKey && !event.shiftKey;
+      if (!space && !back) return;
+      event.preventDefault(); event.stopImmediatePropagation();
+      if (!event.repeat) (space ? record : undo).click();
+    }, { capture: true, signal: authorShortcutController.signal });
     renderAuthorState();
   }
 

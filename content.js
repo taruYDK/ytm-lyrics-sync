@@ -261,6 +261,53 @@ function buildExportLrc(lines, info, points, duration, applyOffsets) {
       .filter((key) => STATE.providerEnabled[key] !== false)
       .join(">");
   }
+  let authorShortcutController = null;
+
+// Feature: theme.js
+  let lastThemeCheck = 0;
+  const observedThemeRoots = new WeakSet();
+  let themeRefreshPending = false;
+  function scheduleLyricsThemeRefresh() {
+    if (themeRefreshPending) return;
+    themeRefreshPending = true;
+    requestAnimationFrame(() => {
+      themeRefreshPending = false;
+      updateLyricsTheme(true);
+    });
+  }
+  const lyricsThemeObserver = new MutationObserver(scheduleLyricsThemeRefresh);
+  const lyricsThemeMedia = matchMedia('(prefers-color-scheme: light)');
+  lyricsThemeMedia.addEventListener('change', scheduleLyricsThemeRefresh);
+  function updateLyricsTheme(force = false) {
+    const roots = [document.querySelector('ytmusic-player-page'), document.querySelector('ytmusic-app'), document.body, document.documentElement];
+    for (const root of roots) {
+      if (!root || observedThemeRoots.has(root)) continue;
+      observedThemeRoots.add(root);
+      lyricsThemeObserver.observe(root, {attributes:true, attributeFilter:['class','style','dark','theme','data-theme','is-dark-theme','color-scheme']});
+      force = true;
+    }
+    const now = performance.now();
+    if (!force && now - lastThemeCheck < 1000) return;
+    lastThemeCheck = now;
+    // Read the site's rendered surface, not the extension's own colors.
+    // No dependency on undocumented theme class names.
+    let light;
+    for (const el of roots) {
+      if (!el) continue;
+      const color = getComputedStyle(el).backgroundColor;
+      const parts = color.match(/[\d.]+/g)?.map(Number);
+      if (!parts || parts.length < 3 || (parts.length > 3 && parts[3] < .95)) continue;
+      const channels = parts.slice(0,3).map(v => {v/=255;return v<=.04045?v/12.92:((v+.055)/1.055)**2.4;});
+      light = .2126*channels[0]+.7152*channels[1]+.0722*channels[2] > .45;
+      break;
+    }
+    if (light === undefined) {
+      const root = document.documentElement;
+      light = root.hasAttribute('dark') ? false : root.getAttribute('data-theme') === 'light' ? true : matchMedia('(prefers-color-scheme: light)').matches;
+    }
+    const value = light ? 'light' : 'dark';
+    if (document.documentElement.dataset.ytmlsTheme !== value) document.documentElement.dataset.ytmlsTheme = value;
+  }
 
 // Feature: player-bridge.js
   // ---------- YouTube Player 本体とのブリッジ ----------
@@ -1227,6 +1274,8 @@ function buildExportLrc(lines, info, points, duration, applyOffsets) {
   }
 
   function closeLyricsToolsPane() {
+    authorShortcutController?.abort();
+    authorShortcutController = null;
     if (!lyricsToolsPaneEl) return;
     lyricsToolsPaneEl.hidden = true;
     lyricsToolsPaneEl.replaceChildren();
@@ -1317,7 +1366,7 @@ function buildExportLrc(lines, info, points, duration, applyOffsets) {
       const score = Number(result._recommendationScore || candidateRecommendationScore(result));
       const badge = document.createElement("span");
       badge.className = "ytmls-recommendation-badge";
-      badge.dataset.level = score >= 85 ? "top" : score >= 70 ? "high" : score >= 55 ? "mid" : "low";
+      badge.dataset.level = score >= 85 ? "high" : score >= 70 ? "medium" : "low";
       badge.textContent = `おすすめ度 ${score} • ${recommendationLabel(score)}`;
 
       textWrap.append(label, meta);
@@ -1715,6 +1764,11 @@ function buildExportLrc(lines, info, points, duration, applyOffsets) {
 
     const progress = document.createElement("div");
     progress.className = "ytmls-sync-progress";
+    const progressBar = document.createElement("progress");
+    progressBar.className = "ytmls-author-progress";
+    progressBar.max = rows.length;
+    progressBar.setAttribute("aria-label", "同期歌詞の記録進捗");
+    note.textContent += " Space：記録して次へ ／ Ctrl+Z：1行戻す（文字入力中は通常の入力操作を優先します）。";
 
     const currentLine = document.createElement("div");
     currentLine.className = "ytmls-sync-current-line";
@@ -1772,6 +1826,7 @@ function buildExportLrc(lines, info, points, duration, applyOffsets) {
     const renderAuthorState = () => {
       const completed = nextIndex >= rows.length;
       progress.textContent = `${Math.min(nextIndex, rows.length)} / ${rows.length} 行を記録済み`;
+      progressBar.value = Math.min(nextIndex, rows.length);
       currentLine.dataset.index = String(Math.min(nextIndex, rows.length - 1));
       currentLine.textContent = completed ? "すべての行を記録しました。内容を保存できます。" : rows[nextIndex];
       // 行DOMは初回だけ作成し、記録・取り消し時は表示値だけ更新する。
@@ -1870,7 +1925,20 @@ function buildExportLrc(lines, info, points, duration, applyOffsets) {
     });
 
     actions.append(record, undo, seekStart, restart, save, cancel);
-    lyricsToolsPaneEl.append(heading, note, progress, currentLine, timeline, message, actions);
+    lyricsToolsPaneEl.append(heading, note, progress, progressBar, currentLine, timeline, message, actions);
+    // One active handler only; never intercept typing or another track's controls.
+    if (authorShortcutController) authorShortcutController.abort();
+    authorShortcutController = new AbortController();
+    document.addEventListener("keydown", event => {
+      if (!record.isConnected || lyricsToolsPaneEl.hidden || !isLyricsPanelActive() || !STATE.enabled ||
+          String(getAuthoritativeVideoId() || "") !== videoId || event.isComposing ||
+          event.target.closest?.('input, textarea, select, [contenteditable="true"], [role="textbox"]')) return;
+      const space = event.code === "Space" && !event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey;
+      const back = event.key.toLowerCase() === "z" && (event.ctrlKey || event.metaKey) && !event.altKey && !event.shiftKey;
+      if (!space && !back) return;
+      event.preventDefault(); event.stopImmediatePropagation();
+      if (!event.repeat) (space ? record : undo).click();
+    }, { capture: true, signal: authorShortcutController.signal });
     renderAuthorState();
   }
 
@@ -2614,6 +2682,7 @@ function buildExportLrc(lines, info, points, duration, applyOffsets) {
     if (media && STATE.hasSync && canTrackCurrentPlayback(media)) {
       updateHighlight(getAuthoritativePlaybackTime(media) || 0, true);
     }
+    updateOffsetPreview();
   }
 
   function setCurrentTrackTimingPointOffset(position, value, renderPoints = true) {
@@ -2728,6 +2797,7 @@ function buildExportLrc(lines, info, points, duration, applyOffsets) {
   }
 
   function updateTrackTimingControl(renderPoints = true) {
+    updateOffsetPreview();
     if (!trackTimingButtonEl) return;
     const videoId = getTrackOffsetVideoId(false);
     const points = getTrackTimingPoints(videoId);
@@ -2761,6 +2831,19 @@ function buildExportLrc(lines, info, points, duration, applyOffsets) {
   function closeTrackTimingPopover() {
     if (trackTimingPopoverEl) trackTimingPopoverEl.hidden = true;
     if (trackTimingButtonEl) trackTimingButtonEl.setAttribute('aria-expanded', 'false');
+  }
+
+  function updateOffsetPreview() {
+    if (!trackTimingPopoverEl || trackTimingPopoverEl.hidden) return;
+    let preview = trackTimingPopoverEl.querySelector('.ytmls-offset-preview');
+    if (!preview) {
+      preview = document.createElement('div');
+      preview.className = 'ytmls-offset-preview';
+      trackTimingPopoverEl.append(preview);
+    }
+    const line = STATE.lines[STATE.currentIndex];
+    const text = STATE.hasSync && line ? editableLineText(line) : '';
+    preview.textContent = text ? `調整中の歌詞：${text}` : '補正は歌詞へ即時反映されます。同期歌詞を表示して調整してください。';
   }
 
   function ensurePlayerBarTimingControl() {
@@ -6284,6 +6367,7 @@ function buildExportLrc(lines, info, points, duration, applyOffsets) {
   // ---------- メイン ----------
   function tick() {
     if (!runtimeAvailable()) return;
+    updateLyricsTheme();
     ensureLyricsMount();
     ensureVideoListener();
     ensurePlayerBarTimingControl();

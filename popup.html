@@ -46,6 +46,19 @@
   .data-button:hover { border-color:rgba(255,61,79,.65); }
   .footer-note { padding:0 3px; color:#858b94; font-size:10.5px; line-height:1.55; }
 </style>
+<style>
+  #settingsPreview { padding:12px 0; font-weight:700; line-height:1.6; overflow-wrap:anywhere; }
+  .preview-neighbor { opacity:.7; }
+  #settingsPreview[data-fade="true"] .preview-neighbor { opacity:.3; }
+  #settingsPreview[data-tracking="true"] .preview-current span { background:linear-gradient(90deg,#fff 50%,#717780 50%); background-size:200% 100%; background-clip:text; color:transparent; animation:preview-word 3s linear infinite; }
+  #settingsPreview[data-tracking="true"] .preview-current span + span { animation-delay:1.5s; }
+  #settingsPreview[data-style="silky"] .preview-current span { animation-timing-function:ease-in-out; }
+  @keyframes preview-word { from {background-position:100% 0} to {background-position:0 0} }
+  @media (prefers-reduced-motion:reduce) { #settingsPreview .preview-current span { animation:none !important; } }
+  #backupReminder { padding:10px; border:1px solid #c6a65f; border-radius:8px; color:#ffe6a1; font-size:12px; }
+  .data-button + .data-button { margin-top:8px; }
+</style>
+<link rel="stylesheet" href="settings-theme.css">
 </head>
 <body>
   <div class="header">
@@ -83,6 +96,11 @@
   </section>
 
   <section class="section">
+    <div class="section-title">表示プレビュー</div>
+    <div id="settingsPreview" aria-label="歌詞の表示サンプル"><div class="preview-neighbor">明日へ続く</div><div class="preview-current"><span>歌を</span> <span>届ける</span></div></div>
+    <div class="hint">サンプル表示です。実際の同期精度は歌詞データによって異なります。</div>
+  </section>
+  <section class="section">
     <div class="section-title">歌詞提供元</div>
     <div class="hint" style="margin-bottom:9px;">ローカル歌詞は常に最優先です。その下の5つの取得元は、有効・無効と優先順位を変更できます。</div>
     <div id="providerList" class="provider-list"></div>
@@ -93,10 +111,13 @@
     <div class="section-title">データ保護</div>
     <div class="hint" style="margin-bottom:9px;">曲ごとの補正値、固定した歌詞、追加・作成したローカル歌詞、書き換えた歌詞、表示設定をファイルに保存して復元できます。</div>
     <p id="savedDataSummary">保存データを確認中…</p>
+    <p id="backupReminder" role="status" hidden></p>
+    <a class="data-button" href="backup.html#dataManager" target="_blank" rel="noopener">お気に入り・編集履歴を開く</a>
     <a class="data-button" href="backup.html" target="_blank" rel="noopener">バックアップ・復元・管理を開く</a>
   </section>
 
   <div class="footer-note">自動表示ONでは、「次のコンテンツ」表示中の最後のクリック・キー操作・スクロールから2秒間何もしなければ歌詞へ移動します。手動スクロール後は3.5秒で現在位置へ戻ります。追跡停止や曲ID不一致を検出した場合は自動復旧します。</div>
+  <script src="backup-reminder.js"></script>
   <script src="popup.js"></script>
 </body>
 </html>

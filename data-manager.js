@@ -19,10 +19,12 @@ async function refreshSavedTracks() {
     if (!map || typeof map !== "object" || Array.isArray(map)) return;
     for (const [id, entry] of Object.entries(map)) {
       if (!entry) continue;
-      const record = tracks.get(id) || { id, title: "", artist: "", types: [], bytes: 0 };
+      const record = tracks.get(id) || { id, title: "", artist: "", types: [], bytes: 0, updatedAt: 0, pinned: false };
       const metadata = entry.title ? entry : Object.values(entry.candidates || {}).find(value => value?.title) || entry;
       record.title ||= metadata.title || "";
       record.artist ||= metadata.artist || "";
+      record.updatedAt = Math.max(record.updatedAt, Number(entry.updatedAt || metadata.updatedAt || 0));
+      record.pinned ||= key === "ytmlsPinnedLyricsV200";
       record.types.push(TYPE_LABELS[index]);
       record.bytes += new Blob([JSON.stringify({ [id]: entry })]).size;
       tracks.set(id, record);
@@ -45,13 +47,16 @@ function updateSelectionCount() {
 }
 function renderSavedTracks() {
   const query = document.getElementById("trackFilter").value.trim().toLocaleLowerCase();
-  const visible = savedTracks.filter(track => `${track.title} ${track.artist} ${track.id}`.toLocaleLowerCase().includes(query));
+  const mode = document.getElementById("trackView").value;
+  const visible = savedTracks.filter(track => (mode !== 'pinned' || track.pinned) && `${track.title} ${track.artist} ${track.id}`.toLocaleLowerCase().includes(query));
+  if (mode !== 'name') visible.sort((a,b) => b.updatedAt - a.updatedAt);
   const fragment = document.createDocumentFragment();
   for (const track of visible.slice(0, displayedLimit)) {
-    const label = document.createElement("label");
+    const label = document.createElement("div");
     label.className = "saved-track";
     const checkbox = document.createElement("input");
     checkbox.type = "checkbox";
+    checkbox.setAttribute('aria-label', `${track.title || track.id}を削除対象に選択`);
     checkbox.checked = selectedTracks.has(track.id);
     checkbox.disabled = managerBusy;
     checkbox.addEventListener("change", () => {
@@ -63,7 +68,13 @@ function renderSavedTracks() {
     const details = document.createElement("small");
     details.textContent = `${track.id} / ${track.types.join("・")} / 約${formatBytes(track.bytes)}`;
     text.appendChild(details);
+    const open = document.createElement('a');
+    open.href = `https://music.youtube.com/watch?v=${encodeURIComponent(track.id)}`;
+    open.target = '_blank'; open.rel = 'noopener'; open.textContent = '曲を開く';
+    open.style.cssText = 'color:#a9d7ff;white-space:nowrap;margin-left:auto';
+    if (track.updatedAt) details.append(` / 更新 ${new Date(track.updatedAt).toLocaleDateString('ja-JP')}`);
     label.append(checkbox, text);
+    label.append(open);
     fragment.appendChild(label);
   }
   if (!visible.length) {
@@ -80,6 +91,7 @@ document.getElementById("trackFilter").addEventListener("input", () => {
   displayedLimit = 50;
   renderSavedTracks();
 });
+document.getElementById('trackView').addEventListener('change', () => { selectedTracks.clear(); displayedLimit = 50; renderSavedTracks(); });
 document.getElementById("loadMoreTracks").addEventListener("click", () => { displayedLimit += 50; renderSavedTracks(); });
 document.getElementById("refreshTracks").addEventListener("click", async () => {
   setBusy(true);

@@ -1,0 +1,18 @@
+/* Extension pages follow the OS; content panels follow the site's surface. */
+:root { --settings-focus:#a5d2ff; }
+:is(button,input,textarea,select,summary,a):focus-visible { outline:2px solid var(--settings-focus) !important; outline-offset:3px; }
+.switch input { display:block; position:absolute; width:1px; height:1px; opacity:0; }
+.switch input:focus-visible + .slider { outline:2px solid var(--settings-focus); outline-offset:3px; }
+@media(prefers-color-scheme:light) {
+  :root { color-scheme:light; --bg:#fff; --card:#f5f6f8; --card2:#e9ecf0; --text:#191c20; --sub:#505761; --border:#ccd0d6; --accent:#b91f37; --settings-focus:#005fcc; }
+  .section-title,.info,.footer-note { color:var(--sub); }
+  .provider-row[data-fixed="true"] :is(.provider-rank,.provider-name,.provider-fixed-badge) { color:#624300; }
+  #backupReminder { color:#624300; background:#fff0bf; }
+  #settingsPreview[data-tracking="true"] .preview-current span { background-image:linear-gradient(90deg,#191c20 50%,#727780 50%); }
+  button { color:var(--text); background:var(--card2); }
+  button.primary { color:#fff; background:var(--accent); }
+  #savedTracks a { color:#005fcc !important; }
+  #status { color:var(--text); }
+  #status.success { color:#15552d; } #status.error { color:#aa182d; }
+}
+@media(prefers-reduced-motion:reduce) { *,*::before,*::after { transition:none !important; animation:none !important; } }

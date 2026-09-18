@@ -191,3 +191,4 @@
       .filter((key) => STATE.providerEnabled[key] !== false)
       .join(">");
   }
+  let authorShortcutController = null;

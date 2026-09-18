@@ -149,6 +149,7 @@
     if (media && STATE.hasSync && canTrackCurrentPlayback(media)) {
       updateHighlight(getAuthoritativePlaybackTime(media) || 0, true);
     }
+    updateOffsetPreview();
   }
 
   function setCurrentTrackTimingPointOffset(position, value, renderPoints = true) {
@@ -263,6 +264,7 @@
   }
 
   function updateTrackTimingControl(renderPoints = true) {
+    updateOffsetPreview();
     if (!trackTimingButtonEl) return;
     const videoId = getTrackOffsetVideoId(false);
     const points = getTrackTimingPoints(videoId);
@@ -296,6 +298,19 @@
   function closeTrackTimingPopover() {
     if (trackTimingPopoverEl) trackTimingPopoverEl.hidden = true;
     if (trackTimingButtonEl) trackTimingButtonEl.setAttribute('aria-expanded', 'false');
+  }
+
+  function updateOffsetPreview() {
+    if (!trackTimingPopoverEl || trackTimingPopoverEl.hidden) return;
+    let preview = trackTimingPopoverEl.querySelector('.ytmls-offset-preview');
+    if (!preview) {
+      preview = document.createElement('div');
+      preview.className = 'ytmls-offset-preview';
+      trackTimingPopoverEl.append(preview);
+    }
+    const line = STATE.lines[STATE.currentIndex];
+    const text = STATE.hasSync && line ? editableLineText(line) : '';
+    preview.textContent = text ? `調整中の歌詞：${text}` : '補正は歌詞へ即時反映されます。同期歌詞を表示して調整してください。';
   }
 
   function ensurePlayerBarTimingControl() {

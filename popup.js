@@ -169,6 +169,7 @@ chrome.storage.sync.get(
     currentProviderOrder = normalizeOrder(data.providerOrder);
     currentProviderEnabled = normalizeEnabled(data.providerEnabled);
     renderProviderList();
+    renderSettingsPreview();
   }
 );
 
@@ -190,3 +191,15 @@ chrome.storage.local.get(userDataKeys, data => {
   });
 });
 document.getElementById("extensionVersion").textContent = `v${chrome.runtime.getManifest().version}`;
+
+function renderSettingsPreview() {
+  const preview = document.getElementById('settingsPreview');
+  if (!preview) return;
+  preview.style.fontSize = `${Number(fontSizeSelect.value) || 32}px`;
+  preview.dataset.fade = String(focusFadeToggle.checked);
+  preview.dataset.tracking = String(trackingToggle.checked);
+  preview.dataset.style = wordTrackingStyleSelect.value;
+}
+for (const control of [fontSizeSelect, focusFadeToggle, trackingToggle, wordTrackingStyleSelect]) {
+  control.addEventListener('change', renderSettingsPreview);
+}
