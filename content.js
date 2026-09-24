@@ -4675,6 +4675,17 @@ function readingSegmentProgressCss(start, end, length) {
     return null;
   }
 
+  // Start one validated search alongside exact-match attempts, not after all of them.
+  async function fetchFromLrclibQuick(info, duration, trackKey) {
+    if (trackKey !== STATE.lastTrackKey) return null;
+    const params = new URLSearchParams({track_name:info.title, artist_name:info.artist || ''});
+    const response = await fetchJson('https://lrclib.net/api/search?' + params, {timeoutMs:8000});
+    if (trackKey !== STATE.lastTrackKey || !response.ok || !Array.isArray(response.data)) return null;
+    const candidate = bestSearchResult(response.data.filter(item => item && item.syncedLyrics), info.title, info.artist, duration);
+    if (!candidate?.syncedLyrics) return null;
+    return {lines:parseLRC(candidate.syncedLyrics), syncLevel:'line', _source:'LRCLIB'};
+  }
+
 // Feature: language-filter.js
   // ---------- YouTube Music 標準歌詞 ----------
   function extractNativeLyrics() {
@@ -6258,6 +6269,8 @@ function readingSegmentProgressCss(start, end, length) {
       if (applyLyricsResult(best.result, info, key, myGeneration)) {
         foundAny = true;
         appliedCandidate = best.result;
+        // Preserve the usable result even if a slower provider is still searching.
+        if (cacheKey) rememberLyricsInCache(cacheKey, best.result);
       }
     };
 
@@ -6287,6 +6300,7 @@ function readingSegmentProgressCss(start, end, length) {
       { key: "betterLyrics", run: () => fetchFromBoiduProvider(info, duration, key, "qq") },
       { key: "betterLyrics", run: () => fetchFromBoiduProvider(info, duration, key, "kugou") },
       { key: "lrclib", run: () => fetchFromLrclib(info, duration, key) },
+      { key: "lrclib", run: () => fetchFromLrclibQuick(info, duration, key) },
       { key: "unison", run: () => fetchFromUnison(info, duration, key) },
       { key: "binilyrics", run: () => fetchFromBiniLyrics(info, duration, key) },
       { key: "karalyr", run: () => fetchFromKaralyr(info, duration, key) },

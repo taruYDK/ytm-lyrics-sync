@@ -663,3 +663,14 @@
     }
     return null;
   }
+
+  // Start one validated search alongside exact-match attempts, not after all of them.
+  async function fetchFromLrclibQuick(info, duration, trackKey) {
+    if (trackKey !== STATE.lastTrackKey) return null;
+    const params = new URLSearchParams({track_name:info.title, artist_name:info.artist || ''});
+    const response = await fetchJson('https://lrclib.net/api/search?' + params, {timeoutMs:8000});
+    if (trackKey !== STATE.lastTrackKey || !response.ok || !Array.isArray(response.data)) return null;
+    const candidate = bestSearchResult(response.data.filter(item => item && item.syncedLyrics), info.title, info.artist, duration);
+    if (!candidate?.syncedLyrics) return null;
+    return {lines:parseLRC(candidate.syncedLyrics), syncLevel:'line', _source:'LRCLIB'};
+  }

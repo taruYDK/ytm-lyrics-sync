@@ -222,6 +222,8 @@
       if (applyLyricsResult(best.result, info, key, myGeneration)) {
         foundAny = true;
         appliedCandidate = best.result;
+        // Preserve the usable result even if a slower provider is still searching.
+        if (cacheKey) rememberLyricsInCache(cacheKey, best.result);
       }
     };
 
@@ -251,6 +253,7 @@
       { key: "betterLyrics", run: () => fetchFromBoiduProvider(info, duration, key, "qq") },
       { key: "betterLyrics", run: () => fetchFromBoiduProvider(info, duration, key, "kugou") },
       { key: "lrclib", run: () => fetchFromLrclib(info, duration, key) },
+      { key: "lrclib", run: () => fetchFromLrclibQuick(info, duration, key) },
       { key: "unison", run: () => fetchFromUnison(info, duration, key) },
       { key: "binilyrics", run: () => fetchFromBiniLyrics(info, duration, key) },
       { key: "karalyr", run: () => fetchFromKaralyr(info, duration, key) },

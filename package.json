@@ -1,6 +1,6 @@
 {
   "name": "ytm-lyrics-sync",
-  "version": "2.6.0",
+  "version": "2.6.1",
   "private": true,
   "scripts": {
     "build": "node scripts/build.cjs",
@@ -12,4 +12,3 @@
     "node": ">=20"
   }
 }
-
