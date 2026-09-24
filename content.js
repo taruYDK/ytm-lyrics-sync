@@ -6846,7 +6846,10 @@ function readingSegmentProgressCss(start, end, length) {
     button.title = button.disabled ? '曲と歌詞の読み込みが完了すると編集できます' : '行ごとのふりがなを編集';
     button.addEventListener('click', () => { const more = lyricsToolsEl.querySelector('#ytmls-more'); if (more) more.open = false; openManualReadingEditor(); });
     const menu = lyricsToolsEl.querySelector('.ytmls-more-menu');
-    if (menu) menu.appendChild(button);
+    if (menu) {
+      const addLyrics = menu.querySelector('.ytmls-local-lyrics-button');
+      menu.insertBefore(button, addLyrics ? addLyrics.nextSibling : null);
+    }
   }
 
   async function openManualReadingEditor() {
