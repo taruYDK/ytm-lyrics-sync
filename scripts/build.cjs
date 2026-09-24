@@ -4,7 +4,7 @@ const vm = require('node:vm');
 const root = path.resolve(__dirname, '..');
 const read = file => fs.readFileSync(path.join(root, file), 'utf8').replaceAll('\r\n', '\n');
 const order = JSON.parse(read('src/content-order.json'));
-const core = ['timing.mjs', 'lrc.mjs'].map(file =>
+const core = ['timing.mjs', 'lrc.mjs', 'readings.mjs'].map(file =>
   '// Core: ' + file + '\n' + read('src/core/' + file).replace(/^export (?=function )/gm, '')
 ).join('\n');
 const parts = order.map(file => {
@@ -17,5 +17,5 @@ if (process.argv.includes('--check')) {
   if (read('content.js') !== output) { console.error('content.js is stale. Run npm run build.'); process.exitCode = 1; }
 } else {
   fs.writeFileSync(path.join(root, 'content.js'), output);
-  console.log('Built content.js from ' + order.length + ' feature sources and 2 core modules.');
+  console.log('Built content.js from ' + order.length + ' feature sources and 3 core modules.');
 }

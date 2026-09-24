@@ -1,7 +1,7 @@
   // ---------- 手動スクロール制御 ----------
   function pauseAutoScrollFromUser() {
     if (!STATE.trackingEnabled) return;
-    manualScrollUntil = performance.now() + 3500;
+    manualScrollUntil = performance.now() + STATE.manualScrollReturnMs;
     pendingReturnToCurrent = true;
   }
 
@@ -28,21 +28,46 @@
     if (!lineEl || !listEl || !trackingAllowsAutoScroll()) return;
     autoScrollUntil = performance.now() + (behavior === "smooth" ? 900 : 250);
 
+    // Follow slightly above center, with enough space after the last line.
+    // Pseudo-elements preserve the line indices in listEl.children.
+    const focusHeight = listEl.clientHeight * STATE.trackingPosition / 100;
+    listEl.style.setProperty("--ytmls-trailing-space", Math.max(0, listEl.clientHeight - focusHeight - 180) + "px");
     const listRect = listEl.getBoundingClientRect();
     const lineRect = lineEl.getBoundingClientRect();
     const currentTop = listEl.scrollTop;
     const lineTopInList = currentTop + (lineRect.top - listRect.top);
-    const lineBottomInList = lineTopInList + lineRect.height;
 
 
     // scrollIntoViewはYouTube Music本体までスクロールする場合があるため、歌詞リストだけ動かす。
-    const targetTop = Math.max(0, lineTopInList - (listEl.clientHeight - lineRect.height) / 2);
+    const targetTop = Math.max(0, lineTopInList + lineRect.height / 2 - focusHeight);
     listEl.scrollTo({ top: targetTop, behavior });
   }
 
+  let trackingLayoutFrame = 0;
+  let trackingResizeObserver = null;
+  let trackingBoundList = null;
+  function scheduleTrackingRealignment() {
+    if (trackingLayoutFrame) return;
+    trackingLayoutFrame = requestAnimationFrame(() => {
+      trackingLayoutFrame = 0;
+      if (!STATE.enabled || !STATE.hasSync || !STATE.trackingEnabled || STATE.contextInvalidated || !listEl || !listEl.clientHeight) return;
+      if (isManualScrollPaused()) { pendingReturnToCurrent = true; return; }
+      if (!canTrackCurrentPlayback(getVideoElement())) return;
+      const line = listEl.children[STATE.currentIndex];
+      if (line) scrollCurrentLineIntoView(line);
+    });
+  }
+
   function bindScrollInteraction() {
-    if (!listEl || scrollInteractionBound) return;
+    if (!listEl || trackingBoundList === listEl) return;
+    trackingBoundList = listEl;
     scrollInteractionBound = true;
+    if (trackingResizeObserver) trackingResizeObserver.disconnect();
+    if (typeof ResizeObserver !== "undefined") {
+      trackingResizeObserver = new ResizeObserver(scheduleTrackingRealignment);
+      trackingResizeObserver.observe(listEl);
+    }
+    window.addEventListener("resize", scheduleTrackingRealignment, { passive: true });
 
     // ホイール・タッチ・キー操作は確実にユーザー操作として扱う。
     listEl.addEventListener("wheel", pauseAutoScrollFromUser, { passive: true });
@@ -154,7 +179,7 @@
     STATE.lastTrackingPulseAt = performance.now();
 
     if (!STATE.trackingEnabled) {
-      clearTrackingVisuals();
+      if (STATE.currentIndex !== -1 || STATE.currentWordIndex !== -1) clearTrackingVisuals();
       return;
     }
 

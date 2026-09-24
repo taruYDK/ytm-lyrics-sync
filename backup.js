@@ -9,8 +9,12 @@ const MAX_BACKUP_BYTES = 64 * 1024 * 1024;
 const SYNC_KEYS = [
   "enabled",
   "fontSize",
+  "readingJapanese",
+  "readingEnglish",
   "focusFade",
   "trackingEnabled",
+  "trackingPosition",
+  "manualScrollReturnMs",
   "autoLyricsOnIdle",
   "wordTrackingStyle",
   "providerOrder",
@@ -22,7 +26,7 @@ const LOCAL_KEYS = [
   "ytmlsManualSearchOverridesV190",
   "ytmlsLyricsEditsV199",
   "ytmlsPinnedLyricsV200",
-  "ytmlsLocalLyricsV200",
+  "ytmlsLocalLyricsV200", "ytmlsManualReadingsV256",
 ];
 
 function storageGet(area, keys) {
@@ -74,6 +78,7 @@ exportButton.addEventListener("click", async () => {
   setBusy(true);
   showStatus("バックアップを作成しています…");
   try {
+    await mutateData({action:"migrateReadings"});
     const [syncData, localData] = await Promise.all([
       storageGet(chrome.storage.sync, SYNC_KEYS),
       storageGet(chrome.storage.local, LOCAL_KEYS),
@@ -130,6 +135,8 @@ importFile.addEventListener("change", async () => {
     }
     const syncData = selectKeys(backup.sync, SYNC_KEYS);
     const localData = selectKeys(backup.local, LOCAL_KEYS);
+    YTMLSBackupValidation.sync(syncData);
+    YTMLSBackupValidation.local(localData);
     if (!Object.keys(syncData).length && !Object.keys(localData).length) {
       throw new Error("復元できる設定が含まれていません");
     }

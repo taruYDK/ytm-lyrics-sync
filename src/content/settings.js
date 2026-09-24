@@ -1,10 +1,18 @@
   // ---------- 設定 ----------
+  function boundedTrackingSetting(value, fallback, min, max) {
+    const number = typeof value === "number" ? value : NaN;
+    return Number.isFinite(number) ? Math.max(min, Math.min(max, number)) : fallback;
+  }
   function loadSettings() {
     try {
       chrome.storage.sync.get(
         {
           enabled: true,
           fontSize: 32,
+          readingJapanese: true,
+          readingEnglish: true,
+          trackingPosition: 42,
+          manualScrollReturnMs: 3500,
           trackingEnabled: true,
           wordTrackingStyle: "smooth",
           focusFade: true,
@@ -14,6 +22,10 @@
           uiVersion: 0,
         },
         (data) => {
+          STATE.trackingPosition = boundedTrackingSetting(data.trackingPosition, 42, 25, 65);
+          STATE.manualScrollReturnMs = boundedTrackingSetting(data.manualScrollReturnMs, 3500, 1000, 10000);
+          STATE.readingJapanese = data.readingJapanese !== false;
+          STATE.readingEnglish = data.readingEnglish !== false;
           STATE.enabled = data.enabled !== false;
           STATE.trackingEnabled = data.trackingEnabled !== false;
           STATE.autoLyricsOnIdle = data.autoLyricsOnIdle !== false;
@@ -54,6 +66,13 @@
           ]) {
             if (changes[key]) STATE[field] = changes[key].newValue || {};
           }
+          if (changes[TRACK_TIMING_OFFSETS_STORAGE_KEY]) {
+            updateTrackTimingControl();
+            const media = getVideoElement();
+            if (STATE.enabled && STATE.hasSync && canTrackCurrentPlayback(media)) {
+              updateHighlight(getAuthoritativePlaybackTime(media) || 0, true);
+            }
+          }
           if (changes[PINNED_LYRICS_STORAGE_KEY]) {
             const value = changes[PINNED_LYRICS_STORAGE_KEY].newValue;
             STATE.pinnedLyrics = value && typeof value === "object" ? value : {};
@@ -69,6 +88,20 @@
           }
         }
 
+        if (areaName && areaName !== "sync") return;
+        if (changes.readingJapanese || changes.readingEnglish) {
+          if (changes.readingJapanese) STATE.readingJapanese = changes.readingJapanese.newValue !== false;
+          if (changes.readingEnglish) STATE.readingEnglish = changes.readingEnglish.newValue !== false;
+          void refreshLyricsReadings();
+        }
+        if (changes.trackingPosition) {
+          STATE.trackingPosition = boundedTrackingSetting(changes.trackingPosition.newValue, 42, 25, 65);
+          scheduleTrackingRealignment();
+        }
+        if (changes.manualScrollReturnMs) {
+          STATE.manualScrollReturnMs = boundedTrackingSetting(changes.manualScrollReturnMs.newValue, 3500, 1000, 10000);
+          if (isManualScrollPaused()) pauseAutoScrollFromUser();
+        }
         if (changes.enabled) {
           STATE.enabled = changes.enabled.newValue !== false;
           if (STATE.enabled) STATE.lastTrackKey = null;
@@ -79,6 +112,7 @@
         if (changes.fontSize) {
           STATE.fontSize = Number(changes.fontSize.newValue) || 32;
           applySettings();
+          scheduleTrackingRealignment();
         }
 
         if (changes.trackingEnabled) {

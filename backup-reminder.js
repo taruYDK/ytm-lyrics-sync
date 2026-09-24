@@ -1,5 +1,5 @@
 // A reminder, not an automatic download. Count distinct saved tracks, not slider events.
-const BACKUP_REMINDER_KEYS = ['ytmlsTrackTimingOffsetsV174','ytmlsManualSearchOverridesV190','ytmlsLyricsEditsV199','ytmlsPinnedLyricsV200','ytmlsLocalLyricsV200'];
+const BACKUP_REMINDER_KEYS = ['ytmlsTrackTimingOffsetsV174','ytmlsManualSearchOverridesV190','ytmlsLyricsEditsV199','ytmlsPinnedLyricsV200','ytmlsLocalLyricsV200', 'ytmlsManualReadingsV256'];
 function countUnbackedTracks(data, since) {
   const ids = new Set();
   for (const key of BACKUP_REMINDER_KEYS) for (const [id, entry] of Object.entries(data[key] || {})) {
@@ -20,3 +20,5 @@ function refreshBackupReminder() {
 }
 chrome.storage.onChanged.addListener((changes, area) => { if (area === 'local') refreshBackupReminder(); });
 refreshBackupReminder();
+
+chrome.runtime.sendMessage({type:'YTMLS_USER_DATA',action:'migrateReadings'}, () => { if (!chrome.runtime.lastError) refreshBackupReminder(); });

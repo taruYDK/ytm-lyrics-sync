@@ -60,8 +60,7 @@
   }
 
   // ---------- LRC ----------
-  function parseLRC(lrcText) {
-    const lines = [];
+  function lrcOffsetSeconds(lrcText) {
     let globalOffset = 0;
     const offsetMatch = (lrcText || "").match(/\[offset:([+-]?\d+(?:\.\d+)?)\]/i);
     if (offsetMatch) {
@@ -70,6 +69,12 @@
       globalOffset = Number.isFinite(raw) ? (Math.abs(raw) < 20 && String(offsetMatch[1]).includes(".") ? raw : raw / 1000) : 0;
     }
 
+    return globalOffset;
+  }
+
+  function parseLRC(lrcText, sortLines = true) {
+    const lines = [];
+    const globalOffset = lrcOffsetSeconds(lrcText);
     const timeTagRe = /\[(\d{1,3}):(\d{2}(?:\.\d{1,3})?)\]/g;
 
     (lrcText || "").split(/\r?\n/).forEach((rawLine) => {
@@ -94,7 +99,7 @@
       });
     });
 
-    lines.sort((a, b) => a.time - b.time);
+    if (sortLines) lines.sort((a, b) => a.time - b.time);
     for (let i = 0; i < lines.length; i++) {
       if (lines[i].end == null) lines[i].end = lines[i + 1]?.time ?? null;
     }
@@ -214,14 +219,19 @@
   function parseRichLrcWithWordRows(lrcText) {
     // Bini/YouLy+系で [mm:ss]行の次に <word:start:end|...> が来る形式を軽くサポート。
     const rows = (lrcText || "").split(/\r?\n/);
-    const base = parseLRC(lrcText);
+    const base = parseLRC(lrcText, false);
+    const globalOffset = lrcOffsetSeconds(lrcText);
     if (!base.length) return { lines: [], syncLevel: "none" };
 
     let baseCursor = 0;
     let pendingLineIndices = [];
+    let firstTagTime = 0;
+    let pendingTagTimes = [];
     for (const raw of rows) {
-      const tags = [...raw.matchAll(/\[(\d{1,2}):(\d{2}(?:\.\d{1,3})?)\]/g)];
+      const tags = [...raw.matchAll(/\[(\d{1,3}):(\d{2}(?:\.\d{1,3})?)\]/g)];
       if (tags.length) {
+        pendingTagTimes = tags.map(tag => Number(tag[1]) * 60 + Number(tag[2]));
+        firstTagTime = pendingTagTimes[0];
         pendingLineIndices = Array.from({ length: tags.length }, (_, index) => baseCursor + index);
         baseCursor += tags.length;
         continue;
@@ -232,7 +242,7 @@
       const words = [];
       for (const piece of pieces) {
         const m = piece.match(/^(.*?):([0-9.]+):([0-9.]+)$/);
-        if (!m) continue;
+        if (!m || !Number.isFinite(Number(m[2])) || !Number.isFinite(Number(m[3])) || Number(m[3]) < Number(m[2])) continue;
         words.push({
           text: m[1],
           time: Number(m[2]),
@@ -241,23 +251,23 @@
         });
       }
       if (words.length) {
-        const firstLine = base[pendingLineIndices[0]];
         for (const lineIndex of pendingLineIndices) {
           const line = base[lineIndex];
           if (!line) continue;
-          const shift = firstLine && Number.isFinite(firstLine.time) && Number.isFinite(line.time)
-            ? line.time - firstLine.time
-            : 0;
+          // Associate words before sorting; repeated timestamps may surround other rows.
+          const shift = pendingTagTimes[lineIndex - pendingLineIndices[0]] - firstTagTime + globalOffset;
           line.words = words.map((word) => ({
             ...word,
-            time: word.time + shift,
-            end: word.end + shift,
+            time: Math.max(0, word.time + shift),
+            end: Math.max(0, word.end + shift),
           }));
         }
       }
       pendingLineIndices = [];
     }
 
+    base.sort((a, b) => a.time - b.time);
+    base.forEach((line, index) => { line.end = base[index + 1]?.time ?? null; });
     const hasWords = base.some((line) => line.words && line.words.length);
     return { lines: base, syncLevel: hasWords ? "word" : "line" };
   }

@@ -38,7 +38,6 @@ function formatLrcTimestamp(seconds) {
 }
 
 function exportedPlaybackTime(lyricTime, points, duration) {
-  if (lyricTime <= 0) return 0;
   if (!(duration > 0)) return Math.max(0, lyricTime - (points[0]?.offsetMs || 0) / 1000);
   const nodes = points.map(point => ({ t: point.position * duration, o: point.offsetMs / 1000 }));
   if (!nodes.length) return lyricTime;
@@ -58,7 +57,9 @@ function exportedPlaybackTime(lyricTime, points, duration) {
 
 function buildExportLrc(lines, info, points, duration, applyOffsets) {
   const clean = text => String(text || "").replace(/[\r\n\[\]]/g, " ").trim();
-  const rows = lines.filter(line => Number.isFinite(Number(line.time)))
+  const rows = lines.filter(line => line && line.time != null &&
+    (typeof line.time === "number" || (typeof line.time === "string" && line.time.trim() !== "")) &&
+    Number.isFinite(Number(line.time)))
     .map(line => ({ time: applyOffsets ? exportedPlaybackTime(Number(line.time), points, duration) : Math.max(0, Number(line.time)),
       text: editableLineText(line).replace(/[\r\n]+/g, " ").trim() }))
     .filter(line => line.text).sort((a, b) => a.time - b.time);
@@ -67,10 +68,157 @@ function buildExportLrc(lines, info, points, duration, applyOffsets) {
     ...rows.map(line => formatLrcTimestamp(line.time) + line.text)].join("\r\n") + "\r\n";
 }
 
+// Core: readings.mjs
+// English readings are Japanese approximations of dictionary phonemes, not IPA.
+function englishPhonesToKana(phonemes) {
+  const phones = String(phonemes || '').trim().split(/\s+/).map(p => p.replace(/[012]$/, ''));
+  const vowels = {AA:['a',''],AE:['a',''],AH:['a',''],AO:['o',''],AW:['a','ウ'],AY:['a','イ'],EH:['e',''],ER:['a','ー'],EY:['e','イ'],IH:['i',''],IY:['i','ー'],OW:['o','ウ'],OY:['o','イ'],UH:['u',''],UW:['u','ー']};
+  const rows = {
+    '':['ア','イ','ウ','エ','オ'],B:['バ','ビ','ブ','ベ','ボ'],CH:['チャ','チ','チュ','チェ','チョ'],D:['ダ','ディ','ドゥ','デ','ド'],
+    DH:['ザ','ジ','ズ','ゼ','ゾ'],F:['ファ','フィ','フ','フェ','フォ'],G:['ガ','ギ','グ','ゲ','ゴ'],HH:['ハ','ヒ','フ','ヘ','ホ'],
+    JH:['ジャ','ジ','ジュ','ジェ','ジョ'],K:['カ','キ','ク','ケ','コ'],L:['ラ','リ','ル','レ','ロ'],M:['マ','ミ','ム','メ','モ'],N:['ナ','ニ','ヌ','ネ','ノ'],
+    P:['パ','ピ','プ','ペ','ポ'],R:['ラ','リ','ル','レ','ロ'],S:['サ','スィ','ス','セ','ソ'],SH:['シャ','シ','シュ','シェ','ショ'],
+    T:['タ','ティ','トゥ','テ','ト'],TH:['サ','シ','ス','セ','ソ'],V:['ヴァ','ヴィ','ヴ','ヴェ','ヴォ'],W:['ワ','ウィ','ウ','ウェ','ウォ'],
+    Y:['ヤ','イ','ユ','イェ','ヨ'],Z:['ザ','ズィ','ズ','ゼ','ゾ'],ZH:['ジャ','ジ','ジュ','ジェ','ジョ']
+  };
+  const codas = {B:'ブ',CH:'チ',D:'ド',DH:'ズ',F:'フ',G:'グ',HH:'',JH:'ジ',K:'ク',L:'ル',M:'ム',N:'ン',NG:'ング',P:'プ',R:'ー',S:'ス',SH:'シュ',T:'ト',TH:'ス',V:'ヴ',W:'ウ',Y:'イ',Z:'ズ',ZH:'ジュ'};
+  let out='';
+  for(let i=0;i<phones.length;i++) {
+    const phone=phones[i];
+    if (phone==='N' && phones[i+1]==='G' && !vowels[phones[i+2]]) {out+='ング';i++;continue;}
+    if (rows[phone] && phones[i+1]==='Y' && vowels[phones[i+2]] && ['B','P','M','K','G','N','HH','R','L'].includes(phone)) {
+      const [v,tail]=vowels[phones[i+2]];const small={a:'ャ',i:'ィ',u:'ュ',e:'ェ',o:'ョ'};
+      out+=rows[phone][1]+small[v]+tail;i+=2;continue;
+    }
+    if (rows[phone] && vowels[phones[i+1]]) {
+      const [v,tail]=vowels[phones[++i]];out+=rows[phone]['aiueo'.indexOf(v)]+tail;continue;
+    }
+    if (vowels[phone]) {const [v,tail]=vowels[phone];out+=rows['']['aiueo'.indexOf(v)]+tail;}
+    else if (Object.prototype.hasOwnProperty.call(codas,phone)) out+=codas[phone];
+    else return ''; // Never guess unknown phone codes.
+  }
+  return out.replace(/ーー+/g,'ー');
+}
+
+function toReadingHiragana(text) {
+  return String(text || '').replace(/[ァ-ヶ]/g, char=>String.fromCharCode(char.charCodeAt(0)-0x60));
+}
+
+function japaneseReadingRanges(text, tokens) {
+  const ranges=[];let cursor=0;
+  for(const token of tokens) {
+    const surface=String(token.surface_form || '');
+    if(!surface)continue;
+    const start=text.indexOf(surface,cursor);if(start<0)continue;cursor=start+surface.length;
+    if(!/[\p{Script=Han}々〆ヶ]/u.test(surface) || !token.reading || token.reading==='*')continue;
+    let base=surface, reading=toReadingHiragana(token.reading), offset=start;
+    // Keep matching kana outside ruby, e.g. 歩く -> 歩(ある)く.
+    while(base && reading && /^[ぁ-ゖァ-ヶー]/u.test(base) && toReadingHiragana(base[0])===reading[0]) {base=base.slice(1);reading=reading.slice(1);offset++;}
+    while(base && reading && /[ぁ-ゖァ-ヶー]$/u.test(base) && toReadingHiragana(base.at(-1))===reading.at(-1)) {base=base.slice(0,-1);reading=reading.slice(0,-1);}
+    if(base && reading)ranges.push({start:offset,end:offset+base.length,reading});
+  }
+  return ranges;
+}
+
+function englishReadingRanges(text, dictionary) {
+  const ranges=[];
+  for(const match of text.matchAll(/[A-Za-z]+(?:['’][A-Za-z]+)*/g)) {
+    const key=match[0].toLowerCase().replaceAll('’', "'");
+    const reading=Object.prototype.hasOwnProperty.call(dictionary,key) ? dictionary[key] : '';
+    if(typeof reading==='string' && reading)ranges.push({start:match.index,end:match.index+match[0].length,reading});
+  }
+  return ranges;
+}
+
+// Project a reading onto a timed fragment without altering the fragment or timing.
+function readingPartsForFragment(text, offset, ranges) {
+  const parts=[];let cursor=0;
+  for(const range of ranges) {
+    const start=Math.max(offset,range.start),end=Math.min(offset+text.length,range.end);
+    if(start>=end)continue;
+    const localStart=start-offset,localEnd=end-offset;
+    if(localStart>cursor)parts.push({text:text.slice(cursor,localStart),reading:''});
+    const mora=range.reading.match(/.[ぁぃぅぇぉゃゅょァィゥェォャュョ]?/gu)||[];
+    const from=Math.floor((start-range.start)*mora.length/(range.end-range.start));
+    const to=Math.floor((end-range.start)*mora.length/(range.end-range.start));
+    parts.push({text:text.slice(localStart,localEnd),reading:mora.slice(from,to).join('')});cursor=localEnd;
+  }
+  if(cursor<text.length)parts.push({text:text.slice(cursor),reading:''});
+  return parts;
+}
+function mergeManualReadings(text, automatic, entries, ja = true, en = true, lineIndex = undefined, occurrence = undefined) {
+  const manual = (Array.isArray(entries) ? entries : []).filter(r => r && r.text === text && (r.occurrence !== undefined ? r.occurrence === occurrence : r.lineIndex === undefined || r.lineIndex === lineIndex) &&
+    Number.isInteger(r.start) && Number.isInteger(r.end) && r.start >= 0 && r.end > r.start && r.end <= text.length &&
+    typeof r.reading === 'string' && r.reading.length <= 1000 &&
+    ((r.start === 0 && r.end === text.length && r.lineIndex !== undefined) ? (ja || en) : /[\p{Script=Han}々〆ヶ]/u.test(text.slice(r.start, r.end)) ? ja : en));
+  const selected = [];
+  for (const range of manual) {
+    for (let i = selected.length - 1; i >= 0; i--) {
+      if (selected[i].start < range.end && selected[i].end > range.start) selected.splice(i, 1);
+    }
+    selected.push(range);
+  }
+  return [...automatic.filter(a => !selected.some(m => m.start < a.end && m.end > a.start)), ...selected]
+    .sort((a, b) => a.start - b.start);
+}
+
+// Keep line editing simple, but align its ruby to the written words at display time.
+function layoutManualLineReadings(text, ranges, ja = true, en = true, automatic = []) {
+  return ranges.flatMap(range => {
+    if (range.lineIndex === undefined || range.start !== 0 || range.end !== text.length || !range.reading) return [range];
+    const tokens = Array.from(text.matchAll(/[\p{Script=Han}々〆ヶ]+|[A-Za-z]+(?:['’][A-Za-z]+)*|[^\p{Script=Han}々〆ヶA-Za-z]+/gu), m => ({text:m[0],start:m.index,end:m.index+m[0].length,variable:/[\p{Script=Han}々〆ヶA-Za-z]/u.test(m[0])}));
+    const normalized = toReadingHiragana(range.reading);
+    const failed = new Set(); let budget = 10000;
+    function align(index, offset) {
+      if (--budget < 0) return null;
+      if (index === tokens.length) return offset === normalized.length ? [] : null;
+      const key = index + ':' + offset; if (failed.has(key)) return null;
+      const token = tokens[index];
+      if (!token.variable) {
+        const anchor = toReadingHiragana(token.text);
+        if (normalized.startsWith(anchor, offset)) {
+          const rest = align(index + 1, offset + anchor.length);
+          if (rest) return rest;
+        }
+      } else {
+        // Literal unknown English and dictionary matches provide boundaries before adjacent kanji.
+        const known = automatic.find(r => r.start === token.start && r.end === token.end)?.reading;
+        const hints = [token.text, known].filter(Boolean);
+        for (const hint of hints) {
+          if (normalized.startsWith(toReadingHiragana(hint), offset)) {
+            const end = offset + hint.length, rest = align(index + 1, end);
+            if (rest) return [{start:token.start,end:token.end,reading:range.reading.slice(offset,end)},...rest];
+          }
+        }
+        const last = index === tokens.length - 1;
+        for (let end = last ? normalized.length : offset + 1; end <= normalized.length; end++) {
+          const rest = align(index + 1, end);
+          if (rest) return [{start:token.start,end:token.end,reading:range.reading.slice(offset,end)},...rest];
+        }
+      }
+      failed.add(key); return null;
+    }
+    const aligned = tokens.length < 150 ? align(0, 0) : null;
+    if (aligned) return aligned;
+    // Unmatched kana/spacing must not produce one centered ruby across the line.
+    // Preserve the complete entered reading, distributing by original character length.
+    const mora = range.reading.match(/.[ぁぃぅぇぉゃゅょァィゥェォャュョ]?/gu) || [];
+    return Array.from(text).map((char, i, chars) => ({
+      start: chars.slice(0,i).join('').length, end: chars.slice(0,i+1).join('').length,
+      reading: mora.slice(Math.floor(i*mora.length/chars.length),Math.floor((i+1)*mora.length/chars.length)).join(''),
+    }));
+  }).map(r => ({...r, reading: r.reading === text.slice(r.start,r.end) ? '' : r.reading}))
+    .filter(r => /[\p{Script=Han}々〆ヶぁ-ゖァ-ヶ]/u.test(text.slice(r.start,r.end)) ? ja : en);
+}
+
 // Feature: state.js
   const STATE = {
     enabled: true,
     fontSize: 32,
+    readingJapanese: true,
+    readingEnglish: true,
+    trackingPosition: 42,
+    manualScrollReturnMs: 3500,
     trackingEnabled: true, // 歌詞ハイライト + 中央自動スクロール
     wordTrackingStyle: "smooth", // 単語ハイライト: smooth | silky
     focusFade: true,
@@ -446,12 +594,20 @@ function buildExportLrc(lines, info, points, duration, applyOffsets) {
 
 // Feature: settings.js
   // ---------- 設定 ----------
+  function boundedTrackingSetting(value, fallback, min, max) {
+    const number = typeof value === "number" ? value : NaN;
+    return Number.isFinite(number) ? Math.max(min, Math.min(max, number)) : fallback;
+  }
   function loadSettings() {
     try {
       chrome.storage.sync.get(
         {
           enabled: true,
           fontSize: 32,
+          readingJapanese: true,
+          readingEnglish: true,
+          trackingPosition: 42,
+          manualScrollReturnMs: 3500,
           trackingEnabled: true,
           wordTrackingStyle: "smooth",
           focusFade: true,
@@ -461,6 +617,10 @@ function buildExportLrc(lines, info, points, duration, applyOffsets) {
           uiVersion: 0,
         },
         (data) => {
+          STATE.trackingPosition = boundedTrackingSetting(data.trackingPosition, 42, 25, 65);
+          STATE.manualScrollReturnMs = boundedTrackingSetting(data.manualScrollReturnMs, 3500, 1000, 10000);
+          STATE.readingJapanese = data.readingJapanese !== false;
+          STATE.readingEnglish = data.readingEnglish !== false;
           STATE.enabled = data.enabled !== false;
           STATE.trackingEnabled = data.trackingEnabled !== false;
           STATE.autoLyricsOnIdle = data.autoLyricsOnIdle !== false;
@@ -501,6 +661,13 @@ function buildExportLrc(lines, info, points, duration, applyOffsets) {
           ]) {
             if (changes[key]) STATE[field] = changes[key].newValue || {};
           }
+          if (changes[TRACK_TIMING_OFFSETS_STORAGE_KEY]) {
+            updateTrackTimingControl();
+            const media = getVideoElement();
+            if (STATE.enabled && STATE.hasSync && canTrackCurrentPlayback(media)) {
+              updateHighlight(getAuthoritativePlaybackTime(media) || 0, true);
+            }
+          }
           if (changes[PINNED_LYRICS_STORAGE_KEY]) {
             const value = changes[PINNED_LYRICS_STORAGE_KEY].newValue;
             STATE.pinnedLyrics = value && typeof value === "object" ? value : {};
@@ -516,6 +683,20 @@ function buildExportLrc(lines, info, points, duration, applyOffsets) {
           }
         }
 
+        if (areaName && areaName !== "sync") return;
+        if (changes.readingJapanese || changes.readingEnglish) {
+          if (changes.readingJapanese) STATE.readingJapanese = changes.readingJapanese.newValue !== false;
+          if (changes.readingEnglish) STATE.readingEnglish = changes.readingEnglish.newValue !== false;
+          void refreshLyricsReadings();
+        }
+        if (changes.trackingPosition) {
+          STATE.trackingPosition = boundedTrackingSetting(changes.trackingPosition.newValue, 42, 25, 65);
+          scheduleTrackingRealignment();
+        }
+        if (changes.manualScrollReturnMs) {
+          STATE.manualScrollReturnMs = boundedTrackingSetting(changes.manualScrollReturnMs.newValue, 3500, 1000, 10000);
+          if (isManualScrollPaused()) pauseAutoScrollFromUser();
+        }
         if (changes.enabled) {
           STATE.enabled = changes.enabled.newValue !== false;
           if (STATE.enabled) STATE.lastTrackKey = null;
@@ -526,6 +707,7 @@ function buildExportLrc(lines, info, points, duration, applyOffsets) {
         if (changes.fontSize) {
           STATE.fontSize = Number(changes.fontSize.newValue) || 32;
           applySettings();
+          scheduleTrackingRealignment();
         }
 
         if (changes.trackingEnabled) {
@@ -1249,6 +1431,7 @@ function buildExportLrc(lines, info, points, duration, applyOffsets) {
   }
 
   function updateLyricsToolsUi() {
+    if (typeof ensureReadingEditButton === 'function') ensureReadingEditButton();
     if (exportLyricsButtonEl) exportLyricsButtonEl.disabled = !STATE.hasSync || !STATE.lines.length || STATE.contextInvalidated;
     if (candidateButtonEl) {
       const count = STATE.lyricCandidates.length;
@@ -1933,6 +2116,7 @@ function buildExportLrc(lines, info, points, duration, applyOffsets) {
       if (!record.isConnected || lyricsToolsPaneEl.hidden || !isLyricsPanelActive() || !STATE.enabled ||
           String(getAuthoritativeVideoId() || "") !== videoId || event.isComposing ||
           event.target.closest?.('input, textarea, select, [contenteditable="true"], [role="textbox"]')) return;
+      if (authorShortcutTargetsControl(event.target, record)) return;
       const space = event.code === "Space" && !event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey;
       const back = event.key.toLowerCase() === "z" && (event.ctrlKey || event.metaKey) && !event.altKey && !event.shiftKey;
       if (!space && !back) return;
@@ -1940,6 +2124,11 @@ function buildExportLrc(lines, info, points, duration, applyOffsets) {
       if (!event.repeat) (space ? record : undo).click();
     }, { capture: true, signal: authorShortcutController.signal });
     renderAuthorState();
+  }
+
+  function authorShortcutTargetsControl(target, record) {
+    const control = target?.closest?.('button, a, [role="button"]');
+    return Boolean(control && control !== record && lyricsToolsPaneEl?.contains(control));
   }
 
   function renderLocalLyricsPane(options = {}) {
@@ -2535,6 +2724,9 @@ function buildExportLrc(lines, info, points, duration, applyOffsets) {
   const TRACK_TIMING_OFFSETS_STORAGE_KEY = "ytmlsTrackTimingOffsetsV174";
   const TRACK_TIMING_OFFSET_LIMIT_MS = 20000;
 
+  let trackTimingPreview = null;
+  let trackTimingRenderedVideoId = "";
+
   function clampTrackOffsetMs(value) {
     return Math.max(-TRACK_TIMING_OFFSET_LIMIT_MS, Math.min(TRACK_TIMING_OFFSET_LIMIT_MS, Math.round((Number(value) || 0) / 100) * 100));
   }
@@ -2559,6 +2751,7 @@ function buildExportLrc(lines, info, points, duration, applyOffsets) {
   function getTrackTimingPoints(videoId = getTrackOffsetVideoId(true)) {
     const id = String(videoId || '');
     if (!id) return [{ position: 0, offsetMs: 0 }];
+    if (trackTimingPreview?.videoId === id) return trackTimingPreview.points.map(point => ({ ...point }));
     const entry = STATE.trackTimingOffsets && STATE.trackTimingOffsets[id];
     if (entry && typeof entry === 'object') {
       if (Array.isArray(entry.points) && entry.points.length) {
@@ -2649,7 +2842,7 @@ function buildExportLrc(lines, info, points, duration, applyOffsets) {
       videoId, entry: STATE.trackTimingOffsets[videoId] || null }).catch(reportSaveError);
   }
 
-  function saveCurrentTrackTimingPoints(points, renderPoints = true) {
+  function saveCurrentTrackTimingPoints(points, renderPoints = true, persist = true) {
     const videoId = getTrackOffsetVideoId(false);
     if (!videoId) return;
     const normalized = Array.from(points || [])
@@ -2659,6 +2852,10 @@ function buildExportLrc(lines, info, points, duration, applyOffsets) {
       }))
       .sort((a, b) => a.position - b.position);
     if (!normalized.length || normalized[0].position > 0) normalized.unshift({ position: 0, offsetMs: 0 });
+    if (!persist) {
+      trackTimingPreview = { videoId, points: normalized };
+    } else {
+    trackTimingPreview = null;
     if (!STATE.trackTimingOffsets || typeof STATE.trackTimingOffsets !== 'object') STATE.trackTimingOffsets = {};
     const isDefault = normalized.length === 1 && normalized[0].offsetMs === 0;
     if (isDefault) {
@@ -2674,7 +2871,8 @@ function buildExportLrc(lines, info, points, duration, applyOffsets) {
         updatedAt: Date.now(),
       };
     }
-    saveTrackTimingOffsets();
+    saveTrackTimingOffsets(videoId);
+    }
     STATE.currentIndex = -1;
     STATE.currentWordIndex = -1;
     updateTrackTimingControl(renderPoints);
@@ -2685,7 +2883,7 @@ function buildExportLrc(lines, info, points, duration, applyOffsets) {
     updateOffsetPreview();
   }
 
-  function setCurrentTrackTimingPointOffset(position, value, renderPoints = true) {
+  function setCurrentTrackTimingPointOffset(position, value, renderPoints = true, persist = true) {
     const points = getTrackTimingPoints(getTrackOffsetVideoId(false));
     const target = Math.max(0, Math.min(1, Number(position) || 0));
     let closestIndex = 0;
@@ -2693,7 +2891,7 @@ function buildExportLrc(lines, info, points, duration, applyOffsets) {
       if (Math.abs(points[index].position - target) < Math.abs(points[closestIndex].position - target)) closestIndex = index;
     }
     points[closestIndex] = { ...points[closestIndex], offsetMs: clampTrackOffsetMs(value) };
-    saveCurrentTrackTimingPoints(points, renderPoints);
+    saveCurrentTrackTimingPoints(points, renderPoints, persist);
   }
 
   function addCurrentTrackTimingPoint() {
@@ -2718,6 +2916,19 @@ function buildExportLrc(lines, info, points, duration, applyOffsets) {
     saveCurrentTrackTimingPoints(points);
   }
 
+  async function nudgeCurrentTrackTiming(deltaMs) {
+    if (!STATE.enabled || !STATE.trackTimingOffsetsLoaded) return;
+    const id = getAuthoritativeVideoId();
+    if (!id || id !== STATE.displayedVideoId || !STATE.hasSync) return;
+    try {
+      // Increment the latest persisted value in the shared service-worker queue.
+      // onChanged applies the committed data, including updates from other tabs.
+      await sendUserDataMutation({ action: "nudgeTiming", videoId: id, deltaMs,
+        title: STATE.stablePlayerTitle || STATE.lastDisplayedTitle || "",
+        artist: STATE.stablePlayerArtist || STATE.lastDisplayedArtist || "" });
+    } catch (error) { reportSaveError(error); }
+  }
+
   function resetCurrentTrackTimingPoints() {
     saveCurrentTrackTimingPoints([{ position: 0, offsetMs: 0 }]);
   }
@@ -2730,8 +2941,32 @@ function buildExportLrc(lines, info, points, duration, applyOffsets) {
     return `${minutes}:${String(remainder).padStart(2, '0')} から`;
   }
 
+  function bindTrackTimingRange(range, group, point, videoId) {
+    range.addEventListener('input', () => {
+      if (getTrackOffsetVideoId(false) !== videoId) return;
+      group.querySelector('.ytmls-track-offset-value').textContent = formatOffsetMs(range.value);
+      setCurrentTrackTimingPointOffset(point.position, range.value, false, false);
+    });
+    range.addEventListener('change', () => {
+      if (getTrackOffsetVideoId(false) !== videoId) return;
+      setCurrentTrackTimingPointOffset(point.position, range.value, false, true);
+    });
+    range.addEventListener('blur', () => {
+      // Also commits an input preview if a browser omits change on focus loss.
+      if (trackTimingPreview?.videoId === videoId && getTrackOffsetVideoId(false) === videoId) {
+        saveCurrentTrackTimingPoints(trackTimingPreview.points, false);
+      }
+      requestAnimationFrame(renderTrackTimingPoints);
+    });
+  }
+
   function renderTrackTimingPoints() {
     if (!trackTimingPointsEl) return;
+    const videoId = getTrackOffsetVideoId(false);
+    if (trackTimingPreview && trackTimingPreview.videoId !== videoId) trackTimingPreview = null;
+    if (trackTimingRenderedVideoId === videoId && trackTimingPointsEl.contains(document.activeElement) &&
+        document.activeElement?.classList.contains('ytmls-track-offset-range')) return;
+    trackTimingRenderedVideoId = videoId;
     const points = getTrackTimingPoints(getTrackOffsetVideoId(false));
     const duration = getAuthoritativeDuration(getVideoElement());
     const signature = `${getTrackOffsetVideoId(false)}|${Math.round(Number(duration) || 0)}|${points.map((point) => `${point.position.toFixed(6)}:${point.offsetMs}`).join(',')}`;
@@ -2752,6 +2987,7 @@ function buildExportLrc(lines, info, points, duration, applyOffsets) {
           </span>
         </div>
         <input class="ytmls-track-offset-range" type="range" min="-${TRACK_TIMING_OFFSET_LIMIT_MS}" max="${TRACK_TIMING_OFFSET_LIMIT_MS}" step="100" value="0" aria-label="歌詞タイミング補正" />
+        <div class="ytmls-track-offset-ends"><span>遅く（−）</span><span>早く（＋）</span></div>
         <div class="ytmls-track-offset-quick">
           <button type="button" data-delta="-500">−0.5</button><button type="button" data-delta="-100">−0.1</button>
           <button type="button" data-reset-point="1">0</button>
@@ -2762,10 +2998,7 @@ function buildExportLrc(lines, info, points, duration, applyOffsets) {
       const range = group.querySelector('.ytmls-track-offset-range');
       range.value = String(point.offsetMs);
       range.setAttribute('aria-label', `${formatTrackPosition(point.position, duration)}の歌詞タイミング補正`);
-      range.addEventListener('input', () => {
-        group.querySelector('.ytmls-track-offset-value').textContent = formatOffsetMs(range.value);
-        setCurrentTrackTimingPointOffset(point.position, range.value, false);
-      });
+      bindTrackTimingRange(range, group, point, videoId);
       for (const button of group.querySelectorAll('[data-delta]')) {
         button.addEventListener('click', () => {
           const latest = getTrackTimingPoints(getTrackOffsetVideoId(false));
@@ -2803,6 +3036,15 @@ function buildExportLrc(lines, info, points, duration, applyOffsets) {
     const points = getTrackTimingPoints(videoId);
     const enabled = Boolean(STATE.enabled && videoId && STATE.trackTimingOffsetsLoaded);
     trackTimingButtonEl.disabled = !enabled;
+    if (trackTimingPopoverEl) {
+      trackTimingPopoverEl.querySelectorAll('[data-nudge]').forEach(button => {
+        const delta = Number(button.dataset.nudge);
+        const atLimit = points.some(point => delta > 0 ? point.offsetMs >= TRACK_TIMING_OFFSET_LIMIT_MS : point.offsetMs <= -TRACK_TIMING_OFFSET_LIMIT_MS);
+        button.disabled = !enabled || !STATE.hasSync || videoId !== STATE.displayedVideoId || atLimit;
+        button.textContent = delta > 0 ? (atLimit ? '早く：上限です' : '歌詞を0.1秒早く') : (atLimit ? '遅く：上限です' : '歌詞を0.1秒遅く');
+        button.title = atLimit ? '補正の上限（±20秒）に達しています。反対方向には調整できます。' : 'この曲全体の歌詞タイミングを調整して保存';
+      });
+    }
     trackTimingButtonEl.hidden = !STATE.enabled;
     trackTimingButtonEl.setAttribute('aria-disabled', enabled ? 'false' : 'true');
     const currentMs = effectiveTimingOffsetMs();
@@ -2829,6 +3071,7 @@ function buildExportLrc(lines, info, points, duration, applyOffsets) {
   }
 
   function closeTrackTimingPopover() {
+    if (trackTimingPreview?.videoId === getTrackOffsetVideoId(false)) saveCurrentTrackTimingPoints(trackTimingPreview.points, false);
     if (trackTimingPopoverEl) trackTimingPopoverEl.hidden = true;
     if (trackTimingButtonEl) trackTimingButtonEl.setAttribute('aria-expanded', 'false');
   }
@@ -2902,7 +3145,10 @@ function buildExportLrc(lines, info, points, duration, applyOffsets) {
         trackTimingPopoverEl.hidden = !willOpen;
         button.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
         updateTrackTimingControl();
-        if (willOpen) requestAnimationFrame(positionTrackTimingPopover);
+        if (willOpen) requestAnimationFrame(() => {
+          positionTrackTimingPopover();
+          trackTimingPopoverEl.querySelector(".ytmls-track-offset-close")?.focus();
+        });
       });
     } else if (trackTimingButtonEl.parentElement !== host) {
       host.appendChild(trackTimingButtonEl);
@@ -2929,6 +3175,11 @@ function buildExportLrc(lines, info, points, duration, applyOffsets) {
         </div>
         <button type="button" class="ytmls-track-offset-close" aria-label="閉じる">×</button>
       </div>
+      <div class="ytmls-track-offset-quick ytmls-track-nudge">
+        <button type="button" data-nudge="100">歌詞を0.1秒早く</button>
+        <button type="button" data-nudge="-100">歌詞を0.1秒遅く</button>
+      </div>
+      <div class="ytmls-track-offset-help">曲全体を調整して自動保存します。途中の補正ポイント同士の差は保ちます（上限±20秒）。</div>
       <div class="ytmls-track-offset-help ytmls-track-offset-intro">最初は補正欄が1つだけです。合わせたい場所まで再生してポイントを追加すると、その位置以降の補正を変更できます。ポイントは何個でも追加できます。</div>
       <button type="button" class="ytmls-track-offset-add">＋ 現在位置に補正ポイントを追加</button>
       <div class="ytmls-track-offset-points"></div>
@@ -2941,6 +3192,15 @@ function buildExportLrc(lines, info, points, duration, applyOffsets) {
     trackTimingTitleEl = pop.querySelector('.ytmls-track-offset-track');
     trackTimingTotalEl = pop.querySelector('.ytmls-track-offset-total');
 
+    pop.querySelectorAll('[data-nudge]').forEach(button => {
+      button.addEventListener('click', () => nudgeCurrentTrackTiming(Number(button.dataset.nudge)));
+    });
+    pop.addEventListener('keydown', event => {
+      if (event.key !== 'Escape') return;
+      event.preventDefault(); event.stopPropagation();
+      closeTrackTimingPopover();
+      trackTimingButtonEl?.focus();
+    });
     pop.addEventListener('click', (event) => event.stopPropagation());
     pop.querySelector('.ytmls-track-offset-close').addEventListener('click', closeTrackTimingPopover);
     trackTimingAddPointEl.addEventListener('click', addCurrentTrackTimingPoint);
@@ -3060,7 +3320,16 @@ function buildExportLrc(lines, info, points, duration, applyOffsets) {
       }
 
       if (line.time != null) {
-        div.title = "クリックでこの位置へ移動";
+        div.title = "クリックまたはEnter/Spaceでこの位置へ移動";
+        div.tabIndex = 0;
+        div.setAttribute('role', 'button');
+        div.setAttribute('aria-label', (line.text || editableLineText(line) || '間奏') + '：この位置へ移動');
+        div.addEventListener('keydown', event => {
+          if ((event.key === 'Enter' || event.key === ' ') && !event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey) {
+            event.preventDefault(); event.stopPropagation();
+            if (!event.repeat) div.click();
+          }
+        });
         const renderedTrackKey = STATE.lastDisplayedTrackKey;
         const renderedVideoId = STATE.displayedVideoId;
         div.addEventListener("click", (event) => {
@@ -3095,6 +3364,7 @@ function buildExportLrc(lines, info, points, duration, applyOffsets) {
       listEl.appendChild(div);
     });
 
+    void refreshLyricsReadings();
     const video = getVideoElement();
     if (video && STATE.hasSync && canTrackCurrentPlayback(video)) {
       updateHighlight(getAuthoritativePlaybackTime(video) || 0, true);
@@ -3308,8 +3578,7 @@ function buildExportLrc(lines, info, points, duration, applyOffsets) {
   }
 
   // ---------- LRC ----------
-  function parseLRC(lrcText) {
-    const lines = [];
+  function lrcOffsetSeconds(lrcText) {
     let globalOffset = 0;
     const offsetMatch = (lrcText || "").match(/\[offset:([+-]?\d+(?:\.\d+)?)\]/i);
     if (offsetMatch) {
@@ -3318,6 +3587,12 @@ function buildExportLrc(lines, info, points, duration, applyOffsets) {
       globalOffset = Number.isFinite(raw) ? (Math.abs(raw) < 20 && String(offsetMatch[1]).includes(".") ? raw : raw / 1000) : 0;
     }
 
+    return globalOffset;
+  }
+
+  function parseLRC(lrcText, sortLines = true) {
+    const lines = [];
+    const globalOffset = lrcOffsetSeconds(lrcText);
     const timeTagRe = /\[(\d{1,3}):(\d{2}(?:\.\d{1,3})?)\]/g;
 
     (lrcText || "").split(/\r?\n/).forEach((rawLine) => {
@@ -3342,7 +3617,7 @@ function buildExportLrc(lines, info, points, duration, applyOffsets) {
       });
     });
 
-    lines.sort((a, b) => a.time - b.time);
+    if (sortLines) lines.sort((a, b) => a.time - b.time);
     for (let i = 0; i < lines.length; i++) {
       if (lines[i].end == null) lines[i].end = lines[i + 1]?.time ?? null;
     }
@@ -3462,14 +3737,19 @@ function buildExportLrc(lines, info, points, duration, applyOffsets) {
   function parseRichLrcWithWordRows(lrcText) {
     // Bini/YouLy+系で [mm:ss]行の次に <word:start:end|...> が来る形式を軽くサポート。
     const rows = (lrcText || "").split(/\r?\n/);
-    const base = parseLRC(lrcText);
+    const base = parseLRC(lrcText, false);
+    const globalOffset = lrcOffsetSeconds(lrcText);
     if (!base.length) return { lines: [], syncLevel: "none" };
 
     let baseCursor = 0;
     let pendingLineIndices = [];
+    let firstTagTime = 0;
+    let pendingTagTimes = [];
     for (const raw of rows) {
-      const tags = [...raw.matchAll(/\[(\d{1,2}):(\d{2}(?:\.\d{1,3})?)\]/g)];
+      const tags = [...raw.matchAll(/\[(\d{1,3}):(\d{2}(?:\.\d{1,3})?)\]/g)];
       if (tags.length) {
+        pendingTagTimes = tags.map(tag => Number(tag[1]) * 60 + Number(tag[2]));
+        firstTagTime = pendingTagTimes[0];
         pendingLineIndices = Array.from({ length: tags.length }, (_, index) => baseCursor + index);
         baseCursor += tags.length;
         continue;
@@ -3480,7 +3760,7 @@ function buildExportLrc(lines, info, points, duration, applyOffsets) {
       const words = [];
       for (const piece of pieces) {
         const m = piece.match(/^(.*?):([0-9.]+):([0-9.]+)$/);
-        if (!m) continue;
+        if (!m || !Number.isFinite(Number(m[2])) || !Number.isFinite(Number(m[3])) || Number(m[3]) < Number(m[2])) continue;
         words.push({
           text: m[1],
           time: Number(m[2]),
@@ -3489,23 +3769,23 @@ function buildExportLrc(lines, info, points, duration, applyOffsets) {
         });
       }
       if (words.length) {
-        const firstLine = base[pendingLineIndices[0]];
         for (const lineIndex of pendingLineIndices) {
           const line = base[lineIndex];
           if (!line) continue;
-          const shift = firstLine && Number.isFinite(firstLine.time) && Number.isFinite(line.time)
-            ? line.time - firstLine.time
-            : 0;
+          // Associate words before sorting; repeated timestamps may surround other rows.
+          const shift = pendingTagTimes[lineIndex - pendingLineIndices[0]] - firstTagTime + globalOffset;
           line.words = words.map((word) => ({
             ...word,
-            time: word.time + shift,
-            end: word.end + shift,
+            time: Math.max(0, word.time + shift),
+            end: Math.max(0, word.end + shift),
           }));
         }
       }
       pendingLineIndices = [];
     }
 
+    base.sort((a, b) => a.time - b.time);
+    base.forEach((line, index) => { line.end = base[index + 1]?.time ?? null; });
     const hasWords = base.some((line) => line.words && line.words.length);
     return { lines: base, syncLevel: hasWords ? "word" : "line" };
   }
@@ -6060,7 +6340,7 @@ function buildExportLrc(lines, info, points, duration, applyOffsets) {
   // ---------- 手動スクロール制御 ----------
   function pauseAutoScrollFromUser() {
     if (!STATE.trackingEnabled) return;
-    manualScrollUntil = performance.now() + 3500;
+    manualScrollUntil = performance.now() + STATE.manualScrollReturnMs;
     pendingReturnToCurrent = true;
   }
 
@@ -6087,21 +6367,46 @@ function buildExportLrc(lines, info, points, duration, applyOffsets) {
     if (!lineEl || !listEl || !trackingAllowsAutoScroll()) return;
     autoScrollUntil = performance.now() + (behavior === "smooth" ? 900 : 250);
 
+    // Follow slightly above center, with enough space after the last line.
+    // Pseudo-elements preserve the line indices in listEl.children.
+    const focusHeight = listEl.clientHeight * STATE.trackingPosition / 100;
+    listEl.style.setProperty("--ytmls-trailing-space", Math.max(0, listEl.clientHeight - focusHeight - 180) + "px");
     const listRect = listEl.getBoundingClientRect();
     const lineRect = lineEl.getBoundingClientRect();
     const currentTop = listEl.scrollTop;
     const lineTopInList = currentTop + (lineRect.top - listRect.top);
-    const lineBottomInList = lineTopInList + lineRect.height;
 
 
     // scrollIntoViewはYouTube Music本体までスクロールする場合があるため、歌詞リストだけ動かす。
-    const targetTop = Math.max(0, lineTopInList - (listEl.clientHeight - lineRect.height) / 2);
+    const targetTop = Math.max(0, lineTopInList + lineRect.height / 2 - focusHeight);
     listEl.scrollTo({ top: targetTop, behavior });
   }
 
+  let trackingLayoutFrame = 0;
+  let trackingResizeObserver = null;
+  let trackingBoundList = null;
+  function scheduleTrackingRealignment() {
+    if (trackingLayoutFrame) return;
+    trackingLayoutFrame = requestAnimationFrame(() => {
+      trackingLayoutFrame = 0;
+      if (!STATE.enabled || !STATE.hasSync || !STATE.trackingEnabled || STATE.contextInvalidated || !listEl || !listEl.clientHeight) return;
+      if (isManualScrollPaused()) { pendingReturnToCurrent = true; return; }
+      if (!canTrackCurrentPlayback(getVideoElement())) return;
+      const line = listEl.children[STATE.currentIndex];
+      if (line) scrollCurrentLineIntoView(line);
+    });
+  }
+
   function bindScrollInteraction() {
-    if (!listEl || scrollInteractionBound) return;
+    if (!listEl || trackingBoundList === listEl) return;
+    trackingBoundList = listEl;
     scrollInteractionBound = true;
+    if (trackingResizeObserver) trackingResizeObserver.disconnect();
+    if (typeof ResizeObserver !== "undefined") {
+      trackingResizeObserver = new ResizeObserver(scheduleTrackingRealignment);
+      trackingResizeObserver.observe(listEl);
+    }
+    window.addEventListener("resize", scheduleTrackingRealignment, { passive: true });
 
     // ホイール・タッチ・キー操作は確実にユーザー操作として扱う。
     listEl.addEventListener("wheel", pauseAutoScrollFromUser, { passive: true });
@@ -6213,7 +6518,7 @@ function buildExportLrc(lines, info, points, duration, applyOffsets) {
     STATE.lastTrackingPulseAt = performance.now();
 
     if (!STATE.trackingEnabled) {
-      clearTrackingVisuals();
+      if (STATE.currentIndex !== -1 || STATE.currentWordIndex !== -1) clearTrackingVisuals();
       return;
     }
 
@@ -6361,6 +6666,238 @@ function buildExportLrc(lines, info, points, duration, applyOffsets) {
 
     // timeupdateだけでなくrequestAnimationFrameでも追跡し、単語/音節の細かいタイミングも追う。
     startTrackingLoop();
+  }
+
+// Feature: readings.js
+  // Reading annotations are display-only. Never write ruby text into STATE.lines.
+  let lyricsReadingGeneration = 0;
+  let japaneseTokenizerPromise = null;
+  let englishReadingsPromise = null;
+  const lyricsReadingCache = new Map();
+
+  function getJapaneseReadingTokenizer() {
+    if (!japaneseTokenizerPromise) japaneseTokenizerPromise = new Promise((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error('日本語辞書の読み込みがタイムアウトしました')), 30000);
+      try {
+        globalThis.kuromoji.builder({ dicPath: chrome.runtime.getURL('vendor/kuromoji/dict/') }).build((error, tokenizer) => {
+          clearTimeout(timer);
+          if (error) reject(error); else resolve(tokenizer);
+        });
+      } catch (error) { clearTimeout(timer); reject(error); }
+    });
+    return japaneseTokenizerPromise;
+  }
+
+  function getEnglishReadings() {
+    if (!englishReadingsPromise) englishReadingsPromise = fetch(chrome.runtime.getURL('vendor/readings/english.json'))
+      .then(response => { if (!response.ok) throw new Error('英語辞書を読み込めません'); return response.json(); });
+    return englishReadingsPromise;
+  }
+
+  function showLyricsReadingStatus(message) {
+    if (!lyricsToolsEl) return;
+    let status = lyricsToolsEl.querySelector('#ytmls-reading-status');
+    if (!status) {
+      status = document.createElement('span'); status.id = 'ytmls-reading-status';
+      status.setAttribute('role', 'status'); lyricsToolsEl.appendChild(status);
+    }
+    status.textContent = message; status.hidden = !message;
+  }
+
+  function putReadingParts(node, text, offset, ranges) {
+    const fragment = document.createDocumentFragment();
+    for (const part of readingPartsForFragment(text, offset, ranges)) {
+      if (!part.reading) { fragment.appendChild(document.createTextNode(part.text)); continue; }
+      const ruby = document.createElement('ruby'); ruby.className = 'ytmls-ruby';
+      const base = document.createElement('rb'); base.textContent = part.text;
+      const reading = document.createElement('rt'); reading.textContent = part.reading;
+      reading.setAttribute('aria-hidden', 'true');
+      ruby.append(base, reading); fragment.appendChild(ruby);
+    }
+    node.replaceChildren(fragment);
+  }
+
+  async function refreshLyricsReadings() {
+    const generation = ++lyricsReadingGeneration;
+    if (!listEl) return;
+    const list = listEl, lines = STATE.lines, rows = Array.from(list.children);
+    const ja = STATE.readingJapanese === true, en = STATE.readingEnglish === true;
+    list.dataset.readings = ja || en ? 'on' : 'off';
+    // Restore the original text for toggles, keeping timed span elements and their classes.
+    for (let index = 0; index < lines.length; index++) {
+      const row = rows[index], line = lines[index]; if (!row) continue;
+      if (line.words?.length) {
+        const spans = row.querySelectorAll('.ytmls-word');
+        spans.forEach((span, wordIndex) => { span.textContent = line.words[wordIndex]?.text || ''; });
+      } else row.textContent = line.text || '♪';
+    }
+    ensureReadingEditButton();
+    showLyricsReadingStatus('');
+    if ((!ja && !en) || !lines.length) { scheduleTrackingRealignment(); return; }
+    const texts = lines.map(line => editableLineText(line) || '♪');
+    const needsJapanese = ja && texts.some(text => /[\p{Script=Han}々〆ヶ]/u.test(text));
+    const needsEnglish = en && texts.some(text => /[A-Za-z]/.test(text));
+
+    showLyricsReadingStatus('読み仮名を準備中…');
+    const videoId = typeof getAuthoritativeVideoId === 'function' ? String(getAuthoritativeVideoId() || '') : '';
+    const [japanese, english, manual] = await Promise.allSettled([
+      needsJapanese ? getJapaneseReadingTokenizer() : Promise.resolve(null),
+      needsEnglish ? getEnglishReadings() : Promise.resolve(null),
+      loadManualReadings(videoId),
+    ]);
+    const current = () => generation === lyricsReadingGeneration && listEl === list && STATE.lines === lines && !STATE.contextInvalidated && (!videoId || String(getAuthoritativeVideoId() || '') === videoId);
+    if (!current()) return;
+    const tokenizer = japanese.status === 'fulfilled' ? japanese.value : null;
+    const dictionary = english.status === 'fulfilled' ? english.value : null;
+    let skipped = false;
+    for (let index = 0; index < lines.length; index++) {
+      if (!current()) return;
+      const line = lines[index], row = rows[index], text = texts[index];
+      if (!row || row.parentElement !== list) continue;
+      if (text.length > 4000) { skipped = true; continue; }
+      const key = `${Boolean(tokenizer)}:${Boolean(dictionary)}:${text}`;
+      let ranges = lyricsReadingCache.get(key);
+      if (!ranges) {
+        try {
+          ranges = [
+            ...(tokenizer && /[\p{Script=Han}々〆ヶ]/u.test(text) ? japaneseReadingRanges(text, tokenizer.tokenize(text)) : []),
+            ...(dictionary ? englishReadingRanges(text, dictionary) : []),
+          ].sort((a,b) => a.start - b.start);
+          // A Japanese token may contain Latin letters: prefer its contextual reading.
+          ranges = ranges.filter((range, i, all) => !all.slice(0,i).some(previous => previous.end > range.start));
+        } catch (_) { skipped = true; ranges = []; }
+        lyricsReadingCache.set(key, ranges);
+        if (lyricsReadingCache.size > 250) lyricsReadingCache.delete(lyricsReadingCache.keys().next().value);
+      }
+      const automatic = ranges;
+      const occurrence = texts.slice(0,index).filter(t => t === text).length;
+      const savedReadings = manual.status === 'fulfilled' ? manual.value.map(e => e && e.occurrence === undefined && e.text === text && texts.filter(t => t === text).length === 1 ? {...e, occurrence:0} : e) : [];
+      ranges = layoutManualLineReadings(text, mergeManualReadings(text, ranges, savedReadings, ja, en, index, occurrence), ja, en, automatic);
+      if (line.words?.length) {
+        let offset = 0; const spans = row.querySelectorAll('.ytmls-word');
+        line.words.forEach((word, wi) => {
+          const wordText = String(word.text || '');
+          if (spans[wi]) putReadingParts(spans[wi], wordText, offset, ranges);
+          offset += wordText.length;
+        });
+      } else putReadingParts(row, text, 0, ranges);
+      if (index % 8 === 7) await new Promise(resolve => setTimeout(resolve, 0));
+    }
+    if (!current()) return;
+    const failed = japanese.status === 'rejected' || english.status === 'rejected' || manual.status === 'rejected';
+    showLyricsReadingStatus(failed ? '辞書または保存済みの読み仮名を読み込めませんでした。ページを再読み込みしてください。'
+      : skipped ? '長い行など、一部の読み仮名を省略しました。' : '');
+    scheduleTrackingRealignment();
+  }
+
+  function loadManualReadings(videoId) {
+    if (!videoId) return Promise.resolve([]);
+    return sendUserDataMutation({action:'migrateReadings'}).then(data => data.ytmlsManualReadingsV256?.[videoId]?.entries || []);
+  }
+
+  function canEditLyricsReadings() {
+    const videoId = String(getAuthoritativeVideoId() || '');
+    return Boolean(STATE.enabled && !STATE.contextInvalidated && STATE.hasLyricsResult &&
+      Array.isArray(STATE.lines) && STATE.lines.some(line => editableLineText(line).trim()) &&
+      videoId && (!STATE.displayedVideoId || String(STATE.displayedVideoId) === videoId));
+  }
+
+  function ensureReadingEditButton() {
+    if (!lyricsToolsEl) return;
+    const existing = lyricsToolsEl.querySelector('#ytmls-reading-edit');
+    if (existing) {
+      existing.disabled = !canEditLyricsReadings();
+      existing.title = existing.disabled ? '曲と歌詞の読み込みが完了すると編集できます' : '行ごとのふりがなを編集';
+      return;
+    }
+    const button = document.createElement('button');
+    button.className = 'ytmls-tool-button';
+    button.id = 'ytmls-reading-edit'; button.type = 'button'; button.textContent = 'ふりがな編集';
+    button.disabled = !canEditLyricsReadings();
+    button.title = button.disabled ? '曲と歌詞の読み込みが完了すると編集できます' : '行ごとのふりがなを編集';
+    button.addEventListener('click', () => { const more = lyricsToolsEl.querySelector('#ytmls-more'); if (more) more.open = false; openManualReadingEditor(); });
+    const menu = lyricsToolsEl.querySelector('.ytmls-more-menu');
+    if (menu) menu.appendChild(button);
+  }
+
+  async function openManualReadingEditor() {
+    if (!canEditLyricsReadings()) return;
+    const videoId = String(getAuthoritativeVideoId() || '');
+    if (!videoId || !STATE.lines.length || !lyricsToolsPaneEl) return;
+    closeLyricsToolsPane();
+    const pane = lyricsToolsPaneEl, lines = STATE.lines;
+    lyricsToolsPaneMode = 'readings'; pane.hidden = false;
+    const heading = document.createElement('div'); heading.className = 'ytmls-tools-heading'; heading.textContent = 'ふりがな編集';
+    const note = document.createElement('p');
+    note.textContent = '行を選んで、読みを書き直すだけ。空にして保存すると、その行のふりがなを非表示にできます。';
+    const form = document.createElement('form'); form.id = 'ytmls-reading-form';
+    const select = document.createElement('select'); select.setAttribute('aria-label', '編集する歌詞行');
+    lines.forEach((line, index) => { const option = document.createElement('option'); option.value = String(index); option.textContent = `${index + 1}. ${editableLineText(line)}`; select.appendChild(option); });
+    const reading = document.createElement('textarea'); reading.id = 'ytmls-reading-text'; reading.rows = 3; reading.placeholder = 'この行の読みを入力'; reading.maxLength = 1000; reading.setAttribute('aria-label', 'この行のふりがな');
+    const label = document.createElement('label'); label.htmlFor = reading.id; label.textContent = 'この行のふりがな';
+    const save = document.createElement('button'); save.type = 'submit'; save.textContent = 'この行を保存'; save.className = 'ytmls-tool-button ytmls-reading-primary';
+    const reset = document.createElement('button'); reset.type = 'button'; reset.textContent = 'この行を自動読みに戻す';
+    const saved = document.createElement('div');
+    const status = document.createElement('div'); status.setAttribute('role', 'status'); status.textContent = '読み込み中…';
+    const close = document.createElement('button'); close.type = 'button'; close.textContent = '閉じる'; close.addEventListener('click', closeLyricsToolsPane);
+    reset.className = close.className = 'ytmls-tool-button';
+    const actions = document.createElement('div'); actions.className = 'ytmls-reading-actions'; actions.append(save, reset, close);
+    form.append(select, label, reading, saved, actions, status); pane.append(heading, note, form);
+    form.addEventListener('keydown', event => { if (event.key === 'Escape') { event.stopPropagation(); closeLyricsToolsPane(); } });
+    const current = () => form.isConnected && STATE.lines === lines && String(getAuthoritativeVideoId() || '') === videoId;
+    let entries, tokenizer = null, dictionary = null;
+    save.disabled = reset.disabled = select.disabled = reading.disabled = true;
+    try {
+      const results = await Promise.allSettled([loadManualReadings(videoId), getJapaneseReadingTokenizer(), getEnglishReadings()]);
+      if (results[0].status === 'rejected') throw results[0].reason;
+      entries = results[0].value; tokenizer = results[1].status === 'fulfilled' ? results[1].value : null; dictionary = results[2].status === 'fulfilled' ? results[2].value : null;
+    }
+    catch (_) { if (current()) status.textContent = '読み込みに失敗しました。閉じてから再度お試しください。'; return; }
+    if (!current()) return;
+    // Preserve legacy corrections on other identical lines when editing only one row.
+    entries = entries.flatMap(e => !e ? [] : e.lineIndex !== undefined || !lines.some(line => editableLineText(line) === e.text) ? [e] : lines.flatMap((line, lineIndex) => editableLineText(line) === e.text ? [{...e, lineIndex}] : []));
+    entries = entries.map(e => e.occurrence !== undefined || !Number.isInteger(e.lineIndex) || editableLineText(lines[e.lineIndex] || {}) !== e.text ? e : {...e, occurrence: lines.slice(0,e.lineIndex).filter(line => editableLineText(line) === e.text).length});
+    const textForLine = () => editableLineText(lines[Number(select.value)]);
+    const occurrenceForLine = () => lines.slice(0,Number(select.value)).filter(line => editableLineText(line) === textForLine()).length;
+    const belongs = e => e && e.text === textForLine() && (e.occurrence !== undefined ? e.occurrence === occurrenceForLine() : e.lineIndex === undefined || e.lineIndex === Number(select.value));
+    const update = () => {
+      const text = textForLine();
+      let automatic = [];
+      try {
+        automatic = [...(tokenizer ? japaneseReadingRanges(text, tokenizer.tokenize(text)) : []), ...(dictionary ? englishReadingRanges(text, dictionary) : [])].sort((a,b) => a.start - b.start);
+        automatic = automatic.filter((r,i,all) => !all.slice(0,i).some(p => p.end > r.start));
+      } catch (_) {}
+      const ranges = mergeManualReadings(text, automatic, entries, true, true, Number(select.value), occurrenceForLine());
+      const full = entries.findLast(e => belongs(e) && e.start === 0 && e.end === text.length);
+      reading.value = full ? full.reading : readingPartsForFragment(text, 0, ranges).map(p => p.reading || p.text).join('');
+      saved.textContent = entries.some(belongs) ? '手動の読みを保存済み' : '自動の読みを表示中。自由に書き直せます。';
+    };
+    if (STATE.currentIndex >= 0 && STATE.currentIndex < lines.length) select.value = String(STATE.currentIndex);
+    update(); status.textContent = ''; save.disabled = reset.disabled = select.disabled = reading.disabled = false;
+    select.addEventListener('change', () => { update(); status.textContent = ''; });
+    async function persist(next) {
+      if (!current()) { status.textContent = '曲や歌詞が変わりました。編集画面を開き直してください。'; return; }
+      if (next.length > 2000) { status.textContent = '保存できる修正件数を超えました。'; return; }
+      save.disabled = reset.disabled = select.disabled = reading.disabled = true;
+      try {
+        const info = STATE.activeBaseInfo || STATE.activeSearchInfo || {};
+        await sendUserDataMutation({action:'entry', key:'ytmlsManualReadingsV256', videoId,
+          entry: next.length ? {entries:next,title:info.title || '',artist:info.artist || '',updatedAt:Date.now()} : null});
+        entries = next;
+        if (current()) { update(); status.textContent = '保存しました。表示設定がONの読み仮名に反映します。'; refreshLyricsReadings(); }
+      } catch (_) { if (current()) status.textContent = '保存できませんでした。もう一度お試しください。'; }
+      finally { save.disabled = reset.disabled = select.disabled = reading.disabled = false; }
+    }
+    form.addEventListener('submit', event => {
+      event.preventDefault(); if (save.disabled) return;
+      const text = textForLine();
+      if (!text) { status.textContent = '文字のある行を選んでください。'; return; }
+      const next = entries.filter(e => !belongs(e));
+      next.push({text, occurrence: occurrenceForLine(), lineIndex: Number(select.value), start: 0, end: text.length, reading: reading.value.trim()});
+      persist(next);
+    });
+    reset.addEventListener('click', () => persist(entries.filter(e => !belongs(e))));
+    reading.focus();
   }
 
 // Feature: main.js

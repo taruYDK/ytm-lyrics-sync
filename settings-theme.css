@@ -16,3 +16,13 @@
   #status.success { color:#15552d; } #status.error { color:#aa182d; }
 }
 @media(prefers-reduced-motion:reduce) { *,*::before,*::after { transition:none !important; animation:none !important; } }
+
+/* Popup and backup pages belong entirely to the extension. */
+body, body * {
+  -webkit-user-select: none !important;
+  user-select: none !important;
+}
+body :is(input, textarea, [contenteditable]:not([contenteditable="false"]), [contenteditable]:not([contenteditable="false"]) *) {
+  -webkit-user-select: text !important;
+  user-select: text !important;
+}

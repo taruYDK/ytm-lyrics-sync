@@ -1,4 +1,4 @@
-importScripts('storage-broker.js');
+importScripts('backup-validation.js', 'storage-broker.js');
 // Cross-origin fetch helper for Manifest V3.
 // Provider-specific headers are isolated here to avoid CORS/preflight mistakes.
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -31,7 +31,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       }
 
       const controller = new AbortController();
-      timeoutId = setTimeout(() => controller.abort(), Number(message.timeoutMs) || 25000);
+      const requestedTimeout = Number(message.timeoutMs);
+      const timeoutMs = Number.isFinite(requestedTimeout) && requestedTimeout > 0
+        ? Math.max(1000, Math.min(60000, requestedTimeout)) : 25000;
+      timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
       const method = String(message.method || "GET").toUpperCase();
       const headers = {

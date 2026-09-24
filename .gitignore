@@ -1,15 +1,16 @@
-# Release assets are uploaded to GitHub Releases, not committed to source control.
-release/*.zip
-!release/.gitkeep
-
-# Local extension packaging and test artifacts
-*.crx
-*.pem
-*.log
-coverage/
 node_modules/
-
-# OS/editor files
+.env
+.env.*
+!.env.example
+*.log
+*.tmp
+*.pem
+*.key
+*.crx
+*.zip
+coverage/
+dist/
 .DS_Store
 Thumbs.db
 .vscode/
+.idea/

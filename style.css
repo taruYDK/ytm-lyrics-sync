@@ -52,7 +52,7 @@ ytmusic-tab-renderer[page-type="MUSIC_PAGE_TYPE_TRACK_LYRICS"].ytmls-replaced > 
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
-  var(--ytmls-text)-space: nowrap;
+  white-space: nowrap;
 }
 
 .ytmls-diagnostics-button {
@@ -192,7 +192,7 @@ ytmusic-tab-renderer[page-type="MUSIC_PAGE_TYPE_TRACK_LYRICS"].ytmls-replaced > 
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
-  var(--ytmls-text)-space: nowrap;
+  white-space: nowrap;
   font-size: 13px;
   font-weight: 750;
 }
@@ -485,7 +485,7 @@ ytmusic-tab-renderer[page-type="MUSIC_PAGE_TYPE_TRACK_LYRICS"].ytmls-replaced > 
   transform: scale(0.965);
   transform-origin: left center;
   transition: color 150ms ease, opacity 150ms ease, transform 180ms ease, filter 180ms ease;
-  var(--ytmls-text)-space: pre-wrap;
+  white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
 
@@ -693,7 +693,7 @@ ytmusic-tab-renderer[page-type="MUSIC_PAGE_TYPE_TRACK_LYRICS"].ytmls-replaced {
   font-size: 12px;
   font-weight: 700;
   line-height: 1;
-  var(--ytmls-text)-space: nowrap;
+  white-space: nowrap;
   cursor: pointer;
   vertical-align: middle;
   transition: background 130ms ease, border-color 130ms ease, transform 130ms ease;
@@ -756,7 +756,7 @@ ytmusic-tab-renderer[page-type="MUSIC_PAGE_TYPE_TRACK_LYRICS"].ytmls-replaced {
   font-size: 11px;
   line-height: 1.3;
   text-overflow: ellipsis;
-  var(--ytmls-text)-space: nowrap;
+  white-space: nowrap;
 }
 
 .ytmls-track-offset-close {
@@ -984,7 +984,7 @@ ytmusic-tab-renderer[page-type="MUSIC_PAGE_TYPE_TRACK_LYRICS"].ytmls-replaced {
   padding:0 12px 10px; display:flex; flex-direction:column; align-items:flex-start;
   margin:0; text-align:left; gap:10px;
 }
-.ytmls-diagnostic-details .ytmls-diagnostics-summary { var(--ytmls-text)-space:normal; overflow-wrap:anywhere; }
+.ytmls-diagnostic-details .ytmls-diagnostics-summary { white-space:normal; overflow-wrap:anywhere; }
 /* A recycled renderer must never expose the lyrics UI on another page. */
 [page-type]:not([page-type="MUSIC_PAGE_TYPE_TRACK_LYRICS"]) > #ytmls-panel { display:none !important; }
 #ytmls-external-tab { position: fixed; z-index: 100; border: 0; padding: 0; background: transparent; color: rgba(var(--ytmls-ink), .7); font: inherit; font-weight: 600; cursor: pointer; }
@@ -1000,3 +1000,77 @@ ytmusic-tab-renderer[page-type="MUSIC_PAGE_TYPE_TRACK_LYRICS"].ytmls-replaced {
 #ytmls-panel .ytmls-recommendation-badge[data-level="low"] { color:#ddd; background:#373b40; border-color:#737980; }
 .ytmls-author-progress { display:block; width:100%; height:10px; margin:8px 0 16px; accent-color:#80dfaa; }
 .ytmls-offset-preview { padding:10px; margin-top:8px; border-radius:8px; background:rgba(var(--ytmls-ink), .06); font-size:14px; line-height:1.5; max-height:90px; overflow:auto; }
+
+/* Extra scroll range lets the last lyric reach the center. */
+#ytmls-list::after {
+  content: "";
+  display: block;
+  pointer-events: none;
+}
+#ytmls-list::after { height: var(--ytmls-trailing-space, 0px); }
+
+.ytmls-track-nudge { grid-template-columns: 1fr 1fr; margin-top: 12px; }
+.ytmls-track-nudge button:disabled { opacity: .4; cursor: default; }
+
+.ytmls-track-offset-ends { display:flex; justify-content:space-between; font-size:11px; opacity:.75; margin:4px 0 8px; }
+.ytmls-line[role="button"]:focus-visible { outline:2px solid currentColor; outline-offset:2px; border-radius:6px; }
+
+/* All extension UI text, including lyric rows and nested labels. */
+:is([id^="ytmls-"], [id^="ytmls-"] *) {
+  -webkit-user-select: none !important;
+  user-select: none !important;
+}
+/* Text entry remains selectable, including editable descendants. */
+[id^="ytmls-"] :is(input, textarea, [contenteditable]:not([contenteditable="false"]), [contenteditable]:not([contenteditable="false"]) *),
+[id^="ytmls-"]:is(input, textarea, [contenteditable]:not([contenteditable="false"])) {
+  -webkit-user-select: text !important;
+  user-select: text !important;
+}
+
+/* Reading annotations do not replace timed word elements. */
+#ytmls-list[data-readings="on"] .ytmls-line { line-height: 1.85; }
+#ytmls-list .ytmls-ruby { ruby-position: over; ruby-align: center; }
+#ytmls-list .ytmls-ruby rt {
+  font-size: .38em;
+  font-weight: 500;
+  line-height: 1;
+  color: rgba(var(--ytmls-ink), .46);
+  -webkit-text-fill-color: currentColor;
+  letter-spacing: .02em;
+}
+#ytmls-reading-status { font-size: 11px; opacity: .75; }
+
+/* Ruby shares its timed word's inherited progress; no extra per-frame DOM work. */
+#ytmls-panel[data-tracking-mode="auto"] .ytmls-line.ytmls-active .ytmls-ruby rt {
+  color: rgba(var(--ytmls-ink), .98);
+}
+#ytmls-panel[data-tracking-mode="auto"]:is([data-word-tracking="smooth"], [data-word-tracking="silky"]) .ytmls-line.ytmls-active .ytmls-word :is(rb, rt) {
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+#ytmls-panel[data-tracking-mode="auto"][data-word-tracking="smooth"] .ytmls-line.ytmls-active .ytmls-word :is(rb, rt) {
+  background-image: linear-gradient(90deg,
+    rgba(var(--ytmls-ink), .99) 0%,
+    rgba(var(--ytmls-ink), .99) var(--ytmls-word-progress, 0%),
+    rgba(var(--ytmls-ink), .34) calc(var(--ytmls-word-progress, 0%) + .7%),
+    rgba(var(--ytmls-ink), .34) 100%);
+}
+#ytmls-panel[data-tracking-mode="auto"][data-word-tracking="silky"] .ytmls-line.ytmls-active .ytmls-word :is(rb, rt) {
+  background-image: linear-gradient(90deg,
+    rgba(var(--ytmls-ink), 1) 0%,
+    rgba(var(--ytmls-ink), 1) calc(var(--ytmls-word-progress, 0%) - 5%),
+    rgba(var(--ytmls-ink), .90) var(--ytmls-word-progress, 0%),
+    rgba(var(--ytmls-ink), .46) calc(var(--ytmls-word-progress, 0%) + 7%),
+    rgba(var(--ytmls-ink), .31) 100%);
+}
+#ytmls-reading-form { display: grid; gap: 8px; }
+#ytmls-reading-form input, #ytmls-reading-form select { width: 100%; box-sizing: border-box; min-width: 0; padding: 8px; color: var(--ytmls-text); background: var(--ytmls-surface, #252525); border: 1px solid #777; border-radius: 6px; }
+#ytmls-reading-form select { white-space: normal; }
+#ytmls-reading-form textarea { width: 100%; box-sizing: border-box; min-width: 0; resize: vertical; padding: 12px; border: 1px solid rgba(var(--ytmls-ink), .25); border-radius: 10px; background: rgba(var(--ytmls-ink), .05); color: var(--ytmls-text); font: inherit; line-height: 1.6; }
+#ytmls-reading-form { gap: 12px; }
+#ytmls-reading-form label { font-weight: 600; }
+#ytmls-reading-form .ytmls-reading-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+#ytmls-reading-form .ytmls-reading-primary { background: rgba(var(--ytmls-ink), .18); font-weight: 700; }
+#ytmls-reading-form :is(textarea,select):focus-visible { outline: 2px solid rgba(var(--ytmls-ink), .7); outline-offset: 2px; }

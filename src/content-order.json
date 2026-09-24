@@ -16,5 +16,6 @@
   "lyrics-storage.js",
   "track-search.js",
   "tracking.js",
+  "readings.js",
   "main.js"
 ]

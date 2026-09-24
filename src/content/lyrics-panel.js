@@ -65,6 +65,7 @@
   }
 
   function updateLyricsToolsUi() {
+    if (typeof ensureReadingEditButton === 'function') ensureReadingEditButton();
     if (exportLyricsButtonEl) exportLyricsButtonEl.disabled = !STATE.hasSync || !STATE.lines.length || STATE.contextInvalidated;
     if (candidateButtonEl) {
       const count = STATE.lyricCandidates.length;
@@ -749,6 +750,7 @@
       if (!record.isConnected || lyricsToolsPaneEl.hidden || !isLyricsPanelActive() || !STATE.enabled ||
           String(getAuthoritativeVideoId() || "") !== videoId || event.isComposing ||
           event.target.closest?.('input, textarea, select, [contenteditable="true"], [role="textbox"]')) return;
+      if (authorShortcutTargetsControl(event.target, record)) return;
       const space = event.code === "Space" && !event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey;
       const back = event.key.toLowerCase() === "z" && (event.ctrlKey || event.metaKey) && !event.altKey && !event.shiftKey;
       if (!space && !back) return;
@@ -756,6 +758,11 @@
       if (!event.repeat) (space ? record : undo).click();
     }, { capture: true, signal: authorShortcutController.signal });
     renderAuthorState();
+  }
+
+  function authorShortcutTargetsControl(target, record) {
+    const control = target?.closest?.('button, a, [role="button"]');
+    return Boolean(control && control !== record && lyricsToolsPaneEl?.contains(control));
   }
 
   function renderLocalLyricsPane(options = {}) {

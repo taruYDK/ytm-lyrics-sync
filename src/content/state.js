@@ -1,6 +1,10 @@
   const STATE = {
     enabled: true,
     fontSize: 32,
+    readingJapanese: true,
+    readingEnglish: true,
+    trackingPosition: 42,
+    manualScrollReturnMs: 3500,
     trackingEnabled: true, // 歌詞ハイライト + 中央自動スクロール
     wordTrackingStyle: "smooth", // 単語ハイライト: smooth | silky
     focusFade: true,

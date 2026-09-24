@@ -4,6 +4,69 @@ const focusFadeToggle = document.getElementById("focusFadeToggle");
 const trackingToggle = document.getElementById("trackingToggle");
 const autoLyricsOnIdleToggle = document.getElementById("autoLyricsOnIdleToggle");
 const wordTrackingStyleSelect = document.getElementById("wordTrackingStyleSelect");
+const trackingPosition = document.getElementById("trackingPosition");
+const manualScrollReturnMs = document.getElementById("manualScrollReturnMs");
+const noticeTimers = new Map();
+function showPopupNotice(element, message, transient = true) {
+  clearTimeout(noticeTimers.get(element));
+  element.textContent = message;
+  if (transient) noticeTimers.set(element, setTimeout(() => {
+    element.textContent = "";
+    noticeTimers.delete(element);
+  }, 2200));
+}
+function selectRestoredValue(select, value, fallback, min, max, label) {
+  const actual = Number.isFinite(value) && value >= min && value <= max ? value : fallback;
+  if (!Array.from(select.options || []).some(option => Number(option.value) === actual)) {
+    const option = document.createElement('option');
+    option.value = String(actual); option.textContent = label(actual) + '（復元値）';
+    select.appendChild(option);
+  }
+  select.value = String(actual);
+}
+function showTrackingPosition() {
+  document.getElementById("trackingPositionValue").textContent = "上から" + trackingPosition.value + "%";
+}
+let trackingSaveTimer = null;
+let pendingTrackingSettings = {};
+let trackingSaveRevision = 0;
+function flushTrackingSettings() {
+  if (trackingSaveTimer !== null) clearTimeout(trackingSaveTimer);
+  trackingSaveTimer = null;
+  if (!Object.keys(pendingTrackingSettings).length) return;
+  const values = pendingTrackingSettings;
+  pendingTrackingSettings = {};
+  const revision = trackingSaveRevision;
+  chrome.storage.sync.set(values, () => {
+    const error = chrome.runtime.lastError;
+    if (revision !== trackingSaveRevision) return;
+    showPopupNotice(document.getElementById("trackingSettingsStatus"), error
+      ? "保存できませんでした。もう一度お試しください。" : "保存しました", !error);
+  });
+}
+function saveTrackingSetting(key, value) {
+  pendingTrackingSettings[key] = value;
+  trackingSaveRevision++;
+  if (trackingSaveTimer !== null) clearTimeout(trackingSaveTimer);
+  showPopupNotice(document.getElementById("trackingSettingsStatus"), "保存待ち…", false);
+  trackingSaveTimer = setTimeout(flushTrackingSettings, 500);
+}
+// Commit a pending edit when the popup loses visibility or closes.
+window.addEventListener("pagehide", flushTrackingSettings);
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "hidden") flushTrackingSettings();
+});
+trackingPosition.addEventListener("input", showTrackingPosition);
+trackingPosition.addEventListener("change", () => saveTrackingSetting("trackingPosition", Number(trackingPosition.value)));
+manualScrollReturnMs.addEventListener("change", () => saveTrackingSetting("manualScrollReturnMs", Number(manualScrollReturnMs.value)));
+const readingJapaneseToggle = document.getElementById('readingJapaneseToggle');
+const readingEnglishToggle = document.getElementById('readingEnglishToggle');
+for (const [control, key] of [[readingJapaneseToggle, 'readingJapanese'], [readingEnglishToggle, 'readingEnglish']]) {
+  control.addEventListener('change', () => chrome.storage.sync.set({[key]:control.checked}, () => {
+    const error = chrome.runtime.lastError;
+    showPopupNotice(document.getElementById('readingSettingsStatus'), error ? '保存できませんでした。もう一度お試しください。' : '保存しました', !error);
+  }));
+}
 const providerList = document.getElementById("providerList");
 const providerNote = document.getElementById("providerNote");
 
@@ -37,11 +100,10 @@ function saveProviderConfig(message = "設定を保存しました") {
     providerOrder: currentProviderOrder,
     providerEnabled: currentProviderEnabled,
     uiVersion: 9,
+  }, () => {
+    const error = chrome.runtime.lastError;
+    showPopupNotice(providerNote, error ? "保存できませんでした。もう一度お試しください。" : message, !error);
   });
-  providerNote.textContent = message;
-  window.setTimeout(() => {
-    if (providerNote.textContent === message) providerNote.textContent = "";
-  }, 2200);
 }
 
 function renderProviderList() {
@@ -90,7 +152,7 @@ function renderProviderList() {
       const next = { ...currentProviderEnabled, [key]: checkbox.checked };
       if (!Object.values(next).some(Boolean)) {
         checkbox.checked = true;
-        providerNote.textContent = "少なくとも1つの提供元を有効にしてください";
+        showPopupNotice(providerNote, "少なくとも1つの提供元を有効にしてください");
         return;
       }
       currentProviderEnabled = next;
@@ -144,7 +206,11 @@ chrome.storage.sync.get(
   {
     enabled: true,
     fontSize: 32,
+    readingJapanese: true,
+    readingEnglish: true,
     focusFade: true,
+    trackingPosition: 42,
+    manualScrollReturnMs: 3500,
     trackingEnabled: true,
     autoLyricsOnIdle: true,
     wordTrackingStyle: "smooth",
@@ -153,13 +219,17 @@ chrome.storage.sync.get(
     uiVersion: 9,
   },
   (data) => {
+    trackingPosition.value = Number.isFinite(data.trackingPosition) ? Math.max(25, Math.min(65, data.trackingPosition)) : 42;
+    selectRestoredValue(manualScrollReturnMs, data.manualScrollReturnMs, 3500, 1000, 10000, value => `${value / 1000}秒`);
+    showTrackingPosition();
+    readingJapaneseToggle.checked = data.readingJapanese !== false;
+    readingEnglishToggle.checked = data.readingEnglish !== false;
     enabledToggle.checked = data.enabled !== false;
     focusFadeToggle.checked = data.focusFade !== false;
     trackingToggle.checked = data.trackingEnabled !== false;
     autoLyricsOnIdleToggle.checked = data.autoLyricsOnIdle !== false;
 
-    const fontAllowed = ["26", "28", "32", "36", "40"];
-    fontSizeSelect.value = fontAllowed.includes(String(data.fontSize)) ? String(data.fontSize) : "32";
+    selectRestoredValue(fontSizeSelect, data.fontSize, 32, 10, 100, value => `${value}px`);
 
     const wordAllowed = ["smooth", "silky"];
     wordTrackingStyleSelect.value = wordAllowed.includes(String(data.wordTrackingStyle))
@@ -174,13 +244,13 @@ chrome.storage.sync.get(
 );
 
 enabledToggle.addEventListener("change", () => chrome.storage.sync.set({ enabled: enabledToggle.checked }));
-fontSizeSelect.addEventListener("change", () => chrome.storage.sync.set({ fontSize: parseInt(fontSizeSelect.value, 10), uiVersion: 9 }));
+fontSizeSelect.addEventListener("change", () => chrome.storage.sync.set({ fontSize: Number(fontSizeSelect.value), uiVersion: 9 }));
 focusFadeToggle.addEventListener("change", () => chrome.storage.sync.set({ focusFade: focusFadeToggle.checked }));
 trackingToggle.addEventListener("change", () => chrome.storage.sync.set({ trackingEnabled: trackingToggle.checked }));
 autoLyricsOnIdleToggle.addEventListener("change", () => chrome.storage.sync.set({ autoLyricsOnIdle: autoLyricsOnIdleToggle.checked }));
 wordTrackingStyleSelect.addEventListener("change", () => chrome.storage.sync.set({ wordTrackingStyle: wordTrackingStyleSelect.value }));
 
-const userDataKeys = ["ytmlsTrackTimingOffsetsV174", "ytmlsManualSearchOverridesV190", "ytmlsLyricsEditsV199", "ytmlsPinnedLyricsV200", "ytmlsLocalLyricsV200"];
+const userDataKeys = ["ytmlsTrackTimingOffsetsV174", "ytmlsManualSearchOverridesV190", "ytmlsLyricsEditsV199", "ytmlsPinnedLyricsV200", "ytmlsLocalLyricsV200", "ytmlsManualReadingsV256"];
 chrome.storage.local.get(userDataKeys, data => {
   const summary = document.getElementById("savedDataSummary");
   if (chrome.runtime.lastError) { summary.textContent = "保存件数を取得できませんでした。"; return; }

@@ -2,7 +2,7 @@ let managerBusy = false;
 let savedTracks = [];
 let displayedLimit = 50;
 const selectedTracks = new Set();
-const TYPE_LABELS = ["補正", "手動検索", "歌詞編集", "固定歌詞", "ローカル歌詞"];
+const TYPE_LABELS = ["補正", "手動検索", "歌詞編集", "固定歌詞", "ローカル歌詞", "手動ふりがな"];
 async function mutateData(payload) {
   const response = await chrome.runtime.sendMessage({ type: "YTMLS_USER_DATA", ...payload });
   if (!response?.ok) throw new Error(response?.error || "保存処理に失敗しました。");
@@ -12,6 +12,7 @@ function formatBytes(bytes) {
   return bytes < 1024 * 1024 ? `${(bytes / 1024).toFixed(1)} KB` : `${(bytes / 1024 / 1024).toFixed(2)} MB`;
 }
 async function refreshSavedTracks() {
+  await mutateData({action:"migrateReadings"});
   const data = await storageGet(chrome.storage.local, LOCAL_KEYS);
   const tracks = new Map();
   LOCAL_KEYS.forEach((key, index) => {

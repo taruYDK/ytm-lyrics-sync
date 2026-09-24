@@ -15,7 +15,6 @@ export function formatLrcTimestamp(seconds) {
 }
 
 export function exportedPlaybackTime(lyricTime, points, duration) {
-  if (lyricTime <= 0) return 0;
   if (!(duration > 0)) return Math.max(0, lyricTime - (points[0]?.offsetMs || 0) / 1000);
   const nodes = points.map(point => ({ t: point.position * duration, o: point.offsetMs / 1000 }));
   if (!nodes.length) return lyricTime;
@@ -35,7 +34,9 @@ export function exportedPlaybackTime(lyricTime, points, duration) {
 
 export function buildExportLrc(lines, info, points, duration, applyOffsets) {
   const clean = text => String(text || "").replace(/[\r\n\[\]]/g, " ").trim();
-  const rows = lines.filter(line => Number.isFinite(Number(line.time)))
+  const rows = lines.filter(line => line && line.time != null &&
+    (typeof line.time === "number" || (typeof line.time === "string" && line.time.trim() !== "")) &&
+    Number.isFinite(Number(line.time)))
     .map(line => ({ time: applyOffsets ? exportedPlaybackTime(Number(line.time), points, duration) : Math.max(0, Number(line.time)),
       text: editableLineText(line).replace(/[\r\n]+/g, " ").trim() }))
     .filter(line => line.text).sort((a, b) => a.time - b.time);

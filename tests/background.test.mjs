@@ -3,15 +3,16 @@ import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import { readFileSync } from 'node:fs';
 
+const manifest=JSON.parse(readFileSync(new URL('../manifest.json',import.meta.url),'utf8'));
 function harness() {
   let handler;
-  const requests=[];
-  const chrome={runtime:{id:'self',getManifest:()=>({version:'2.2.0'}),onMessage:{addListener:fn=>{handler=fn;}}}};
+  const requests=[],timeouts=[];
+  const chrome={runtime:{id:'self',getManifest:()=>manifest,onMessage:{addListener:fn=>{handler=fn;}}}};
   vm.runInNewContext(readFileSync(new URL('../background.js',import.meta.url),'utf8'),{
-    chrome, importScripts(){}, URL, AbortController, setTimeout, clearTimeout,
+    chrome, importScripts(){}, URL, AbortController, setTimeout:(fn,ms)=>{timeouts.push(ms);return setTimeout(fn,ms);}, clearTimeout,
     fetch:async(url,init)=>{requests.push({url,init});return {ok:true,status:200,text:async()=>'{}',headers:{get:()=>null}};},
   });
-  return {requests,send:(message,sender={id:'self'})=>new Promise(resolve=>handler({type:'YTMLS_FETCH',...message},sender,resolve))};
+  return {requests,timeouts,send:(message,sender={id:'self'})=>new Promise(resolve=>handler({type:'YTMLS_FETCH',...message},sender,resolve))};
 }
 test('only approved Content-Type passes; security and internal headers cannot be overridden',async()=>{
   const h=harness();
@@ -22,7 +23,7 @@ test('only approved Content-Type passes; security and internal headers cannot be
   assert.equal(result.ok,true);
   assert.deepEqual(Object.keys(h.requests[0].init.headers).sort(),['Accept','Content-Type','Lrclib-Client']);
   assert.equal(h.requests[0].init.headers['Content-Type'],'application/json');
-  assert.equal(h.requests[0].init.headers['Lrclib-Client'],'YT-Music-Lyrics-Sync/2.2.0');
+  assert.equal(h.requests[0].init.headers['Lrclib-Client'],`YT-Music-Lyrics-Sync/${manifest.version}`);
 });
 test('form provider requests retain content type and body but not LRCLIB identifier',async()=>{
   const h=harness();
@@ -45,4 +46,10 @@ test('untrusted sender, HTTP and unapproved hostname never reach fetch',async()=
     assert.equal((await h.send({url})).ok,false);
   }
   assert.equal(h.requests.length,0);
+});
+
+test('fetch timeout: finite bounds and safe defaults',async()=>{
+ for(const [input,expected] of [[undefined,25000],[0,25000],[-1,25000],[Infinity,25000],['bad',25000],[10,1000],[15000,15000],[1e12,60000]]) {
+   const h=harness();await h.send({url:'https://lrclib.net/api/search',timeoutMs:input});assert.equal(h.timeouts[0],expected);
+ }
 });

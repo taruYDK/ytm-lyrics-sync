@@ -1,7 +1,8 @@
 {
   "manifest_version": 3,
+  "minimum_chrome_version": "111",
   "name": "YT Music 歌詞シンクロ",
-  "version": "2.3.2",
+  "version": "2.5.6",
   "description": "歌詞候補の固定、ローカルLRC、同期歌詞作成、診断情報のコピーに対応。",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEApZe/sWz1TIwRd0/mQ+ZwnCUZK+GQt62M9Qy11IUXklxsS7Izm3JTtLaAR+VqvaD9i8kCiSklqU86DXxuW0T8upeuHlLfyfZTc/OVuEmebLqEchO50sy83h3HgPFKxnyZz8+MSnVR7SDOknUkZD6SzX1KjW51ptfQEN6gw7NtzDhDdjRNsIjYgKE354T4TXx2vALaqjo3vRNETaqOkn6CZsBYoXUubxaL2KMBXZfssp4rywb49wWFN/htPN6GQiCF0jY2n7VitFdZ+dUcqiBTuneAuJIbiRbauqBRixB8Mlkp/om6fFhwFv+kq2KAzZzVfiQea4cyxmvY/7dbJoVmOwIDAQAB",
   "icons": {
@@ -42,6 +43,7 @@
         "https://music.youtube.com/*"
       ],
       "js": [
+        "vendor/kuromoji/kuromoji.js",
         "content.js"
       ],
       "css": [
@@ -61,5 +63,16 @@
   },
   "background": {
     "service_worker": "background.js"
-  }
+  },
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "vendor/kuromoji/dict/*.gz",
+        "vendor/readings/english.json"
+      ],
+      "matches": [
+        "https://music.youtube.com/*"
+      ]
+    }
+  ]
 }

@@ -1,7 +1,7 @@
 // All user-data mutations run in one service-worker queue, including other tabs.
 const USER_DATA_KEYS = [
   'ytmlsTrackTimingOffsetsV174', 'ytmlsManualSearchOverridesV190',
-  'ytmlsLyricsEditsV199', 'ytmlsPinnedLyricsV200', 'ytmlsLocalLyricsV200',
+  'ytmlsLyricsEditsV199', 'ytmlsPinnedLyricsV200', 'ytmlsLocalLyricsV200', 'ytmlsManualReadingsV256',
 ];
 let userDataQueue = Promise.resolve();
 const isMap = value => value && typeof value === 'object' && !Array.isArray(value);
@@ -15,8 +15,25 @@ function localDataCall(method, value) {
   });
 }
 async function mutateUserData(message) {
+  if (message.action === 'migrateReadings') {
+    const all = await localDataCall('get', null);
+    const key = 'ytmlsManualReadingsV256', map = {...(all[key] || {})};
+    const oldKeys = Object.keys(all).filter(k => k.startsWith('ytmls_manual_readings_') && Array.isArray(all[k]));
+    for (const old of oldKeys) {
+      const id = old.slice('ytmls_manual_readings_'.length);
+      if (!id || ['__proto__','constructor','prototype'].includes(id)) continue;
+      if (!Object.prototype.hasOwnProperty.call(map,id) && all[old].length) map[id] = {entries:all[old],updatedAt:Date.now()};
+    }
+    if (oldKeys.length) {
+      YTMLSBackupValidation.local({[key]:map});
+      await localDataCall('set', {[key]:map});
+      await localDataCall('remove', oldKeys);
+    }
+    return {ok:true,data:{[key]:map}};
+  }
   const keys = message.action === 'entry'
     ? (message.key === 'ytmlsLocalLyricsV200' ? [message.key, 'ytmlsLyricsEditsV199'] : USER_DATA_KEYS.filter(key => key === message.key))
+    : message.action === 'nudgeTiming' ? ['ytmlsTrackTimingOffsetsV174']
     : message.action === 'edit' ? ['ytmlsLyricsEditsV199']
     : message.action === 'deleteLocal' ? USER_DATA_KEYS.slice(2)
     : message.action === 'restore' ? [] : USER_DATA_KEYS;
@@ -25,7 +42,35 @@ async function mutateUserData(message) {
   const changed = {};
   const id = String(message.videoId || '');
   const safeId = id && !['__proto__', 'prototype', 'constructor'].includes(id);
-  if (message.action === 'restore') {
+  if (message.action === 'nudgeTiming' && safeId) {
+    if (![100, -100].includes(message.deltaMs)) throw new Error('補正量が不正です。');
+    const key = 'ytmlsTrackTimingOffsetsV174';
+    const entry = next[key][id];
+    const clamp = value => Math.max(-20000, Math.min(20000, Math.round((Number(value) || 0) / 100) * 100));
+    const byPosition = new Map();
+    for (const point of (Array.isArray(entry?.points) ? entry.points : [])) {
+      const raw = Number(point && (point.position ?? point.progress ?? point.ratio));
+      if (!Number.isFinite(raw)) continue;
+      const position = Math.max(0, Math.min(1, raw));
+      if (position >= 1) continue;
+      byPosition.set(Math.round(position * 1000000), { position, offsetMs: clamp(point?.offsetMs) });
+    }
+    const points = [...byPosition.values()].sort((a,b) => a.position - b.position);
+    if (!points.length) points.push({ position: 0, offsetMs: clamp(isMap(entry) ? entry.offsetMs : entry) });
+    if (points[0].position > 0) points.unshift({ position: 0, offsetMs: points[0].offsetMs });
+    const offsets = points.map(point => point.offsetMs);
+    const delta = Math.max(-20000 - Math.min(...offsets), Math.min(20000 - Math.max(...offsets), message.deltaMs));
+    if (!delta) return { ok: true, data: { [key]: next[key] } };
+    for (const point of points) point.offsetMs += delta;
+    if (points.length === 1 && points[0].offsetMs === 0) delete next[key][id];
+    else next[key][id] = {
+      ...(isMap(entry) ? entry : {}), points, offsetMs: points[0].offsetMs,
+      endOffsetMs: points[points.length - 1].offsetMs,
+      title: String(message.title || entry?.title || ''), artist: String(message.artist || entry?.artist || ''), updatedAt: Date.now(),
+    };
+    changed[key] = next[key];
+  } else if (message.action === 'restore') {
+    YTMLSBackupValidation.local(message.data);
     for (const key of USER_DATA_KEYS) {
       if (Object.prototype.hasOwnProperty.call(message.data || {}, key)) {
         if (!isMap(message.data[key])) throw new Error('保存データの形式が不正です。');
@@ -48,6 +93,7 @@ async function mutateUserData(message) {
     }
     for (const key of USER_DATA_KEYS.slice(2)) changed[key] = next[key];
   } else if (message.action === 'entry' && safeId && USER_DATA_KEYS.includes(message.key)) {
+    if (message.key === 'ytmlsManualReadingsV256' && message.entry != null) YTMLSBackupValidation.local({[message.key]:{[id]:message.entry}});
     if (message.entry == null) delete next[message.key][id];
     else {
       if (!isMap(message.entry)) throw new Error('保存データの形式が不正です。');

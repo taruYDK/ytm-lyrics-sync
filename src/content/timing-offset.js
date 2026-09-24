@@ -2,6 +2,9 @@
   const TRACK_TIMING_OFFSETS_STORAGE_KEY = "ytmlsTrackTimingOffsetsV174";
   const TRACK_TIMING_OFFSET_LIMIT_MS = 20000;
 
+  let trackTimingPreview = null;
+  let trackTimingRenderedVideoId = "";
+
   function clampTrackOffsetMs(value) {
     return Math.max(-TRACK_TIMING_OFFSET_LIMIT_MS, Math.min(TRACK_TIMING_OFFSET_LIMIT_MS, Math.round((Number(value) || 0) / 100) * 100));
   }
@@ -26,6 +29,7 @@
   function getTrackTimingPoints(videoId = getTrackOffsetVideoId(true)) {
     const id = String(videoId || '');
     if (!id) return [{ position: 0, offsetMs: 0 }];
+    if (trackTimingPreview?.videoId === id) return trackTimingPreview.points.map(point => ({ ...point }));
     const entry = STATE.trackTimingOffsets && STATE.trackTimingOffsets[id];
     if (entry && typeof entry === 'object') {
       if (Array.isArray(entry.points) && entry.points.length) {
@@ -116,7 +120,7 @@
       videoId, entry: STATE.trackTimingOffsets[videoId] || null }).catch(reportSaveError);
   }
 
-  function saveCurrentTrackTimingPoints(points, renderPoints = true) {
+  function saveCurrentTrackTimingPoints(points, renderPoints = true, persist = true) {
     const videoId = getTrackOffsetVideoId(false);
     if (!videoId) return;
     const normalized = Array.from(points || [])
@@ -126,6 +130,10 @@
       }))
       .sort((a, b) => a.position - b.position);
     if (!normalized.length || normalized[0].position > 0) normalized.unshift({ position: 0, offsetMs: 0 });
+    if (!persist) {
+      trackTimingPreview = { videoId, points: normalized };
+    } else {
+    trackTimingPreview = null;
     if (!STATE.trackTimingOffsets || typeof STATE.trackTimingOffsets !== 'object') STATE.trackTimingOffsets = {};
     const isDefault = normalized.length === 1 && normalized[0].offsetMs === 0;
     if (isDefault) {
@@ -141,7 +149,8 @@
         updatedAt: Date.now(),
       };
     }
-    saveTrackTimingOffsets();
+    saveTrackTimingOffsets(videoId);
+    }
     STATE.currentIndex = -1;
     STATE.currentWordIndex = -1;
     updateTrackTimingControl(renderPoints);
@@ -152,7 +161,7 @@
     updateOffsetPreview();
   }
 
-  function setCurrentTrackTimingPointOffset(position, value, renderPoints = true) {
+  function setCurrentTrackTimingPointOffset(position, value, renderPoints = true, persist = true) {
     const points = getTrackTimingPoints(getTrackOffsetVideoId(false));
     const target = Math.max(0, Math.min(1, Number(position) || 0));
     let closestIndex = 0;
@@ -160,7 +169,7 @@
       if (Math.abs(points[index].position - target) < Math.abs(points[closestIndex].position - target)) closestIndex = index;
     }
     points[closestIndex] = { ...points[closestIndex], offsetMs: clampTrackOffsetMs(value) };
-    saveCurrentTrackTimingPoints(points, renderPoints);
+    saveCurrentTrackTimingPoints(points, renderPoints, persist);
   }
 
   function addCurrentTrackTimingPoint() {
@@ -185,6 +194,19 @@
     saveCurrentTrackTimingPoints(points);
   }
 
+  async function nudgeCurrentTrackTiming(deltaMs) {
+    if (!STATE.enabled || !STATE.trackTimingOffsetsLoaded) return;
+    const id = getAuthoritativeVideoId();
+    if (!id || id !== STATE.displayedVideoId || !STATE.hasSync) return;
+    try {
+      // Increment the latest persisted value in the shared service-worker queue.
+      // onChanged applies the committed data, including updates from other tabs.
+      await sendUserDataMutation({ action: "nudgeTiming", videoId: id, deltaMs,
+        title: STATE.stablePlayerTitle || STATE.lastDisplayedTitle || "",
+        artist: STATE.stablePlayerArtist || STATE.lastDisplayedArtist || "" });
+    } catch (error) { reportSaveError(error); }
+  }
+
   function resetCurrentTrackTimingPoints() {
     saveCurrentTrackTimingPoints([{ position: 0, offsetMs: 0 }]);
   }
@@ -197,8 +219,32 @@
     return `${minutes}:${String(remainder).padStart(2, '0')} から`;
   }
 
+  function bindTrackTimingRange(range, group, point, videoId) {
+    range.addEventListener('input', () => {
+      if (getTrackOffsetVideoId(false) !== videoId) return;
+      group.querySelector('.ytmls-track-offset-value').textContent = formatOffsetMs(range.value);
+      setCurrentTrackTimingPointOffset(point.position, range.value, false, false);
+    });
+    range.addEventListener('change', () => {
+      if (getTrackOffsetVideoId(false) !== videoId) return;
+      setCurrentTrackTimingPointOffset(point.position, range.value, false, true);
+    });
+    range.addEventListener('blur', () => {
+      // Also commits an input preview if a browser omits change on focus loss.
+      if (trackTimingPreview?.videoId === videoId && getTrackOffsetVideoId(false) === videoId) {
+        saveCurrentTrackTimingPoints(trackTimingPreview.points, false);
+      }
+      requestAnimationFrame(renderTrackTimingPoints);
+    });
+  }
+
   function renderTrackTimingPoints() {
     if (!trackTimingPointsEl) return;
+    const videoId = getTrackOffsetVideoId(false);
+    if (trackTimingPreview && trackTimingPreview.videoId !== videoId) trackTimingPreview = null;
+    if (trackTimingRenderedVideoId === videoId && trackTimingPointsEl.contains(document.activeElement) &&
+        document.activeElement?.classList.contains('ytmls-track-offset-range')) return;
+    trackTimingRenderedVideoId = videoId;
     const points = getTrackTimingPoints(getTrackOffsetVideoId(false));
     const duration = getAuthoritativeDuration(getVideoElement());
     const signature = `${getTrackOffsetVideoId(false)}|${Math.round(Number(duration) || 0)}|${points.map((point) => `${point.position.toFixed(6)}:${point.offsetMs}`).join(',')}`;
@@ -219,6 +265,7 @@
           </span>
         </div>
         <input class="ytmls-track-offset-range" type="range" min="-${TRACK_TIMING_OFFSET_LIMIT_MS}" max="${TRACK_TIMING_OFFSET_LIMIT_MS}" step="100" value="0" aria-label="歌詞タイミング補正" />
+        <div class="ytmls-track-offset-ends"><span>遅く（−）</span><span>早く（＋）</span></div>
         <div class="ytmls-track-offset-quick">
           <button type="button" data-delta="-500">−0.5</button><button type="button" data-delta="-100">−0.1</button>
           <button type="button" data-reset-point="1">0</button>
@@ -229,10 +276,7 @@
       const range = group.querySelector('.ytmls-track-offset-range');
       range.value = String(point.offsetMs);
       range.setAttribute('aria-label', `${formatTrackPosition(point.position, duration)}の歌詞タイミング補正`);
-      range.addEventListener('input', () => {
-        group.querySelector('.ytmls-track-offset-value').textContent = formatOffsetMs(range.value);
-        setCurrentTrackTimingPointOffset(point.position, range.value, false);
-      });
+      bindTrackTimingRange(range, group, point, videoId);
       for (const button of group.querySelectorAll('[data-delta]')) {
         button.addEventListener('click', () => {
           const latest = getTrackTimingPoints(getTrackOffsetVideoId(false));
@@ -270,6 +314,15 @@
     const points = getTrackTimingPoints(videoId);
     const enabled = Boolean(STATE.enabled && videoId && STATE.trackTimingOffsetsLoaded);
     trackTimingButtonEl.disabled = !enabled;
+    if (trackTimingPopoverEl) {
+      trackTimingPopoverEl.querySelectorAll('[data-nudge]').forEach(button => {
+        const delta = Number(button.dataset.nudge);
+        const atLimit = points.some(point => delta > 0 ? point.offsetMs >= TRACK_TIMING_OFFSET_LIMIT_MS : point.offsetMs <= -TRACK_TIMING_OFFSET_LIMIT_MS);
+        button.disabled = !enabled || !STATE.hasSync || videoId !== STATE.displayedVideoId || atLimit;
+        button.textContent = delta > 0 ? (atLimit ? '早く：上限です' : '歌詞を0.1秒早く') : (atLimit ? '遅く：上限です' : '歌詞を0.1秒遅く');
+        button.title = atLimit ? '補正の上限（±20秒）に達しています。反対方向には調整できます。' : 'この曲全体の歌詞タイミングを調整して保存';
+      });
+    }
     trackTimingButtonEl.hidden = !STATE.enabled;
     trackTimingButtonEl.setAttribute('aria-disabled', enabled ? 'false' : 'true');
     const currentMs = effectiveTimingOffsetMs();
@@ -296,6 +349,7 @@
   }
 
   function closeTrackTimingPopover() {
+    if (trackTimingPreview?.videoId === getTrackOffsetVideoId(false)) saveCurrentTrackTimingPoints(trackTimingPreview.points, false);
     if (trackTimingPopoverEl) trackTimingPopoverEl.hidden = true;
     if (trackTimingButtonEl) trackTimingButtonEl.setAttribute('aria-expanded', 'false');
   }
@@ -369,7 +423,10 @@
         trackTimingPopoverEl.hidden = !willOpen;
         button.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
         updateTrackTimingControl();
-        if (willOpen) requestAnimationFrame(positionTrackTimingPopover);
+        if (willOpen) requestAnimationFrame(() => {
+          positionTrackTimingPopover();
+          trackTimingPopoverEl.querySelector(".ytmls-track-offset-close")?.focus();
+        });
       });
     } else if (trackTimingButtonEl.parentElement !== host) {
       host.appendChild(trackTimingButtonEl);
@@ -396,6 +453,11 @@
         </div>
         <button type="button" class="ytmls-track-offset-close" aria-label="閉じる">×</button>
       </div>
+      <div class="ytmls-track-offset-quick ytmls-track-nudge">
+        <button type="button" data-nudge="100">歌詞を0.1秒早く</button>
+        <button type="button" data-nudge="-100">歌詞を0.1秒遅く</button>
+      </div>
+      <div class="ytmls-track-offset-help">曲全体を調整して自動保存します。途中の補正ポイント同士の差は保ちます（上限±20秒）。</div>
       <div class="ytmls-track-offset-help ytmls-track-offset-intro">最初は補正欄が1つだけです。合わせたい場所まで再生してポイントを追加すると、その位置以降の補正を変更できます。ポイントは何個でも追加できます。</div>
       <button type="button" class="ytmls-track-offset-add">＋ 現在位置に補正ポイントを追加</button>
       <div class="ytmls-track-offset-points"></div>
@@ -408,6 +470,15 @@
     trackTimingTitleEl = pop.querySelector('.ytmls-track-offset-track');
     trackTimingTotalEl = pop.querySelector('.ytmls-track-offset-total');
 
+    pop.querySelectorAll('[data-nudge]').forEach(button => {
+      button.addEventListener('click', () => nudgeCurrentTrackTiming(Number(button.dataset.nudge)));
+    });
+    pop.addEventListener('keydown', event => {
+      if (event.key !== 'Escape') return;
+      event.preventDefault(); event.stopPropagation();
+      closeTrackTimingPopover();
+      trackTimingButtonEl?.focus();
+    });
     pop.addEventListener('click', (event) => event.stopPropagation());
     pop.querySelector('.ytmls-track-offset-close').addEventListener('click', closeTrackTimingPopover);
     trackTimingAddPointEl.addEventListener('click', addCurrentTrackTimingPoint);
@@ -527,7 +598,16 @@
       }
 
       if (line.time != null) {
-        div.title = "クリックでこの位置へ移動";
+        div.title = "クリックまたはEnter/Spaceでこの位置へ移動";
+        div.tabIndex = 0;
+        div.setAttribute('role', 'button');
+        div.setAttribute('aria-label', (line.text || editableLineText(line) || '間奏') + '：この位置へ移動');
+        div.addEventListener('keydown', event => {
+          if ((event.key === 'Enter' || event.key === ' ') && !event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey) {
+            event.preventDefault(); event.stopPropagation();
+            if (!event.repeat) div.click();
+          }
+        });
         const renderedTrackKey = STATE.lastDisplayedTrackKey;
         const renderedVideoId = STATE.displayedVideoId;
         div.addEventListener("click", (event) => {
@@ -562,6 +642,7 @@
       listEl.appendChild(div);
     });
 
+    void refreshLyricsReadings();
     const video = getVideoElement();
     if (video && STATE.hasSync && canTrackCurrentPlayback(video)) {
       updateHighlight(getAuthoritativePlaybackTime(video) || 0, true);

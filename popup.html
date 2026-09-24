@@ -63,36 +63,53 @@
 <body>
   <div class="header">
     <div><h1>YT Music 歌詞シンクロ</h1><div class="version" id="extensionVersion"></div></div>
-    <label class="switch" title="拡張機能を有効/無効"><input type="checkbox" id="enabledToggle" /><span class="slider"></span></label>
+    <label class="switch" title="拡張機能を有効/無効"><input type="checkbox" id="enabledToggle" aria-label="拡張機能を有効にする" /><span class="slider"></span></label>
   </div>
 
   <section class="section">
     <div class="section-title">表示</div>
     <div class="setting-row">
       <div class="label-block"><div class="label">文字サイズ</div><div class="hint">歌詞本文の大きさ</div></div>
-      <select id="fontSizeSelect"><option value="26">26px 小さめ</option><option value="28">28px</option><option value="32">32px 標準</option><option value="36">36px</option><option value="40">40px 大きめ</option></select>
+      <select id="fontSizeSelect" aria-label="文字サイズ"><option value="26">26px 小さめ</option><option value="28">28px</option><option value="32">32px 標準</option><option value="36">36px</option><option value="40">40px 大きめ</option></select>
     </div>
     <div class="setting-row">
       <div class="label-block"><div class="label">現在行フォーカス</div><div class="hint">現在行を目立たせ、離れた行を薄く表示</div></div>
-      <label class="switch small"><input type="checkbox" id="focusFadeToggle" /><span class="slider"></span></label>
+      <label class="switch small"><input type="checkbox" id="focusFadeToggle" aria-label="現在行フォーカス" /><span class="slider"></span></label>
     </div>
     <div class="setting-row">
       <div class="label-block"><div class="label">無操作時に歌詞を自動表示</div><div class="hint">「次のコンテンツ」表示後、最後の操作から2秒何もしなければ歌詞へ移動</div></div>
-      <label class="switch small"><input type="checkbox" id="autoLyricsOnIdleToggle" /><span class="slider"></span></label>
+      <label class="switch small"><input type="checkbox" id="autoLyricsOnIdleToggle" aria-label="無操作時に歌詞を自動表示" /><span class="slider"></span></label>
     </div>
   </section>
 
   <section class="section">
     <div class="section-title">歌詞追跡</div>
     <div class="setting-row">
-      <div class="label-block"><div class="label">追跡</div><div class="hint">現在行をハイライトし、中央へ自動スクロール</div></div>
-      <label class="switch small"><input type="checkbox" id="trackingToggle" /><span class="slider"></span></label>
+      <div class="label-block"><div class="label">追跡</div><div class="hint">現在行をハイライトし、指定位置へ自動スクロール</div></div>
+      <label class="switch small"><input type="checkbox" id="trackingToggle" aria-label="歌詞追跡" /><span class="slider"></span></label>
     </div>
     <div class="setting-row">
       <div class="label-block"><div class="label">追跡アニメーション</div><div class="hint">単語の色が進む滑らかさ</div></div>
-      <select id="wordTrackingStyleSelect"><option value="smooth">なめらか</option><option value="silky">ぬるぬる</option></select>
+      <select id="wordTrackingStyleSelect" aria-label="追跡アニメーション"><option value="smooth">なめらか</option><option value="silky">ぬるぬる</option></select>
     </div>
+    <div class="setting-row">
+      <div class="label-block"><label class="label" for="trackingPosition">追跡位置</label><div class="hint">上寄り ← → 下寄り（標準42%）</div><output id="trackingPositionValue" for="trackingPosition">上から42%</output></div>
+      <input id="trackingPosition" type="range" min="25" max="65" step="1" value="42" style="width:132px; accent-color:var(--accent)" />
+    </div>
+    <div class="setting-row">
+      <div class="label-block"><label class="label" for="manualScrollReturnMs">追跡に戻るまで</label><div class="hint">手動スクロール後の待ち時間</div></div>
+      <select id="manualScrollReturnMs"><option value="1000">1秒</option><option value="2000">2秒</option><option value="3500" selected>3.5秒（標準）</option><option value="5000">5秒</option><option value="10000">10秒</option></select>
+    </div>
+    <p id="trackingSettingsStatus" class="hint" role="status"></p>
     <div class="info">追跡できる同期歌詞だけを使用します。歌詞タブ上部の「歌詞候補」でおすすめ度を見ながら歌詞を選択でき、「手動検索」で曲名と歌手を修正できます。</div>
+  </section>
+
+  <section class="section">
+    <div class="section-title">読み仮名</div>
+    <div class="setting-row"><div class="label-block"><div class="label">漢字のふりがな</div><div class="hint">漢字の上にひらがなを表示</div></div><label class="switch small"><input type="checkbox" id="readingJapaneseToggle" aria-label="漢字のふりがな" /><span class="slider"></span></label></div>
+    <div class="setting-row"><div class="label-block"><div class="label">英語のカタカナ読み</div><div class="hint">英単語の上に発音の目安を表示</div></div><label class="switch small"><input type="checkbox" id="readingEnglishToggle" aria-label="英語のカタカナ読み" /><span class="slider"></span></label></div>
+    <div class="hint" style="margin-top:10px">端末内の辞書で自動生成します。固有名詞・同じ綴りの別の読み・歌詞独自の読みは誤る場合があります。辞書にない語は読みを表示しません。初回の日本語辞書読み込みには少し時間がかかります。</div>
+    <p id="readingSettingsStatus" class="hint" role="status"></p>
   </section>
 
   <section class="section">
@@ -116,7 +133,7 @@
     <a class="data-button" href="backup.html" target="_blank" rel="noopener">バックアップ・復元・管理を開く</a>
   </section>
 
-  <div class="footer-note">自動表示ONでは、「次のコンテンツ」表示中の最後のクリック・キー操作・スクロールから2秒間何もしなければ歌詞へ移動します。手動スクロール後は3.5秒で現在位置へ戻ります。追跡停止や曲ID不一致を検出した場合は自動復旧します。</div>
+  <div class="footer-note">自動表示ONでは、「次のコンテンツ」表示中の最後のクリック・キー操作・スクロールから2秒間何もしなければ歌詞へ移動します。手動スクロール後は設定した待ち時間で現在位置へ戻ります。追跡停止や曲ID不一致を検出した場合は自動復旧します。</div>
   <script src="backup-reminder.js"></script>
   <script src="popup.js"></script>
 </body>

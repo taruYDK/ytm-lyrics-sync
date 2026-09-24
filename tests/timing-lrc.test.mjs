@@ -53,3 +53,13 @@ test('LRC: unadjusted export and empty lyrics error', () => {
   assert(buildExportLrc([{time:60,text:'line'}],{},[{position:0,offsetMs:20000}],100,false).includes('[01:00.00]line'));
   assert.throws(()=>buildExportLrc([{time:1,text:''}],{},[],100,false),/書き出せる/);
 });
+
+test('LRC export: missing times are excluded while real zero is retained', () => {
+  const lines = [null, {time:null,text:'untimed'}, {time:'',text:'empty'}, {time:0,text:'start'}];
+  const lrc = buildExportLrc(lines,{},[],100,false);
+  assert(lrc.includes('[00:00.00]start'));
+  assert(!lrc.includes('untimed') && !lrc.includes('empty'));
+});
+test('LRC export: a lyric at zero respects negative timing correction', () => {
+  assert.equal(exportedPlaybackTime(0,[{position:0,offsetMs:-5000}],100),5);
+});
