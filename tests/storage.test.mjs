@@ -106,3 +106,11 @@ test('manual readings: failed migration retains legacy data for retry',async()=>
  assert.equal((await h.send({action:'migrateReadings'})).ok,true);
  assert.deepEqual(h.store.ytmlsManualReadingsV256.song.entries,entries);
 });
+
+test('manual readings: migration marker prevents full reads and replies contain only requested song',async()=>{
+ const h=harness();h.store.ytmlsReadingsMigratedV262=true;
+ h.store.ytmlsManualReadingsV256={a:{entries:[{text:'a'}]},b:{entries:[{text:'b'}]}};
+ Object.defineProperty(h.store,'privateCache',{enumerable:true,get(){throw Error('full storage read');}});
+ const r=await h.send({action:'readReadings',videoId:'a'});assert.equal(r.ok,true);
+ assert.deepEqual(structuredClone(r.data),{entries:[{text:'a'}]});
+});

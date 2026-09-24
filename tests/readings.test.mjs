@@ -113,7 +113,7 @@ test('manual readings: invalid saved ranges are ignored and overlapping correcti
 test('manual readings: local storage is isolated per track and read errors are surfaced', async () => {
   const data = {ytmls_manual_readings_songA:[{text:'love',start:0,end:4,reading:'ラヴ'}]};
   const chrome={runtime:{},storage:{local:{get(key,callback){callback(data);}}}};
-  const context=vm.createContext({chrome,sendUserDataMutation:async()=>{if(chrome.runtime.lastError) throw Error('failed');return {ytmlsManualReadingsV256:{songA:{entries:data.ytmls_manual_readings_songA}}};}});
+  const context=vm.createContext({chrome,sendUserDataMutation:async message=>{if(chrome.runtime.lastError) throw Error('failed');return {entries:message.videoId==='songA'?data.ytmls_manual_readings_songA:[]};}});
   vm.runInContext(fs.readFileSync(new URL('../src/content/readings.js',import.meta.url),'utf8'),context);
   assert.equal((await context.loadManualReadings('songA'))[0].reading,'ラヴ');
   assert.equal((await context.loadManualReadings('songB')).length,0);

@@ -1,4 +1,4 @@
-importScripts('backup-validation.js', 'storage-broker.js');
+importScripts('backup-validation.js', 'storage-broker.js', 'readings-service.js');
 // Cross-origin fetch helper for Manifest V3.
 // Provider-specific headers are isolated here to avoid CORS/preflight mistakes.
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {

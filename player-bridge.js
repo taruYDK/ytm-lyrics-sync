@@ -13,15 +13,18 @@
     }
   }
 
-  function publish() {
+  let enabled = true, metadataAt = -Infinity, metadata = null, metadataPlayer = null;
+  function publish(forceMetadata = false) {
+    if (!enabled) return;
     const sampledAt = performance.now();
     const player = document.getElementById('movie_player');
     if (!player) return;
 
-    let data = null;
-    try {
-      data = typeof player.getVideoData === 'function' ? player.getVideoData() : null;
-    } catch (_) {}
+    if (forceMetadata || player !== metadataPlayer || sampledAt - metadataAt >= 250) {
+      try { metadata = typeof player.getVideoData === 'function' ? player.getVideoData() : null; } catch (_) { metadata=null; }
+      metadataAt=sampledAt;metadataPlayer=player;
+    }
+    const data = metadata;
 
     const apiCurrentTime = readNumber(() => player.getCurrentTime());
     const duration = readNumber(() => player.getDuration());
@@ -72,7 +75,9 @@
   window.addEventListener('message', (event) => {
     if (event.source !== window) return;
     const message = event.data;
-    if (!message || message.source !== SOURCE || message.type !== 'seek') return;
+    if (!message || message.source !== SOURCE) return;
+    if (message.type === 'tracking-config') {enabled=message.enabled===true;if(enabled){publish(true);schedule();}else{clearTimeout(timer);timer=null;}return;}
+    if (message.type !== 'seek' || !enabled) return;
     const payload = message.payload || {};
     const requestedVideoId = String(payload.videoId || '');
     const requestedTime = Number(payload.time);
@@ -90,14 +95,12 @@
     } catch (_) {}
   }, false);
 
-  let rafId = 0;
-  function frame() {
-    publish();
-    rafId = requestAnimationFrame(frame);
+  let timer = null;
+  function schedule() {
+    if (!enabled || timer !== null) return;
+    timer=setTimeout(()=>{timer=null;publish();schedule();},34);
   }
-
-  publish();
-  rafId = requestAnimationFrame(frame);
-  window.addEventListener('yt-navigate-finish', publish, true);
-  document.addEventListener('ytmd-player-state-change', publish, true);
+  publish(true);schedule();
+  window.addEventListener('yt-navigate-finish', ()=>publish(true), true);
+  document.addEventListener('ytmd-player-state-change', ()=>publish(true), true);
 })();

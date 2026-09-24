@@ -373,7 +373,15 @@
     }
   }
 
+  let lyricsCacheSaveTimer = null;
   function saveLyricsCacheToStorage() {
+    clearTimeout(lyricsCacheSaveTimer);
+    lyricsCacheSaveTimer = setTimeout(flushLyricsCacheToStorage, 1000);
+  }
+
+  function flushLyricsCacheToStorage() {
+    clearTimeout(lyricsCacheSaveTimer);
+    lyricsCacheSaveTimer = null;
     try {
       const obj = {};
       for (const [k, v] of STATE.lyricsCache.entries()) obj[k] = v;

@@ -4,7 +4,7 @@
 
 **YouTube Musicに、追いかけやすい歌詞と読み仮名を。**
 
-![Version 2.6.1](https://img.shields.io/badge/version-2.6.1-14b8a6?style=flat-square)
+![Version 2.6.2](https://img.shields.io/badge/version-2.6.2-14b8a6?style=flat-square)
 ![Edge / Chrome](https://img.shields.io/badge/browser-Edge%20%2F%20Chrome-3b82f6?style=flat-square)
 ![Manifest V3](https://img.shields.io/badge/extension-Manifest%20V3-8b5cf6?style=flat-square)
 [![MIT License](https://img.shields.io/badge/license-MIT-f59e0b?style=flat-square)](LICENSE)
@@ -103,7 +103,7 @@
 
 ## 更新情報
 
-**v2.6.1**：歌詞の指定検索を並行して開始し、採用済み歌詞を早めにキャッシュへ保存するよう改善しました。
+**v2.6.2**：歌詞の指定検索を並行して開始し、採用済み歌詞を早めにキャッシュへ保存するよう改善しました。
 
 詳しくは [CHANGELOG.md](CHANGELOG.md) を参照してください。
 
@@ -116,7 +116,7 @@ npm run build
 npm run check
 ```
 
-`src/` を編集したら `content.js` を再生成してください。v2.6.1では自動テスト62件と生成物一致を確認しています。実サイトでの表示・外部APIの動作は、このテストの保証範囲に含まれません。
+`src/` を編集したら `content.js` を再生成してください。v2.6.2では自動テスト68件と生成物一致を確認しています。実サイトでの表示・外部APIの動作は、このテストの保証範囲に含まれません。
 
 [開発ガイド](DEVELOPMENT.md) · [変更時の手順](CONTRIBUTING.md) · [不具合・要望](https://github.com/taruYDK/ytm-lyrics-sync/issues)
 
@@ -131,3 +131,6 @@ npm run check
 
 
 
+
+### v2.6.2の負荷軽減
+日本語辞書を共有Workerへ移動し、未使用5分で解放します。保存処理を集約し、プレイヤー通信は約30Hz、拡張OFF時は停止します。offscreen権限を追加しました。実ブラウザーでの負荷測定は未実施です。

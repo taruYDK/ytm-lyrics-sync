@@ -1149,7 +1149,12 @@
     return isLyricsLabelText(tabLabel(selected));
   }
 
+  let bridgeEnabledSetting;
   function applySettings() {
+    if (bridgeEnabledSetting !== STATE.enabled) {
+      bridgeEnabledSetting = STATE.enabled;
+      window.postMessage({source:PLAYER_BRIDGE_SOURCE,type:'tracking-config',enabled:STATE.enabled===true}, '*');
+    }
     if (listEl) listEl.style.fontSize = STATE.fontSize + "px";
     if (panelEl) {
       panelEl.dataset.sync = STATE.syncLevel || "none";

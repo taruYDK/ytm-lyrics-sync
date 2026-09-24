@@ -15,7 +15,14 @@ function localDataCall(method, value) {
   });
 }
 async function mutateUserData(message) {
+  if (message.action === 'readReadings') {
+    await mutateUserData({action:'migrateReadings'});
+    const data = await localDataCall('get', ['ytmlsManualReadingsV256']);
+    return {ok:true,data:{entries:data.ytmlsManualReadingsV256?.[String(message.videoId || '')]?.entries || []}};
+  }
   if (message.action === 'migrateReadings') {
+    const marker = await localDataCall('get', ['ytmlsReadingsMigratedV262']);
+    if (marker.ytmlsReadingsMigratedV262 === true) return {ok:true,data:{}};
     const all = await localDataCall('get', null);
     const key = 'ytmlsManualReadingsV256', map = {...(all[key] || {})};
     const oldKeys = Object.keys(all).filter(k => k.startsWith('ytmls_manual_readings_') && Array.isArray(all[k]));
@@ -29,7 +36,8 @@ async function mutateUserData(message) {
       await localDataCall('set', {[key]:map});
       await localDataCall('remove', oldKeys);
     }
-    return {ok:true,data:{[key]:map}};
+    await localDataCall('set', {ytmlsReadingsMigratedV262:true});
+    return {ok:true,data:{}};
   }
   const keys = message.action === 'entry'
     ? (message.key === 'ytmlsLocalLyricsV200' ? [message.key, 'ytmlsLyricsEditsV199'] : USER_DATA_KEYS.filter(key => key === message.key))

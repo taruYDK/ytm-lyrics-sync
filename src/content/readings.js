@@ -1,20 +1,14 @@
   // Reading annotations are display-only. Never write ruby text into STATE.lines.
   let lyricsReadingGeneration = 0;
-  let japaneseTokenizerPromise = null;
   let englishReadingsPromise = null;
   const lyricsReadingCache = new Map();
 
   function getJapaneseReadingTokenizer() {
-    if (!japaneseTokenizerPromise) japaneseTokenizerPromise = new Promise((resolve, reject) => {
-      const timer = setTimeout(() => reject(new Error('日本語辞書の読み込みがタイムアウトしました')), 30000);
-      try {
-        globalThis.kuromoji.builder({ dicPath: chrome.runtime.getURL('vendor/kuromoji/dict/') }).build((error, tokenizer) => {
-          clearTimeout(timer);
-          if (error) reject(error); else resolve(tokenizer);
-        });
-      } catch (error) { clearTimeout(timer); reject(error); }
-    });
-    return japaneseTokenizerPromise;
+    return Promise.resolve({tokenize:async text=>{
+      const response=await chrome.runtime.sendMessage({type:'YTMLS_JAPANESE_TOKENS',text});
+      if (!response?.ok) throw new Error(response?.error || '日本語辞書を読み込めません');
+      return response.tokens;
+    }});
   }
 
   function getEnglishReadings() {
@@ -99,7 +93,7 @@
       if (!ranges) {
         try {
           ranges = [
-            ...(tokenizer && /[\p{Script=Han}々〆ヶ]/u.test(text) ? japaneseReadingRanges(text, tokenizer.tokenize(text)) : []),
+            ...(tokenizer && /[\p{Script=Han}々〆ヶ]/u.test(text) ? japaneseReadingRanges(text, await tokenizer.tokenize(text)) : []),
             ...(dictionary ? englishReadingRanges(text, dictionary) : []),
           ].sort((a,b) => a.start - b.start);
           // A Japanese token may contain Latin letters: prefer its contextual reading.
@@ -111,6 +105,7 @@
       const automatic = ranges;
       const occurrence = texts.slice(0,index).filter(t => t === text).length;
       const savedReadings = manual.status === 'fulfilled' ? manual.value.map(e => e && e.occurrence === undefined && e.text === text && texts.filter(t => t === text).length === 1 ? {...e, occurrence:0} : e) : [];
+      if (!current()) return;
       ranges = layoutManualLineReadings(text, mergeManualReadings(text, ranges, savedReadings, ja, en, index, occurrence), ja, en, automatic);
       if (line.words?.length) {
         let offset = 0; const spans = row.querySelectorAll('.ytmls-word');
@@ -131,7 +126,7 @@
 
   function loadManualReadings(videoId) {
     if (!videoId) return Promise.resolve([]);
-    return sendUserDataMutation({action:'migrateReadings'}).then(data => data.ytmlsManualReadingsV256?.[videoId]?.entries || []);
+    return sendUserDataMutation({action:'readReadings',videoId}).then(data => data.entries || []);
   }
 
   function canEditLyricsReadings() {
@@ -202,20 +197,26 @@
     const textForLine = () => editableLineText(lines[Number(select.value)]);
     const occurrenceForLine = () => lines.slice(0,Number(select.value)).filter(line => editableLineText(line) === textForLine()).length;
     const belongs = e => e && e.text === textForLine() && (e.occurrence !== undefined ? e.occurrence === occurrenceForLine() : e.lineIndex === undefined || e.lineIndex === Number(select.value));
-    const update = () => {
+    let previewGeneration = 0;
+    const update = async () => {
+      const generation = ++previewGeneration;
+      reading.disabled = save.disabled = true;
       const text = textForLine();
       let automatic = [];
       try {
-        automatic = [...(tokenizer ? japaneseReadingRanges(text, tokenizer.tokenize(text)) : []), ...(dictionary ? englishReadingRanges(text, dictionary) : [])].sort((a,b) => a.start - b.start);
+        automatic = [...(tokenizer ? japaneseReadingRanges(text, await tokenizer.tokenize(text)) : []), ...(dictionary ? englishReadingRanges(text, dictionary) : [])].sort((a,b) => a.start - b.start);
         automatic = automatic.filter((r,i,all) => !all.slice(0,i).some(p => p.end > r.start));
       } catch (_) {}
+      if (generation !== previewGeneration || !current()) return;
+      reading.disabled = save.disabled = false;
       const ranges = mergeManualReadings(text, automatic, entries, true, true, Number(select.value), occurrenceForLine());
       const full = entries.findLast(e => belongs(e) && e.start === 0 && e.end === text.length);
       reading.value = full ? full.reading : readingPartsForFragment(text, 0, ranges).map(p => p.reading || p.text).join('');
       saved.textContent = entries.some(belongs) ? '手動の読みを保存済み' : '自動の読みを表示中。自由に書き直せます。';
     };
     if (STATE.currentIndex >= 0 && STATE.currentIndex < lines.length) select.value = String(STATE.currentIndex);
-    update(); status.textContent = ''; save.disabled = reset.disabled = select.disabled = reading.disabled = false;
+    reset.disabled = select.disabled = false;
+    await update(); status.textContent = '';
     select.addEventListener('change', () => { update(); status.textContent = ''; });
     async function persist(next) {
       if (!current()) { status.textContent = '曲や歌詞が変わりました。編集画面を開き直してください。'; return; }
@@ -226,7 +227,7 @@
         await sendUserDataMutation({action:'entry', key:'ytmlsManualReadingsV256', videoId,
           entry: next.length ? {entries:next,title:info.title || '',artist:info.artist || '',updatedAt:Date.now()} : null});
         entries = next;
-        if (current()) { update(); status.textContent = '保存しました。表示設定がONの読み仮名に反映します。'; refreshLyricsReadings(); }
+        if (current()) { await update(); status.textContent = '保存しました。表示設定がONの読み仮名に反映します。'; refreshLyricsReadings(); }
       } catch (_) { if (current()) status.textContent = '保存できませんでした。もう一度お試しください。'; }
       finally { save.disabled = reset.disabled = select.disabled = reading.disabled = false; }
     }
