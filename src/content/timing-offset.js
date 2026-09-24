@@ -598,14 +598,17 @@
       }
 
       if (line.time != null) {
-        div.title = "クリックまたはEnter/Spaceでこの位置へ移動";
+        div.title = "クリックまたはEnterでこの位置へ移動・Spaceで再生/一時停止";
         div.tabIndex = 0;
         div.setAttribute('role', 'button');
         div.setAttribute('aria-label', (line.text || editableLineText(line) || '間奏') + '：この位置へ移動');
         div.addEventListener('keydown', event => {
           if ((event.key === 'Enter' || event.key === ' ') && !event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey) {
             event.preventDefault(); event.stopPropagation();
-            if (!event.repeat) div.click();
+            if (!event.repeat) {
+              if (event.key === 'Enter') div.click();
+              else requestPlayerToggle(getAuthoritativeVideoId());
+            }
           }
         });
         const renderedTrackKey = STATE.lastDisplayedTrackKey;

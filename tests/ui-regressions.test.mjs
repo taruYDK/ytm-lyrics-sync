@@ -51,13 +51,16 @@ test('author shortcuts: protect only panel controls, leaving outside playback co
  c.lyricsToolsPaneEl=null;
  assert.equal(c.authorShortcutTargetsControl({closest:()=>play},record),false);
 });
-test('lyrics: timed rows support Enter and Space without repeat or modifier activation',()=>{
+test('lyrics: Enter seeks, Space toggles playback without repeats or modifiers',()=>{
+ let toggles=0;
  const nodes=[];function element(){return {dataset:{},handlers:{},classList:{add(){}},setAttribute(key,value){this[key]=value;},addEventListener(key,fn){this.handlers[key]=fn;},click(){this.activations=(this.activations||0)+1;}};}
  const c=vm.createContext({STATE:{lines:[{time:1,text:'line',words:[]}],lastDisplayedTrackKey:'key',displayedVideoId:'song'},
+ requestPlayerToggle:id=>{assert.equal(id,'song');toggles++;},getAuthoritativeVideoId:()=> 'song',
  refreshLyricsReadings(){},listEl:{appendChild:node=>nodes.push(node)},document:{createElement:element},getVideoElement:()=>null});
  vm.runInContext(read('src/content/timing-offset.js'),c);c.renderLines();
  const line=nodes[0];assert.equal(line.tabIndex,0);assert.equal(line.role,'button');
  for(const key of ['Enter',' '])line.handlers.keydown({key,preventDefault(){},stopPropagation(){}});
  line.handlers.keydown({key:' ',repeat:true,preventDefault(){},stopPropagation(){}});
- line.handlers.keydown({key:'Enter',ctrlKey:true});assert.equal(line.activations,2);
+ line.handlers.keydown({key:'Enter',ctrlKey:true});
+ line.handlers.keydown({key:' ',ctrlKey:true});assert.equal(line.activations,1);assert.equal(toggles,1);
 });

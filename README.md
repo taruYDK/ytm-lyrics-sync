@@ -4,7 +4,7 @@
 
 **YouTube Musicに、追いかけやすい歌詞と読み仮名を。**
 
-![Version 2.6.2](https://img.shields.io/badge/version-2.6.3-14b8a6?style=flat-square)
+![Version 2.6.2](https://img.shields.io/badge/version-2.6.4-14b8a6?style=flat-square)
 ![Edge / Chrome](https://img.shields.io/badge/browser-Edge%20%2F%20Chrome-3b82f6?style=flat-square)
 ![Manifest V3](https://img.shields.io/badge/extension-Manifest%20V3-8b5cf6?style=flat-square)
 [![MIT License](https://img.shields.io/badge/license-MIT-f59e0b?style=flat-square)](LICENSE)
@@ -137,3 +137,7 @@ npm run check
 
 ### YouTube Music本体の歌詞
 YouTube Music本体の行同期歌詞を動画IDで取得する候補を追加しました。提供元設定からON/OFF可能です。ログイン情報は使用しません。認証が必要な歌詞や別音源の探索には未対応です。
+
+## v2.6.4
+
+歌詞クリック後もSpaceで再生・一時停止できます。クリックとEnterは歌詞位置へ移動します。長押しでの連続切り替えを防止。テスト71件成功（実機未確認）。

@@ -56,3 +56,15 @@ test('real dictionary initializes and tokenizes inside worker global without pag
  const r=await result;assert.equal(r.ok,true);assert.equal(r.tokens[0].reading,'キョウ');
  assert.deepEqual(Object.keys(r.tokens[0]).sort(),['reading','surface_form']);
 });
+
+test('bridge toggles current playback and rejects stale or disabled commands',()=>{
+ let listener,state=1,plays=0,pauses=0;
+ const player={getVideoData:()=>({video_id:'song'}),getCurrentTime:()=>0,getDuration:()=>100,getPlayerState:()=>state,getPlaybackRate:()=>1,querySelector:()=>null,playVideo(){plays++;state=1;},pauseVideo(){pauses++;state=2;}};
+ const window={postMessage(){},addEventListener:(type,fn)=>{if(type==='message')listener=fn;}};
+ vm.runInNewContext(read('player-bridge.js'),{window,document:{getElementById:()=>player,addEventListener(){}},performance:{now:()=>0},setTimeout:()=>1,clearTimeout(){}});
+ const send=(videoId='song')=>listener({source:window,data:{source:'ytmls-player-bridge-v1',type:'toggle-playback',payload:{videoId}}});
+ send();assert.equal(pauses,1);send();assert.equal(plays,1);
+ state=3;send();assert.equal(pauses,2);send('old');assert.equal(plays,1);
+ listener({source:window,data:{source:'ytmls-player-bridge-v1',type:'tracking-config',enabled:false}});
+ send();assert.equal(plays,1);
+});

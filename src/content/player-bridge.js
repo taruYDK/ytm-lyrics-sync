@@ -3,6 +3,11 @@
   // MAIN world の #movie_player API が返す videoId/currentTime を最優先する。
   const PLAYER_BRIDGE_SOURCE = "ytmls-player-bridge-v1";
 
+  function requestPlayerToggle(videoId) {
+    if (!STATE.enabled || !videoId) return;
+    window.postMessage({ source: PLAYER_BRIDGE_SOURCE, type: 'toggle-playback', payload: { videoId } }, '*');
+  }
+
   window.addEventListener("message", (event) => {
     if (event.source !== window) return;
     const data = event.data;

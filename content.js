@@ -470,6 +470,11 @@ function readingSegmentProgressCss(start, end, length) {
   // MAIN world の #movie_player API が返す videoId/currentTime を最優先する。
   const PLAYER_BRIDGE_SOURCE = "ytmls-player-bridge-v1";
 
+  function requestPlayerToggle(videoId) {
+    if (!STATE.enabled || !videoId) return;
+    window.postMessage({ source: PLAYER_BRIDGE_SOURCE, type: 'toggle-playback', payload: { videoId } }, '*');
+  }
+
   window.addEventListener("message", (event) => {
     if (event.source !== window) return;
     const data = event.data;
@@ -3332,14 +3337,17 @@ function readingSegmentProgressCss(start, end, length) {
       }
 
       if (line.time != null) {
-        div.title = "クリックまたはEnter/Spaceでこの位置へ移動";
+        div.title = "クリックまたはEnterでこの位置へ移動・Spaceで再生/一時停止";
         div.tabIndex = 0;
         div.setAttribute('role', 'button');
         div.setAttribute('aria-label', (line.text || editableLineText(line) || '間奏') + '：この位置へ移動');
         div.addEventListener('keydown', event => {
           if ((event.key === 'Enter' || event.key === ' ') && !event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey) {
             event.preventDefault(); event.stopPropagation();
-            if (!event.repeat) div.click();
+            if (!event.repeat) {
+              if (event.key === 'Enter') div.click();
+              else requestPlayerToggle(getAuthoritativeVideoId());
+            }
           }
         });
         const renderedTrackKey = STATE.lastDisplayedTrackKey;

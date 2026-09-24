@@ -77,11 +77,11 @@
     const message = event.data;
     if (!message || message.source !== SOURCE) return;
     if (message.type === 'tracking-config') {enabled=message.enabled===true;if(enabled){publish(true);schedule();}else{clearTimeout(timer);timer=null;}return;}
-    if (message.type !== 'seek' || !enabled) return;
+    if (!['seek', 'toggle-playback'].includes(message.type) || !enabled) return;
     const payload = message.payload || {};
     const requestedVideoId = String(payload.videoId || '');
     const requestedTime = Number(payload.time);
-    if (!requestedVideoId || !Number.isFinite(requestedTime)) return;
+    if (!requestedVideoId || (message.type === 'seek' && !Number.isFinite(requestedTime))) return;
 
     const player = document.getElementById('movie_player');
     if (!player) return;
@@ -91,6 +91,13 @@
     // 表示している歌詞と実再生曲が一致する時だけseekする。古いvideo要素には触れない。
     if (!actualVideoId || actualVideoId !== requestedVideoId) return;
     try {
+      if (message.type === 'toggle-playback') {
+        const state = readNumber(() => player.getPlayerState());
+        if (state === null) return;
+        if (state === 1 || state === 3) player.pauseVideo();
+        else player.playVideo();
+        return;
+      }
       if (typeof player.seekTo === 'function') player.seekTo(Math.max(0, requestedTime), true);
     } catch (_) {}
   }, false);
