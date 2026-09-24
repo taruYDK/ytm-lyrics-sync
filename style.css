@@ -1044,25 +1044,25 @@ ytmusic-tab-renderer[page-type="MUSIC_PAGE_TYPE_TRACK_LYRICS"].ytmls-replaced {
 #ytmls-panel[data-tracking-mode="auto"] .ytmls-line.ytmls-active .ytmls-ruby rt {
   color: rgba(var(--ytmls-ink), .98);
 }
-#ytmls-panel[data-tracking-mode="auto"]:is([data-word-tracking="smooth"], [data-word-tracking="silky"]) .ytmls-line.ytmls-active .ytmls-word :is(rb, rt) {
+#ytmls-panel[data-tracking-mode="auto"]:is([data-word-tracking="smooth"], [data-word-tracking="silky"]) .ytmls-line.ytmls-active .ytmls-word :is(rb, rt, .ytmls-reading-plain) {
   color: transparent;
   -webkit-text-fill-color: transparent;
   -webkit-background-clip: text;
   background-clip: text;
 }
-#ytmls-panel[data-tracking-mode="auto"][data-word-tracking="smooth"] .ytmls-line.ytmls-active .ytmls-word :is(rb, rt) {
+#ytmls-panel[data-tracking-mode="auto"][data-word-tracking="smooth"] .ytmls-line.ytmls-active .ytmls-word :is(rb, rt, .ytmls-reading-plain) {
   background-image: linear-gradient(90deg,
     rgba(var(--ytmls-ink), .99) 0%,
-    rgba(var(--ytmls-ink), .99) var(--ytmls-word-progress, 0%),
-    rgba(var(--ytmls-ink), .34) calc(var(--ytmls-word-progress, 0%) + .7%),
+    rgba(var(--ytmls-ink), .99) var(--ytmls-part-progress, var(--ytmls-word-progress, 0%)),
+    rgba(var(--ytmls-ink), .34) calc(var(--ytmls-part-progress, var(--ytmls-word-progress, 0%)) + .7%),
     rgba(var(--ytmls-ink), .34) 100%);
 }
-#ytmls-panel[data-tracking-mode="auto"][data-word-tracking="silky"] .ytmls-line.ytmls-active .ytmls-word :is(rb, rt) {
+#ytmls-panel[data-tracking-mode="auto"][data-word-tracking="silky"] .ytmls-line.ytmls-active .ytmls-word :is(rb, rt, .ytmls-reading-plain) {
   background-image: linear-gradient(90deg,
     rgba(var(--ytmls-ink), 1) 0%,
-    rgba(var(--ytmls-ink), 1) calc(var(--ytmls-word-progress, 0%) - 5%),
-    rgba(var(--ytmls-ink), .90) var(--ytmls-word-progress, 0%),
-    rgba(var(--ytmls-ink), .46) calc(var(--ytmls-word-progress, 0%) + 7%),
+    rgba(var(--ytmls-ink), 1) calc(var(--ytmls-part-progress, var(--ytmls-word-progress, 0%)) - 5%),
+    rgba(var(--ytmls-ink), .90) var(--ytmls-part-progress, var(--ytmls-word-progress, 0%)),
+    rgba(var(--ytmls-ink), .46) calc(var(--ytmls-part-progress, var(--ytmls-word-progress, 0%)) + 7%),
     rgba(var(--ytmls-ink), .31) 100%);
 }
 #ytmls-reading-form { display: grid; gap: 8px; }
@@ -1074,3 +1074,6 @@ ytmusic-tab-renderer[page-type="MUSIC_PAGE_TYPE_TRACK_LYRICS"].ytmls-replaced {
 #ytmls-reading-form .ytmls-reading-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 #ytmls-reading-form .ytmls-reading-primary { background: rgba(var(--ytmls-ink), .18); font-weight: 700; }
 #ytmls-reading-form :is(textarea,select):focus-visible { outline: 2px solid rgba(var(--ytmls-ink), .7); outline-offset: 2px; }
+
+/* Each fragment paints only its own time interval; the parent must not paint behind it. */
+#ytmls-panel[data-tracking-mode="auto"]:is([data-word-tracking="smooth"], [data-word-tracking="silky"]) .ytmls-line.ytmls-active .ytmls-word[data-reading-parts="true"] { background-image: none; }

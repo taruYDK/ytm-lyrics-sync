@@ -211,6 +211,11 @@ function layoutManualLineReadings(text, ranges, ja = true, en = true, automatic 
     .filter(r => /[\p{Script=Han}々〆ヶぁ-ゖァ-ヶ]/u.test(text.slice(r.start,r.end)) ? ja : en);
 }
 
+function readingSegmentProgressCss(start, end, length) {
+  if (!(length > 0) || !(end > start)) return '0%';
+  return `clamp(0%, calc((var(--ytmls-word-progress, 0%) - ${start / length * 100}%) * ${length / (end - start)}), 100%)`;
+}
+
 // Feature: state.js
   const STATE = {
     enabled: true,
@@ -6706,9 +6711,19 @@ function layoutManualLineReadings(text, ranges, ja = true, en = true, automatic 
 
   function putReadingParts(node, text, offset, ranges) {
     const fragment = document.createDocumentFragment();
+    let cursor = 0;
+    const timed = node.classList?.contains('ytmls-word');
+    if (timed) node.dataset.readingParts = 'true';
     for (const part of readingPartsForFragment(text, offset, ranges)) {
-      if (!part.reading) { fragment.appendChild(document.createTextNode(part.text)); continue; }
+      const start = cursor; cursor += part.text.length;
+      const progress = readingSegmentProgressCss(start, cursor, text.length);
+      if (!part.reading) {
+        if (!timed) { fragment.appendChild(document.createTextNode(part.text)); continue; }
+        const plain = document.createElement('span'); plain.className = 'ytmls-reading-plain'; plain.textContent = part.text;
+        plain.style.setProperty('--ytmls-part-progress', progress); fragment.appendChild(plain); continue;
+      }
       const ruby = document.createElement('ruby'); ruby.className = 'ytmls-ruby';
+      if (timed) ruby.style.setProperty('--ytmls-part-progress', progress);
       const base = document.createElement('rb'); base.textContent = part.text;
       const reading = document.createElement('rt'); reading.textContent = part.reading;
       reading.setAttribute('aria-hidden', 'true');
@@ -6728,7 +6743,7 @@ function layoutManualLineReadings(text, ranges, ja = true, en = true, automatic 
       const row = rows[index], line = lines[index]; if (!row) continue;
       if (line.words?.length) {
         const spans = row.querySelectorAll('.ytmls-word');
-        spans.forEach((span, wordIndex) => { span.textContent = line.words[wordIndex]?.text || ''; });
+        spans.forEach((span, wordIndex) => { span.textContent = line.words[wordIndex]?.text || ''; delete span.dataset.readingParts; });
       } else row.textContent = line.text || '♪';
     }
     ensureReadingEditButton();

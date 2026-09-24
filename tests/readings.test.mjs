@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
 import { fileURLToPath } from 'node:url';
-import {englishPhonesToKana,englishReadingRanges,japaneseReadingRanges,readingPartsForFragment,toReadingHiragana,mergeManualReadings,layoutManualLineReadings} from '../src/core/readings.mjs';
+import {englishPhonesToKana,englishReadingRanges,japaneseReadingRanges,readingPartsForFragment,toReadingHiragana,mergeManualReadings,layoutManualLineReadings,readingSegmentProgressCss} from '../src/core/readings.mjs';
 const dictionary=JSON.parse(fs.readFileSync(new URL('../vendor/readings/english.json',import.meta.url),'utf8'));
 
 test('readings: English words, contractions, punctuation and unknown words',()=>{
@@ -52,7 +52,7 @@ test('readings: stale asynchronous results cannot annotate a replacement track',
  const list={children:[row],dataset:{}};row.parentElement=list;
  const lines=[{text:'hello'}];
  const context=vm.createContext({STATE:{lines,readingEnglish:true,readingJapanese:false},listEl:list,lyricsToolsEl:null,
- editableLineText:line=>line.text,englishReadingRanges,japaneseReadingRanges,readingPartsForFragment,mergeManualReadings,layoutManualLineReadings,setTimeout,clearTimeout,scheduleTrackingRealignment(){}});
+ editableLineText:line=>line.text,englishReadingRanges,japaneseReadingRanges,readingPartsForFragment,mergeManualReadings,layoutManualLineReadings,readingSegmentProgressCss,setTimeout,clearTimeout,scheduleTrackingRealignment(){}});
  vm.runInContext(fs.readFileSync(new URL('../src/content/readings.js',import.meta.url),'utf8'),context);
  context.getEnglishReadings=()=>loaded;
  context.putReadingParts=()=>{throw Error('stale content was applied');};
@@ -77,7 +77,7 @@ test('readings: ruby preserves timed spans and source data; OFF restores plain l
  words.forEach(word=>{const span=new Node('span');span.className='ytmls-word';span.textContent=word.text;row.appendChild(span);});
  const originalSpans=[...row.children],lines=[{text:'love',time:1,end:2,words}];const before=JSON.stringify(lines);
  const context=vm.createContext({STATE:{lines,readingEnglish:true,readingJapanese:false},listEl:list,lyricsToolsEl:null,document,
- editableLineText:line=>line.words.map(word=>word.text).join(''),readingPartsForFragment,englishReadingRanges,japaneseReadingRanges,mergeManualReadings,layoutManualLineReadings,setTimeout,clearTimeout,scheduleTrackingRealignment(){}});
+ editableLineText:line=>line.words.map(word=>word.text).join(''),readingPartsForFragment,englishReadingRanges,japaneseReadingRanges,mergeManualReadings,layoutManualLineReadings,readingSegmentProgressCss,setTimeout,clearTimeout,scheduleTrackingRealignment(){}});
  vm.runInContext(fs.readFileSync(new URL('../src/content/readings.js',import.meta.url),'utf8'),context);
  context.getEnglishReadings=async()=>dictionary;
  await context.refreshLyricsReadings();
@@ -164,4 +164,28 @@ test('manual layout: unknown English, adjacent kanji, separate language toggles 
  assert.deepEqual(english.map(r=>r.reading),['アイ','ラブ']);
  const japanese=layoutManualLineReadings(mixed,mergeManualReadings(mixed,[],[e],true,false,0),true,false);
  assert.deepEqual(japanese.map(r=>r.reading),['きみ']);
+});
+
+test('ruby tracking: each base and reading receives a sequential interval, including intervening kana',()=>{
+ class Node {
+  constructor(){this.children=[];this.dataset={};this.props={};this.style={setProperty:(k,v)=>this.props[k]=v};this.classList={contains:()=>false};}
+  append(...nodes){this.children.push(...nodes);}
+  appendChild(node){this.children.push(node);}
+  setAttribute(){}
+  replaceChildren(fragment){this.children=fragment.children;}
+ }
+ const document={createElement:()=>new Node(),createDocumentFragment:()=>new Node(),createTextNode:text=>({textContent:text})};
+ const context=vm.createContext({document,readingPartsForFragment,readingSegmentProgressCss});
+ vm.runInContext(fs.readFileSync(new URL('../src/content/readings.js',import.meta.url),'utf8'),context);
+ const word=new Node();word.classList.contains=name=>name==='ytmls-word';
+ context.putReadingParts(word,'君の夢',0,[{start:0,end:1,reading:'きみ'},{start:2,end:3,reading:'ゆめ'}]);
+ assert.equal(word.children.length,3);assert.equal(word.dataset.readingParts,'true');
+ const expressions=word.children.map(c=>c.props['--ytmls-part-progress']);
+ function progress(css,percent){const m=css.match(/- ([\d.]+)%\) \* ([\d.]+)/);return Math.max(0,Math.min(100,(percent-Number(m[1]))*Number(m[2])));}
+ assert.deepEqual(expressions.map(s=>Math.round(progress(s,20))),[60,0,0]);
+ assert.deepEqual(expressions.map(s=>Math.round(progress(s,50))),[100,50,0]);
+ assert.deepEqual(expressions.map(s=>Math.round(progress(s,80))),[100,100,40]);
+ assert.deepEqual(expressions.map(s=>Math.round(progress(s,0))),[0,0,0]);
+ assert.deepEqual(expressions.map(s=>Math.round(progress(s,100))),[100,100,100]);
+ assert.equal(word.children[1].className,'ytmls-reading-plain');
 });

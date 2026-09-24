@@ -139,3 +139,8 @@ export function layoutManualLineReadings(text, ranges, ja = true, en = true, aut
   }).map(r => ({...r, reading: r.reading === text.slice(r.start,r.end) ? '' : r.reading}))
     .filter(r => /[\p{Script=Han}々〆ヶぁ-ゖァ-ヶ]/u.test(text.slice(r.start,r.end)) ? ja : en);
 }
+
+export function readingSegmentProgressCss(start, end, length) {
+  if (!(length > 0) || !(end > start)) return '0%';
+  return `clamp(0%, calc((var(--ytmls-word-progress, 0%) - ${start / length * 100}%) * ${length / (end - start)}), 100%)`;
+}
