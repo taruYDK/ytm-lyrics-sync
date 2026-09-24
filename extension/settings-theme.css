@@ -26,3 +26,37 @@ body :is(input, textarea, [contenteditable]:not([contenteditable="false"]), [con
   -webkit-user-select: text !important;
   user-select: text !important;
 }
+
+/* Shared settings menus: preserve native keyboard and assistive-technology behavior. */
+select {
+  min-height:40px; max-width:100%; padding:9px 12px;
+  border:1px solid var(--border); border-radius:10px;
+  background:var(--card2, #282b31); color:var(--text);
+  font-family:inherit; font-size:13px; line-height:1.5; cursor:pointer;
+}
+select:hover { border-color:var(--sub); }
+select:disabled { opacity:.5; cursor:not-allowed; }
+select option { background:var(--card); color:var(--text); }
+.track-view-field { display:flex; flex-direction:column; align-items:flex-start; gap:8px; margin:18px 0 14px; color:var(--sub); font-size:12px; font-weight:600; }
+#trackView { width:100%; font-weight:500; }
+@supports (appearance:base-select) {
+  select, select::picker(select) { appearance:base-select; }
+  select { display:flex; align-items:center; gap:12px; }
+  select::picker-icon { margin-inline-start:auto; color:var(--sub); }
+  select::picker(select) {
+    padding:6px; margin-block:6px; border:1px solid var(--border); border-radius:12px;
+    background:var(--card); color:var(--text); box-shadow:0 10px 32px #0005;
+    max-height:300px; max-height:min(300px, 60vh); overflow-y:auto;
+  }
+  select option {
+    padding:10px 12px; min-height:40px; gap:10px; border-radius:7px;
+    font-family:inherit; font-size:13px; line-height:1.5; white-space:normal; cursor:pointer;
+  }
+  select option:hover, select option:focus { background:var(--card2, #282b31); outline:none; }
+  select option:checked { background:var(--bg); font-weight:700; }
+  select option::checkmark { color:var(--accent); }
+}
+@media (forced-colors:active) {
+  select, select::picker(select) { border-color:ButtonText; }
+  select option:checked { outline:1px solid Highlight; }
+}

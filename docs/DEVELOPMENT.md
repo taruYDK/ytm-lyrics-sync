@@ -140,3 +140,7 @@ API形式の調査参考：https://github.com/naikaku1/YTM_Immersion/blob/main/s
 拡張本体は extension/。生成先は extension/content.js。npm run package で dist/ に本体とライセンス・プライバシー文書を出力します。辞書再生成の入力は scripts/data/、出力は extension/vendor/readings/english.json です。
 
 検証：npm run check成功（72件）。移動後のmanifest・HTML・スクリプト参照先も確認。実機での再読み込み確認は未実施。
+
+## v2.6.6の検証
+
+CSSによる選択メニューの改善。base-select対応環境のみ候補の見た目を変更し、標準selectの操作とchangeイベントを維持。実機表示は未確認。

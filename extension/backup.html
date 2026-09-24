@@ -52,7 +52,7 @@
   <section class="card" id="dataManager">
     <h2>保存曲・お気に入り／履歴</h2>
     <p>固定した歌詞をお気に入りとして表示します。履歴は保存済みデータの更新順です（再生履歴ではありません）。</p>
-    <label>表示 <select id="trackView"><option value="recent">最近保存・編集した曲</option><option value="pinned">お気に入り（固定した曲）</option><option value="name">すべて・曲名順</option></select></label>
+    <label class="track-view-field">表示する曲<select id="trackView"><option value="recent">最近保存・編集した曲</option><option value="pinned">お気に入り（固定した曲）</option><option value="name">すべて・曲名順</option></select></label>
     <p id="storageUsage" role="status">使用量を確認中…</p>
     <p>選択した曲の補正・編集・固定歌詞・ローカル歌詞・手動検索条件を削除します。元に戻すには事前のバックアップが必要です。通常の歌詞キャッシュや表示設定は削除しません。</p>
     <label>曲名・アーティスト・曲IDで検索 <input type="search" id="trackFilter" /></label>
