@@ -1,12 +1,13 @@
 {
   "name": "ytm-lyrics-sync",
-  "version": "2.6.4",
+  "version": "2.6.5",
   "private": true,
   "scripts": {
     "build": "node scripts/build.cjs",
     "check:build": "node scripts/build.cjs --check",
     "test": "node --test",
-    "check": "npm run check:build && npm test"
+    "check": "npm run check:build && npm test",
+    "package": "npm run build && node scripts/package.cjs"
   },
   "engines": {
     "node": ">=20"

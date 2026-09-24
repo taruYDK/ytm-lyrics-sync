@@ -4,7 +4,7 @@
 
 **YouTube Musicに、追いかけやすい歌詞と読み仮名を。**
 
-![Version 2.6.2](https://img.shields.io/badge/version-2.6.4-14b8a6?style=flat-square)
+![Version 2.6.5](https://img.shields.io/badge/version-2.6.5-14b8a6?style=flat-square)
 ![Edge / Chrome](https://img.shields.io/badge/browser-Edge%20%2F%20Chrome-3b82f6?style=flat-square)
 ![Manifest V3](https://img.shields.io/badge/extension-Manifest%20V3-8b5cf6?style=flat-square)
 [![MIT License](https://img.shields.io/badge/license-MIT-f59e0b?style=flat-square)](LICENSE)
@@ -38,7 +38,7 @@
 4. **展開して読み込み**を選び、`manifest.json` があるフォルダーを指定します。
 5. YouTube Musicのタブを再読み込みします。
 
-利用するだけならNode.jsやビルドは不要です。配布ZIPがまだない場合は、リポジトリの **Code → Download ZIP** からソース一式を展開しても読み込めます。
+利用するだけならNode.jsやビルドは不要です。配布ZIPがまだない場合は、リポジトリの **Code → Download ZIP** からソース一式を展開し、その中の `extension` フォルダーを指定して読み込めます。
 
 ### すでに使っている場合
 
@@ -99,7 +99,7 @@
 
 バックアップには、表示設定・曲別補正・手動検索条件・歌詞編集・固定候補・ローカル歌詞・手動ふりがなを含めます。通常の歌詞キャッシュと認証情報は含めません。
 
-歌詞検索では、曲名・アーティスト名などの情報を有効な歌詞提供元へ送信します。自分で追加・編集した歌詞や手動読みは外部へ送信しません。認証通信を含む詳細は [PRIVACY.md](PRIVACY.md) を参照してください。
+歌詞検索では、曲名・アーティスト名などの情報を有効な歌詞提供元へ送信します。自分で追加・編集した歌詞や手動読みは外部へ送信しません。認証通信を含む詳細は [PRIVACY.md](docs/PRIVACY.md) を参照してください。
 
 ## 更新情報
 
@@ -116,15 +116,15 @@ npm run build
 npm run check
 ```
 
-`src/` を編集したら `content.js` を再生成してください。v2.6.2では自動テスト70件と生成物一致を確認しています。実サイトでの表示・外部APIの動作は、このテストの保証範囲に含まれません。
+`src/` を編集したら `extension/content.js` を再生成してください。v2.6.5では自動テスト72件と生成物一致を確認しています。実サイトでの表示・外部APIの動作は、このテストの保証範囲に含まれません。
 
-[開発ガイド](DEVELOPMENT.md) · [変更時の手順](CONTRIBUTING.md) · [不具合・要望](https://github.com/taruYDK/ytm-lyrics-sync/issues)
+[開発ガイド](docs/DEVELOPMENT.md) · [変更時の手順](.github/CONTRIBUTING.md) · [不具合・要望](https://github.com/taruYDK/ytm-lyrics-sync/issues)
 
 不具合報告には、バージョン・再現手順・必要に応じて曲URLと診断情報を添えてください。
 
 ## ライセンス
 
-本体は [MIT License](LICENSE)。同梱辞書・ライブラリーには個別のライセンスが適用されます。[第三者ライセンスと出典](vendor/README.md)を確認してください。
+本体は [MIT License](LICENSE)。同梱辞書・ライブラリーには個別のライセンスが適用されます。[第三者ライセンスと出典](extension/vendor/README.md)を確認してください。
 
 
 
@@ -141,3 +141,15 @@ YouTube Music本体の行同期歌詞を動画IDで取得する候補を追加�
 ## v2.6.4
 
 歌詞クリック後もSpaceで再生・一時停止できます。クリックとEnterは歌詞位置へ移動します。長押しでの連続切り替えを防止。テスト71件成功（実機未確認）。
+
+## 📁 ファイル構成
+
+| フォルダー | 内容 |
+| --- | --- |
+| `extension/` | ブラウザーに読み込む拡張機能本体 |
+| `src/` | 歌詞表示などの開発用ソース |
+| `tests/` | 自動テスト |
+| `scripts/` | ビルド・配布用コマンド、辞書生成データ |
+| `docs/` | 開発手順・公開手順・プライバシー説明 |
+
+開発時は `npm run build`、確認は `npm run check`。`npm run package` で配布用フォルダーを `dist/` に生成します。配布ZIPはそのフォルダーの中身を圧縮してください。ZIP直下に `manifest.json` が入る構成です。

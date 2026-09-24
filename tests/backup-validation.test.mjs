@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import fs from 'node:fs';
-const read=name=>fs.readFileSync(new URL('../'+name,import.meta.url),'utf8');
+const read=name=>fs.readFileSync(new URL('../'+(name.startsWith('src/')?'':'extension/')+name,import.meta.url),'utf8');
 test('backup page: invalid local or sync data is rejected before either storage area is written',async()=>{
  for(const backup of [
  {sync:{enabled:false},local:{ytmlsLocalLyricsV200:{song:{rawLrc:42}}}},

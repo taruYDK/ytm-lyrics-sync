@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
-const read=name=>fs.readFileSync(new URL('../'+name,import.meta.url),'utf8');
+const read=name=>fs.readFileSync(new URL('../'+(name.startsWith('src/')?'':'extension/')+name,import.meta.url),'utf8');
 test('CSS: variable substitution must not corrupt property names',()=>{
  for(const name of ['style.css','theme.css','settings-theme.css'])assert.doesNotMatch(read(name),/var\(--[^)]+\)-/);
  assert.match(read('style.css'),/white-space:\s*pre-wrap/);

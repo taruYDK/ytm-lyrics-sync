@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 import { fileURLToPath } from 'node:url';
 import {englishPhonesToKana,englishReadingRanges,japaneseReadingRanges,readingPartsForFragment,toReadingHiragana,mergeManualReadings,layoutManualLineReadings,readingSegmentProgressCss} from '../src/core/readings.mjs';
-const dictionary=JSON.parse(fs.readFileSync(new URL('../vendor/readings/english.json',import.meta.url),'utf8'));
+const dictionary=JSON.parse(fs.readFileSync(new URL('../extension/vendor/readings/english.json',import.meta.url),'utf8'));
 
 test('readings: English words, contractions, punctuation and unknown words',()=>{
  const text="Hello, I love you! Don't zzzqqq.";
@@ -30,13 +30,13 @@ test('readings: bundled browser tokenizer loads local extension URLs and reads r
  const requests=[];
  class LocalXHR {
    open(method,url){assert.equal(method,'GET');assert.match(url,/^chrome-extension:\/\/test\/vendor\/kuromoji\/dict\/[a-z_]+\.dat\.gz$/);this.url=url;requests.push(url);}
-   send(){fs.readFile(fileURLToPath(new URL('../'+this.url.split('/test/')[1],import.meta.url)),(error,data)=>{
+   send(){fs.readFile(fileURLToPath(new URL('../extension/'+this.url.split('/test/')[1],import.meta.url)),(error,data)=>{
      if(error){this.onerror(error);return;}this.status=200;this.response=data.buffer.slice(data.byteOffset,data.byteOffset+data.byteLength);this.onload();
    });}
  }
  const context=vm.createContext({XMLHttpRequest:LocalXHR,setTimeout,clearTimeout,Uint8Array,Uint16Array,Uint32Array,Int8Array,Int16Array,Int32Array,ArrayBuffer,DataView,console});
  context.window=context;
- vm.runInContext(fs.readFileSync(new URL('../vendor/kuromoji/kuromoji.js',import.meta.url),'utf8'),context);
+ vm.runInContext(fs.readFileSync(new URL('../extension/vendor/kuromoji/kuromoji.js',import.meta.url),'utf8'),context);
  const tokenizer=await new Promise((resolve,reject)=>context.kuromoji.builder({dicPath:'chrome-extension://test/vendor/kuromoji/dict/'}).build((error,result)=>error?reject(error):resolve(result)));
  const text='今日も君と歩く。Hello world!';
  const tokens=tokenizer.tokenize(text);

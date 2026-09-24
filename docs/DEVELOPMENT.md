@@ -8,7 +8,7 @@ npm test
 npm run check:build
 ```
 
-`content.js` は生成物です。直接編集せず、`src/` を変更してからビルドしてください。生成済みファイルを同梱しているので、拡張機能を利用するだけならNode.jsは不要です。
+`extension/content.js` は生成物です。直接編集せず、`src/` を変更してからビルドしてください。生成済みファイルを同梱しているので、拡張機能を利用するだけならNode.jsは不要です。
 
 ## 構造
 
@@ -52,7 +52,7 @@ backup-validation.jsはバックアップ画面とサービスワーカーの両
 
 全49件の自動テストに合格。実際の同梱日本語辞書12ファイルを使った解析、英語辞書の読み、送り仮名、時刻付き断片への読み分割、曲変更時の非同期結果破棄、元データ・単語DOMの維持とOFF時の復帰を確認しました。
 実際のYouTube Music画面での表示確認は未実施です。読み仮名は19番目の機能別ソース群の一部で、ビルド対象は19機能・3コアモジュールです。vendorフォルダーも更新時に必要です。
-英語辞書はnode scripts/build-readings.mjsで、同梱の元データから再生成できます。日本語辞書・ライブラリーの出典と変更点はvendor/README.mdを参照してください。
+英語辞書はnode scripts/build-readings.mjsで、同梱の元データから再生成できます。日本語辞書・ライブラリーの出典と変更点はextension/vendor/README.mdを参照してください。
 
 ## v2.5.1の検証
 
@@ -134,3 +134,9 @@ API形式の調査参考：https://github.com/naikaku1/YTM_Immersion/blob/main/s
 
 歌詞行のEnter/Spaceの分離、長押し・修飾キー、再生/停止・バッファ中・曲ID不一致・拡張OFFを合成テストで確認。実機操作は未確認。
 
+
+## v2.6.5の構成
+
+拡張本体は extension/。生成先は extension/content.js。npm run package で dist/ に本体とライセンス・プライバシー文書を出力します。辞書再生成の入力は scripts/data/、出力は extension/vendor/readings/english.json です。
+
+検証：npm run check成功（72件）。移動後のmanifest・HTML・スクリプト参照先も確認。実機での再読み込み確認は未実施。

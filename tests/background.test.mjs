@@ -3,12 +3,12 @@ import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import { readFileSync } from 'node:fs';
 
-const manifest=JSON.parse(readFileSync(new URL('../manifest.json',import.meta.url),'utf8'));
+const manifest=JSON.parse(readFileSync(new URL('../extension/manifest.json',import.meta.url),'utf8'));
 function harness() {
   let handler;
   const requests=[],timeouts=[];
   const chrome={runtime:{id:'self',getManifest:()=>manifest,onMessage:{addListener:fn=>{handler=fn;}}}};
-  vm.runInNewContext(readFileSync(new URL('../background.js',import.meta.url),'utf8'),{
+  vm.runInNewContext(readFileSync(new URL('../extension/background.js',import.meta.url),'utf8'),{
     chrome, importScripts(){}, URL, AbortController, setTimeout:(fn,ms)=>{timeouts.push(ms);return setTimeout(fn,ms);}, clearTimeout,
     fetch:async(url,init)=>{requests.push({url,init});return {ok:true,status:200,text:async()=>'{}',headers:{get:()=>null}};},
   });

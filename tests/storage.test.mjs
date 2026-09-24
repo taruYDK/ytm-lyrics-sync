@@ -10,8 +10,8 @@ function harness(){
   set(data,cb){setTimeout(()=>{if(fail){fail=false;chrome.runtime.lastError={message:'quota'};cb();delete chrome.runtime.lastError;}else{Object.assign(store,structuredClone(data));cb();}},1);},
  }}};
  const context=vm.createContext({chrome});
- vm.runInContext(readFileSync(new URL('../backup-validation.js',import.meta.url),'utf8'),context);
- vm.runInContext(readFileSync(new URL('../storage-broker.js',import.meta.url),'utf8'),context);
+ vm.runInContext(readFileSync(new URL('../extension/backup-validation.js',import.meta.url),'utf8'),context);
+ vm.runInContext(readFileSync(new URL('../extension/storage-broker.js',import.meta.url),'utf8'),context);
  return {store,failNext:()=>{fail=true;},send:payload=>new Promise(resolve=>handler({type:'YTMLS_USER_DATA',...payload},{id:'self'},resolve))};
 }
 test('storage: concurrent requests preserve separate songs and last-request order',async()=>{

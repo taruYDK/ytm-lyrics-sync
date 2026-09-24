@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
-const read=p=>fs.readFileSync(new URL('../'+p,import.meta.url),'utf8');
+const read=p=>fs.readFileSync(new URL('../'+(p.startsWith('src/')?'':'extension/')+p,import.meta.url),'utf8');
 
 test('cache writes coalesce and serialize the latest cache only once',()=>{
  const timers=new Map();let id=0,writes=[];
@@ -48,7 +48,7 @@ test('real dictionary initializes and tokenizes inside worker global without pag
  let complete;const result=new Promise(resolve=>complete=resolve);
  class XHR {
   open(method,url){this.url=url;}
-  send(){fs.readFile(fileURLToPath(new URL('../'+this.url.split('/extension/')[1],import.meta.url)),(error,data)=>{if(error){this.onerror(error);return;}this.status=200;this.response=data.buffer.slice(data.byteOffset,data.byteOffset+data.byteLength);this.onload();});}
+  send(){fs.readFile(fileURLToPath(new URL('../extension/'+this.url.split('/extension/')[1],import.meta.url)),(error,data)=>{if(error){this.onerror(error);return;}this.status=200;this.response=data.buffer.slice(data.byteOffset,data.byteOffset+data.byteLength);this.onload();});}
  }
  const c=vm.createContext({URL,XMLHttpRequest:XHR,setTimeout,clearTimeout,Uint8Array,Uint16Array,Uint32Array,Int8Array,Int16Array,Int32Array,ArrayBuffer,DataView,console,location:{href:'https://local/extension/readings-worker.js'},postMessage:complete});
  c.self=c;c.importScripts=path=>vm.runInContext(read(path),c);
