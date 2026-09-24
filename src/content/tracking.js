@@ -30,6 +30,7 @@
 
     // Follow slightly above center, with enough space after the last line.
     // Pseudo-elements preserve the line indices in listEl.children.
+    if (!listEl.clientHeight) { pendingReturnToCurrent = true; return false; }
     const focusHeight = listEl.clientHeight * STATE.trackingPosition / 100;
     listEl.style.setProperty("--ytmls-trailing-space", Math.max(0, listEl.clientHeight - focusHeight - 180) + "px");
     const listRect = listEl.getBoundingClientRect();
@@ -41,6 +42,7 @@
     // scrollIntoViewはYouTube Music本体までスクロールする場合があるため、歌詞リストだけ動かす。
     const targetTop = Math.max(0, lineTopInList + lineRect.height / 2 - focusHeight);
     listEl.scrollTo({ top: targetTop, behavior });
+    return true;
   }
 
   let trackingLayoutFrame = 0;
@@ -54,7 +56,7 @@
       if (isManualScrollPaused()) { pendingReturnToCurrent = true; return; }
       if (!canTrackCurrentPlayback(getVideoElement())) return;
       const line = listEl.children[STATE.currentIndex];
-      if (line) scrollCurrentLineIntoView(line);
+      if (line && scrollCurrentLineIntoView(line, "auto")) pendingReturnToCurrent = false;
     });
   }
 
@@ -185,6 +187,7 @@
 
     const adjustedTime = Math.max(0, safeCurrentTime + timingOffsetSeconds(safeCurrentTime, getAuthoritativeDuration(media)));
     const idx = findCurrentLineIndex(adjustedTime);
+    const firstHighlight = STATE.currentIndex < 0;
     const changedLine = idx !== STATE.currentIndex;
     const children = listEl.children;
 
@@ -205,16 +208,14 @@
           // ハイライト追跡は続けるが、ユーザーが読んでいる位置は奪わない。
           pendingReturnToCurrent = true;
         } else {
-          scrollCurrentLineIntoView(children[idx]);
-          pendingReturnToCurrent = false;
+          pendingReturnToCurrent = !scrollCurrentLineIntoView(children[idx], firstHighlight ? "auto" : "smooth");
         }
       }
     }
 
     // 手動スクロールが止まって設定時間が経ったら現在位置へ戻す。
     if (trackingAllowsAutoScroll() && pendingReturnToCurrent && !isManualScrollPaused() && idx >= 0 && children[idx]) {
-      scrollCurrentLineIntoView(children[idx]);
-      pendingReturnToCurrent = false;
+      pendingReturnToCurrent = !scrollCurrentLineIntoView(children[idx], "auto");
     }
 
     if (idx >= 0 && (STATE.syncLevel === "word" || STATE.syncLevel === "syllable")) {

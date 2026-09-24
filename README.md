@@ -4,7 +4,7 @@
 
 **YouTube Musicに、追いかけやすい歌詞と読み仮名を。**
 
-![Version 2.5.7](https://img.shields.io/badge/version-2.5.7-14b8a6?style=flat-square)
+![Version 2.5.8](https://img.shields.io/badge/version-2.5.8-14b8a6?style=flat-square)
 ![Edge / Chrome](https://img.shields.io/badge/browser-Edge%20%2F%20Chrome-3b82f6?style=flat-square)
 ![Manifest V3](https://img.shields.io/badge/extension-Manifest%20V3-8b5cf6?style=flat-square)
 [![MIT License](https://img.shields.io/badge/license-MIT-f59e0b?style=flat-square)](LICENSE)
@@ -103,7 +103,7 @@
 
 ## 更新情報
 
-**v2.5.7**：本文とふりがなが左から順に追跡されるよう、進捗の配分と重複描画を修正しました。
+**v2.5.8**：歌詞の読み込み直後と、歌詞欄が表示された直後の追跡位置合わせを改善しました。
 
 詳しくは [CHANGELOG.md](CHANGELOG.md) を参照してください。
 
@@ -116,7 +116,7 @@ npm run build
 npm run check
 ```
 
-`src/` を編集したら `content.js` を再生成してください。v2.5.7では自動テスト59件と生成物一致を確認しています。実サイトでの表示・外部APIの動作は、このテストの保証範囲に含まれません。
+`src/` を編集したら `content.js` を再生成してください。v2.5.8では自動テスト60件と生成物一致を確認しています。実サイトでの表示・外部APIの動作は、このテストの保証範囲に含まれません。
 
 [開発ガイド](DEVELOPMENT.md) · [変更時の手順](CONTRIBUTING.md) · [不具合・要望](https://github.com/taruYDK/ytm-lyrics-sync/issues)
 
@@ -125,4 +125,5 @@ npm run check
 ## ライセンス
 
 本体は [MIT License](LICENSE)。同梱辞書・ライブラリーには個別のライセンスが適用されます。[第三者ライセンスと出典](vendor/README.md)を確認してください。
+
 

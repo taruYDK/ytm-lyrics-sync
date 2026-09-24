@@ -76,3 +76,11 @@ test('quick timing UI: only the direction at its limit is disabled and explained
  c.getTrackTimingPoints=()=>[{position:0,offsetMs:-20000}];c.updateTrackTimingControl(false);
  assert.equal(buttons[0].disabled,false);assert.equal(buttons[1].disabled,true);
 });
+
+test('initial layout: hidden lyrics defer positioning and become aligned immediately on visibility',()=>{
+ const h=tracking();h.list.clientHeight=0;
+ assert.equal(h.c.scrollCurrentLineIntoView(h.line,'auto'),false);
+ assert.equal(h.c.pendingReturnToCurrent,true);assert.equal(h.scrolls.length,0);
+ h.list.clientHeight=500;h.c.scheduleTrackingRealignment();h.frames.shift()();
+ assert.equal(h.scrolls.at(-1).behavior,'auto');assert.equal(h.c.pendingReturnToCurrent,false);
+});

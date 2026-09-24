@@ -642,11 +642,13 @@
       listEl.appendChild(div);
     });
 
-    void refreshLyricsReadings();
     const video = getVideoElement();
     if (video && STATE.hasSync && canTrackCurrentPlayback(video)) {
       updateHighlight(getAuthoritativePlaybackTime(video) || 0, true);
     }
+    // Track plain lyrics first, before dictionary initialization can block rendering.
+    void refreshLyricsReadings();
+    if (typeof scheduleTrackingRealignment === "function") scheduleTrackingRealignment();
   }
 
   function refreshSearchingSubtext() {
