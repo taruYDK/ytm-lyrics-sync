@@ -3361,6 +3361,7 @@ function readingSegmentProgressCss(start, end, length) {
           // v1.7.2: DOMのvideoが前曲要素でも、現在のYouTubeプレイヤー本体だけをseekする。
           // bridge側でもvideoId一致を再確認するため、前曲へ誤シークできない。
           if (requestPlayerSeek(currentVideoId, target)) {
+            resumeTrackingAfterLyricsSeek();
             updateHighlight(target, true);
           }
         });
@@ -6344,6 +6345,16 @@ function readingSegmentProgressCss(start, end, length) {
   }
 
 // Feature: tracking.js
+  function resumeTrackingAfterLyricsSeek() {
+    // An explicit seek is not a stale previous-track timestamp or manual browsing.
+    clearTrackStartGuard();
+    manualScrollUntil = 0;
+    pendingReturnToCurrent = true;
+    STATE.currentIndex = -1;
+    STATE.currentWordIndex = -1;
+    scheduleTrackingRealignment();
+  }
+
   // ---------- 手動スクロール制御 ----------
   function pauseAutoScrollFromUser() {
     if (!STATE.trackingEnabled) return;

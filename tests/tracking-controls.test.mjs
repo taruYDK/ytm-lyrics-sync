@@ -84,3 +84,12 @@ test('initial layout: hidden lyrics defer positioning and become aligned immedia
  h.list.clientHeight=500;h.c.scheduleTrackingRealignment();h.frames.shift()();
  assert.equal(h.scrolls.at(-1).behavior,'auto');assert.equal(h.c.pendingReturnToCurrent,false);
 });
+
+test('lyrics seek resumes immediately instead of retaining manual pause or startup guard',()=>{
+ const h=tracking();let cleared=0;h.c.clearTrackStartGuard=()=>cleared++;
+ h.c.manualScrollUntil=9999;h.c.STATE.currentWordIndex=3;
+ h.c.resumeTrackingAfterLyricsSeek();
+ assert.equal(cleared,1);assert.equal(h.c.manualScrollUntil,0);
+ assert.equal(h.c.pendingReturnToCurrent,true);assert.equal(h.c.STATE.currentIndex,-1);
+ assert.equal(h.c.STATE.currentWordIndex,-1);assert.equal(h.frames.length,1);
+});

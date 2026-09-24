@@ -634,6 +634,7 @@
           // v1.7.2: DOMのvideoが前曲要素でも、現在のYouTubeプレイヤー本体だけをseekする。
           // bridge側でもvideoId一致を再確認するため、前曲へ誤シークできない。
           if (requestPlayerSeek(currentVideoId, target)) {
+            resumeTrackingAfterLyricsSeek();
             updateHighlight(target, true);
           }
         });

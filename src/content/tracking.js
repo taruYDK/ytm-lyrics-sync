@@ -1,3 +1,13 @@
+  function resumeTrackingAfterLyricsSeek() {
+    // An explicit seek is not a stale previous-track timestamp or manual browsing.
+    clearTrackStartGuard();
+    manualScrollUntil = 0;
+    pendingReturnToCurrent = true;
+    STATE.currentIndex = -1;
+    STATE.currentWordIndex = -1;
+    scheduleTrackingRealignment();
+  }
+
   // ---------- 手動スクロール制御 ----------
   function pauseAutoScrollFromUser() {
     if (!STATE.trackingEnabled) return;
