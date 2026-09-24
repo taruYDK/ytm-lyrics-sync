@@ -247,6 +247,7 @@
     }, 1400);
 
     const providerTasks = [
+      { key: "youtubeMusic", run: () => fetchFromYouTubeMusic(info, duration, key) },
       { key: "betterLyrics", run: () => fetchFromBetterLyricsV2(info, duration, key) },
       { key: "betterLyrics", run: () => fetchFromBetterLyricsJson(info, duration, key) },
       { key: "betterLyrics", run: () => fetchFromBetterLyrics(info, duration, key) },

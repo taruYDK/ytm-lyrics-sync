@@ -93,8 +93,9 @@
     healthPlaybackTime: null,
     healthPlaybackSampleAt: 0,
     healthLastAdvanceAt: 0,
-    providerOrder: ["betterLyrics", "lrclib", "unison", "binilyrics", "karalyr"],
+    providerOrder: ["youtubeMusic", "betterLyrics", "lrclib", "unison", "binilyrics", "karalyr"],
     providerEnabled: {
+      youtubeMusic: true,
       betterLyrics: true,
       lrclib: true,
       unison: true,
@@ -162,6 +163,7 @@
   const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
   const PROVIDERS = [
+    { key: "youtubeMusic", label: "YouTube Music（行同期）" },
     { key: "betterLyrics", label: "Better Lyrics" },
     { key: "lrclib", label: "LRCLIB" },
     { key: "unison", label: "Unison" },

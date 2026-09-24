@@ -312,8 +312,9 @@ function readingSegmentProgressCss(start, end, length) {
     healthPlaybackTime: null,
     healthPlaybackSampleAt: 0,
     healthLastAdvanceAt: 0,
-    providerOrder: ["betterLyrics", "lrclib", "unison", "binilyrics", "karalyr"],
+    providerOrder: ["youtubeMusic", "betterLyrics", "lrclib", "unison", "binilyrics", "karalyr"],
     providerEnabled: {
+      youtubeMusic: true,
       betterLyrics: true,
       lrclib: true,
       unison: true,
@@ -381,6 +382,7 @@ function readingSegmentProgressCss(start, end, length) {
   const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
   const PROVIDERS = [
+    { key: "youtubeMusic", label: "YouTube Music（行同期）" },
     { key: "betterLyrics", label: "Better Lyrics" },
     { key: "lrclib", label: "LRCLIB" },
     { key: "unison", label: "Unison" },
@@ -4013,6 +4015,60 @@ function readingSegmentProgressCss(start, end, length) {
     return p;
   }
 
+// Feature: native-lyrics.js
+  // Same-origin, anonymous YouTube Music requests. Never forward cookies or auth tokens.
+  function nativeLyricsBrowseId(response) {
+    const tabs = response?.contents?.singleColumnMusicWatchNextResultsRenderer?.tabbedRenderer?.watchNextTabbedResultsRenderer?.tabs;
+    if (!Array.isArray(tabs)) return null;
+    for (const item of tabs) {
+      const tab = item?.tabRenderer, endpoint = tab?.endpoint?.browseEndpoint;
+      const kind = endpoint?.browseEndpointContextSupportedConfigs?.browseEndpointContextMusicConfig?.pageType;
+      if (!tab?.unselectable && kind === 'MUSIC_PAGE_TYPE_TRACK_LYRICS' && typeof endpoint.browseId === 'string') return endpoint.browseId;
+    }
+    return null;
+  }
+
+  function parseNativeTimedLyrics(response) {
+    const data = response?.contents?.elementRenderer?.newElement?.type?.componentType?.model?.timedLyricsModel?.lyricsData;
+    if (!Array.isArray(data?.timedLyricsData)) return null;
+    const lines = data.timedLyricsData.map(item => {
+      const cue = item?.cueRange;
+      const start = cue?.startTimeMilliseconds, end = cue?.endTimeMilliseconds;
+      if (start == null || end == null || start === '' || end === '') return null;
+      const time = Number(start)/1000, finish = Number(end)/1000;
+      if (typeof item.lyricLine !== 'string' || !item.lyricLine.trim() || !Number.isFinite(time) || !Number.isFinite(finish) || time < 0 || finish <= time) return null;
+      return {text:item.lyricLine,time,end:finish};
+    }).filter(Boolean).sort((a,b)=>a.time-b.time);
+    if (!lines.length) return null;
+    return {lines,syncLevel:'line',_source:'YouTube Music',_providerKey:'youtubeMusic'};
+  }
+
+  async function fetchFromYouTubeMusic(info, duration, trackKey) {
+    if (!/^[A-Za-z0-9_-]{11}$/.test(info.videoId || '') || trackKey !== STATE.lastTrackKey) return null;
+    const current = () => trackKey === STATE.lastTrackKey && STATE.enabled !== false && STATE.providerEnabled.youtubeMusic !== false;
+    async function request(endpoint, clientName, clientVersion, payload) {
+      const controller = new AbortController();
+      const timer = setTimeout(()=>controller.abort(),5000);
+      try {
+        const response = await fetch('https://music.youtube.com/youtubei/v1/' + endpoint + '?prettyPrint=false', {
+          method:'POST',credentials:'omit',cache:'no-store',signal:controller.signal,
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({context:{client:{clientName,clientVersion,hl:'ja',gl:'JP'}},...payload}),
+        });
+        return response.ok ? await response.json() : null;
+      } finally {clearTimeout(timer);}
+    }
+    try {
+      if (!current()) return null;
+      const next = await request('next','WEB_REMIX','1.20240101.01.00',{videoId:info.videoId});
+      if (!current()) return null;
+      const browseId = nativeLyricsBrowseId(next);
+      if (!browseId) return null;
+      const lyrics = await request('browse','ANDROID_MUSIC','7.21.50',{browseId});
+      return current() ? parseNativeTimedLyrics(lyrics) : null;
+    } catch (_) {return null;}
+  }
+
 // Feature: providers.js
   // ---------- Better Lyrics 2.3.3 現行バックエンド ----------
   const BETTER_LYRICS_V2_BASE = "https://lyrics.api.dacubeking.com/";
@@ -6307,6 +6363,7 @@ function readingSegmentProgressCss(start, end, length) {
     }, 1400);
 
     const providerTasks = [
+      { key: "youtubeMusic", run: () => fetchFromYouTubeMusic(info, duration, key) },
       { key: "betterLyrics", run: () => fetchFromBetterLyricsV2(info, duration, key) },
       { key: "betterLyrics", run: () => fetchFromBetterLyricsJson(info, duration, key) },
       { key: "betterLyrics", run: () => fetchFromBetterLyrics(info, duration, key) },

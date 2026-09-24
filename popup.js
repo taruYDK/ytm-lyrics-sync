@@ -71,6 +71,7 @@ const providerList = document.getElementById("providerList");
 const providerNote = document.getElementById("providerNote");
 
 const PROVIDERS = [
+    { key: "youtubeMusic", label: "YouTube Music（行同期）" },
   { key: "betterLyrics", label: "Better Lyrics" },
   { key: "lrclib", label: "LRCLIB" },
   { key: "unison", label: "Unison" },

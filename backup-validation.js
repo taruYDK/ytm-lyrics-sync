@@ -77,7 +77,7 @@ globalThis.YTMLSBackupValidation = (() => {
     const ranges={fontSize:[10,100],trackingPosition:[25,65],manualScrollReturnMs:[1000,10000],uiVersion:[0,100000]};
     for (const [key,[min,max]] of Object.entries(ranges)) if (key in data) requireValue(finite(data[key]) && data[key]>=min && data[key]<=max,key);
     if ('wordTrackingStyle' in data) requireValue(['smooth','silky'].includes(data.wordTrackingStyle),'wordTrackingStyle');
-    const providers=['betterLyrics','lrclib','unison','binilyrics','karalyr'];
+    const providers=['youtubeMusic','betterLyrics','lrclib','unison','binilyrics','karalyr'];
     if ('providerOrder' in data) requireValue(Array.isArray(data.providerOrder) && data.providerOrder.every(key=>providers.includes(key)),'providerOrder');
     if ('providerEnabled' in data) requireValue(map(data.providerEnabled) && Object.entries(data.providerEnabled).every(([key,value])=>providers.includes(key) && typeof value==='boolean'),'providerEnabled');
   }

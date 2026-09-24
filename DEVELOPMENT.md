@@ -124,3 +124,12 @@ LRCLIB指定検索を並行開始。採用済み歌詞は全検索完了を待�
 
 設計参考：https://developer.chrome.com/docs/extensions/reference/api/offscreen
 
+
+## v2.6.3 YouTube Music本体の行同期歌詞
+
+YouTube Musicの動画IDから歌詞タブを取得し、時刻付き歌詞を候補に追加します。提供元設定でON/OFF可能。認証情報・Cookieは使わず、同一サイトへ匿名で問い合わせます。全時刻ゼロの歌詞や通常テキストだけの歌詞は同期候補にしません。曲切り替え後の応答は破棄します。
+
+指定曲 nBs26EgzsS0 は匿名API検証で29行の有効な同期歌詞を確認。自動テスト70件合格。拡張機能を読み込んだ実ブラウザー画面での表示は未確認。認証が必要な歌詞や別音源の探索は未対応です。
+
+API形式の調査参考：https://github.com/naikaku1/YTM_Immersion/blob/main/src/js/module/ytm-lyrics.js （公開実装を参照し、取得・解析処理は本拡張用に実装）。
+
