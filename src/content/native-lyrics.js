@@ -7,7 +7,9 @@
     nativeLyricsWarnings.set(key, now);
     // Never log response bodies, request URLs, lyrics, track IDs or authentication data.
     const code = Number.isInteger(status) && status >= 100 && status <= 599 ? ' HTTP ' + status : '';
-    console.warn('[YTMLS] YouTube Music: ' + endpoint + ' ' + reason + code);
+    const message = '[YTMLS] YouTube Music: ' + endpoint + ' ' + reason + code;
+    if (reason === 'lyrics-tab-unavailable' || reason === 'timed-lyrics-unavailable') console.info(message);
+    else console.warn(message);
   }
   function nativeLyricsBrowseId(response) {
     const tabs = response?.contents?.singleColumnMusicWatchNextResultsRenderer?.tabbedRenderer?.watchNextTabbedResultsRenderer?.tabs;

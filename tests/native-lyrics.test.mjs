@@ -33,3 +33,13 @@ test('YouTube Music: sanitized failures, warning throttling and stale-request si
  assert.doesNotMatch(logs.join(' '),/secret-token|private|lyrics-body|nBs26EgzsS0/);
  const count=logs.length;c.fetch=async()=>{c.STATE.lastTrackKey='next';return {ok:false,status:403};};await run();assert.equal(logs.length,count);
 });
+
+test('YouTube Music: unavailable lyrics are informational while HTTP failures remain warnings',async()=>{
+ const info=[],warnings=[];let count=0;
+ const c=vm.createContext({STATE:{lastTrackKey:'track',enabled:true,providerEnabled:{}},AbortController,setTimeout,clearTimeout,console:{info:m=>info.push(m),warn:m=>warnings.push(m)},fetch:async()=>({ok:true,json:async()=>++count===1?next:browse([row('zero',0,0)])})});
+ vm.runInContext(code,c);
+ const run=()=>c.fetchFromYouTubeMusic({videoId:'nBs26EgzsS0'},200,'track');
+ assert.equal(await run(),null);assert.match(info[0],/timed-lyrics-unavailable/);assert.equal(warnings.length,0);
+ c.fetch=async()=>({ok:true,json:async()=>({})});await run();assert.match(info[1],/lyrics-tab-unavailable/);
+ c.fetch=async()=>({ok:false,status:500});await run();assert.match(warnings[0],/HTTP 500/);
+});
