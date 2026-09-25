@@ -66,7 +66,10 @@
 
   function updateLyricsToolsUi() {
     if (typeof ensureReadingEditButton === 'function') ensureReadingEditButton();
-    if (exportLyricsButtonEl) exportLyricsButtonEl.disabled = !STATE.hasSync || !STATE.lines.length || STATE.contextInvalidated;
+    if (exportLyricsButtonEl) {
+      exportLyricsButtonEl.disabled = !STATE.hasSync || !STATE.lines.length || STATE.contextInvalidated;
+      exportLyricsButtonEl.title = exportLyricsButtonEl.disabled ? '同期歌詞が表示されると保存できます' : '表示中の歌詞を書き出す';
+    }
     if (candidateButtonEl) {
       const count = STATE.lyricCandidates.length;
       candidateButtonEl.textContent = `歌詞候補 ${count}`;
@@ -88,6 +91,7 @@
     }
     if (lyricsToolsEl) lyricsToolsEl.hidden = !STATE.enabled;
     updateDiagnosticsSummary();
+    if (typeof updateHelpfulUi === "function") updateHelpfulUi();
   }
 
   function closeLyricsToolsPane() {
@@ -1033,7 +1037,8 @@
     moreToggle.textContent = "その他";
     const menu = document.createElement("div");
     menu.className = "ytmls-more-menu";
-    menu.append(manualSearchButtonEl, editLyricsButtonEl, localLyricsButtonEl, exportLyricsButtonEl);
+    const sectionLabel = text => { const label = document.createElement('div'); label.className = 'ytmls-menu-label'; label.textContent = text; return label; };
+    menu.append(sectionLabel('歌詞を探す'), manualSearchButtonEl, sectionLabel('編集する'), editLyricsButtonEl, localLyricsButtonEl, sectionLabel('保存・診断'), exportLyricsButtonEl);
     more.append(moreToggle, menu);
     lyricsToolsEl.append(candidateButtonEl, more);
     for (const button of [candidateButtonEl, manualSearchButtonEl, editLyricsButtonEl, localLyricsButtonEl, exportLyricsButtonEl]) {

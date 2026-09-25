@@ -27,8 +27,9 @@
   async function sendUserDataMutation(payload) {
     if (!runtimeAvailable()) throw new Error(CONTEXT_RELOAD_MESSAGE);
     try {
-      const response = await chrome.runtime.sendMessage({ type: "YTMLS_USER_DATA", ...payload });
+      const response = await chrome.runtime.sendMessage({ type: "YTMLS_USER_DATA", captureUndo: true, ...payload });
       if (!response?.ok) throw new Error(response?.error || "保存できませんでした。");
+      if (response.undoToken && typeof showUserUndo === "function") showUserUndo(response.undoToken, payload.videoId);
       return response.data;
     } catch (error) {
       runtimeAvailable(error);

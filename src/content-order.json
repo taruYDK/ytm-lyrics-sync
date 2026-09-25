@@ -18,5 +18,6 @@
   "track-search.js",
   "tracking.js",
   "readings.js",
+  "helpful-ui.js",
   "main.js"
 ]

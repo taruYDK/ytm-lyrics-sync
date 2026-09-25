@@ -4,6 +4,8 @@ const USER_DATA_KEYS = [
   'ytmlsLyricsEditsV199', 'ytmlsPinnedLyricsV200', 'ytmlsLocalLyricsV200', 'ytmlsManualReadingsV256',
 ];
 let userDataQueue = Promise.resolve();
+const userUndo = new Map();
+let undoSequence = 0;
 const isMap = value => value && typeof value === 'object' && !Array.isArray(value);
 function localDataCall(method, value) {
   return new Promise((resolve, reject) => {
@@ -15,6 +17,17 @@ function localDataCall(method, value) {
   });
 }
 async function mutateUserData(message) {
+  if (message.action === 'undo') {
+    const item = userUndo.get(message.token);
+    if (!item || Date.now() > item.expires) throw new Error('取り消しの有効期限が切れました。');
+    const data = await localDataCall('get', [item.key]);
+    const map = {...(data[item.key] || {})};
+    if (JSON.stringify(map[item.id] ?? null) !== item.after) throw new Error('保存後に変更されています。上書きを防ぐため取り消せません。');
+    if (item.before == null) delete map[item.id]; else map[item.id] = item.before;
+    await localDataCall('set', {[item.key]:map});
+    userUndo.delete(message.token);
+    return {ok:true,data:{[item.key]:map}};
+  }
   if (message.action === 'readReadings') {
     await mutateUserData({action:'migrateReadings'});
     const data = await localDataCall('get', ['ytmlsManualReadingsV256']);
@@ -48,6 +61,10 @@ async function mutateUserData(message) {
   const data = keys.length ? await localDataCall('get', keys) : {};
   const next = Object.fromEntries(USER_DATA_KEYS.map(key => [key, isMap(data[key]) ? { ...data[key] } : {}]));
   const changed = {};
+  const undoKey = message.action === 'edit' ? 'ytmlsLyricsEditsV199'
+    : message.action === 'nudgeTiming' ? 'ytmlsTrackTimingOffsetsV174'
+    : message.action === 'entry' && ['ytmlsTrackTimingOffsetsV174','ytmlsManualReadingsV256'].includes(message.key) ? message.key : null;
+  const before = undoKey ? JSON.parse(JSON.stringify(data[undoKey]?.[String(message.videoId || '')] ?? null)) : null;
   const id = String(message.videoId || '');
   const safeId = id && !['__proto__', 'prototype', 'constructor'].includes(id);
   if (message.action === 'nudgeTiming' && safeId) {
@@ -129,7 +146,14 @@ async function mutateUserData(message) {
     changed.ytmlsLyricsEditsV199 = next.ytmlsLyricsEditsV199;
   } else throw new Error('未対応の保存操作です。');
   await localDataCall('set', changed);
-  return { ok: true, data: changed };
+  let undoToken;
+  if (undoKey && message.captureUndo && JSON.stringify(before) !== JSON.stringify(changed[undoKey]?.[id] ?? null)) {
+    for (const [token,item] of userUndo) if (Date.now() > item.expires) userUndo.delete(token);
+    while (userUndo.size >= 30) userUndo.delete(userUndo.keys().next().value);
+    undoToken = String(++undoSequence) + ':' + Date.now();
+    userUndo.set(undoToken, {key:undoKey,id,before,after:JSON.stringify(changed[undoKey]?.[id] ?? null),expires:Date.now()+60000});
+  }
+  return { ok: true, data: changed, undoToken };
 }
 chrome.runtime.onMessage.addListener((message, sender, respond) => {
   if (message?.type !== 'YTMLS_USER_DATA') return;

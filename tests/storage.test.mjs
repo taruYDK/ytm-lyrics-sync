@@ -114,3 +114,27 @@ test('manual readings: migration marker prevents full reads and replies contain 
  const r=await h.send({action:'readReadings',videoId:'a'});assert.equal(r.ok,true);
  assert.deepEqual(structuredClone(r.data),{entries:[{text:'a'}]});
 });
+
+test('undo: lyrics edits restore prior values without affecting another song',async()=>{
+ const h=harness(),key='ytmlsLyricsEditsV199';
+ const save=(id,text)=>h.send({action:'edit',videoId:id,candidateId:'a',entry:{replacements:{0:text}},captureUndo:true});
+ await save('song','before');const result=await save('song','after');await save('other','keep');
+ assert(result.undoToken);assert.equal((await h.send({action:'undo',token:result.undoToken})).ok,true);
+ assert.equal(h.store[key].song.candidates.a.replacements[0],'before');assert.equal(h.store[key].other.candidates.a.replacements[0],'keep');
+ assert.equal((await h.send({action:'undo',token:result.undoToken})).ok,false);
+});
+test('undo: rejects later saves and retains token after storage failure',async()=>{
+ const h=harness(),key='ytmlsTrackTimingOffsetsV174';
+ const first=await h.send({action:'entry',key,videoId:'song',entry:{offsetMs:100},captureUndo:true});
+ h.failNext();assert.equal((await h.send({action:'undo',token:first.undoToken})).ok,false);
+ assert.equal((await h.send({action:'undo',token:first.undoToken})).ok,true);assert.equal(h.store[key].song,undefined);
+ const second=await h.send({action:'nudgeTiming',videoId:'song',deltaMs:100,captureUndo:true});
+ await h.send({action:'nudgeTiming',videoId:'song',deltaMs:100});
+ assert.equal((await h.send({action:'undo',token:second.undoToken})).ok,false);assert.equal(h.store[key].song.offsetMs,200);
+});
+test('undo: manual readings can be restored after reset',async()=>{
+ const h=harness(),key='ytmlsManualReadingsV256',entry={entries:[{text:'今日',start:0,end:2,reading:'きょう',lineIndex:0}]};
+ await h.send({action:'entry',key,videoId:'song',entry});
+ const r=await h.send({action:'entry',key,videoId:'song',entry:null,captureUndo:true});
+ assert.equal((await h.send({action:'undo',token:r.undoToken})).ok,true);assert.deepEqual(h.store[key].song,entry);
+});

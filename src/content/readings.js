@@ -174,12 +174,15 @@
     const label = document.createElement('label'); label.htmlFor = reading.id; label.textContent = 'この行のふりがな';
     const save = document.createElement('button'); save.type = 'submit'; save.textContent = 'この行を保存'; save.className = 'ytmls-tool-button ytmls-reading-primary';
     const reset = document.createElement('button'); reset.type = 'button'; reset.textContent = 'この行を自動読みに戻す';
+    const preview = document.createElement('div'); preview.className = 'ytmls-reading-preview';
+    preview.setAttribute('aria-label', '保存後のふりがなプレビュー');
+    const previewLabel = document.createElement('div'); previewLabel.textContent = 'プレビュー';
     const saved = document.createElement('div');
     const status = document.createElement('div'); status.setAttribute('role', 'status'); status.textContent = '読み込み中…';
     const close = document.createElement('button'); close.type = 'button'; close.textContent = '閉じる'; close.addEventListener('click', closeLyricsToolsPane);
     reset.className = close.className = 'ytmls-tool-button';
     const actions = document.createElement('div'); actions.className = 'ytmls-reading-actions'; actions.append(save, reset, close);
-    form.append(select, label, reading, saved, actions, status); pane.append(heading, note, form);
+    form.append(select, label, reading, previewLabel, preview, saved, actions, status); pane.append(heading, note, form);
     form.addEventListener('keydown', event => { if (event.key === 'Escape') { event.stopPropagation(); closeLyricsToolsPane(); } });
     const current = () => form.isConnected && STATE.lines === lines && String(getAuthoritativeVideoId() || '') === videoId;
     let entries, tokenizer = null, dictionary = null;
@@ -197,6 +200,14 @@
     const textForLine = () => editableLineText(lines[Number(select.value)]);
     const occurrenceForLine = () => lines.slice(0,Number(select.value)).filter(line => editableLineText(line) === textForLine()).length;
     const belongs = e => e && e.text === textForLine() && (e.occurrence !== undefined ? e.occurrence === occurrenceForLine() : e.lineIndex === undefined || e.lineIndex === Number(select.value));
+    let previewAutomatic = [];
+    const showPreview = () => {
+      const text = textForLine();
+      const manual = (STATE.readingJapanese || STATE.readingEnglish) ? [{lineIndex:Number(select.value),start:0,end:text.length,reading:reading.value.trim()}] : [];
+      const ranges = layoutManualLineReadings(text, manual, STATE.readingJapanese !== false, STATE.readingEnglish !== false, previewAutomatic);
+      putReadingParts(preview, text, 0, ranges);
+    };
+    reading.addEventListener('input', showPreview);
     let previewGeneration = 0;
     const update = async () => {
       const generation = ++previewGeneration;
@@ -212,6 +223,7 @@
       const ranges = mergeManualReadings(text, automatic, entries, true, true, Number(select.value), occurrenceForLine());
       const full = entries.findLast(e => belongs(e) && e.start === 0 && e.end === text.length);
       reading.value = full ? full.reading : readingPartsForFragment(text, 0, ranges).map(p => p.reading || p.text).join('');
+      previewAutomatic = automatic; showPreview();
       saved.textContent = entries.some(belongs) ? '手動の読みを保存済み' : '自動の読みを表示中。自由に書き直せます。';
     };
     if (STATE.currentIndex >= 0 && STATE.currentIndex < lines.length) select.value = String(STATE.currentIndex);

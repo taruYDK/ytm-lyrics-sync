@@ -4,7 +4,7 @@
 
 **YouTube Musicに、追いかけやすい歌詞と読み仮名を。**
 
-![Version 2.6.7](https://img.shields.io/badge/version-2.6.7-14b8a6?style=flat-square)
+![Version 2.7.0](https://img.shields.io/badge/version-2.7.0-14b8a6?style=flat-square)
 ![Edge / Chrome](https://img.shields.io/badge/browser-Edge%20%2F%20Chrome-3b82f6?style=flat-square)
 ![Manifest V3](https://img.shields.io/badge/extension-Manifest%20V3-8b5cf6?style=flat-square)
 [![MIT License](https://img.shields.io/badge/license-MIT-f59e0b?style=flat-square)](LICENSE)
@@ -155,3 +155,11 @@ YouTube Music本体の行同期歌詞を動画IDで取得する候補を追加�
 開発時は `npm run build`、確認は `npm run check`。`npm run package` で配布用フォルダーを `dist/` に生成します。配布ZIPはそのフォルダーの中身を圧縮してください。ZIP直下に `manifest.json` が入る構成です。
 
 配布ZIPは `npm run package` による生成物一致確認と全自動テストの成功後に作成します。開発用ソースとテストは配布ZIPには含めません。
+
+## v2.7.0 操作と状態表示の改善
+
+- 歌詞の検索中・取得済み・同期歌詞なしを提供元とともに表示。
+- 手動スクロール後の待機中に「今の歌詞に戻る」を表示。
+- ふりがな編集に、実際の配置処理を使う入力プレビューを追加。
+- 歌詞編集・手動ふりがな・同期補正の保存後60秒間、「元に戻す」で直前の変更を取り消し。他タブで更新された内容は上書きしません。曲切り替え・ページや拡張機能の再読み込み後は利用できません。
+- その他メニューを「歌詞を探す」「編集する」「保存・診断」に整理。無効な項目の理由を表示。

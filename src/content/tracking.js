@@ -13,6 +13,7 @@
     if (!STATE.trackingEnabled) return;
     manualScrollUntil = performance.now() + STATE.manualScrollReturnMs;
     pendingReturnToCurrent = true;
+    if (typeof updateHelpfulUi === "function") updateHelpfulUi();
   }
 
   function isManualScrollPaused() {
