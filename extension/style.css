@@ -1077,8 +1077,8 @@ ytmusic-tab-renderer[page-type="MUSIC_PAGE_TYPE_TRACK_LYRICS"].ytmls-replaced {
 
 /* Each fragment paints only its own time interval; the parent must not paint behind it. */
 #ytmls-panel[data-tracking-mode="auto"]:is([data-word-tracking="smooth"], [data-word-tracking="silky"]) .ytmls-line.ytmls-active .ytmls-word[data-reading-parts="true"] { background-image: none; }
-#ytmls-helpful { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:8px 4px; flex-wrap:wrap; }
-.ytmls-fetch-status { color:var(--ytmls-text); font-size:12px; opacity:.8; }
+#ytmls-helpful { display:flex; align-items:center; gap:8px; flex:1 1 0; min-width:0; margin-right:auto; }
+.ytmls-fetch-status { color:var(--ytmls-text); font-size:12px; opacity:.8; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 #ytmls-helpful button { position:relative; }
 .ytmls-menu-label { padding:12px 12px 4px; font-size:11px; opacity:.65; font-weight:700; }
 .ytmls-menu-hint { display:block; padding:0 12px 8px; max-width:230px; font-size:11px; opacity:.7; line-height:1.5; }
@@ -1086,3 +1086,7 @@ ytmusic-tab-renderer[page-type="MUSIC_PAGE_TYPE_TRACK_LYRICS"].ytmls-replaced {
 .ytmls-reading-preview { padding:24px 16px 16px; margin:8px 0 16px; border:1px solid rgba(var(--ytmls-ink),.2); border-radius:12px; font-size:24px; line-height:2; white-space:pre-wrap; overflow-wrap:anywhere; color:var(--ytmls-text); }
 .ytmls-reading-preview rt { font-size:.5em; }
 .ytmls-undo-notice { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:10px 14px; border:1px solid rgba(var(--ytmls-ink),.2); border-radius:10px; margin:8px 0; font-size:13px; color:var(--ytmls-text); }
+
+/* Keep the acquisition status within the existing toolbar height. */
+#ytmls-tools { flex-wrap:nowrap; }
+#ytmls-tools > :not(#ytmls-helpful), #ytmls-helpful button { flex-shrink:0; }

@@ -7096,10 +7096,10 @@ function readingSegmentProgressCss(start, end, length) {
         updateHighlight(getAuthoritativePlaybackTime(getVideoElement()) || 0, true);
         updateHelpfulUi();
       });
-      bar.append(status, back); panelEl.insertBefore(bar, lyricsToolsEl);
+      bar.append(status, back); lyricsToolsEl.prepend(bar);
     }
     const text = helpfulStatus();
-    if (bar.firstChild.textContent !== text) bar.firstChild.textContent = text;
+    if (bar.firstChild.textContent !== text) { bar.firstChild.textContent = text; bar.firstChild.title = text; }
     bar.lastChild.hidden = !(STATE.enabled && STATE.trackingEnabled && STATE.hasSync && isManualScrollPaused());
     const menu = lyricsToolsEl.querySelector('.ytmls-more-menu');
     if (menu) for (const button of menu.querySelectorAll('button')) {
