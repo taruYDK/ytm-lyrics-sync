@@ -144,3 +144,9 @@ API形式の調査参考：https://github.com/naikaku1/YTM_Immersion/blob/main/s
 ## v2.6.6の検証
 
 CSSによる選択メニューの改善。base-select対応環境のみ候補の見た目を変更し、標準selectの操作とchangeイベントを維持。実機表示は未確認。
+
+## v2.6.7の検証・配布
+
+npm run package はビルド後に npm run check と同じ生成物一致確認・全テストを実行し、成功時だけ配布フォルダーを生成します。scripts/package.cjs の直接実行でも検証します。ZIPはその生成フォルダーから作成してください。
+
+YouTube Musicの失敗理由は開発者ツールのコンソールで [YTMLS] を検索すると確認できます。キー不足による400は未確認のためページのAPIキー取得は追加していません。通信ステータスだけで原因を断定しないでください。実サイトでの再現確認は未実施。

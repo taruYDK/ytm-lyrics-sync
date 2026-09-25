@@ -20,3 +20,16 @@ test('YouTube Music: anonymous video-id lookup; no second request after track ch
  count=0;c.fetch=async()=>{count++;c.STATE.lastTrackKey='other';return {ok:true,json:async()=>next};};
  assert.equal(await c.fetchFromYouTubeMusic({videoId:'nBs26EgzsS0'},200,'track'),null);assert.equal(count,1);
 });
+
+test('YouTube Music: sanitized failures, warning throttling and stale-request silence',async()=>{
+ const logs=[];
+ const c=vm.createContext({STATE:{lastTrackKey:'track',enabled:true,providerEnabled:{}},AbortController,setTimeout,clearTimeout,console:{warn:m=>logs.push(m)},fetch:async()=>({ok:false,status:400})});
+ vm.runInContext(code,c);
+ const run=()=>c.fetchFromYouTubeMusic({videoId:'nBs26EgzsS0'},200,'track');
+ assert.equal(await run(),null);await run();assert.equal(logs.length,1);assert.match(logs[0],/next request-failed HTTP 400/);
+ c.fetch=async()=>{throw new Error('secret-token response-body');};await run();assert.match(logs.at(-1),/network-error/);
+ c.fetch=async()=>{throw Object.assign(new Error('private'),{name:'AbortError'});};await run();assert.match(logs.at(-1),/timeout/);
+ c.fetch=async()=>({ok:true,json:async()=>{throw Error('lyrics-body');}});await run();assert.match(logs.at(-1),/invalid-json/);
+ assert.doesNotMatch(logs.join(' '),/secret-token|private|lyrics-body|nBs26EgzsS0/);
+ const count=logs.length;c.fetch=async()=>{c.STATE.lastTrackKey='next';return {ok:false,status:403};};await run();assert.equal(logs.length,count);
+});

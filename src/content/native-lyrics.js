@@ -1,4 +1,14 @@
   // Same-origin, anonymous YouTube Music requests. Never forward cookies or auth tokens.
+  const nativeLyricsWarnings = new Map();
+  function reportNativeLyricsFailure(endpoint, reason, status) {
+    const key = endpoint + ':' + reason;
+    const now = Date.now();
+    if (nativeLyricsWarnings.has(key) && now - nativeLyricsWarnings.get(key) < 60000) return;
+    nativeLyricsWarnings.set(key, now);
+    // Never log response bodies, request URLs, lyrics, track IDs or authentication data.
+    const code = Number.isInteger(status) && status >= 100 && status <= 599 ? ' HTTP ' + status : '';
+    console.warn('[YTMLS] YouTube Music: ' + endpoint + ' ' + reason + code);
+  }
   function nativeLyricsBrowseId(response) {
     const tabs = response?.contents?.singleColumnMusicWatchNextResultsRenderer?.tabbedRenderer?.watchNextTabbedResultsRenderer?.tabs;
     if (!Array.isArray(tabs)) return null;
@@ -37,16 +47,33 @@
           headers:{'Content-Type':'application/json'},
           body:JSON.stringify({context:{client:{clientName,clientVersion,hl:'ja',gl:'JP'}},...payload}),
         });
-        return response.ok ? await response.json() : null;
+        if (!response.ok) {
+          if (current()) reportNativeLyricsFailure(endpoint, 'request-failed', response.status);
+          return null;
+        }
+        try { return await response.json(); }
+        catch (_) {
+          if (current()) reportNativeLyricsFailure(endpoint, 'invalid-json');
+          return null;
+        }
+      } catch (error) {
+        if (current()) reportNativeLyricsFailure(endpoint, error?.name === 'AbortError' ? 'timeout' : 'network-error');
+        return null;
       } finally {clearTimeout(timer);}
     }
     try {
       if (!current()) return null;
       const next = await request('next','WEB_REMIX','1.20240101.01.00',{videoId:info.videoId});
-      if (!current()) return null;
+      if (!current() || !next) return null;
       const browseId = nativeLyricsBrowseId(next);
-      if (!browseId) return null;
+      if (!browseId) { reportNativeLyricsFailure('next', 'lyrics-tab-unavailable'); return null; }
       const lyrics = await request('browse','ANDROID_MUSIC','7.21.50',{browseId});
-      return current() ? parseNativeTimedLyrics(lyrics) : null;
-    } catch (_) {return null;}
+      if (!current() || !lyrics) return null;
+      const result = parseNativeTimedLyrics(lyrics);
+      if (!result) reportNativeLyricsFailure('browse', 'timed-lyrics-unavailable');
+      return result;
+    } catch (_) {
+      if (current()) reportNativeLyricsFailure('provider', 'processing-error');
+      return null;
+    }
   }
