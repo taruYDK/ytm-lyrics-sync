@@ -6526,7 +6526,8 @@ function readingSegmentProgressCss(start, end, length) {
 
     // scrollIntoViewはYouTube Music本体までスクロールする場合があるため、歌詞リストだけ動かす。
     const targetTop = Math.max(0, lineTopInList + lineRect.height / 2 - focusHeight);
-    listEl.scrollTo({ top: targetTop, behavior });
+    // 'auto' inherits CSS scroll-behavior:smooth; explicitly cancel animation on return.
+    listEl.scrollTo({ top: targetTop, behavior: behavior === 'auto' ? 'instant' : behavior });
     return true;
   }
 

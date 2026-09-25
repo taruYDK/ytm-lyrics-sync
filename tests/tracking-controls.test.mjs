@@ -82,7 +82,7 @@ test('initial layout: hidden lyrics defer positioning and become aligned immedia
  assert.equal(h.c.scrollCurrentLineIntoView(h.line,'auto'),false);
  assert.equal(h.c.pendingReturnToCurrent,true);assert.equal(h.scrolls.length,0);
  h.list.clientHeight=500;h.c.scheduleTrackingRealignment();h.frames.shift()();
- assert.equal(h.scrolls.at(-1).behavior,'auto');assert.equal(h.c.pendingReturnToCurrent,false);
+ assert.equal(h.scrolls.at(-1).behavior,'instant');assert.equal(h.c.pendingReturnToCurrent,false);
 });
 
 test('lyrics seek resumes immediately instead of retaining manual pause or startup guard',()=>{
