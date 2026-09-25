@@ -1095,3 +1095,15 @@ ytmusic-tab-renderer[page-type="MUSIC_PAGE_TYPE_TRACK_LYRICS"].ytmls-replaced {
   -webkit-mask-image: linear-gradient(to bottom, transparent 0, transparent 6px, #000 24px);
   mask-image: linear-gradient(to bottom, transparent 0, transparent 6px, #000 24px);
 }
+
+/* Expanded volume slider keeps the native player bar to itself on narrow windows. */
+.ytmls-resync-label { display:none; }
+@media (max-width:1100px) {
+  ytmusic-player-bar #ytmls-resync-button, ytmusic-player-bar #ytmls-track-offset-button { display:none; }
+  .ytmls-more-menu #ytmls-resync-button, .ytmls-more-menu #ytmls-track-offset-button {
+    width:100%; max-width:none; min-width:0; height:auto; min-height:40px;
+    margin:4px 0 0; padding:10px 12px; border-radius:8px; justify-content:flex-start;
+    font-size:12px; gap:8px;
+  }
+  .ytmls-more-menu .ytmls-resync-label, .ytmls-more-menu #ytmls-track-offset-button .ytmls-track-offset-label { display:inline; }
+}

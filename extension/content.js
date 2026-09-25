@@ -3114,7 +3114,8 @@ function readingSegmentProgressCss(start, end, length) {
   function ensurePlayerBarTimingControl() {
     const playerBar = document.querySelector('ytmusic-player-bar');
     if (!playerBar) return;
-    const host = playerBar.querySelector('.middle-controls .middle-controls-buttons') ||
+    const compactMenu = window.innerWidth <= 1100 ? document.querySelector('#ytmls-more .ytmls-more-menu') : null;
+    const host = compactMenu || playerBar.querySelector('.middle-controls .middle-controls-buttons') ||
       playerBar.querySelector('.middle-controls-buttons');
     if (!host) return;
 
@@ -3135,6 +3136,7 @@ function readingSegmentProgressCss(start, end, length) {
         if (button.disabled) return;
         performLyricsResync('手動で歌詞を再同期中…', false);
       });
+      const label = document.createElement('span'); label.className = 'ytmls-resync-label'; label.textContent = '歌詞を再取得・再同期'; button.appendChild(label);
       host.appendChild(button);
       resyncButtonEl = button;
     } else if (resyncButtonEl.parentElement !== host) {
