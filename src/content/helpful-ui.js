@@ -26,6 +26,11 @@
     if (bar.firstChild.textContent !== text) { bar.firstChild.textContent = text; bar.firstChild.title = text; }
     bar.lastChild.hidden = !(STATE.enabled && STATE.trackingEnabled && STATE.hasSync && isManualScrollPaused());
     const menu = lyricsToolsEl.querySelector('.ytmls-more-menu');
+    if (menu && lyricsToolsEl.querySelector('#ytmls-more')?.open) {
+      const bottom = Math.min(window.innerHeight, panelEl.getBoundingClientRect().bottom);
+      const available = Math.max(0, Math.floor(bottom - menu.getBoundingClientRect().top - 8));
+      menu.style.maxHeight = Math.min(480, available) + 'px';
+    }
     if (menu) for (const button of menu.querySelectorAll('button')) {
       let hint = button.nextElementSibling;
       if (!hint?.classList.contains('ytmls-menu-hint')) {

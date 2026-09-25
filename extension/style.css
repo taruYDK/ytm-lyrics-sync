@@ -1107,3 +1107,16 @@ ytmusic-tab-renderer[page-type="MUSIC_PAGE_TYPE_TRACK_LYRICS"].ytmls-replaced {
   }
   .ytmls-more-menu .ytmls-resync-label, .ytmls-more-menu #ytmls-track-offset-button .ytmls-track-offset-label { display:inline; }
 }
+
+/* Constrain menus to the lyrics panel and prioritize the toolbar actions. */
+.ytmls-more-menu { box-sizing:border-box; max-height:min(480px,60vh); overflow-y:auto; overflow-x:hidden; overscroll-behavior:contain; }
+#ytmls-tools { container-type:inline-size; }
+#ytmls-helpful .ytmls-fetch-status { flex:1 1 0; }
+#ytmls-helpful button { white-space:nowrap; }
+#ytmls-playback-menu { display:none; }
+@media(max-width:1100px) { #ytmls-playback-menu { display:block; } }
+@container(max-width:420px) {
+  #ytmls-helpful .ytmls-fetch-status { display:none; }
+  #ytmls-helpful { gap:0; }
+  #ytmls-helpful button { padding-inline:8px; font-size:11px; }
+}

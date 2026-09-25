@@ -370,7 +370,7 @@
   function ensurePlayerBarTimingControl() {
     const playerBar = document.querySelector('ytmusic-player-bar');
     if (!playerBar) return;
-    const compactMenu = window.innerWidth <= 1100 ? document.querySelector('#ytmls-more .ytmls-more-menu') : null;
+    const compactMenu = window.innerWidth <= 1100 ? document.querySelector('#ytmls-playback-menu') : null;
     const host = compactMenu || playerBar.querySelector('.middle-controls .middle-controls-buttons') ||
       playerBar.querySelector('.middle-controls-buttons');
     if (!host) return;

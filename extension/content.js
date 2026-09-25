@@ -2416,7 +2416,10 @@ function readingSegmentProgressCss(start, end, length) {
     const menu = document.createElement("div");
     menu.className = "ytmls-more-menu";
     const sectionLabel = text => { const label = document.createElement('div'); label.className = 'ytmls-menu-label'; label.textContent = text; return label; };
-    menu.append(sectionLabel('歌詞を探す'), manualSearchButtonEl, sectionLabel('編集する'), editLyricsButtonEl, localLyricsButtonEl, sectionLabel('保存・診断'), exportLyricsButtonEl);
+    const playbackGroup = document.createElement('div'); playbackGroup.id = 'ytmls-playback-menu';
+    playbackGroup.setAttribute('role', 'group'); playbackGroup.setAttribute('aria-label', '再生・同期');
+    playbackGroup.appendChild(sectionLabel('再生・同期'));
+    menu.append(sectionLabel('歌詞を探す'), manualSearchButtonEl, sectionLabel('編集する'), editLyricsButtonEl, localLyricsButtonEl, playbackGroup, sectionLabel('保存・診断'), exportLyricsButtonEl);
     more.append(moreToggle, menu);
     lyricsToolsEl.append(candidateButtonEl, more);
     for (const button of [candidateButtonEl, manualSearchButtonEl, editLyricsButtonEl, localLyricsButtonEl, exportLyricsButtonEl]) {
@@ -3114,7 +3117,7 @@ function readingSegmentProgressCss(start, end, length) {
   function ensurePlayerBarTimingControl() {
     const playerBar = document.querySelector('ytmusic-player-bar');
     if (!playerBar) return;
-    const compactMenu = window.innerWidth <= 1100 ? document.querySelector('#ytmls-more .ytmls-more-menu') : null;
+    const compactMenu = window.innerWidth <= 1100 ? document.querySelector('#ytmls-playback-menu') : null;
     const host = compactMenu || playerBar.querySelector('.middle-controls .middle-controls-buttons') ||
       playerBar.querySelector('.middle-controls-buttons');
     if (!host) return;
@@ -7105,6 +7108,11 @@ function readingSegmentProgressCss(start, end, length) {
     if (bar.firstChild.textContent !== text) { bar.firstChild.textContent = text; bar.firstChild.title = text; }
     bar.lastChild.hidden = !(STATE.enabled && STATE.trackingEnabled && STATE.hasSync && isManualScrollPaused());
     const menu = lyricsToolsEl.querySelector('.ytmls-more-menu');
+    if (menu && lyricsToolsEl.querySelector('#ytmls-more')?.open) {
+      const bottom = Math.min(window.innerHeight, panelEl.getBoundingClientRect().bottom);
+      const available = Math.max(0, Math.floor(bottom - menu.getBoundingClientRect().top - 8));
+      menu.style.maxHeight = Math.min(480, available) + 'px';
+    }
     if (menu) for (const button of menu.querySelectorAll('button')) {
       let hint = button.nextElementSibling;
       if (!hint?.classList.contains('ytmls-menu-hint')) {

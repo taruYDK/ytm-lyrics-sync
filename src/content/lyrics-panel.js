@@ -1038,7 +1038,10 @@
     const menu = document.createElement("div");
     menu.className = "ytmls-more-menu";
     const sectionLabel = text => { const label = document.createElement('div'); label.className = 'ytmls-menu-label'; label.textContent = text; return label; };
-    menu.append(sectionLabel('歌詞を探す'), manualSearchButtonEl, sectionLabel('編集する'), editLyricsButtonEl, localLyricsButtonEl, sectionLabel('保存・診断'), exportLyricsButtonEl);
+    const playbackGroup = document.createElement('div'); playbackGroup.id = 'ytmls-playback-menu';
+    playbackGroup.setAttribute('role', 'group'); playbackGroup.setAttribute('aria-label', '再生・同期');
+    playbackGroup.appendChild(sectionLabel('再生・同期'));
+    menu.append(sectionLabel('歌詞を探す'), manualSearchButtonEl, sectionLabel('編集する'), editLyricsButtonEl, localLyricsButtonEl, playbackGroup, sectionLabel('保存・診断'), exportLyricsButtonEl);
     more.append(moreToggle, menu);
     lyricsToolsEl.append(candidateButtonEl, more);
     for (const button of [candidateButtonEl, manualSearchButtonEl, editLyricsButtonEl, localLyricsButtonEl, exportLyricsButtonEl]) {
