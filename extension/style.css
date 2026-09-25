@@ -1090,3 +1090,8 @@ ytmusic-tab-renderer[page-type="MUSIC_PAGE_TYPE_TRACK_LYRICS"].ytmls-replaced {
 /* Keep the acquisition status within the existing toolbar height. */
 #ytmls-tools { flex-wrap:nowrap; }
 #ytmls-tools > :not(#ytmls-helpful), #ytmls-helpful button { flex-shrink:0; }
+/* Fade clipped text at the viewport edge without changing lyric geometry. */
+#ytmls-list {
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, transparent 6px, #000 24px);
+  mask-image: linear-gradient(to bottom, transparent 0, transparent 6px, #000 24px);
+}
