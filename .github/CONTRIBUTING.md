@@ -7,6 +7,6 @@ Node.js 20以降を使います。依存パッケージのインストールは�
 3. `npm run check` を実行します。
 4. 表示を変えた場合は、Edge / Chromeのテスト用環境で実際の表示も確認します。
 
-生成済みの `extension/content.js` もリポジトリに含めます。辞書の再生成方法と第三者ライセンスは [vendor/README.md](../extension/vendor/README.md) を参照してください。
+生成済みの `extension/content.js` もリポジトリに含めます。辞書の再生成方法と第三者ライセンスは [第三者ライセンスと辞書の説明](https://github.com/taruYDK/ytm-lyrics-sync/blob/main/extension/vendor/README.md) を参照してください。
 
 不具合報告には拡張機能とブラウザーのバージョン、再現手順、期待した動作と実際の動作を書いてください。バックアップ全文や認証トークンは添付しないでください。
