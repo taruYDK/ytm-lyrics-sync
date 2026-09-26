@@ -182,7 +182,7 @@ html.music-glass {
 .music-glass ytmusic-detail-header-renderer,
 .music-glass ytmusic-responsive-header-renderer,
 .music-glass ytmusic-immersive-header-renderer {
-  background-color: #30253255;
+  background: transparent !important;
 }
 .music-glass ytmusic-detail-header-renderer yt-img-shadow,
 .music-glass ytmusic-responsive-header-renderer yt-img-shadow {
@@ -302,4 +302,26 @@ html.music-glass {
   display: none !important;
   width: 0 !important;
   height: 0 !important;
+}
+
+/* Browse pages have their own finite-height background/gradient plates.
+   Remove those decorative layers so the fixed Music Glass backdrop is continuous.
+   Do not affect artwork, interactive cards, menus, or the app bars. */
+.music-glass ytmusic-browse-response #background,
+.music-glass ytmusic-browse-response #background-gradient,
+.music-glass ytmusic-browse-response #background-image,
+.music-glass ytmusic-browse-response .background-gradient,
+.music-glass ytmusic-browse-response .background-image,
+.music-glass ytmusic-browse-response #header-background,
+.music-glass ytmusic-browse-response #header-gradient {
+  background: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
+}
+.music-glass ytmusic-browse-response > #background::before,
+.music-glass ytmusic-browse-response > #background::after,
+.music-glass ytmusic-browse-response #background-gradient::before,
+.music-glass ytmusic-browse-response #background-gradient::after {
+  background: transparent !important;
+  box-shadow: none !important;
 }
