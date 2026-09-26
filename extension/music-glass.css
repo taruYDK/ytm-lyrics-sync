@@ -63,7 +63,7 @@ html.music-glass::-webkit-scrollbar,
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
-  filter: blur(75px) saturate(1.55) brightness(.62);
+  filter: blur(45px) saturate(1.55) brightness(.62);
   opacity: var(--mg-art-opacity, .65);
 }
 .music-glass ytmusic-player-page #main-panel,
@@ -127,15 +127,15 @@ html.music-glass::-webkit-scrollbar,
 .music-glass ytmusic-player-page tp-yt-paper-tabs { --paper-tabs-selection-bar-color: #ffffffb0; }
 /* Lyrics typography and synchronization belong to YouTube Music / lyrics extensions. */
 .music-glass ytmusic-player-bar {
-  background: #24202b66 !important;
-  backdrop-filter: blur(28px) saturate(1.4);
+  background: #24202bd9 !important;
+  backdrop-filter: none;
   border-top: 1px solid #ffffff16;
   --paper-slider-active-color: #fa5876;
   --paper-slider-knob-color: #fa5876;
 }
 .music-glass ytmusic-player-bar img { border-radius: 7px; }
 .music-glass ytmusic-player-bar .title { font-weight: 650; }
-.music-glass ytmusic-nav-bar { background: #19171e44 !important; backdrop-filter: blur(24px); }
+.music-glass ytmusic-nav-bar { background: #19171ed9 !important; backdrop-filter: none; }
 .music-glass ytmusic-search-box { border-radius: 12px; overflow: hidden; }
 .music-glass ytmusic-guide-renderer,
 .music-glass ytmusic-mini-guide-renderer { background: #19171e33 !important; }

@@ -1,6 +1,6 @@
 (() => {
   'use strict';
-  const defaults = { musicGlassEnabled: true, musicGlassArtwork: true, musicGlassIntensity: 65, musicGlassHideScrollbar: false };
+  const defaults = { musicGlassEnabled: true, musicGlassArtwork: true, musicGlassIntensity: 65, musicGlassHideScrollbar: false, musicGlassLightweight: false };
   const root = document.documentElement;
   let settings = { ...defaults };
   let backdrop;
@@ -19,7 +19,7 @@
     } catch { return ''; }
   }
   function update() {
-    if (!settings.musicGlassEnabled) return;
+    if (!settings.musicGlassEnabled || settings.musicGlassLightweight) return;
     const page = document.body;
     if (!page) return;
     if (!backdrop || backdrop.parentNode !== page) {
@@ -44,13 +44,13 @@
     }
   }
   function schedule() {
-    if (!timer && settings.musicGlassEnabled) timer = setTimeout(() => { timer = null; update(); }, 180);
+    if (!timer && settings.musicGlassEnabled && !settings.musicGlassLightweight) timer = setTimeout(() => { timer = null; update(); }, 180);
   }
   function apply() {
     root.classList.toggle('music-glass', settings.musicGlassEnabled);
     root.classList.toggle('music-glass-hide-scrollbar', settings.musicGlassHideScrollbar === true);
     root.style.setProperty('--mg-art-opacity', String(Math.max(0, Math.min(100, Number(settings.musicGlassIntensity) || 0)) / 100));
-    if (!settings.musicGlassEnabled) { backdrop?.remove(); backdrop = null; lastArt = ''; }
+    if (!settings.musicGlassEnabled || settings.musicGlassLightweight) { backdrop?.remove(); backdrop = null; lastArt = ''; }
     else update();
   }
   chrome.storage.local.get(defaults, stored => { settings = { ...defaults, ...stored }; apply(); });
