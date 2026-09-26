@@ -361,3 +361,17 @@ html.music-glass-hide-scrollbar #ytmls-external-view *::-webkit-scrollbar,
 .music-glass ytmusic-browse-response ytmusic-tabbed-page-header-renderer #background {
   background: transparent !important;
 }
+
+/* Reuse the baked cover bitmap; no backdrop filters or scrolling content sampling. */
+.music-glass ytmusic-nav-bar,
+.music-glass ytmusic-player-bar { isolation: isolate; }
+.music-glass .music-glass-bar-artwork {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: -1;
+  pointer-events: none;
+  opacity: var(--mg-art-opacity, .65);
+  contain: strict;
+}

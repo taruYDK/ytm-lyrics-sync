@@ -69,3 +69,11 @@ test('Scrollbar setting saves and applies independently of the theme',()=>{
  nodes.musicGlassScrollbarToggle.checked=true;nodes.musicGlassScrollbarToggle.change();assert.equal(handlers['music-glass-hide-scrollbar'],true);assert.equal(handlers['music-glass'],false);
  nodes.musicGlassScrollbarToggle.checked=false;nodes.musicGlassScrollbarToggle.change();assert.equal(handlers['music-glass-hide-scrollbar'],false);
 });
+test('Both bars reuse baked artwork and are cleared when artwork is disabled',()=>{
+ const images=[];let changed,poll,draws=0,removed=0;
+ const host=()=>({appendChild(c){c.parentNode=this;},prepend(c){c.parentNode=this;}});const body=host(),nav=host(),player=host();
+ const document={body,documentElement:{classList:{toggle(){}},style:{setProperty(){}}},addEventListener(){},querySelector:s=>s==='ytmusic-nav-bar'?nav:s==='ytmusic-player-bar'?player:{src:'https://i.ytimg.com/a.jpg'},createElement:()=>({setAttribute(){},getContext:()=>({clearRect(){},drawImage(){draws++;}}),remove(){removed++;this.parentNode=null;}})};
+ vm.runInNewContext(fs.readFileSync(new URL('../extension/music-glass.js',import.meta.url),'utf8'),{document,Image:class{constructor(){this.naturalWidth=200;this.naturalHeight=200;images.push(this);}},chrome:{storage:{local:{get:(d,cb)=>cb(d)},onChanged:{addListener:f=>changed=f}}},setInterval:f=>poll=f,setTimeout,URL});
+ images[0].onload();assert.equal(draws,3);poll();assert.equal(draws,3);
+ changed({musicGlassArtwork:{newValue:false}},'local');assert.equal(removed,3);poll();assert.equal(images.length,1);
+});

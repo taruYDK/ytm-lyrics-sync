@@ -7,6 +7,34 @@
   let timer;
   let generation = 0;
   let lastArt = '';
+  let artworkReady = false;
+  const barCanvases = new Map();
+  function clearBarArtwork() {
+    for (const canvas of barCanvases.values()) canvas.remove();
+    barCanvases.clear();
+  }
+  function syncBarArtwork(redraw = false) {
+    if (!artworkReady || !backdrop) return;
+    for (const selector of ['ytmusic-nav-bar', 'ytmusic-player-bar']) {
+      const bar = document.querySelector(selector);
+      if (!bar?.appendChild) continue;
+      let canvas = barCanvases.get(selector);
+      if (!canvas || canvas.parentNode !== bar) {
+        canvas?.remove();
+        canvas = document.createElement('canvas');
+        canvas.width = 96; canvas.height = 96;
+        canvas.className = 'music-glass-bar-artwork';
+        canvas.setAttribute('aria-hidden', 'true');
+        bar.appendChild(canvas);
+        barCanvases.set(selector, canvas);
+        canvas.getContext('2d').drawImage(backdrop, 0, 0);
+      } else if (redraw) {
+        const context = canvas.getContext('2d');
+        context.clearRect(0, 0, 96, 96);
+        context.drawImage(backdrop, 0, 0);
+      }
+    }
+  }
   const artSelectors = [
     'ytmusic-player-bar .thumbnail-image-wrapper img',
     'ytmusic-player-bar img.image',
@@ -42,6 +70,8 @@
     }
     if (art !== lastArt) {
       lastArt = art;
+      artworkReady = false;
+      clearBarArtwork();
       const token = ++generation;
       const canvas = backdrop;
       const context = canvas.getContext('2d');
@@ -55,10 +85,13 @@
           if (!side) return;
           context.filter = 'blur(5px) saturate(1.55) brightness(.62)';
           context.drawImage(image, (image.naturalWidth-side)/2, (image.naturalHeight-side)/2, side, side, -12, -12, 120, 120);
+          artworkReady = true;
+          syncBarArtwork(true);
         };
         image.src = art;
       }
     }
+    syncBarArtwork();
   }
   function schedule() {
     if (!timer && settings.musicGlassEnabled && settings.musicGlassArtwork && !settings.musicGlassLightweight) timer = setTimeout(() => { timer = null; update(); }, 500);
@@ -67,7 +100,7 @@
     root.classList.toggle('music-glass', settings.musicGlassEnabled);
     root.classList.toggle('music-glass-hide-scrollbar', settings.musicGlassHideScrollbar === true);
     root.style.setProperty('--mg-art-opacity', String(Math.max(0, Math.min(100, Number(settings.musicGlassIntensity) || 0)) / 100));
-    if (!settings.musicGlassEnabled || !settings.musicGlassArtwork || settings.musicGlassLightweight) { generation++; backdrop?.remove(); backdrop = null; lastArt = ''; }
+    if (!settings.musicGlassEnabled || !settings.musicGlassArtwork || settings.musicGlassLightweight) { generation++; artworkReady = false; clearBarArtwork(); backdrop?.remove(); backdrop = null; lastArt = ''; }
     else update();
   }
   chrome.storage.local.get(defaults, stored => { settings = { ...defaults, ...stored }; apply(); });
