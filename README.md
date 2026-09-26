@@ -1,4 +1,4 @@
-# YT Music 歌詞シンクロ 2.7.19-beta.6
+# YT Music 歌詞シンクロ 2.7.20-beta.7
 
 Music Glass v1.2.7の背景・角丸テーマを組み込んだ試用版です。
 
@@ -10,7 +10,7 @@ Music Glass v1.2.7の背景・角丸テーマを組み込んだ試用版です�
 
 **YouTube Musicに、追いかけやすい歌詞と読み仮名を。**
 
-![Version 2.7.19-beta.6](https://img.shields.io/badge/version-2.7.19--beta.6-f59e0b?style=flat-square)
+![Version 2.7.20-beta.7](https://img.shields.io/badge/version-2.7.20--beta.7-f59e0b?style=flat-square)
 ![Edge / Chrome](https://img.shields.io/badge/browser-Edge%20%2F%20Chrome-3b82f6?style=flat-square)
 ![Manifest V3](https://img.shields.io/badge/extension-Manifest%20V3-8b5cf6?style=flat-square)
 [![MIT License](https://img.shields.io/badge/license-MIT-f59e0b?style=flat-square)](LICENSE)

@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "minimum_chrome_version": "111",
   "name": "YT Music 歌詞シンクロ ベータ（Music Glass）",
-  "version": "2.7.19",
+  "version": "2.7.20",
   "description": "歌詞候補の固定、ローカルLRC、同期歌詞作成、診断情報のコピーに対応。",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEApZe/sWz1TIwRd0/mQ+ZwnCUZK+GQt62M9Qy11IUXklxsS7Izm3JTtLaAR+VqvaD9i8kCiSklqU86DXxuW0T8upeuHlLfyfZTc/OVuEmebLqEchO50sy83h3HgPFKxnyZz8+MSnVR7SDOknUkZD6SzX1KjW51ptfQEN6gw7NtzDhDdjRNsIjYgKE354T4TXx2vALaqjo3vRNETaqOkn6CZsBYoXUubxaL2KMBXZfssp4rywb49wWFN/htPN6GQiCF0jY2n7VitFdZ+dUcqiBTuneAuJIbiRbauqBRixB8Mlkp/om6fFhwFv+kq2KAzZzVfiQea4cyxmvY/7dbJoVmOwIDAQAB",
   "icons": {
@@ -86,5 +86,5 @@
       ]
     }
   ],
-  "version_name": "2.7.19-beta.6"
+  "version_name": "2.7.20-beta.7"
 }
