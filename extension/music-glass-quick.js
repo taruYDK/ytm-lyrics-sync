@@ -1,0 +1,23 @@
+(() => {
+  const toggle = document.getElementById('musicGlassQuickToggle');
+  const status = document.getElementById('musicGlassQuickStatus');
+  let saved = true;
+  toggle.disabled = true;
+  chrome.storage.local.get({musicGlassEnabled:true}, data => {
+    if (chrome.runtime.lastError) { status.textContent = '設定を読み込めませんでした。開き直してください。'; return; }
+    saved = data.musicGlassEnabled !== false; toggle.checked = saved; toggle.disabled = false;
+  });
+  toggle.addEventListener('change', () => {
+    const value = toggle.checked; toggle.disabled = true; status.textContent = '';
+    chrome.storage.local.set({musicGlassEnabled:value}, () => {
+      toggle.disabled = false;
+      if (chrome.runtime.lastError) { toggle.checked = saved; status.textContent = '保存できませんでした。もう一度お試しください。'; return; }
+      saved = value;
+    });
+  });
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === 'local' && changes.musicGlassEnabled) {
+      saved = changes.musicGlassEnabled.newValue !== false; toggle.checked = saved;
+    }
+  });
+})();
