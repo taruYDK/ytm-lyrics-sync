@@ -412,3 +412,9 @@ html.music-glass-controls-open ytmusic-player-bar .right-controls-buttons > .exp
 html.music-glass-controls-open ytmusic-player-bar .right-controls-buttons > .expand-button > button:focus-visible > yt-icon {
   opacity: 1 !important;
 }
+
+/* Hide only the dislike action in the playback bar, never the like button. */
+html.music-glass-hide-dislike ytmusic-player-bar button[aria-label="低評価"],
+html.music-glass-hide-dislike ytmusic-player-bar button[aria-label="Dislike"] {
+  display: none !important;
+}

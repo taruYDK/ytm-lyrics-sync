@@ -1,6 +1,6 @@
 (() => {
   'use strict';
-  const defaults = { musicGlassEnabled: true, musicGlassArtwork: true, musicGlassIntensity: 65, musicGlassHideScrollbar: false, musicGlassLightweight: false };
+  const defaults = { musicGlassEnabled: true, musicGlassArtwork: true, musicGlassIntensity: 65, musicGlassHideScrollbar: false, musicGlassHideDislike: false, musicGlassLightweight: false };
   const root = document.documentElement;
   let settings = { ...defaults };
   let backdrop;
@@ -112,6 +112,7 @@
     trimGuideAtPlayer();
     syncExpandedControls();
     root.classList.toggle('music-glass-hide-scrollbar', settings.musicGlassHideScrollbar === true);
+    root.classList.toggle('music-glass-hide-dislike', settings.musicGlassHideDislike === true);
     root.style.setProperty('--mg-art-opacity', String(Math.max(0, Math.min(100, Number(settings.musicGlassIntensity) || 0)) / 100));
     if (!settings.musicGlassEnabled || !settings.musicGlassArtwork || settings.musicGlassLightweight) { generation++; artworkReady = false; backdrop?.remove(); backdrop = null; lastArt = ''; }
     else update();

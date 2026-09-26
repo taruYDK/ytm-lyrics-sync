@@ -3,7 +3,7 @@
   const label = document.getElementById('musicGlassIntensityValue');
   const reset = document.getElementById('musicGlassReset');
   const status = document.getElementById('musicGlassQuickStatus');
-  const defaults = {musicGlassEnabled:true,musicGlassArtwork:true,musicGlassIntensity:65,musicGlassHideScrollbar:false,musicGlassLightweight:false};
+  const defaults = {musicGlassEnabled:true,musicGlassArtwork:true,musicGlassIntensity:65,musicGlassHideScrollbar:false,musicGlassHideDislike:false,musicGlassLightweight:false};
   let saved = 65;
   function render(value) {
     const number = Number(value);
@@ -33,6 +33,7 @@
       const state = document.getElementById('musicGlassQuickState');state.textContent = 'ON';state.dataset.enabled = 'true';
       document.getElementById('musicGlassArtworkToggle').checked = true;
       document.getElementById('musicGlassScrollbarToggle').checked = false;
+      document.getElementById('musicGlassDislikeToggle').checked = false;
       status.textContent = '';
     });
   });

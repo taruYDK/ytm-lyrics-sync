@@ -74,3 +74,28 @@
     }
   });
 })();
+
+(() => {
+  const input = document.getElementById('musicGlassDislikeToggle');
+  const status = document.getElementById('musicGlassQuickStatus');
+  let saved = false;
+  input.disabled = true;
+  chrome.storage.local.get({musicGlassHideDislike:false}, data => {
+    if (chrome.runtime.lastError) { status.textContent = '設定を読み込めませんでした。開き直してください。'; return; }
+    saved = data.musicGlassHideDislike === true; input.checked = saved; input.disabled = false;
+  });
+  input.addEventListener('change', () => {
+    const value = input.checked; input.disabled = true; status.textContent = '';
+    chrome.storage.local.set({musicGlassHideDislike:value}, () => {
+      input.disabled = false;
+      if (chrome.runtime.lastError) { input.checked = saved; status.textContent = '保存できませんでした。もう一度お試しください。'; return; }
+      saved = value;
+    });
+  });
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === 'local' && changes.musicGlassHideDislike) {
+      saved = changes.musicGlassHideDislike.newValue === true; input.checked = saved;
+    }
+  });
+})();
+
