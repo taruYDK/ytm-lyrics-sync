@@ -76,6 +76,19 @@
     for (const key of Object.keys(defaults)) if (changes[key]) settings[key] = changes[key].newValue ?? defaults[key];
     apply();
   });
+  // pointer-events:none lets clicks fall through to the native player.
+  // Capture artwork activation before it reaches the player's handlers instead.
+  function blockArtworkActivation(event) {
+    if (!settings.musicGlassEnabled) return;
+    const path = event.composedPath?.() || [event.target];
+    if (!path.some(node => node?.matches?.('ytmusic-player #song-image'))) return;
+    if (event.type === 'keydown' && ![' ', 'Enter'].includes(event.key)) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+  }
+  for (const type of ['pointerdown', 'pointerup', 'mousedown', 'mouseup', 'click', 'dblclick', 'keydown']) {
+    document.addEventListener(type, blockArtworkActivation, true);
+  }
   // A bounded check avoids observing every lyrics/list DOM mutation.
   setInterval(() => { if (!document.hidden && settings.musicGlassArtwork) update(); }, 2000);
   document.addEventListener('visibilitychange', schedule);

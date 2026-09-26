@@ -43,3 +43,11 @@ test('Artwork is baked once per URL and stale image loads cannot redraw',()=>{
  url='https://i.ytimg.com/b.jpg';poll();assert.equal(images.length,2);
  listener({musicGlassLightweight:{newValue:true}},'local');images[1].onload();assert.equal(draws,1);
 });
+test('Artwork activation is blocked only while theme is enabled; controls remain usable',()=>{
+ const handlers={};let changed;
+ vm.runInNewContext(fs.readFileSync(new URL('../extension/music-glass.js',import.meta.url),'utf8'),{document:{body:null,documentElement:{classList:{toggle(){}},style:{setProperty(){}}},addEventListener:(name,fn)=>handlers[name]=fn},chrome:{storage:{local:{get:(d,cb)=>cb(d)},onChanged:{addListener:f=>changed=f}}},setInterval(){},setTimeout,URL});
+ let stopped=0;const event={type:'click',composedPath:()=>[{matches:()=>true}],preventDefault(){stopped++;},stopImmediatePropagation(){stopped++;}};
+ handlers.click(event);assert.equal(stopped,2);
+ handlers.click({...event,composedPath:()=>[{matches:()=>false}]});assert.equal(stopped,2);
+ changed({musicGlassEnabled:{newValue:false}},'local');handlers.click(event);assert.equal(stopped,2);
+});

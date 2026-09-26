@@ -100,10 +100,11 @@ html.music-glass::-webkit-scrollbar,
   box-shadow: none !important;
   overflow: hidden;
 }
-/* Static artwork: suppress mouse hover and its overlay without disabling the bottom player. */
+/* Keep artwork as the hit target; capture handlers stop native playback clicks. */
 .music-glass ytmusic-player #song-image,
 .music-glass ytmusic-player #song-image * {
-  pointer-events: none !important;
+  pointer-events: auto !important;
+  cursor: default !important;
 }
 .music-glass ytmusic-player .song-media-controls {
   display: none !important;
@@ -326,4 +327,19 @@ html.music-glass {
 .music-glass ytmusic-browse-response #background-gradient::after {
   background: transparent !important;
   box-shadow: none !important;
+}
+
+/* Library tab strip: match the navigation surface without a blur filter. */
+.music-glass ytmusic-browse-response ytmusic-tabs,
+.music-glass ytmusic-browse-response tp-yt-paper-tabs,
+.music-glass ytmusic-browse-response ytmusic-tabbed-page-header,
+.music-glass ytmusic-browse-response ytmusic-tabbed-page-header-renderer {
+  background: #19171ed9 !important;
+  --ytmusic-tabs-background: transparent;
+}
+.music-glass ytmusic-browse-response ytmusic-tabs #tabs,
+.music-glass ytmusic-browse-response ytmusic-tabs #tabs-content,
+.music-glass ytmusic-browse-response ytmusic-tabbed-page-header #background,
+.music-glass ytmusic-browse-response ytmusic-tabbed-page-header-renderer #background {
+  background: transparent !important;
 }
