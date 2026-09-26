@@ -78,9 +78,22 @@ html.music-glass::-webkit-scrollbar,
 .music-glass ytmusic-player #song-image {
   border-radius: 18px !important;
   overflow: hidden;
-  box-shadow: 0 24px 65px #0006, 0 1px 0 #ffffff25 inset;
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: 0 16px 40px #0003;
 }
-.music-glass ytmusic-player #song-image img { border-radius: 18px !important; }
+.music-glass ytmusic-player #song-image img {
+  display: block;
+  border-radius: 0 !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+/* Clip only once, avoiding mismatched inner and outer curved edges. */
+.music-glass ytmusic-player #song-image yt-img-shadow {
+  border-radius: inherit;
+  background: transparent !important;
+  overflow: hidden;
+}
 /* Static artwork: suppress mouse hover and its overlay without disabling the bottom player. */
 .music-glass ytmusic-player #song-image,
 .music-glass ytmusic-player #song-image * {
