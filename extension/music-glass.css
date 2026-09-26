@@ -373,5 +373,7 @@ html.music-glass-hide-scrollbar #ytmls-external-view *::-webkit-scrollbar,
   z-index: -1;
   pointer-events: none;
   opacity: var(--mg-art-opacity, .65);
+  object-fit: cover;
+  object-position: center;
   contain: strict;
 }
