@@ -1,5 +1,5 @@
 'use strict';
-const defaults = { musicGlassEnabled: true, musicGlassArtwork: true, musicGlassIntensity: 65 };
+const defaults = { musicGlassEnabled: true, musicGlassArtwork: true, musicGlassIntensity: 65, musicGlassHideScrollbar: false };
 function labels() {
   document.getElementById('musicGlassIntensity-value').textContent = `${document.getElementById('musicGlassIntensity').value}%`;
 }
