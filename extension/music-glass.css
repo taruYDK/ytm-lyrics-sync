@@ -362,18 +362,10 @@ html.music-glass-hide-scrollbar #ytmls-external-view *::-webkit-scrollbar,
   background: transparent !important;
 }
 
-/* Reuse the baked cover bitmap; no backdrop filters or scrolling content sampling. */
+
+/* One viewport background for the player and both bars: no separate crops. */
 .music-glass ytmusic-nav-bar,
-.music-glass ytmusic-player-bar { isolation: isolate; }
-.music-glass .music-glass-bar-artwork {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  z-index: -1;
-  pointer-events: none;
-  opacity: var(--mg-art-opacity, .65);
-  object-fit: cover;
-  object-position: center;
-  contain: strict;
+.music-glass ytmusic-player-bar {
+  background: transparent !important;
+  backdrop-filter: none !important;
 }
