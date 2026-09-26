@@ -59,3 +59,13 @@ test('Inline theme intensity saves on change and reset touches only theme keys',
  fail=true;range.value='90';range.change();assert.equal(range.value,40);
  fail=false;nodes.musicGlassReset.click();assert.ok(Object.keys(writes.at(-1)).every(k=>k.startsWith('musicGlass')));assert.equal(nodes.musicGlassQuickState.textContent,'ON');assert.equal(range.value,65);
 });
+test('Scrollbar setting saves and applies independently of the theme',()=>{
+ const handlers={};const nodes={};let changed;
+ for(const id of ['musicGlassQuickToggle','musicGlassQuickState','musicGlassQuickStatus','musicGlassScrollbarToggle','musicGlassArtworkToggle'])nodes[id]={dataset:{},addEventListener(name,fn){this[name]=fn;}};
+ const state={musicGlassEnabled:false};const listeners=[];
+ const chrome={runtime:{},storage:{local:{get:(d,cb)=>cb({...d,...state}),set:(d,cb)=>{Object.assign(state,d);cb();for(const f of listeners)f(Object.fromEntries(Object.entries(d).map(([k,v])=>[k,{newValue:v}])),'local');}},onChanged:{addListener:f=>listeners.push(f)}}};
+ vm.runInNewContext(fs.readFileSync(new URL('../extension/music-glass.js',import.meta.url),'utf8'),{document:{body:null,documentElement:{classList:{toggle:(k,v)=>handlers[k]=v},style:{setProperty(){}}},addEventListener(){}},chrome,setInterval(){},setTimeout,URL});
+ vm.runInNewContext(fs.readFileSync(new URL('../extension/music-glass-quick.js',import.meta.url),'utf8'),{document:{getElementById:id=>nodes[id]},chrome});
+ nodes.musicGlassScrollbarToggle.checked=true;nodes.musicGlassScrollbarToggle.change();assert.equal(handlers['music-glass-hide-scrollbar'],true);assert.equal(handlers['music-glass'],false);
+ nodes.musicGlassScrollbarToggle.checked=false;nodes.musicGlassScrollbarToggle.change();assert.equal(handlers['music-glass-hide-scrollbar'],false);
+});

@@ -308,10 +308,16 @@ html.music-glass {
 
 /* Hide only scrollbars in the player page; keep overflow and scrolling intact.
    Independent of the background theme toggle. */
+html.music-glass-hide-scrollbar #ytmls-list,
+html.music-glass-hide-scrollbar #ytmls-external-view,
+html.music-glass-hide-scrollbar #ytmls-external-view *,
 .music-glass-hide-scrollbar ytmusic-player-page,
 .music-glass-hide-scrollbar ytmusic-player-page * {
   scrollbar-width: none !important;
 }
+html.music-glass-hide-scrollbar #ytmls-list::-webkit-scrollbar,
+html.music-glass-hide-scrollbar #ytmls-external-view::-webkit-scrollbar,
+html.music-glass-hide-scrollbar #ytmls-external-view *::-webkit-scrollbar,
 .music-glass-hide-scrollbar ytmusic-player-page::-webkit-scrollbar,
 .music-glass-hide-scrollbar ytmusic-player-page *::-webkit-scrollbar {
   display: none !important;
