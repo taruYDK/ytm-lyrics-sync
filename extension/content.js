@@ -7156,7 +7156,7 @@ function readingSegmentProgressCss(start, end, length) {
       } catch (error) { label.textContent = error.message; button.disabled = false; }
     });
     notice.append(label, button); panelEl.insertBefore(notice, lyricsToolsPaneEl);
-    setTimeout(() => { notice.remove(); if (undoNotice === notice) undoNotice = null; }, 60000);
+    setTimeout(() => { notice.remove(); if (undoNotice === notice) undoNotice = null; }, 5000);
   }
 
 // Feature: main.js
