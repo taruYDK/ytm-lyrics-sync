@@ -378,31 +378,16 @@ html.music-glass-hide-scrollbar #ytmls-external-view *::-webkit-scrollbar,
   clip-path: inset(var(--mg-guide-top-clip, 0px) 0 var(--mg-guide-bottom-clip, 0px) 0);
 }
 
-/* Compact native playback controls need a readable themed surface when expanded. */
+
+/* Keep the native control geometry; remove only painted background plates. */
 @media (max-width: 1100px) {
   .music-glass ytmusic-player-bar .right-controls,
-  .music-glass ytmusic-player-bar #right-controls {
-    background: #39313deF !important;
-    border-radius: 12px;
-    box-shadow: 0 0 0 1px #ffffff18;
-    --ytmusic-player-bar-background: #39313d;
-    --ytmusic-color-black1: #39313d;
-    --ytmusic-color-black2: #39313d;
-  }
-  .music-glass ytmusic-player-bar .right-controls .volume-slider,
-  .music-glass ytmusic-player-bar #right-controls .volume-slider,
+  .music-glass ytmusic-player-bar #right-controls,
+  .music-glass ytmusic-player-bar .volume-slider,
+  .music-glass ytmusic-player-bar .volume-slider-wrapper,
   .music-glass ytmusic-player-bar #volume-slider,
   .music-glass ytmusic-player-bar #volume-slider-wrapper {
     background: transparent !important;
-  }
-  .music-glass ytmusic-player-bar .expand-button,
-  .music-glass ytmusic-player-bar #expand-button {
-    color: #f5edf5 !important;
-    background: #ffffff12 !important;
-    border-radius: 50%;
-  }
-  .music-glass ytmusic-player-bar .expand-button:hover,
-  .music-glass ytmusic-player-bar #expand-button:hover {
-    background: #ffffff24 !important;
+    box-shadow: none !important;
   }
 }
