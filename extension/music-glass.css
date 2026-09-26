@@ -276,3 +276,17 @@ html.music-glass {
   .music-glass #music-glass-backdrop { display: none; }
   .music-glass ytmusic-player-bar { background: #24202b !important; backdrop-filter: none; }
 }
+
+/* Enlarge only static artwork while preserving native player/video geometry.
+   Compact windows retain the native size to protect the bars and lyrics. */
+@media (min-width: 800px) and (min-height: 650px) {
+  .music-glass ytmusic-app-layout[player-ui-state="PLAYER_PAGE_OPEN"] ytmusic-player #song-image {
+    scale: 1.03;
+    transform-origin: center;
+  }
+}
+@media (min-width: 1100px) and (min-height: 750px) {
+  .music-glass ytmusic-app-layout[player-ui-state="PLAYER_PAGE_OPEN"] ytmusic-player #song-image {
+    scale: 1.06;
+  }
+}
