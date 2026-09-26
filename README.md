@@ -1,3 +1,9 @@
+# YT Music 歌詞シンクロ 2.7.7-beta.1
+
+Music Glass v1.2.7の背景・角丸テーマを組み込んだ試用版です。
+
+[ベータ版の使い方と注意点](docs/MUSIC-GLASS-BETA.md)
+
 <div align="center">
 
 ![YT Music 歌詞シンクロ — 歌詞も、読みも、音楽に合わせて。](docs/assets/readme-banner.svg)

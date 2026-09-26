@@ -1,0 +1,261 @@
+html.music-glass {
+  --mg-accent: #fa5876;
+  --ytmusic-color-black1: #17151b;
+  --ytmusic-color-black2: #211e27;
+  --ytmusic-color-black3: #302c37;
+  --ytmusic-color-red1: #fa5876;
+  --ytmusic-color-red2: #fa5876;
+  --yt-spec-call-to-action: #fa5876;
+  --ytmusic-general-background-a: #17151b;
+  --ytmusic-general-background-b: #211e27;
+}
+/* YouTube Music can keep body shorter than its fixed-position app.
+   Paint the fallback once on the viewport, not as repeated body-sized tiles. */
+html.music-glass {
+  background: radial-gradient(ellipse at 16% 28%, #654052 0, transparent 63%), radial-gradient(ellipse at 83% 72%, #383852 0, transparent 60%), #221e29 !important;
+  background-size: 100vw 100vh !important;
+  background-repeat: no-repeat !important;
+  background-attachment: fixed !important;
+  min-height: 100%;
+  margin: 0 !important;
+  padding: 0 !important;
+  scrollbar-gutter: auto !important;
+  scrollbar-width: none !important;
+}
+.music-glass body {
+  isolation: isolate;
+  min-height: 100vh;
+  margin: 0 !important;
+  padding: 0 !important;
+  scrollbar-gutter: auto !important;
+  scrollbar-width: none !important;
+  background: transparent !important;
+}
+/* Remove only the outer scrollbar reservation. Lyrics and lists still scroll. */
+html.music-glass::-webkit-scrollbar,
+.music-glass body::-webkit-scrollbar {
+  width: 0 !important;
+  height: 0 !important;
+  display: none !important;
+}
+.music-glass ytmusic-app,
+.music-glass ytmusic-app-layout,
+.music-glass ytmusic-nav-bar,
+.music-glass ytmusic-player-bar {
+  --ytmusic-scrollbar-width: 0px !important;
+}
+.music-glass ytmusic-nav-bar,
+.music-glass ytmusic-player-bar {
+  width: 100% !important;
+  max-width: none !important;
+  box-sizing: border-box;
+}
+.music-glass ytmusic-player-page {
+  /* The native position/stacking controls transitions between home and player.
+     Our backdrop is attached to body, so this page needs no positioning override. */
+  background: transparent !important;
+}
+.music-glass #music-glass-backdrop {
+  position: fixed;
+  inset: -90px;
+  z-index: -1;
+  pointer-events: none;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  filter: blur(75px) saturate(1.55) brightness(.62);
+  opacity: var(--mg-art-opacity, .65);
+}
+.music-glass ytmusic-player-page #main-panel,
+.music-glass ytmusic-player-page #side-panel,
+.music-glass ytmusic-player-page .side-panel,
+.music-glass ytmusic-player-page #player,
+.music-glass ytmusic-player-page ytmusic-player,
+.music-glass ytmusic-player-page ytmusic-tab-renderer,
+.music-glass ytmusic-player-page ytmusic-player-queue {
+  background-color: transparent !important;
+}
+.music-glass ytmusic-player #song-image {
+  border-radius: 18px !important;
+  overflow: hidden;
+  box-shadow: 0 24px 65px #0006, 0 1px 0 #ffffff25 inset;
+}
+.music-glass ytmusic-player #song-image img { border-radius: 18px !important; }
+/* Static artwork: suppress mouse hover and its overlay without disabling the bottom player. */
+.music-glass ytmusic-player #song-image,
+.music-glass ytmusic-player #song-image * {
+  pointer-events: none !important;
+}
+.music-glass ytmusic-player .song-media-controls {
+  display: none !important;
+}
+.music-glass ytmusic-player #song-image::before,
+.music-glass ytmusic-player #song-image::after {
+  display: none !important;
+}
+.music-glass ytmusic-player #song-image,
+.music-glass ytmusic-player #song-image img {
+  filter: none !important;
+  opacity: 1 !important;
+}
+/* Preserve the native lyrics panel geometry and tab typography at every width. */
+/* Move only the two desktop player panels, not the page/router or global bars.
+   Individual translate preserves native transforms and all measured dimensions. */
+@media (min-width: 1000px) and (min-height: 650px) {
+  .music-glass ytmusic-app-layout[player-ui-state="PLAYER_PAGE_OPEN"] ytmusic-player-page #main-panel,
+  .music-glass ytmusic-app-layout[player-ui-state="PLAYER_PAGE_OPEN"] ytmusic-player-page #side-panel {
+    translate: 0 -40px;
+  }
+}
+.music-glass ytmusic-player-page tp-yt-paper-tabs { --paper-tabs-selection-bar-color: #ffffffb0; }
+/* Lyrics typography and synchronization belong to YouTube Music / lyrics extensions. */
+.music-glass ytmusic-player-bar {
+  background: #24202b66 !important;
+  backdrop-filter: blur(28px) saturate(1.4);
+  border-top: 1px solid #ffffff16;
+  --paper-slider-active-color: #fa5876;
+  --paper-slider-knob-color: #fa5876;
+}
+.music-glass ytmusic-player-bar img { border-radius: 7px; }
+.music-glass ytmusic-player-bar .title { font-weight: 650; }
+.music-glass ytmusic-nav-bar { background: #19171e44 !important; backdrop-filter: blur(24px); }
+.music-glass ytmusic-search-box { border-radius: 12px; overflow: hidden; }
+.music-glass ytmusic-guide-renderer,
+.music-glass ytmusic-mini-guide-renderer { background: #19171e33 !important; }
+.music-glass ytmusic-two-row-item-renderer .image,
+.music-glass ytmusic-two-row-item-renderer yt-img-shadow { border-radius: 12px !important; overflow: hidden; }
+.music-glass ytmusic-player-page ::-webkit-scrollbar-thumb { background: #ffffff38; border-radius: 8px; }
+.music-glass ytmusic-player-page ::-webkit-scrollbar-track { background: transparent; }
+/* Shared surfaces: browse, search, library, albums and playlists. */
+html.music-glass {
+  --ytmusic-general-background-c: #292430;
+  --ytmusic-menu-background: #292430;
+  --ytmusic-search-background: #302a36;
+  --ytmusic-search-suggestion-background: #292430;
+  --ytmusic-dialog-background: #292430;
+  --yt-spec-base-background: #1d1923;
+  --yt-spec-raised-background: #292430;
+  --yt-spec-menu-background: #292430;
+}
+.music-glass ytmusic-app,
+.music-glass ytmusic-app-layout {
+  background: transparent !important;
+}
+/* Native background plates otherwise obscure the shared, fixed backdrop. */
+.music-glass ytmusic-app-layout #nav-bar-background,
+.music-glass ytmusic-app-layout #player-bar-background,
+.music-glass ytmusic-app-layout #guide-wrapper,
+.music-glass ytmusic-app-layout #mini-guide-background,
+.music-glass ytmusic-app-layout #content-wrapper,
+.music-glass ytmusic-app-layout #background,
+.music-glass ytmusic-app-layout #layout-background {
+  background: transparent !important;
+}
+.music-glass ytmusic-browse-response,
+.music-glass ytmusic-search-page {
+  background: transparent !important;
+}
+.music-glass ytmusic-section-list-renderer,
+.music-glass ytmusic-shelf-renderer,
+.music-glass ytmusic-playlist-shelf-renderer,
+.music-glass ytmusic-carousel-shelf-renderer,
+.music-glass ytmusic-grid-renderer {
+  background-color: transparent !important;
+}
+.music-glass ytmusic-detail-header-renderer,
+.music-glass ytmusic-responsive-header-renderer,
+.music-glass ytmusic-immersive-header-renderer {
+  background-color: #30253255;
+}
+.music-glass ytmusic-detail-header-renderer yt-img-shadow,
+.music-glass ytmusic-responsive-header-renderer yt-img-shadow {
+  border-radius: 16px;
+  box-shadow: 0 16px 40px #0004;
+}
+.music-glass ytmusic-carousel-shelf-renderer h2,
+.music-glass ytmusic-shelf-renderer h2,
+.music-glass ytmusic-header-renderer h1 {
+  letter-spacing: -.035em;
+  font-weight: 750;
+}
+.music-glass ytmusic-responsive-list-item-renderer,
+.music-glass ytmusic-player-queue-item {
+  border-radius: 10px;
+  transition: background-color .16s ease;
+}
+.music-glass ytmusic-responsive-list-item-renderer:hover,
+.music-glass ytmusic-responsive-list-item-renderer:focus-within,
+.music-glass ytmusic-player-queue-item:hover,
+.music-glass ytmusic-player-queue-item:focus-within {
+  background-color: #ffffff0d !important;
+}
+.music-glass ytmusic-responsive-list-item-renderer[is-selected],
+.music-glass ytmusic-player-queue-item[selected] {
+  background-color: #fa58761a !important;
+}
+.music-glass ytmusic-responsive-list-item-renderer yt-img-shadow,
+.music-glass ytmusic-player-queue-item yt-img-shadow {
+  border-radius: 7px;
+  overflow: hidden;
+}
+.music-glass ytmusic-two-row-item-renderer .title { font-weight: 600; }
+/* Keep circular artist portraits circular. */
+.music-glass ytmusic-two-row-item-renderer[item-type="artist"] yt-img-shadow,
+.music-glass ytmusic-two-row-item-renderer[item-type="artist"] .image {
+  border-radius: 50% !important;
+}
+/* Mood/category chip hosts include vertical spacing; leave their native
+   surfaces and inner buttons untouched to avoid tall duplicate pills. */
+.music-glass ytmusic-guide-entry-renderer,
+.music-glass ytmusic-mini-guide-entry-renderer {
+  border-radius: 10px;
+}
+.music-glass ytmusic-guide-entry-renderer[active],
+.music-glass ytmusic-mini-guide-entry-renderer[active] {
+  background-color: #fa587622 !important;
+  color: #ffadbf !important;
+}
+.music-glass ytmusic-guide-entry-renderer:hover,
+.music-glass ytmusic-mini-guide-entry-renderer:hover {
+  background-color: #ffffff0c !important;
+}
+.music-glass ytmusic-search-box #suggestion-list,
+.music-glass ytmusic-search-suggestions-section,
+.music-glass ytmusic-menu-popup-renderer,
+.music-glass ytmusic-multi-page-menu-renderer,
+.music-glass ytmusic-account-settings,
+.music-glass tp-yt-paper-dialog {
+  background: #292430 !important;
+  color: #f7f3f8;
+  border-radius: 14px;
+  box-shadow: 0 18px 55px #0005;
+  border: 1px solid #ffffff14;
+}
+.music-glass ytmusic-menu-navigation-item-renderer:hover,
+.music-glass ytmusic-menu-service-item-renderer:hover,
+.music-glass ytmusic-search-suggestion:hover {
+  background-color: #ffffff0d !important;
+}
+.music-glass ytmusic-search-box input { caret-color: #fa5876; }
+.music-glass ytmusic-player-page ytmusic-tabs,
+.music-glass ytmusic-player-page #tabs,
+.music-glass ytmusic-player-page #tab-renderer,
+.music-glass ytmusic-player-page #queue {
+  background-color: transparent !important;
+}
+/* The cast icon shown in the user's screenshot; no other toolbar controls. */
+.music-glass ytmusic-cast-button,
+.music-glass ytmusic-nav-bar #cast-button,
+.music-glass ytmusic-nav-bar .cast-button {
+  display: none !important;
+}
+.music-glass ytmusic-app ::-webkit-scrollbar-thumb { background: #ffffff30; border-radius: 8px; }
+.music-glass ytmusic-app ::-webkit-scrollbar-track { background: transparent; }
+@media (prefers-reduced-motion: reduce) {
+  .music-glass ytmusic-responsive-list-item-renderer,
+  .music-glass ytmusic-player-queue-item { transition: none; }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .music-glass #music-glass-backdrop { display: none; }
+  .music-glass ytmusic-player-bar { background: #24202b !important; backdrop-filter: none; }
+}

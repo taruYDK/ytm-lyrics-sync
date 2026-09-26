@@ -1,0 +1,11 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Music Glass</title><link rel="stylesheet" href="music-glass-settings.css"></head>
+<body><header><span class="icon">♫</span><div><h1>Music Glass</h1><p>YouTube Musicを、柔らかな表情に。</p></div></header>
+<main>
+<label class="row"><span>テーマを有効にする</span><input id="musicGlassEnabled" type="checkbox"></label>
+<label class="row"><span>ジャケットを背景に使う</span><input id="musicGlassArtwork" type="checkbox"></label>
+<label class="slider" for="musicGlassIntensity">背景の濃さ <output id="musicGlassIntensity-value"></output></label><input id="musicGlassIntensity" type="range" min="0" max="100" step="5">
+<p class="note">ページ全体に背景を適用します。設定は自動保存されます。歌詞の文字サイズや表示は変更しません。</p>
+<button id="reset" type="button">設定をリセット</button>
+<p id="status" role="status"></p>
+<p class="note">ベータ版のテーマ設定です。歌詞機能の設定とは別に保存されます。</p></main><script src="music-glass-settings.js"></script></body></html>
