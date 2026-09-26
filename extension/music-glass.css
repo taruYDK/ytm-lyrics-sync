@@ -397,3 +397,16 @@ html.music-glass-hide-scrollbar #ytmls-external-view *::-webkit-scrollbar,
   background: transparent !important;
   box-shadow: none !important;
 }
+
+/* The transparent expanded toolbar must not reveal underlying native icons.
+   Keep the expand button's hit target so it can still close the toolbar. */
+.music-glass ytmusic-player-bar:has(ytmusic-player-expanding-menu#expanding-menu[aria-hidden="false"]) ytmusic-menu-renderer.menu {
+  visibility: hidden;
+}
+.music-glass ytmusic-player-bar:has(ytmusic-player-expanding-menu#expanding-menu[aria-hidden="false"]) .right-controls-buttons > .expand-button > button > yt-icon {
+  visibility: hidden;
+}
+/* Keyboard users retain a visible indication of the close control. */
+.music-glass ytmusic-player-bar:has(ytmusic-player-expanding-menu#expanding-menu[aria-hidden="false"]) .right-controls-buttons > .expand-button > button:focus-visible > yt-icon {
+  visibility: visible;
+}
