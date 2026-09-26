@@ -347,12 +347,13 @@ html.music-glass-hide-scrollbar #ytmls-external-view *::-webkit-scrollbar,
   box-shadow: none !important;
 }
 
-/* Library tab strip: match the navigation surface without a blur filter. */
+/* Library tabs share the viewport background. */
 .music-glass ytmusic-browse-response ytmusic-tabs,
 .music-glass ytmusic-browse-response tp-yt-paper-tabs,
 .music-glass ytmusic-browse-response ytmusic-tabbed-page-header,
 .music-glass ytmusic-browse-response ytmusic-tabbed-page-header-renderer {
-  background: linear-gradient(110deg, #49343f, #302b38 55%, #363344) !important;
+  background: transparent !important;
+  box-shadow: none !important;
   --ytmusic-tabs-background: transparent;
 }
 .music-glass ytmusic-browse-response ytmusic-tabs #tabs,
