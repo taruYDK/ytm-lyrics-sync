@@ -398,15 +398,17 @@ html.music-glass-hide-scrollbar #ytmls-external-view *::-webkit-scrollbar,
   box-shadow: none !important;
 }
 
-/* The transparent expanded toolbar must not reveal underlying native icons.
-   Keep the expand button's hit target so it can still close the toolbar. */
-.music-glass ytmusic-player-bar:has(ytmusic-player-expanding-menu#expanding-menu[aria-hidden="false"]) ytmusic-menu-renderer.menu {
-  visibility: hidden;
+
+/* Follow actual toolbar visibility, including native opening transitions. */
+html.music-glass-controls-open ytmusic-player-bar ytmusic-menu-renderer.menu,
+html.music-glass-controls-open ytmusic-player-bar ytmusic-menu-renderer.menu * {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
 }
-.music-glass ytmusic-player-bar:has(ytmusic-player-expanding-menu#expanding-menu[aria-hidden="false"]) .right-controls-buttons > .expand-button > button > yt-icon {
-  visibility: hidden;
+html.music-glass-controls-open ytmusic-player-bar .right-controls-buttons > .expand-button > button > yt-icon {
+  opacity: 0 !important;
 }
-/* Keyboard users retain a visible indication of the close control. */
-.music-glass ytmusic-player-bar:has(ytmusic-player-expanding-menu#expanding-menu[aria-hidden="false"]) .right-controls-buttons > .expand-button > button:focus-visible > yt-icon {
-  visibility: visible;
+html.music-glass-controls-open ytmusic-player-bar .right-controls-buttons > .expand-button > button:focus-visible > yt-icon {
+  opacity: 1 !important;
 }

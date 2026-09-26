@@ -69,3 +69,12 @@ test('Scrollbar setting saves and applies independently of the theme',()=>{
  nodes.musicGlassScrollbarToggle.checked=true;nodes.musicGlassScrollbarToggle.change();assert.equal(handlers['music-glass-hide-scrollbar'],true);assert.equal(handlers['music-glass'],false);
  nodes.musicGlassScrollbarToggle.checked=false;nodes.musicGlassScrollbarToggle.change();assert.equal(handlers['music-glass-hide-scrollbar'],false);
 });
+test('Expanded controls follow rendered visibility rather than stale ARIA',()=>{
+ const classes={};let observe;const style={display:'block',visibility:'visible',opacity:'1'};
+ const menu={getClientRects:()=>style.display==='none'?[]:[{}]};
+ vm.runInNewContext(fs.readFileSync(new URL('../extension/music-glass.js',import.meta.url),'utf8'),{document:{body:null,documentElement:{classList:{toggle:(k,v)=>classes[k]=v},style:{setProperty(){}}},querySelector:s=>s==='ytmusic-player-expanding-menu#expanding-menu'?menu:null,addEventListener(){}},chrome:{storage:{local:{get:(d,cb)=>cb(d)},onChanged:{addListener(){}}}},MutationObserver:class{constructor(f){observe=f;}observe(){}disconnect(){}},getComputedStyle:()=>style,setInterval(){},setTimeout,URL});
+ assert.equal(classes['music-glass-controls-open'],true);
+ style.display='none';observe();assert.equal(classes['music-glass-controls-open'],false);
+ style.display='block';style.opacity='0';observe();assert.equal(classes['music-glass-controls-open'],false);
+ style.opacity='1';observe();assert.equal(classes['music-glass-controls-open'],true);
+});

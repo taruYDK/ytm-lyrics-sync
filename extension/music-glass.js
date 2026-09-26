@@ -86,9 +86,31 @@
   document.addEventListener('yt-navigate-finish', trimGuideAtPlayer);
   globalThis.addEventListener?.('resize', trimGuideAtPlayer);
   setInterval(trimGuideAtPlayer, 2000);
+  let watchedMenu;
+  let menuObserver;
+  function syncExpandedControls() {
+    const menu = document.querySelector?.('ytmusic-player-expanding-menu#expanding-menu');
+    if (menu !== watchedMenu) {
+      menuObserver?.disconnect();
+      watchedMenu = menu;
+      if (menu && typeof MutationObserver !== 'undefined') {
+        menuObserver = new MutationObserver(syncExpandedControls);
+        menuObserver.observe(menu, {attributes:true, attributeFilter:['style','class','aria-hidden','hidden','opened']});
+      }
+    }
+    let open = false;
+    if (settings.musicGlassEnabled && menu?.getClientRects && typeof getComputedStyle === 'function') {
+      const style = getComputedStyle(menu);
+      open = menu.getClientRects().length > 0 && style.display !== 'none' && style.visibility !== 'hidden' && Number(style.opacity) > 0;
+    }
+    root.classList.toggle('music-glass-controls-open', open);
+  }
+  setInterval(syncExpandedControls, 1000);
+  document.addEventListener('yt-navigate-finish', syncExpandedControls);
   function apply() {
     root.classList.toggle('music-glass', settings.musicGlassEnabled);
     trimGuideAtPlayer();
+    syncExpandedControls();
     root.classList.toggle('music-glass-hide-scrollbar', settings.musicGlassHideScrollbar === true);
     root.style.setProperty('--mg-art-opacity', String(Math.max(0, Math.min(100, Number(settings.musicGlassIntensity) || 0)) / 100));
     if (!settings.musicGlassEnabled || !settings.musicGlassArtwork || settings.musicGlassLightweight) { generation++; artworkReady = false; backdrop?.remove(); backdrop = null; lastArt = ''; }
