@@ -66,8 +66,25 @@
   function schedule() {
     if (!timer && settings.musicGlassEnabled && settings.musicGlassArtwork && !settings.musicGlassLightweight) timer = setTimeout(() => { timer = null; update(); }, 500);
   }
+  function trimGuideAtPlayer() {
+    if (!settings.musicGlassEnabled) return;
+    const player = document.querySelector?.('ytmusic-player-bar');
+    if (!player?.getBoundingClientRect) return;
+    const edge = player.getBoundingClientRect();
+    for (const selector of ['ytmusic-app-layout #guide-wrapper', 'ytmusic-app-layout #mini-guide-background', 'ytmusic-mini-guide-renderer']) {
+      const guide = document.querySelector(selector);
+      if (!guide?.getBoundingClientRect) continue;
+      const bounds = guide.getBoundingClientRect();
+      const overlap = edge.height > 0 ? Math.max(0, Math.min(bounds.height, bounds.bottom - edge.top)) : 0;
+      guide.style.setProperty('--mg-guide-bottom-clip', overlap + 'px');
+    }
+  }
+  document.addEventListener('yt-navigate-finish', trimGuideAtPlayer);
+  globalThis.addEventListener?.('resize', trimGuideAtPlayer);
+  setInterval(trimGuideAtPlayer, 2000);
   function apply() {
     root.classList.toggle('music-glass', settings.musicGlassEnabled);
+    trimGuideAtPlayer();
     root.classList.toggle('music-glass-hide-scrollbar', settings.musicGlassHideScrollbar === true);
     root.style.setProperty('--mg-art-opacity', String(Math.max(0, Math.min(100, Number(settings.musicGlassIntensity) || 0)) / 100));
     if (!settings.musicGlassEnabled || !settings.musicGlassArtwork || settings.musicGlassLightweight) { generation++; artworkReady = false; backdrop?.remove(); backdrop = null; lastArt = ''; }

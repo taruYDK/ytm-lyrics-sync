@@ -369,3 +369,10 @@ html.music-glass-hide-scrollbar #ytmls-external-view *::-webkit-scrollbar,
   background: transparent !important;
   backdrop-filter: none !important;
 }
+
+/* Stop the guide background and divider at the measured player-bar edge. */
+.music-glass ytmusic-app-layout #guide-wrapper,
+.music-glass ytmusic-app-layout #mini-guide-background,
+.music-glass ytmusic-mini-guide-renderer {
+  clip-path: inset(0 0 var(--mg-guide-bottom-clip, 0px) 0);
+}
