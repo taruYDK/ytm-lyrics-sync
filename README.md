@@ -1,4 +1,4 @@
-# YT Music 歌詞シンクロ 2.7.8-beta.2
+# YT Music 歌詞シンクロ 2.7.9-beta.3
 
 Music Glass v1.2.7の背景・角丸テーマを組み込んだ試用版です。
 

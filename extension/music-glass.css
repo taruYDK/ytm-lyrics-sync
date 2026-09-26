@@ -80,7 +80,8 @@ html.music-glass::-webkit-scrollbar,
   overflow: hidden;
   background: transparent !important;
   border: 0 !important;
-  box-shadow: 0 16px 40px #0003;
+  box-shadow: none !important;
+  outline: none !important;
 }
 .music-glass ytmusic-player #song-image img {
   display: block;
@@ -90,8 +91,11 @@ html.music-glass::-webkit-scrollbar,
 }
 /* Clip only once, avoiding mismatched inner and outer curved edges. */
 .music-glass ytmusic-player #song-image yt-img-shadow {
-  border-radius: inherit;
+  border-radius: 0 !important;
   background: transparent !important;
+  border: 0 !important;
+  outline: none !important;
+  box-shadow: none !important;
   overflow: hidden;
 }
 /* Static artwork: suppress mouse hover and its overlay without disabling the bottom player. */
