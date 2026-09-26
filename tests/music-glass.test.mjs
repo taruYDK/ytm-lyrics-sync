@@ -12,3 +12,14 @@ test('Music Glass settings are isolated; disabling restores root and intensity i
  listener({musicGlassEnabled:{newValue:false},musicGlassIntensity:{newValue:999}},'local');assert.equal(toggles.at(-1),false);assert.equal(opacity.at(-1),'1');
  listener({musicGlassEnabled:{newValue:true}},'local');assert.equal(toggles.at(-1),true);
 });
+test('Quick toggle state follows saved settings, rollback, and external changes',()=>{
+ const toggle={checked:false,addEventListener:(name,f)=>toggle.change=f};
+ const state={textContent:'読込中',dataset:{}};const status={textContent:''};
+ let changed;const runtime={};let fail=false;
+ const chrome={runtime,storage:{local:{get:(d,cb)=>cb({musicGlassEnabled:false}),set:(data,cb)=>{assert.deepEqual(Object.keys(data),['musicGlassEnabled']);runtime.lastError=fail?{message:'failed'}:undefined;cb();runtime.lastError=undefined;}},onChanged:{addListener:f=>changed=f}}};
+ vm.runInNewContext(fs.readFileSync(new URL('../extension/music-glass-quick.js',import.meta.url),'utf8'),{chrome,document:{getElementById:id=>({musicGlassQuickToggle:toggle,musicGlassQuickState:state,musicGlassQuickStatus:status})[id]}});
+ assert.equal(state.textContent,'OFF');assert.equal(toggle.disabled,false);
+ toggle.checked=true;toggle.change();assert.equal(state.textContent,'ON');assert.equal(state.dataset.enabled,'true');
+ fail=true;toggle.checked=false;toggle.change();assert.equal(toggle.checked,true);assert.equal(state.textContent,'ON');assert.ok(status.textContent);
+ changed({musicGlassEnabled:{newValue:false}},'local');assert.equal(state.textContent,'OFF');assert.equal(toggle.checked,false);
+});
