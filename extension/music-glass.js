@@ -71,11 +71,15 @@
     const player = document.querySelector?.('ytmusic-player-bar');
     if (!player?.getBoundingClientRect) return;
     const edge = player.getBoundingClientRect();
+    const nav = document.querySelector('ytmusic-nav-bar');
+    const navBounds = nav?.getBoundingClientRect?.();
     for (const selector of ['ytmusic-app-layout #guide-wrapper', 'ytmusic-app-layout #mini-guide-background', 'ytmusic-mini-guide-renderer']) {
       const guide = document.querySelector(selector);
       if (!guide?.getBoundingClientRect) continue;
       const bounds = guide.getBoundingClientRect();
       const overlap = edge.height > 0 ? Math.max(0, Math.min(bounds.height, bounds.bottom - edge.top)) : 0;
+      const top = navBounds?.height > 0 ? Math.max(0, Math.min(bounds.height - overlap, navBounds.bottom - bounds.top)) : 0;
+      guide.style.setProperty('--mg-guide-top-clip', top + 'px');
       guide.style.setProperty('--mg-guide-bottom-clip', overlap + 'px');
     }
   }

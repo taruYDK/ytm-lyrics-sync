@@ -153,7 +153,7 @@ html.music-glass::-webkit-scrollbar,
 .music-glass ytmusic-nav-bar { background: linear-gradient(110deg, #49343f, #302b38 55%, #363344) !important; backdrop-filter: none !important; }
 .music-glass ytmusic-search-box { border-radius: 12px; overflow: hidden; }
 .music-glass ytmusic-guide-renderer,
-.music-glass ytmusic-mini-guide-renderer { background: #19171e33 !important; }
+.music-glass ytmusic-mini-guide-renderer { background: transparent !important; }
 .music-glass ytmusic-two-row-item-renderer .image,
 .music-glass ytmusic-two-row-item-renderer yt-img-shadow { border-radius: 12px !important; overflow: hidden; }
 .music-glass ytmusic-player-page ::-webkit-scrollbar-thumb { background: #ffffff38; border-radius: 8px; }
@@ -374,5 +374,5 @@ html.music-glass-hide-scrollbar #ytmls-external-view *::-webkit-scrollbar,
 .music-glass ytmusic-app-layout #guide-wrapper,
 .music-glass ytmusic-app-layout #mini-guide-background,
 .music-glass ytmusic-mini-guide-renderer {
-  clip-path: inset(0 0 var(--mg-guide-bottom-clip, 0px) 0);
+  clip-path: inset(var(--mg-guide-top-clip, 0px) 0 var(--mg-guide-bottom-clip, 0px) 0);
 }
