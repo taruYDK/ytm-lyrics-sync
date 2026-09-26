@@ -51,3 +51,11 @@ test('Artwork activation is blocked only while theme is enabled; controls remain
  handlers.click({...event,composedPath:()=>[{matches:()=>false}]});assert.equal(stopped,2);
  changed({musicGlassEnabled:{newValue:false}},'local');handlers.click(event);assert.equal(stopped,2);
 });
+test('Inline theme intensity saves on change and reset touches only theme keys',()=>{
+ const nodes={};for(const id of ['musicGlassIntensity','musicGlassIntensityValue','musicGlassReset','musicGlassQuickStatus','musicGlassQuickToggle','musicGlassQuickState','musicGlassArtworkToggle','musicGlassScrollbarToggle'])nodes[id]={dataset:{},addEventListener(name,fn){this[name]=fn;}};
+ const writes=[];let fail=false;const runtime={};
+ vm.runInNewContext(fs.readFileSync(new URL('../extension/music-glass-popup-details.js',import.meta.url),'utf8'),{document:{getElementById:id=>nodes[id]},chrome:{runtime,storage:{local:{get:(d,cb)=>cb(d),set:(d,cb)=>{writes.push(d);runtime.lastError=fail?{}:undefined;cb();runtime.lastError=undefined;}},onChanged:{addListener(){}}}}});
+ const range=nodes.musicGlassIntensity;range.value='40';range.input();assert.equal(writes.length,0);range.change();assert.equal(writes[0].musicGlassIntensity,40);
+ fail=true;range.value='90';range.change();assert.equal(range.value,40);
+ fail=false;nodes.musicGlassReset.click();assert.ok(Object.keys(writes.at(-1)).every(k=>k.startsWith('musicGlass')));assert.equal(nodes.musicGlassQuickState.textContent,'ON');assert.equal(range.value,65);
+});
