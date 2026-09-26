@@ -5,6 +5,7 @@
   let settings = { ...defaults };
   let backdrop;
   let timer;
+  let generation = 0;
   let lastArt = '';
   const artSelectors = [
     'ytmusic-player-bar .thumbnail-image-wrapper img',
@@ -19,12 +20,13 @@
     } catch { return ''; }
   }
   function update() {
-    if (!settings.musicGlassEnabled || settings.musicGlassLightweight) return;
+    if (document.hidden || !settings.musicGlassEnabled || settings.musicGlassLightweight) return;
     const page = document.body;
     if (!page) return;
     if (!backdrop || backdrop.parentNode !== page) {
       backdrop?.remove();
-      backdrop = document.createElement('div');
+      backdrop = document.createElement('canvas');
+      backdrop.width = 96; backdrop.height = 96;
       backdrop.id = 'music-glass-backdrop';
       backdrop.setAttribute('aria-hidden', 'true');
       page.prepend(backdrop);
@@ -39,18 +41,33 @@
       }
     }
     if (art !== lastArt) {
-      backdrop.style.backgroundImage = art ? `url(${JSON.stringify(art)})` : 'none';
       lastArt = art;
+      const token = ++generation;
+      const canvas = backdrop;
+      const context = canvas.getContext('2d');
+      context.clearRect(0, 0, 96, 96);
+      if (art) {
+        const image = new Image();
+        image.onload = () => {
+          if (token !== generation || backdrop !== canvas) return;
+          // Bake blur into a tiny bitmap once per cover, not a viewport filter.
+          const side = Math.min(image.naturalWidth, image.naturalHeight);
+          if (!side) return;
+          context.filter = 'blur(5px) saturate(1.55) brightness(.62)';
+          context.drawImage(image, (image.naturalWidth-side)/2, (image.naturalHeight-side)/2, side, side, -12, -12, 120, 120);
+        };
+        image.src = art;
+      }
     }
   }
   function schedule() {
-    if (!timer && settings.musicGlassEnabled && !settings.musicGlassLightweight) timer = setTimeout(() => { timer = null; update(); }, 180);
+    if (!timer && settings.musicGlassEnabled && !settings.musicGlassLightweight) timer = setTimeout(() => { timer = null; update(); }, 500);
   }
   function apply() {
     root.classList.toggle('music-glass', settings.musicGlassEnabled);
     root.classList.toggle('music-glass-hide-scrollbar', settings.musicGlassHideScrollbar === true);
     root.style.setProperty('--mg-art-opacity', String(Math.max(0, Math.min(100, Number(settings.musicGlassIntensity) || 0)) / 100));
-    if (!settings.musicGlassEnabled || settings.musicGlassLightweight) { backdrop?.remove(); backdrop = null; lastArt = ''; }
+    if (!settings.musicGlassEnabled || settings.musicGlassLightweight) { generation++; backdrop?.remove(); backdrop = null; lastArt = ''; }
     else update();
   }
   chrome.storage.local.get(defaults, stored => { settings = { ...defaults, ...stored }; apply(); });
@@ -59,7 +76,9 @@
     for (const key of Object.keys(defaults)) if (changes[key]) settings[key] = changes[key].newValue ?? defaults[key];
     apply();
   });
-  new MutationObserver(schedule).observe(document.documentElement, { subtree: true, childList: true, attributes: true, attributeFilter: ['src', 'srcset'] });
+  // A bounded check avoids observing every lyrics/list DOM mutation.
+  setInterval(() => { if (!document.hidden && settings.musicGlassArtwork) update(); }, 2000);
+  document.addEventListener('visibilitychange', schedule);
   document.addEventListener('yt-navigate-finish', schedule);
-  document.addEventListener('load', event => { if (event.target instanceof HTMLImageElement) schedule(); }, true);
+
 })();

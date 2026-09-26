@@ -57,13 +57,15 @@ html.music-glass::-webkit-scrollbar,
 }
 .music-glass #music-glass-backdrop {
   position: fixed;
-  inset: -90px;
+  inset: 0;
+  width: 100%;
+  height: 100%;
   z-index: -1;
   pointer-events: none;
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
-  filter: blur(45px) saturate(1.55) brightness(.62);
+  /* Blur is baked into the 96px canvas; no viewport-sized filter. */
   opacity: var(--mg-art-opacity, .65);
 }
 .music-glass ytmusic-player-page #main-panel,
