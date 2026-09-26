@@ -391,3 +391,9 @@ html.music-glass-hide-scrollbar #ytmls-external-view *::-webkit-scrollbar,
     box-shadow: none !important;
   }
 }
+
+/* Actual expanded toolbar host supplied from the user's DOM. */
+.music-glass ytmusic-player-bar ytmusic-player-expanding-menu#expanding-menu {
+  background: transparent !important;
+  box-shadow: none !important;
+}
