@@ -101,7 +101,7 @@
     let open = false;
     if (settings.musicGlassEnabled && menu?.getClientRects && typeof getComputedStyle === 'function') {
       const style = getComputedStyle(menu);
-      open = menu.getClientRects().length > 0 && style.display !== 'none' && style.visibility !== 'hidden' && Number(style.opacity) > 0;
+      open = menu.getClientRects().length > 0 && style.display !== 'none' && style.visibility !== 'hidden';
     }
     root.classList.toggle('music-glass-controls-open', open);
   }
