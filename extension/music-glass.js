@@ -20,7 +20,7 @@
     } catch { return ''; }
   }
   function update() {
-    if (document.hidden || !settings.musicGlassEnabled || settings.musicGlassLightweight) return;
+    if (document.hidden || !settings.musicGlassEnabled || !settings.musicGlassArtwork || settings.musicGlassLightweight) return;
     const page = document.body;
     if (!page) return;
     if (!backdrop || backdrop.parentNode !== page) {
@@ -61,13 +61,13 @@
     }
   }
   function schedule() {
-    if (!timer && settings.musicGlassEnabled && !settings.musicGlassLightweight) timer = setTimeout(() => { timer = null; update(); }, 500);
+    if (!timer && settings.musicGlassEnabled && settings.musicGlassArtwork && !settings.musicGlassLightweight) timer = setTimeout(() => { timer = null; update(); }, 500);
   }
   function apply() {
     root.classList.toggle('music-glass', settings.musicGlassEnabled);
     root.classList.toggle('music-glass-hide-scrollbar', settings.musicGlassHideScrollbar === true);
     root.style.setProperty('--mg-art-opacity', String(Math.max(0, Math.min(100, Number(settings.musicGlassIntensity) || 0)) / 100));
-    if (!settings.musicGlassEnabled || settings.musicGlassLightweight) { generation++; backdrop?.remove(); backdrop = null; lastArt = ''; }
+    if (!settings.musicGlassEnabled || !settings.musicGlassArtwork || settings.musicGlassLightweight) { generation++; backdrop?.remove(); backdrop = null; lastArt = ''; }
     else update();
   }
   chrome.storage.local.get(defaults, stored => { settings = { ...defaults, ...stored }; apply(); });

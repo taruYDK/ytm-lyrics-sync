@@ -52,25 +52,25 @@
 })();
 
 (() => {
-  const input = document.getElementById('musicGlassLightweightToggle');
+  const input = document.getElementById('musicGlassArtworkToggle');
   const status = document.getElementById('musicGlassQuickStatus');
   let saved = false;
   input.disabled = true;
-  chrome.storage.local.get({musicGlassLightweight:false}, data => {
+  chrome.storage.local.get({musicGlassArtwork:true,musicGlassLightweight:false}, data => {
     if (chrome.runtime.lastError) { status.textContent = '設定を読み込めませんでした。開き直してください。'; return; }
-    saved = data.musicGlassLightweight === true; input.checked = saved; input.disabled = false;
+    saved = data.musicGlassArtwork !== false && data.musicGlassLightweight !== true; input.checked = saved; input.disabled = false;
   });
   input.addEventListener('change', () => {
     const value = input.checked; input.disabled = true; status.textContent = '';
-    chrome.storage.local.set({musicGlassLightweight:value}, () => {
+    chrome.storage.local.set({musicGlassArtwork:value,musicGlassLightweight:false}, () => {
       input.disabled = false;
       if (chrome.runtime.lastError) { input.checked = saved; status.textContent = '保存できませんでした。もう一度お試しください。'; return; }
       saved = value;
     });
   });
   chrome.storage.onChanged.addListener((changes, area) => {
-    if (area === 'local' && changes.musicGlassLightweight) {
-      saved = changes.musicGlassLightweight.newValue === true; input.checked = saved;
+    if (area === 'local' && changes.musicGlassArtwork) {
+      saved = changes.musicGlassArtwork.newValue !== false; input.checked = saved;
     }
   });
 })();
