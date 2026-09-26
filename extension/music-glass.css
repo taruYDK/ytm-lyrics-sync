@@ -12,15 +12,25 @@ html.music-glass {
 /* YouTube Music can keep body shorter than its fixed-position app.
    Paint the fallback once on the viewport, not as repeated body-sized tiles. */
 html.music-glass {
-  background: radial-gradient(ellipse at 16% 28%, #654052 0, transparent 63%), radial-gradient(ellipse at 83% 72%, #383852 0, transparent 60%), #221e29 !important;
+  background: #221e29 !important;
   background-size: 100vw 100vh !important;
   background-repeat: no-repeat !important;
-  background-attachment: fixed !important;
+  background-attachment: scroll !important;
   min-height: 100%;
   margin: 0 !important;
   padding: 0 !important;
   scrollbar-gutter: auto !important;
   scrollbar-width: none !important;
+}
+.music-glass body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  pointer-events: none;
+  background: radial-gradient(ellipse at 16% 28%, #654052 0, transparent 63%), radial-gradient(ellipse at 83% 72%, #383852 0, transparent 60%), #221e29;
+  contain: strict;
+  transform: translateZ(0);
 }
 .music-glass body {
   isolation: isolate;
@@ -67,6 +77,8 @@ html.music-glass::-webkit-scrollbar,
   background-repeat: no-repeat;
   /* Blur is baked into the 96px canvas; no viewport-sized filter. */
   opacity: var(--mg-art-opacity, .65);
+  contain: strict;
+  transform: translateZ(0);
 }
 .music-glass ytmusic-player-page #main-panel,
 .music-glass ytmusic-player-page #side-panel,
@@ -130,15 +142,15 @@ html.music-glass::-webkit-scrollbar,
 .music-glass ytmusic-player-page tp-yt-paper-tabs { --paper-tabs-selection-bar-color: #ffffffb0; }
 /* Lyrics typography and synchronization belong to YouTube Music / lyrics extensions. */
 .music-glass ytmusic-player-bar {
-  background: #24202bd9 !important;
-  backdrop-filter: none;
+  background: #24202b !important;
+  backdrop-filter: none !important;
   border-top: 1px solid #ffffff16;
   --paper-slider-active-color: #fa5876;
   --paper-slider-knob-color: #fa5876;
 }
 .music-glass ytmusic-player-bar img { border-radius: 7px; }
 .music-glass ytmusic-player-bar .title { font-weight: 650; }
-.music-glass ytmusic-nav-bar { background: #19171ed9 !important; backdrop-filter: none; }
+.music-glass ytmusic-nav-bar { background: #19171e !important; backdrop-filter: none !important; }
 .music-glass ytmusic-search-box { border-radius: 12px; overflow: hidden; }
 .music-glass ytmusic-guide-renderer,
 .music-glass ytmusic-mini-guide-renderer { background: #19171e33 !important; }
@@ -277,7 +289,7 @@ html.music-glass {
 }
 @media (prefers-reduced-transparency: reduce) {
   .music-glass #music-glass-backdrop { display: none; }
-  .music-glass ytmusic-player-bar { background: #24202b !important; backdrop-filter: none; }
+  .music-glass ytmusic-player-bar { background: #24202b !important; backdrop-filter: none !important; }
 }
 
 /* Enlarge only static artwork while preserving native player/video geometry.
@@ -334,7 +346,7 @@ html.music-glass {
 .music-glass ytmusic-browse-response tp-yt-paper-tabs,
 .music-glass ytmusic-browse-response ytmusic-tabbed-page-header,
 .music-glass ytmusic-browse-response ytmusic-tabbed-page-header-renderer {
-  background: #19171ed9 !important;
+  background: #19171e !important;
   --ytmusic-tabs-background: transparent;
 }
 .music-glass ytmusic-browse-response ytmusic-tabs #tabs,
