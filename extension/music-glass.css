@@ -437,3 +437,22 @@ html.music-glass-hide-dislike ytmusic-player-bar button[aria-label="Dislike"] {
 .music-glass ytmusic-fullbleed-renderer #background-gradient {
   visibility: hidden !important;
 }
+
+/* Native home artwork is painted by the app-level background, outside the
+   browse response. Suppress that decorative plate, not the content below it. */
+html.music-glass ytmusic-app > #background,
+html.music-glass ytmusic-app > #background-gradient,
+html.music-glass ytmusic-app > #background-image,
+html.music-glass ytmusic-app-layout > #background,
+html.music-glass ytmusic-app-layout > #background-gradient,
+html.music-glass ytmusic-browse-response > #background {
+  visibility: hidden !important;
+  background: none !important;
+  box-shadow: none !important;
+  pointer-events: none !important;
+}
+/* The theme backdrop always covers the full viewport, independent of home height. */
+html.music-glass #music-glass-backdrop {
+  width: 100vw;
+  height: 100vh;
+}
