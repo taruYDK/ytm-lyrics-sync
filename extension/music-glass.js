@@ -73,6 +73,14 @@
     const edge = player.getBoundingClientRect();
     const nav = document.querySelector('ytmusic-nav-bar');
     const navBounds = nav?.getBoundingClientRect?.();
+    const content = document.querySelector('ytmusic-app-layout #content-wrapper');
+    if (content?.getBoundingClientRect) {
+      const bounds = content.getBoundingClientRect();
+      const bottom = edge.height > 0 ? Math.max(0, Math.min(bounds.height, bounds.bottom - edge.top)) : 0;
+      const top = navBounds?.height > 0 ? Math.max(0, Math.min(bounds.height - bottom, navBounds.bottom - bounds.top)) : 0;
+      content.style.setProperty('--mg-content-top-clip', top + 'px');
+      content.style.setProperty('--mg-content-bottom-clip', bottom + 'px');
+    }
     for (const selector of ['ytmusic-app-layout #guide-wrapper', 'ytmusic-app-layout #mini-guide-background', 'ytmusic-mini-guide-renderer']) {
       const guide = document.querySelector(selector);
       if (!guide?.getBoundingClientRect) continue;

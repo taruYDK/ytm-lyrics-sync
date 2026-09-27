@@ -418,3 +418,22 @@ html.music-glass-hide-dislike ytmusic-player-bar button[aria-label="低評価"],
 html.music-glass-hide-dislike ytmusic-player-bar button[aria-label="Dislike"] {
   display: none !important;
 }
+
+/* Clip scrolling cards at the bars while the single viewport backdrop stays visible. */
+.music-glass ytmusic-app-layout #content-wrapper {
+  clip-path: inset(var(--mg-content-top-clip, 0px) 0 var(--mg-content-bottom-clip, 0px) 0);
+}
+/* Home's full-bleed header has a separate finite-height decorative background. */
+.music-glass ytmusic-fullbleed-renderer,
+.music-glass ytmusic-fullbleed-renderer #background,
+.music-glass ytmusic-fullbleed-renderer #background-image,
+.music-glass ytmusic-fullbleed-renderer #background-gradient,
+.music-glass ytmusic-fullbleed-renderer .background,
+.music-glass ytmusic-fullbleed-renderer .background-gradient {
+  background: transparent !important;
+  box-shadow: none !important;
+}
+.music-glass ytmusic-fullbleed-renderer #background-image,
+.music-glass ytmusic-fullbleed-renderer #background-gradient {
+  visibility: hidden !important;
+}
