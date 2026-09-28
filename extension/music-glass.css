@@ -419,10 +419,7 @@ html.music-glass-hide-dislike ytmusic-player-bar button[aria-label="Dislike"] {
   display: none !important;
 }
 
-/* Clip scrolling cards at the bars while the single viewport backdrop stays visible. */
-.music-glass ytmusic-app-layout #content-wrapper {
-  clip-path: inset(var(--mg-content-top-clip, 0px) 0 var(--mg-content-bottom-clip, 0px) 0);
-}
+/* Scrolling content uses native overflow; a measured clip becomes stale on scroll. */
 /* Home's full-bleed header has a separate finite-height decorative background. */
 .music-glass ytmusic-fullbleed-renderer,
 .music-glass ytmusic-fullbleed-renderer #background,
@@ -455,4 +452,59 @@ html.music-glass ytmusic-browse-response > #background {
 html.music-glass #music-glass-backdrop {
   width: 100vw;
   height: 100vh;
+}
+
+/* Opaque backing prevents browse cards bleeding through the player or its bars.
+   Small canvases reuse the already blurred bitmap; no backdrop-filter or export. */
+.music-glass body::before { background:#221e29; }
+.music-glass ytmusic-nav-bar,
+.music-glass ytmusic-player-bar,
+.music-glass ytmusic-player-page {
+  isolation:isolate;
+  background:#221e29 !important;
+}
+.music-glass .music-glass-surface {
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  z-index:-1;
+  pointer-events:none;
+  opacity:var(--mg-art-opacity,.65);
+}
+@media (prefers-reduced-transparency:reduce) {
+  .music-glass .music-glass-surface { display:none; }
+}
+
+/* Keep the native seek line, remove only the extra decorative bar edge. */
+.music-glass ytmusic-player-bar { border-top:0 !important; box-shadow:none !important; }
+
+/* Sticky library tabs must occlude the scrolling artwork beneath them.
+   Paint the tab strip only; do not clip or reposition the scrolling page. */
+.music-glass ytmusic-browse-response ytmusic-tabs,
+.music-glass ytmusic-browse-response tp-yt-paper-tabs {
+  background:#302a36 !important;
+  --ytmusic-tabs-background:#302a36;
+  --paper-tabs-selection-bar-color:#ff8da5;
+  backdrop-filter:none !important;
+}
+.music-glass ytmusic-browse-response tp-yt-paper-tab {
+  color:#ded9e2 !important;
+  opacity:1;
+}
+.music-glass ytmusic-browse-response tp-yt-paper-tab.iron-selected,
+.music-glass ytmusic-browse-response tp-yt-paper-tab[aria-selected="true"] {
+  color:#fff !important;
+  font-weight:700;
+}
+
+/* Match the library strip to the shared artwork, keeping cards occluded. */
+.music-glass ytmusic-browse-response ytmusic-tabs {
+  isolation:isolate;
+  background:#221e29 !important;
+  --ytmusic-tabs-background:transparent;
+}
+.music-glass ytmusic-browse-response ytmusic-tabs tp-yt-paper-tabs {
+  background:transparent !important;
+  --ytmusic-tabs-background:transparent;
 }

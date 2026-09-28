@@ -80,3 +80,11 @@ test('Expanded controls follow rendered visibility rather than stale ARIA',()=>{
  style.display='block';style.opacity='0';observe();assert.equal(classes['music-glass-controls-open'],true);
  style.opacity='1';observe();assert.equal(classes['music-glass-controls-open'],true);
 });
+
+test('Scrolling home content is never clipped using a stale measured rectangle',()=>{
+ const css=fs.readFileSync(new URL('../extension/music-glass.css',import.meta.url),'utf8');
+ const js=fs.readFileSync(new URL('../extension/music-glass.js',import.meta.url),'utf8');
+ assert.doesNotMatch(css,/--mg-content-(?:top|bottom)-clip/);
+ assert.doesNotMatch(js,/--mg-content-(?:top|bottom)-clip/);
+ assert.match(css,/--mg-guide-bottom-clip/);
+});

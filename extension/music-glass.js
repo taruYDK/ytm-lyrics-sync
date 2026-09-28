@@ -6,8 +6,80 @@
   let backdrop;
   let timer;
   let generation = 0;
+  let artworkRevision = 0;
   let lastArt = '';
   let artworkReady = false;
+  const surfaces = new Map();
+  let artworkHost;
+  let artworkObserver;
+  function artworkLoaded(event) {
+    if (event.target?.tagName === 'IMG') update();
+  }
+  function watchArtwork() {
+    const host = document.querySelector?.('ytmusic-player-bar');
+    if (!host?.addEventListener || host === artworkHost || typeof MutationObserver === 'undefined') return;
+    artworkObserver?.disconnect();
+    artworkHost?.removeEventListener('load', artworkLoaded, true);
+    artworkHost = host;
+    host.addEventListener('load', artworkLoaded, true);
+    artworkObserver = new MutationObserver(records => {
+      if (records.some(record => record.type === 'attributes' && record.target.tagName === 'IMG' ||
+          record.type === 'childList' && [...record.addedNodes].some(node => node.tagName === 'IMG' || node.querySelector?.('img')))) update();
+    });
+    // Observe only the player bar, never the scrolling home or lyrics tree.
+    artworkObserver.observe(host, {subtree:true, childList:true, attributes:true, attributeFilter:['src','srcset']});
+  }
+  function paintSurfaces(tabsOnly = false) {
+    if (!settings.musicGlassEnabled) return;
+    const width = globalThis.innerWidth, height = globalThis.innerHeight;
+    if (!width || !height) return;
+    const selectors = ['ytmusic-nav-bar', 'ytmusic-player-bar', 'ytmusic-player-page', 'ytmusic-browse-response ytmusic-tabs'];
+    for (const selector of tabsOnly === true ? selectors.slice(3) : selectors) {
+      const host = document.querySelector(selector);
+      if (!host?.prepend || !host.getBoundingClientRect) continue;
+      let canvas = surfaces.get(host);
+      if (!canvas) {
+        canvas = document.createElement('canvas');
+        canvas.className = 'music-glass-surface';
+        canvas.width = 192; canvas.height = 192;
+        canvas.setAttribute('aria-hidden', 'true');
+        host.prepend(canvas); surfaces.set(host, canvas);
+      }
+      // Layout coordinates do not move with the native opening transform.
+      // Sampling a transitioning rectangle can crop outside the bitmap and cache
+      // transparent/black strips until the next poll.
+      let left = 0, top = 0;
+      for (let node = host; node; node = node.offsetParent) {
+        left += node.offsetLeft || 0;
+        top += node.offsetTop || 0;
+      }
+      const isTabs = selector === 'ytmusic-browse-response ytmusic-tabs';
+      const bounds = isTabs ? host.getBoundingClientRect() : {left, top, width:host.clientWidth, height:host.clientHeight};
+      if (isTabs) { left = bounds.left; top = bounds.top; }
+      if (!bounds.width || !bounds.height) continue;
+      const sx = Math.max(0, Math.min(95, left / width * 96));
+      const sy = Math.max(0, Math.min(95, top / height * 96));
+      const sw = Math.max(1, Math.min(96 - sx, bounds.width / width * 96));
+      const sh = Math.max(1, Math.min(96 - sy, bounds.height / height * 96));
+      const signature = [artworkRevision, artworkReady, width, height, sx, sy, sw, sh].join(':');
+      if (canvas.dataset.paint === signature) continue;
+      canvas.dataset.paint = signature;
+      const context = canvas.getContext('2d');
+      context.clearRect(0, 0, 192, 192);
+      if (artworkReady && backdrop && bounds.width > 0 && bounds.height > 0) {
+        context.drawImage(backdrop, sx, sy, sw, sh, 0, 0, 192, 192);
+      }
+    }
+    for (const [host, canvas] of surfaces) if (!host.isConnected) { canvas.remove(); surfaces.delete(host); }
+  }
+  let tabsFrame = false;
+  document.addEventListener('scroll', () => {
+    if (tabsFrame || !settings.musicGlassEnabled || document.hidden || typeof requestAnimationFrame !== 'function') return;
+    tabsFrame = true;
+    requestAnimationFrame(() => { tabsFrame = false; paintSurfaces(true); });
+  }, {capture:true, passive:true});
+  globalThis.addEventListener?.('resize', paintSurfaces);
+  document.addEventListener('yt-navigate-finish', paintSurfaces);
   const artSelectors = [
     'ytmusic-player-bar .thumbnail-image-wrapper img',
     'ytmusic-player-bar img.image',
@@ -21,6 +93,9 @@
     } catch { return ''; }
   }
   function update() {
+    if (document.hidden) return;
+    watchArtwork();
+    paintSurfaces();
     if (document.hidden || !settings.musicGlassEnabled || !settings.musicGlassArtwork || settings.musicGlassLightweight) return;
     const page = document.body;
     if (!page) return;
@@ -37,17 +112,16 @@
     if (settings.musicGlassArtwork) {
       for (const selector of artSelectors) {
         const img = document.querySelector(selector);
-        art = safeImage(img?.currentSrc || img?.src || '');
+        art = safeImage((img?.srcset ? img.currentSrc : img?.src) || img?.currentSrc || '');
         if (art) break;
       }
     }
     if (art !== lastArt) {
       lastArt = art;
-      artworkReady = false;
+      // Keep the previous frame until the replacement image has decoded.
       const token = ++generation;
       const canvas = backdrop;
       const context = canvas.getContext('2d');
-      context.clearRect(0, 0, 96, 96);
       if (art) {
         const image = new Image();
         image.onload = () => {
@@ -55,16 +129,19 @@
           // Bake blur into a tiny bitmap once per cover, not a viewport filter.
           const side = Math.min(image.naturalWidth, image.naturalHeight);
           if (!side) return;
+          context.clearRect(0, 0, 96, 96);
           context.filter = 'blur(5px) saturate(1.55) brightness(.62)';
           context.drawImage(image, (image.naturalWidth-side)/2, (image.naturalHeight-side)/2, side, side, -12, -12, 120, 120);
           artworkReady = true;
+          artworkRevision++;
+          paintSurfaces();
         };
         image.src = art;
       }
     }
   }
   function schedule() {
-    if (!timer && settings.musicGlassEnabled && settings.musicGlassArtwork && !settings.musicGlassLightweight) timer = setTimeout(() => { timer = null; update(); }, 500);
+    if (!timer && settings.musicGlassEnabled && settings.musicGlassArtwork && !settings.musicGlassLightweight) timer = setTimeout(() => { timer = null; update(); }, 0);
   }
   function trimGuideAtPlayer() {
     if (!settings.musicGlassEnabled) return;
@@ -73,14 +150,7 @@
     const edge = player.getBoundingClientRect();
     const nav = document.querySelector('ytmusic-nav-bar');
     const navBounds = nav?.getBoundingClientRect?.();
-    const content = document.querySelector('ytmusic-app-layout #content-wrapper');
-    if (content?.getBoundingClientRect) {
-      const bounds = content.getBoundingClientRect();
-      const bottom = edge.height > 0 ? Math.max(0, Math.min(bounds.height, bounds.bottom - edge.top)) : 0;
-      const top = navBounds?.height > 0 ? Math.max(0, Math.min(bounds.height - bottom, navBounds.bottom - bounds.top)) : 0;
-      content.style.setProperty('--mg-content-top-clip', top + 'px');
-      content.style.setProperty('--mg-content-bottom-clip', bottom + 'px');
-    }
+    // Only trim the stationary guide. The scrolling content must use native clipping.
     for (const selector of ['ytmusic-app-layout #guide-wrapper', 'ytmusic-app-layout #mini-guide-background', 'ytmusic-mini-guide-renderer']) {
       const guide = document.querySelector(selector);
       if (!guide?.getBoundingClientRect) continue;
@@ -124,6 +194,8 @@
     root.style.setProperty('--mg-art-opacity', String(Math.max(0, Math.min(100, Number(settings.musicGlassIntensity) || 0)) / 100));
     if (!settings.musicGlassEnabled || !settings.musicGlassArtwork || settings.musicGlassLightweight) { generation++; artworkReady = false; backdrop?.remove(); backdrop = null; lastArt = ''; }
     else update();
+    if (!settings.musicGlassEnabled) { for (const canvas of surfaces.values()) canvas.remove(); surfaces.clear(); }
+    else paintSurfaces();
   }
   chrome.storage.local.get(defaults, stored => { settings = { ...defaults, ...stored }; apply(); });
   chrome.storage.onChanged.addListener((changes, area) => {
@@ -150,3 +222,4 @@
   document.addEventListener('yt-navigate-finish', schedule);
 
 })();
+
