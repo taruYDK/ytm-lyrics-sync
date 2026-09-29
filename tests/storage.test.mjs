@@ -138,3 +138,18 @@ test('undo: manual readings can be restored after reset',async()=>{
  const r=await h.send({action:'entry',key,videoId:'song',entry:null,captureUndo:true});
  assert.equal((await h.send({action:'undo',token:r.undoToken})).ok,true);assert.deepEqual(h.store[key].song,entry);
 });
+
+test('manual readings: invalid legacy entries do not block valid songs or repeat migration',async()=>{
+ const h=harness();
+ const valid={text:'漢字',reading:'かんじ',start:0,end:2};
+ const invalid={...valid,end:99};
+ h.store.ytmls_manual_readings_bad=[invalid,valid];
+ h.store.ytmls_manual_readings_good=[valid];
+ assert.equal((await h.send({action:'migrateReadings'})).ok,true);
+ assert.deepEqual(h.store.ytmlsManualReadingsV256.bad.entries,[valid]);
+ assert.deepEqual(h.store.ytmlsManualReadingsV256.good.entries,[valid]);
+ assert.deepEqual(h.store.ytmls_manual_readings_bad,[invalid,valid]);
+ assert.equal(h.store.ytmls_manual_readings_good,undefined);
+ assert.equal(h.store.ytmlsReadingsMigratedV262,true);
+ assert.equal((await h.send({action:'migrateReadings'})).ok,true);
+});

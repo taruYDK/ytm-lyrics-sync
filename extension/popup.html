@@ -19,13 +19,19 @@
   .hint { margin-top:3px; font-size:11px; line-height:1.45; color:var(--sub); }
   select { min-width:132px; border:1px solid rgba(255,255,255,.13); border-radius:9px; padding:8px 10px; background:var(--card2); color:var(--text); font-size:12px; outline:none; }
   select:focus { border-color:rgba(255,61,79,.7); }
-  .switch { position:relative; width:46px; height:26px; flex:0 0 auto; }
+  .switch { display:inline-block; position:relative; width:46px; height:26px; flex:0 0 auto; }
   .switch.small { width:42px; height:24px; } .switch input { display:none; }
   .slider { position:absolute; inset:0; border-radius:999px; background:#4b4f56; cursor:pointer; transition:.18s ease; }
   .slider::before { content:""; position:absolute; width:20px; height:20px; left:3px; top:3px; border-radius:50%; background:#fff; transition:.18s ease; box-shadow:0 1px 5px rgba(0,0,0,.35); }
   .switch.small .slider::before { width:18px; height:18px; }
   input:checked + .slider { background:var(--accent); } input:checked + .slider::before { transform:translateX(20px); }
   .switch.small input:checked + .slider::before { transform:translateX(18px); }
+  .glass-toggle-control { display:flex; align-items:center; gap:10px; flex-shrink:0; font-size:13px; font-weight:800; }
+  #musicGlassQuickState { min-width:30px; color:#c5c9d0; }
+  #musicGlassQuickState[data-enabled="true"] { color:#ff8994; }
+  .glass-switch input { display:block; position:absolute; inset:0; width:100%; height:100%; margin:0; opacity:0; }
+  .glass-switch input:focus-visible + .slider { outline:2px solid #fff; outline-offset:3px; }
+  .glass-switch input:disabled + .slider { opacity:.5; cursor:wait; }
   .info { margin-top:10px; padding:10px 11px; border-radius:10px; background:rgba(255,255,255,.045); color:#c9cdd3; font-size:11px; line-height:1.55; }
   .provider-list { display:flex; flex-direction:column; gap:7px; }
   .provider-row { display:flex; align-items:center; gap:9px; min-height:38px; padding:7px 8px; border:1px solid var(--border); border-radius:10px; background:rgba(255,255,255,.03); }
@@ -47,18 +53,11 @@
   .footer-note { padding:0 3px; color:#858b94; font-size:10.5px; line-height:1.55; }
 </style>
 <style>
-  #settingsPreview { padding:12px 0; font-weight:700; line-height:1.6; overflow-wrap:anywhere; }
-  .preview-neighbor { opacity:.7; }
-  #settingsPreview[data-fade="true"] .preview-neighbor { opacity:.3; }
-  #settingsPreview[data-tracking="true"] .preview-current span { background:linear-gradient(90deg,#fff 50%,#717780 50%); background-size:200% 100%; background-clip:text; color:transparent; animation:preview-word 3s linear infinite; }
-  #settingsPreview[data-tracking="true"] .preview-current span + span { animation-delay:1.5s; }
-  #settingsPreview[data-style="silky"] .preview-current span { animation-timing-function:ease-in-out; }
-  @keyframes preview-word { from {background-position:100% 0} to {background-position:0 0} }
-  @media (prefers-reduced-motion:reduce) { #settingsPreview .preview-current span { animation:none !important; } }
   #backupReminder { padding:10px; border:1px solid #c6a65f; border-radius:8px; color:#ffe6a1; font-size:12px; }
   .data-button + .data-button { margin-top:8px; }
 </style>
 <link rel="stylesheet" href="settings-theme.css">
+<link rel="stylesheet" href="popup-layout.css">
 </head>
 <body>
   <div class="header">
@@ -66,34 +65,36 @@
     <label class="switch" title="拡張機能を有効/無効"><input type="checkbox" id="enabledToggle" aria-label="拡張機能を有効にする" /><span class="slider"></span></label>
   </div>
 
-  <section class="section">
+  <nav class="settings-nav" aria-label="設定カテゴリ"><a href="#settings-display">表示</a><a href="#settings-tracking">追跡</a><a href="#settings-reading">読み仮名</a><a href="#settings-theme">背景</a><a href="#settings-providers">提供元</a><a href="#settings-data">データ</a></nav>
+  <p class="save-note">設定は変更すると自動保存されます</p>
+  <section class="section" id="settings-display" aria-label="表示">
     <div class="section-title">表示</div>
     <div class="setting-row">
       <div class="label-block"><div class="label">文字サイズ</div><div class="hint">歌詞本文の大きさ</div></div>
       <select id="fontSizeSelect" aria-label="文字サイズ"><option value="26">26px 小さめ</option><option value="28">28px</option><option value="32">32px 標準</option><option value="36">36px</option><option value="40">40px 大きめ</option></select>
     </div>
     <div class="setting-row">
-      <div class="label-block"><div class="label">現在行フォーカス</div><div class="hint">現在行を目立たせ、離れた行を薄く表示</div></div>
+      <div class="label-block"><label class="label" for="focusFadeToggle">現在行フォーカス</label><div class="hint">現在行を目立たせ、離れた行を薄く表示</div></div>
       <label class="switch small"><input type="checkbox" id="focusFadeToggle" aria-label="現在行フォーカス" /><span class="slider"></span></label>
     </div>
     <div class="setting-row">
-      <div class="label-block"><div class="label">無操作時に歌詞を自動表示</div><div class="hint">「次のコンテンツ」表示後、最後の操作から2秒何もしなければ歌詞へ移動</div></div>
+      <div class="label-block"><label class="label" for="autoLyricsOnIdleToggle">無操作時に歌詞を自動表示</label><div class="hint">「次のコンテンツ」で2秒間操作しないと歌詞へ移動</div></div>
       <label class="switch small"><input type="checkbox" id="autoLyricsOnIdleToggle" aria-label="無操作時に歌詞を自動表示" /><span class="slider"></span></label>
     </div>
   </section>
 
-  <section class="section">
+  <section class="section" id="settings-tracking" aria-label="歌詞追跡">
     <div class="section-title">歌詞追跡</div>
     <div class="setting-row">
-      <div class="label-block"><div class="label">追跡</div><div class="hint">現在行をハイライトし、指定位置へ自動スクロール</div></div>
+      <div class="label-block"><label class="label" for="trackingToggle">歌詞を自動スクロール</label><div class="hint">現在行をハイライトし、指定位置へ自動スクロール</div></div>
       <label class="switch small"><input type="checkbox" id="trackingToggle" aria-label="歌詞追跡" /><span class="slider"></span></label>
     </div>
     <div class="setting-row">
       <div class="label-block"><div class="label">追跡アニメーション</div><div class="hint">単語の色が進む滑らかさ</div></div>
       <select id="wordTrackingStyleSelect" aria-label="追跡アニメーション"><option value="smooth">なめらか</option><option value="silky">ぬるぬる</option></select>
     </div>
-    <div class="setting-row">
-      <div class="label-block"><label class="label" for="trackingPosition">追跡位置</label><div class="hint">上寄り ← → 下寄り（標準42%）</div><output id="trackingPositionValue" for="trackingPosition">上から42%</output></div>
+    <div class="setting-row range-row">
+      <div class="label-block"><label class="label" for="trackingPosition">追跡位置</label><div class="hint">画面のどの高さに歌詞を合わせるか（標準42%）</div><output id="trackingPositionValue" for="trackingPosition">上から42%</output></div>
       <input id="trackingPosition" type="range" min="25" max="65" step="1" value="42" style="width:132px; accent-color:var(--accent)" />
     </div>
     <div class="setting-row">
@@ -104,27 +105,22 @@
     <div class="info">追跡できる同期歌詞だけを使用します。歌詞タブ上部の「歌詞候補」でおすすめ度を見ながら歌詞を選択でき、「手動検索」で曲名と歌手を修正できます。</div>
   </section>
 
-  <section class="section">
+  <section class="section" id="settings-reading" aria-label="読み仮名">
     <div class="section-title">読み仮名</div>
-    <div class="setting-row"><div class="label-block"><div class="label">漢字のふりがな</div><div class="hint">漢字の上にひらがなを表示</div></div><label class="switch small"><input type="checkbox" id="readingJapaneseToggle" aria-label="漢字のふりがな" /><span class="slider"></span></label></div>
-    <div class="setting-row"><div class="label-block"><div class="label">英語のカタカナ読み</div><div class="hint">英単語の上に発音の目安を表示</div></div><label class="switch small"><input type="checkbox" id="readingEnglishToggle" aria-label="英語のカタカナ読み" /><span class="slider"></span></label></div>
+    <div class="setting-row"><div class="label-block"><label class="label" for="readingJapaneseToggle">漢字のふりがな</label><div class="hint">漢字の上にひらがなを表示</div></div><label class="switch small"><input type="checkbox" id="readingJapaneseToggle" aria-label="漢字のふりがな" /><span class="slider"></span></label></div>
+    <div class="setting-row"><div class="label-block"><label class="label" for="readingEnglishToggle">英語のカタカナ読み</label><div class="hint">英単語の上に発音の目安を表示</div></div><label class="switch small"><input type="checkbox" id="readingEnglishToggle" aria-label="英語のカタカナ読み" /><span class="slider"></span></label></div>
     <div class="hint" style="margin-top:10px">端末内の辞書で自動生成します。固有名詞・同じ綴りの別の読み・歌詞独自の読みは誤る場合があります。辞書にない語は読みを表示しません。初回の日本語辞書読み込みには少し時間がかかります。</div>
     <p id="readingSettingsStatus" class="hint" role="status"></p>
   </section>
 
-  <section class="section">
-    <div class="section-title">表示プレビュー</div>
-    <div id="settingsPreview" aria-label="歌詞の表示サンプル"><div class="preview-neighbor">明日へ続く</div><div class="preview-current"><span>歌を</span> <span>届ける</span></div></div>
-    <div class="hint">サンプル表示です。実際の同期精度は歌詞データによって異なります。</div>
-  </section>
-  <section class="section">
+<section class="section" id="settings-providers" aria-label="歌詞提供元">
     <div class="section-title">歌詞提供元</div>
     <div class="hint" style="margin-bottom:9px;">ローカル歌詞は常に最優先です。その下の5つの取得元は、有効・無効と優先順位を変更できます。</div>
     <div id="providerList" class="provider-list"></div>
     <div id="providerNote" class="provider-note"></div>
   </section>
 
-  <section class="section">
+  <section class="section" id="settings-data" aria-label="データ保護">
     <div class="section-title">データ保護</div>
     <div class="hint" style="margin-bottom:9px;">曲ごとの補正値、固定した歌詞、追加・作成したローカル歌詞、書き換えた歌詞、表示設定をファイルに保存して復元できます。</div>
     <p id="savedDataSummary">保存データを確認中…</p>
@@ -133,8 +129,11 @@
     <a class="data-button" href="backup.html" target="_blank" rel="noopener">バックアップ・復元・管理を開く</a>
   </section>
 
+  <section class="section" id="settings-theme" aria-label="Music Glass"><div class="section-title">Music Glass</div><div class="setting-row"><span>背景・テーマ</span><div class="glass-toggle-control"><span id="musicGlassQuickState" aria-hidden="true">読込中</span><label class="switch glass-switch"><input type="checkbox" id="musicGlassQuickToggle" aria-label="Music Glassの背景・テーマを有効にする" disabled><span class="slider"></span></label></div></div><label class="setting-row" style="margin-top:12px;font-size:12px"><span>再生画面のスクロールバーを隠す</span><input id="musicGlassScrollbarToggle" type="checkbox" disabled style="width:18px;height:18px;accent-color:var(--accent)"></label><label class="setting-row" style="margin-top:12px;font-size:12px"><span>ジャケットを背景に使う</span><input id="musicGlassArtworkToggle" type="checkbox" disabled style="width:18px;height:18px;accent-color:var(--accent)"></label><label class="setting-row" style="margin-top:12px;font-size:12px"><span>再生バーの低評価ボタンを隠す</span><input id="musicGlassDislikeToggle" type="checkbox" disabled style="width:18px;height:18px;accent-color:var(--accent)"></label><p id="musicGlassQuickStatus" role="status" class="hint"></p><div class="setting-row"><label for="musicGlassIntensity">背景画像の濃さ</label><output id="musicGlassIntensityValue" for="musicGlassIntensity">65%</output></div><input id="musicGlassIntensity" type="range" min="0" max="100" step="5" value="65" disabled style="width:100%;margin:12px 0;accent-color:var(--accent)"><button id="musicGlassReset" type="button" class="data-button" disabled>テーマ設定を初期値に戻す</button><p class="hint">自動保存されます。リセットはテーマ設定だけに適用します。</p></section>
   <div class="footer-note">自動表示ONでは、「次のコンテンツ」表示中の最後のクリック・キー操作・スクロールから2秒間何もしなければ歌詞へ移動します。手動スクロール後は設定した待ち時間で現在位置へ戻ります。追跡停止や曲ID不一致を検出した場合は自動復旧します。</div>
   <script src="backup-reminder.js"></script>
   <script src="popup.js"></script>
+  <script src="music-glass-quick.js"></script>
+  <script src="music-glass-popup-details.js"></script>
 </body>
 </html>

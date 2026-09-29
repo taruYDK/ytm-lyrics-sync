@@ -68,3 +68,12 @@ test('bridge toggles current playback and rejects stale or disabled commands',()
  listener({source:window,data:{source:'ytmls-player-bridge-v1',type:'tracking-config',enabled:false}});
  send();assert.equal(plays,1);
 });
+
+test('hidden main tick performs no DOM or playback work and resumes when visible',()=>{
+ let reads=0;
+ const c=vm.createContext({document:{hidden:true,readyState:'loading'},window:{addEventListener(){}},runtimeAvailable:()=>true,STATE:{enabled:false},updateLyricsTheme:()=>reads++,ensureLyricsMount(){},ensureVideoListener(){},ensurePlayerBarTimingControl(){},maintainLyricsAutoOpen(){},applySettings(){},updatePlayerBarHealth(){},updateDiagnosticsSummary(){}});
+ vm.runInContext(read('src/content/main.js'),c);
+ for(let i=0;i<100;i++) c.tick();
+ assert.equal(reads,0);
+ c.document.hidden=false;c.tick();assert.equal(reads,1);
+});

@@ -1,6 +1,6 @@
   // ---------- メイン ----------
   function tick() {
-    if (!runtimeAvailable()) return;
+    if (document.hidden || !runtimeAvailable()) return;
     updateLyricsTheme();
     ensureLyricsMount();
     ensureVideoListener();
@@ -52,6 +52,7 @@
     loadLyricsEdits();
     loadPinnedLyrics();
     loadLocalLyrics();
+    document.addEventListener("visibilitychange", () => { if (!document.hidden) tick(); });
     setInterval(tick, 300);
     tick();
     // ページを開いた時点ですでに「次のコンテンツ」なら、無操作時だけ歌詞へ移動する。

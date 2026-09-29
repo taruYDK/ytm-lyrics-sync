@@ -39,15 +39,27 @@ async function mutateUserData(message) {
     const all = await localDataCall('get', null);
     const key = 'ytmlsManualReadingsV256', map = {...(all[key] || {})};
     const oldKeys = Object.keys(all).filter(k => k.startsWith('ytmls_manual_readings_') && Array.isArray(all[k]));
+    const migratedKeys = [];
     for (const old of oldKeys) {
       const id = old.slice('ytmls_manual_readings_'.length);
       if (!id || ['__proto__','constructor','prototype'].includes(id)) continue;
-      if (!Object.prototype.hasOwnProperty.call(map,id) && all[old].length) map[id] = {entries:all[old],updatedAt:Date.now()};
+      const entries = [];
+      let rejected = false;
+      for (const entry of all[old]) {
+        try {
+          YTMLSBackupValidation.local({[key]:{[id]:{entries:[entry]}}});
+          if (entries.length >= 2000) { rejected = true; continue; }
+          entries.push(entry);
+        } catch { rejected = true; }
+      }
+      if (!Object.prototype.hasOwnProperty.call(map,id) && entries.length) map[id] = {entries,updatedAt:Date.now()};
+      // Preserve the original key when anything was rejected or newer data won.
+      if (!rejected && JSON.stringify(map[id]?.entries || []) === JSON.stringify(all[old])) migratedKeys.push(old);
     }
     if (oldKeys.length) {
       YTMLSBackupValidation.local({[key]:map});
       await localDataCall('set', {[key]:map});
-      await localDataCall('remove', oldKeys);
+      if (migratedKeys.length) await localDataCall('remove', migratedKeys);
     }
     await localDataCall('set', {ytmlsReadingsMigratedV262:true});
     return {ok:true,data:{}};

@@ -1120,3 +1120,12 @@ ytmusic-tab-renderer[page-type="MUSIC_PAGE_TYPE_TRACK_LYRICS"].ytmls-replaced {
   #ytmls-helpful { gap:0; }
   #ytmls-helpful button { padding-inline:8px; font-size:11px; }
 }
+
+/* Candidate controls wrap to the available panel width, not viewport width. */
+.ytmls-candidate-row { flex-wrap:wrap; }
+.ytmls-candidate-item { flex:1 1 320px; flex-wrap:wrap; box-sizing:border-box; max-width:100%; gap:8px 12px; }
+.ytmls-candidate-text { flex:1 1 140px; }
+.ytmls-candidate-label { white-space:normal; overflow-wrap:anywhere; }
+.ytmls-candidate-meta { white-space:normal; line-height:1.5; }
+.ytmls-recommendation-badge { min-width:0; max-width:100%; box-sizing:border-box; white-space:normal; overflow-wrap:anywhere; }
+.ytmls-candidate-pin { flex:1 0 126px; max-width:100%; min-height:36px; box-sizing:border-box; }

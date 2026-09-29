@@ -600,7 +600,7 @@
       }
 
       if (line.time != null) {
-        div.title = "クリックまたはEnterでこの位置へ移動・Spaceで再生/一時停止";
+        div.title = "クリックまたはEnterでこの位置へ移動・追跡ON時はSpaceで再生/一時停止";
         div.tabIndex = 0;
         div.setAttribute('role', 'button');
         div.setAttribute('aria-label', (line.text || editableLineText(line) || '間奏') + '：この位置へ移動');

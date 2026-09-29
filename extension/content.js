@@ -3347,7 +3347,7 @@ function readingSegmentProgressCss(start, end, length) {
       }
 
       if (line.time != null) {
-        div.title = "クリックまたはEnterでこの位置へ移動・Spaceで再生/一時停止";
+        div.title = "クリックまたはEnterでこの位置へ移動・追跡ON時はSpaceで再生/一時停止";
         div.tabIndex = 0;
         div.setAttribute('role', 'button');
         div.setAttribute('aria-label', (line.text || editableLineText(line) || '間奏') + '：この位置へ移動');
@@ -7156,13 +7156,13 @@ function readingSegmentProgressCss(start, end, length) {
       } catch (error) { label.textContent = error.message; button.disabled = false; }
     });
     notice.append(label, button); panelEl.insertBefore(notice, lyricsToolsPaneEl);
-    setTimeout(() => { notice.remove(); if (undoNotice === notice) undoNotice = null; }, 60000);
+    setTimeout(() => { notice.remove(); if (undoNotice === notice) undoNotice = null; }, 5000);
   }
 
 // Feature: main.js
   // ---------- メイン ----------
   function tick() {
-    if (!runtimeAvailable()) return;
+    if (document.hidden || !runtimeAvailable()) return;
     updateLyricsTheme();
     ensureLyricsMount();
     ensureVideoListener();
@@ -7214,6 +7214,7 @@ function readingSegmentProgressCss(start, end, length) {
     loadLyricsEdits();
     loadPinnedLyrics();
     loadLocalLyrics();
+    document.addEventListener("visibilitychange", () => { if (!document.hidden) tick(); });
     setInterval(tick, 300);
     tick();
     // ページを開いた時点ですでに「次のコンテンツ」なら、無操作時だけ歌詞へ移動する。
