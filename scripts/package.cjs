@@ -17,9 +17,11 @@ if (path.dirname(target) !== dist) throw Error('Unsafe output path');
 if (fs.existsSync(dist) && fs.lstatSync(dist).isSymbolicLink()) throw Error('dist must not be a symlink');
 if (fs.existsSync(target) && fs.lstatSync(target).isSymbolicLink()) throw Error('Package must not be a symlink');
 fs.rmSync(target, {recursive: true, force: true});
-fs.cpSync(path.join(root, 'extension'), target, {recursive: true});
+fs.cpSync(path.join(root, 'extension'), target, {recursive: true, filter: file => !/^music-glass-settings\.(?:html|js|css)$/.test(path.basename(file))});
 fs.copyFileSync(path.join(root, 'LICENSE'), path.join(target, 'LICENSE'));
 fs.copyFileSync(path.join(root, 'docs/PRIVACY.md'), path.join(target, 'PRIVACY.md'));
-fs.writeFileSync(path.join(target, 'README.md'), '# YT Music 歌詞シンクロ v' + version + '\n\nChrome/Edgeの拡張機能管理画面で開発者モードをONにし、このmanifest.jsonのあるフォルダーを読み込んでください。更新時は拡張機能を削除せず、既存フォルダーに上書きして再読み込みしてください。\n\n配布前に開発用リポジトリで生成物の一致確認と自動テストを実行しています。このZIPは配布用のためテストを含みません。\n\n使い方・変更履歴: https://github.com/taruYDK/ytm-lyrics-sync\n');
+fs.writeFileSync(path.join(target, 'README.md'), '# YT Music 歌詞シンクロ v' + version + '\n\n新機能の使い方は PRACTICE.md を参照してください。\n\nChrome/Edgeの拡張機能管理画面で開発者モードをONにし、このmanifest.jsonのあるフォルダーを読み込んでください。更新時は拡張機能を削除せず、既存フォルダーに上書きして再読み込みしてください。\n\n配布前に開発用リポジトリで生成物の一致確認と自動テストを実行しています。このZIPは配布用のためテストを含みません。\n\n使い方・変更履歴: https://github.com/taruYDK/ytm-lyrics-sync\n');
 fs.copyFileSync(path.join(root, 'docs/MUSIC-GLASS.md'), path.join(target, 'MUSIC-GLASS.md'));
 console.log('Package ready: ' + target);
+
+fs.copyFileSync(path.join(root, 'docs/PRACTICE.md'), path.join(target, 'PRACTICE.md'));

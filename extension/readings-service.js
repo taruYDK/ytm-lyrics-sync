@@ -1,3 +1,4 @@
+let englishDictionaryPromise;
 let readingDocumentCreation;
 async function ensureReadingDocument() {
   if (!readingDocumentCreation) readingDocumentCreation = (async()=>{
@@ -8,6 +9,14 @@ async function ensureReadingDocument() {
   return readingDocumentCreation;
 }
 chrome.runtime.onMessage.addListener((message,sender,reply)=>{
+  if (message?.type === 'YTMLS_ENGLISH_READINGS') {
+    if (sender.id !== chrome.runtime.id) { reply({ok:false,error:'Invalid reading request'}); return; }
+    if (!englishDictionaryPromise) englishDictionaryPromise = fetch(chrome.runtime.getURL('vendor/readings/english.json'))
+      .then(response => { if (!response.ok) throw new Error('英語辞書を読み込めません'); return response.json(); })
+      .catch(error => { englishDictionaryPromise = null; throw error; });
+    englishDictionaryPromise.then(dictionary=>reply({ok:true,dictionary}),error=>reply({ok:false,error:error.message}));
+    return true;
+  }
   if (message?.type !== 'YTMLS_JAPANESE_TOKENS') return;
   if(sender.id !== chrome.runtime.id || typeof message.text !== 'string' || message.text.length>4000){reply({ok:false,error:'Invalid reading request'});return;}
   (async()=>{await ensureReadingDocument();return chrome.runtime.sendMessage({type:'YTMLS_READING_WORKER',text:message.text});})()

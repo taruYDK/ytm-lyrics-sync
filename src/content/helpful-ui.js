@@ -1,5 +1,4 @@
   let helpfulTimer = null;
-  let undoNotice = null;
   function helpfulStatus() {
     if (STATE.contextInvalidated) return 'ページの再読み込みが必要です';
     if (!STATE.enabled) return '拡張機能はOFFです';
@@ -40,39 +39,5 @@
       const reason = button.disabled ? button.title || '曲と歌詞の読み込み後に使用できます' : '';
       if (hint.textContent !== reason) hint.textContent = reason;
     }
-    if (undoNotice && String(getAuthoritativeVideoId() || '') !== undoNotice.dataset.videoId) {
-      undoNotice.remove(); undoNotice = null;
-    }
     if (helpfulTimer === null) helpfulTimer = setTimeout(() => { helpfulTimer = null; updateHelpfulUi(); }, 500);
-  }
-  function showUserUndo(token, videoId) {
-    if (!panelEl || String(getAuthoritativeVideoId() || '') !== String(videoId)) return;
-    undoNotice?.remove();
-    const notice = document.createElement('div'); undoNotice = notice;
-    notice.className = 'ytmls-undo-notice'; notice.dataset.videoId = String(videoId);
-    const label = document.createElement('span'); label.setAttribute('role','status'); label.textContent = '変更を保存しました';
-    const button = document.createElement('button'); button.type = 'button'; button.className = 'ytmls-tool-button'; button.textContent = '元に戻す';
-    button.addEventListener('click', async () => {
-      button.disabled = true;
-      try {
-        const data = await sendUserDataMutation({action:'undo',token,captureUndo:false});
-        label.textContent = '変更を元に戻しました'; button.hidden = true;
-        if (String(getAuthoritativeVideoId() || '') === String(videoId)) {
-          closeLyricsToolsPane();
-          if (data[TRACK_TIMING_OFFSETS_STORAGE_KEY]) {
-            STATE.trackTimingOffsets = data[TRACK_TIMING_OFFSETS_STORAGE_KEY];
-            trackTimingPreview = null; updateTrackTimingControl();
-          }
-          if (data[LYRICS_EDITS_STORAGE_KEY]) {
-            STATE.lyricsEdits = data[LYRICS_EDITS_STORAGE_KEY];
-            const candidate = activeOriginalLyricsCandidate();
-            const info = STATE.activeBaseInfo || STATE.activeSearchInfo;
-            if (candidate && info) applyLyricsResult(candidate.result, info, STATE.lastTrackKey, STATE.searchGeneration);
-          }
-          refreshLyricsReadings();
-        }
-      } catch (error) { label.textContent = error.message; button.disabled = false; }
-    });
-    notice.append(label, button); panelEl.insertBefore(notice, lyricsToolsPaneEl);
-    setTimeout(() => { notice.remove(); if (undoNotice === notice) undoNotice = null; }, 5000);
   }

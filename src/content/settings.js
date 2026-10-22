@@ -20,6 +20,7 @@
           providerOrder: DEFAULT_PROVIDER_ORDER,
           providerEnabled: normalizedProviderEnabled({}),
           uiVersion: 0,
+          trackingMode: null, scrollReturnDelay: null, sourcePreference: null, timingOffsetMs: null,
         },
         (data) => {
           STATE.trackingPosition = boundedTrackingSetting(data.trackingPosition, 42, 25, 65);
@@ -39,7 +40,8 @@
           // 旧版の複雑な設定はv1.8.1では使用しない。
           // 古い値がstorageに残っていても動作へ影響させない。
           try {
-            chrome.storage.sync.remove(["trackingMode", "scrollReturnDelay", "sourcePreference", "timingOffsetMs"]);
+            const oldKeys = ["trackingMode", "scrollReturnDelay", "sourcePreference", "timingOffsetMs"].filter(key => data[key] !== null && data[key] !== undefined);
+            if (oldKeys.length) chrome.storage.sync.remove(oldKeys, () => { void chrome.runtime?.lastError; });
           } catch (_) {}
 
           if ((data.uiVersion || 0) < 6) {
@@ -49,6 +51,7 @@
             STATE.fontSize = Number(data.fontSize) || 32;
           }
 
+          if (typeof applyPracticePrefs === "function") applyPracticePrefs();
           applySettings();
           if (STATE.enabled) {
             STATE.lastTrackKey = null;

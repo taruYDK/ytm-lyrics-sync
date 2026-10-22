@@ -2,7 +2,7 @@ let managerBusy = false;
 let savedTracks = [];
 let displayedLimit = 50;
 const selectedTracks = new Set();
-const TYPE_LABELS = ["補正", "手動検索", "歌詞編集", "固定歌詞", "ローカル歌詞", "手動ふりがな"];
+const TYPE_LABELS = ["補正", "手動検索", "歌詞編集", "固定歌詞", "ローカル歌詞", "手動ふりがな", "曲別表示設定"];
 async function mutateData(payload) {
   const response = await chrome.runtime.sendMessage({ type: "YTMLS_USER_DATA", ...payload });
   if (!response?.ok) throw new Error(response?.error || "保存処理に失敗しました。");
@@ -103,7 +103,7 @@ document.getElementById("deleteTracks").addEventListener("click", async () => {
   if (managerBusy || !selectedTracks.size) return;
   const ids = [...selectedTracks];
   const names = savedTracks.filter(track => selectedTracks.has(track.id)).slice(0, 5).map(track => track.title || track.id).join("\n");
-  if (!window.confirm(`${ids.length}曲の保存データを本当に削除しますか？\n${names}\n補正・編集・固定歌詞・ローカル歌詞・手動検索条件を削除します。元に戻すにはバックアップが必要です。`)) return;
+  if (!window.confirm(`${ids.length}曲の保存データを本当に削除しますか？\n${names}\n補正・編集・固定歌詞・ローカル歌詞・手動検索条件・手動ふりがな・曲別表示設定を削除します。元に戻すにはバックアップが必要です。`)) return;
   setBusy(true);
   try {
     await mutateData({ action: "deleteTracks", videoIds: ids });

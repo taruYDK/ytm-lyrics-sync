@@ -88,8 +88,7 @@
     //    「歌詞 / Lyrics」という実テキストを探して、クリック可能な親タブまで戻る。
     const roots = [
       document.querySelector('ytmusic-player-page'),
-      document.querySelector('#side-panel'),
-      document
+      document.querySelector('#side-panel')
     ].filter(Boolean);
     const labelSelectors = [
       'yt-formatted-string', '.tab-content', '[aria-label]', '[title]',
@@ -286,7 +285,7 @@
     }
 
     // 2) 子要素の文字しか取れないUI。
-    const roots = [document.querySelector('ytmusic-player-page'), document.querySelector('#side-panel'), document].filter(Boolean);
+    const roots = [document.querySelector('ytmusic-player-page'), document.querySelector('#side-panel')].filter(Boolean);
     const selectors = ['yt-formatted-string', '.tab-content', '[aria-label]', '[title]', 'span'];
     const seen = new Set();
     for (const root of roots) {
@@ -387,13 +386,19 @@
     resetLyricsAutoOpenIdle();
   }
 
+  let lastWheelViewCheckAt = -Infinity;
+  let lastWheelNextView = false;
   function noteUserInteraction(event) {
     if (!event || event.isTrusted !== true) return;
     const now = performance.now();
     STATE.lastUserInteractionAt = now;
 
     // 「次のコンテンツ」表示中の操作は永久キャンセルではなく、2秒タイマーをリセットするだけ。
-    if (STATE.enabled && STATE.autoLyricsOnIdle && isNextContentViewActive()) {
+    if (!STATE.enabled || !STATE.autoLyricsOnIdle) return;
+    let nextView;
+    if (event.type === 'wheel' && now - lastWheelViewCheckAt < 80) nextView = lastWheelNextView;
+    else { nextView = isNextContentViewActive(); lastWheelNextView = nextView; lastWheelViewCheckAt = now; }
+    if (nextView) {
       STATE.lyricsAutoOpenArmedAt = now;
       STATE.lyricsAutoOpenLastClickAt = 0;
       STATE.lyricsAutoOpenExpectedVideoId = String(getAuthoritativeVideoId() || '');

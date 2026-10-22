@@ -11,7 +11,7 @@
   --ytmls-warning:#624300; --ytmls-warning-bg:#fff0bf;
   --ytmls-muted:#343a40; --ytmls-muted-bg:#e6e8eb; --ytmls-error:#aa182d;
 }
-:is(#ytmls-panel,#ytmls-track-offset-popover,#ytmls-reload-notice) :is(button,input,textarea,select,summary,a,[tabindex]):focus-visible,
+:is(#ytmls-panel,#ytmls-track-offset-popover,#ytmls-reload-notice) :is(button,input,textarea,select,summary,a,[tabindex]):not(.ytmls-line):focus-visible,
 :is(#ytmls-external-tab,#ytmls-track-offset-button,#ytmls-resync-button):focus-visible {
   outline:2px solid var(--ytmls-focus) !important; outline-offset:2px;
 }

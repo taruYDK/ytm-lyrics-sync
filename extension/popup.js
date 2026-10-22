@@ -251,7 +251,7 @@ trackingToggle.addEventListener("change", () => chrome.storage.sync.set({ tracki
 autoLyricsOnIdleToggle.addEventListener("change", () => chrome.storage.sync.set({ autoLyricsOnIdle: autoLyricsOnIdleToggle.checked }));
 wordTrackingStyleSelect.addEventListener("change", () => chrome.storage.sync.set({ wordTrackingStyle: wordTrackingStyleSelect.value }));
 
-const userDataKeys = ["ytmlsTrackTimingOffsetsV174", "ytmlsManualSearchOverridesV190", "ytmlsLyricsEditsV199", "ytmlsPinnedLyricsV200", "ytmlsLocalLyricsV200", "ytmlsManualReadingsV256"];
+const userDataKeys = ["ytmlsTrackTimingOffsetsV174", "ytmlsManualSearchOverridesV190", "ytmlsLyricsEditsV199", "ytmlsPinnedLyricsV200", "ytmlsLocalLyricsV200", "ytmlsManualReadingsV256", "ytmlsTrackDisplayV280"];
 chrome.storage.local.get(userDataKeys, data => {
   const summary = document.getElementById("savedDataSummary");
   if (chrome.runtime.lastError) { summary.textContent = "保存件数を取得できませんでした。"; return; }
@@ -261,5 +261,5 @@ chrome.storage.local.get(userDataKeys, data => {
       : `保存済み ${ids.size}曲 / ${(bytes / 1024 / 1024).toFixed(2)} MB`;
   });
 });
-document.getElementById("extensionVersion").textContent = `v${chrome.runtime.getManifest().version}`;
+document.getElementById("extensionVersion").textContent = `v${chrome.runtime.getManifest().version_name || chrome.runtime.getManifest().version}`;
 

@@ -2,7 +2,7 @@
   // v1.8.0: 言語処理と標準歌詞フォールバックを作り直したため旧キャッシュを引き継がない。
   // 壊れた永続キャッシュを新コードへ持ち込まないため、保存キーを更新して完全に分離する。
   // v1.9.8: 同名別アーティストを採用していた旧キャッシュを引き継がない。
-  const LYRICS_CACHE_STORAGE_KEY = "ytmlsLyricsCacheV198";
+  const LYRICS_CACHE_STORAGE_KEY = "ytmlsLyricsCacheV232";
   const LYRICS_CACHE_MAX_ENTRIES = 150;
   const MANUAL_SEARCH_STORAGE_KEY = "ytmlsManualSearchOverridesV190";
   const MANUAL_SEARCH_MAX_ENTRIES = 200;
@@ -362,6 +362,7 @@
   function loadLyricsCacheFromStorage() {
     try {
       chrome.storage.local.get({ [LYRICS_CACHE_STORAGE_KEY]: {} }, (data) => {
+        if (chrome.runtime?.lastError) return;
         const stored = data && data[LYRICS_CACHE_STORAGE_KEY];
         if (!stored || typeof stored !== "object") return;
         for (const [k, v] of Object.entries(stored)) {
@@ -385,7 +386,8 @@
     try {
       const obj = {};
       for (const [k, v] of STATE.lyricsCache.entries()) obj[k] = v;
-      chrome.storage.local.set({ [LYRICS_CACHE_STORAGE_KEY]: obj });
+      // Cache failure must not interrupt playback; consume lastError explicitly.
+      void checkedLocalStorageSet({ [LYRICS_CACHE_STORAGE_KEY]: obj }).catch(() => {});
     } catch (_) {}
   }
 

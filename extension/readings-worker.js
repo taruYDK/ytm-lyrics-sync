@@ -11,7 +11,7 @@ self.onmessage = async event => {
     const tokenizer = await tokenizerPromise;
     let tokens = cache.get(text);
     if (!tokens) {
-      tokens = tokenizer.tokenize(text).map(token=>({surface_form:token.surface_form,reading:token.reading}));
+      tokens = tokenizer.tokenize(text).map(token=>({surface_form:token.surface_form,reading:token.reading,pronunciation:token.pronunciation}));
       cache.set(text,tokens);
       if (cache.size>250) cache.delete(cache.keys().next().value);
     }

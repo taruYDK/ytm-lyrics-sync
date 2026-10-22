@@ -1,3 +1,23 @@
+const MAX_FETCH_RESPONSE_BYTES = 8 * 1024 * 1024;
+async function readLimitedResponse(response, controller) {
+  const tooLarge = async () => { controller.abort(); try { await response.body?.cancel(); } catch {} throw new Error('Response exceeds 8 MiB limit'); };
+  const size = Number(response.headers.get('Content-Length'));
+  if (Number.isFinite(size) && size > MAX_FETCH_RESPONSE_BYTES) return tooLarge();
+  if (!response.body) return '';
+  if (typeof response.body.getReader !== 'function') throw new Error('Streaming response unavailable');
+  const reader = response.body.getReader(), decoder = new TextDecoder();
+  let bytes = 0, text = '';
+  try {
+    while (true) {
+      const {done, value} = await reader.read();
+      if (done) break;
+      bytes += value.byteLength;
+      if (bytes > MAX_FETCH_RESPONSE_BYTES) { controller.abort(); await reader.cancel(); throw new Error('Response exceeds 8 MiB limit'); }
+      text += decoder.decode(value, {stream:true});
+    }
+    return text + decoder.decode();
+  } finally { reader.releaseLock(); }
+}
 importScripts('backup-validation.js', 'storage-broker.js', 'readings-service.js');
 // Cross-origin fetch helper for Manifest V3.
 // Provider-specific headers are isolated here to avoid CORS/preflight mistakes.
@@ -17,8 +37,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     "lyrics-api.boidu.dev",
     "lyrics.api.dacubeking.com",
     "unison.boidu.dev",
-    "lyrics-api.binimum.org",
-    "lyrics-storage.binimum.org",
+    "lrc.red",
   ]);
 
   (async () => {
@@ -65,14 +84,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         headers,
         cache: "no-store",
         signal: controller.signal,
-        credentials: message.credentials === "include" ? "include" : "omit",
+        redirect: "error",
+        credentials: url.hostname === "lyrics.api.dacubeking.com" && message.credentials === "include" ? "include" : "omit",
       };
       if (method !== "GET" && method !== "HEAD" && message.body != null) {
         init.body = String(message.body);
       }
 
       const response = await fetch(url.toString(), init);
-      const text = await response.text();
+      const text = await readLimitedResponse(response, controller);
       let data = text;
       if (message.responseType !== "text") {
         try { data = text ? JSON.parse(text) : null; }

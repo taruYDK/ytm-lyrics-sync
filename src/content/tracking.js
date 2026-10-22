@@ -26,7 +26,7 @@
 
   function clearTrackingVisuals() {
     if (!listEl) return;
-    listEl.querySelectorAll(".ytmls-active, .ytmls-near, .ytmls-far").forEach((el) => el.classList.remove("ytmls-active", "ytmls-near", "ytmls-far"));
+    listEl.querySelectorAll(".ytmls-active, .ytmls-near, .ytmls-middle, .ytmls-far, .ytmls-upcoming").forEach((el) => el.classList.remove("ytmls-active", "ytmls-near", "ytmls-middle", "ytmls-far", "ytmls-upcoming"));
     listEl.querySelectorAll(".ytmls-word").forEach((el) => {
       el.classList.remove("ytmls-word-sung", "ytmls-word-current");
       el.style.removeProperty("--ytmls-word-progress");
@@ -179,16 +179,16 @@
   }
 
   function updateHighlight(currentTime, force = false) {
-    if (!STATE.hasSync || !STATE.lines.length || !listEl) return;
+    if (!STATE.hasSync || !STATE.lines.length || !listEl) return false;
 
     // 曲切り替え直後のvideo要素は旧曲のcurrentTimeを一瞬保持する。
     // canTrackの解除直後にも古いtimeupdateが1回飛ぶことがあるため、
     // 呼び出し元から渡された時刻ではなく「今この瞬間のmedia.currentTime」を再読込し、
     // さらに次曲開始ガードで不自然な前方ジャンプを拒否する。
     const media = getVideoElement();
-    if (!canTrackCurrentPlayback(media)) return;
+    if (!canTrackCurrentPlayback(media)) return false;
     const safeCurrentTime = getGuardedPlaybackTime(media);
-    if (safeCurrentTime == null) return;
+    if (safeCurrentTime == null) return false;
 
     STATE.lastTrackingPulseAt = performance.now();
 
@@ -212,7 +212,9 @@
         const distance = idx >= 0 ? Math.abs(i - idx) : 999;
         children[i].classList.toggle("ytmls-active", isActive);
         children[i].classList.toggle("ytmls-near", !isActive && distance <= 1);
-        children[i].classList.toggle("ytmls-far", !isActive && distance > 1);
+        children[i].classList.toggle("ytmls-middle", !isActive && distance === 2);
+        children[i].classList.toggle("ytmls-upcoming", idx >= 0 && i > idx);
+        children[i].classList.toggle("ytmls-far", !isActive && distance > 2);
       }
 
       if (idx >= 0 && children[idx] && trackingAllowsAutoScroll()) {
@@ -242,8 +244,9 @@
         trackingRaf = requestAnimationFrame(frame);
       if (!STATE.enabled || !STATE.hasSync) return;
       const video = videoEl && videoEl.isConnected ? videoEl : getVideoElement();
-      if (!canTrackCurrentPlayback(video)) return;
-      updateHighlight(getAuthoritativePlaybackTime(video) || 0);
+      // updateHighlight performs the playback guard once for this frame.
+      if (updateHighlight(getAuthoritativePlaybackTime(video) || 0) === false) return;
+      if (typeof syncPracticeFullscreenTracking === "function") syncPracticeFullscreenTracking();
     };
 
     trackingRaf = requestAnimationFrame(frame);

@@ -1,6 +1,8 @@
-# YT Music 歌詞シンクロ 2.7.17
+# YT Music 歌詞シンクロ 2.8.0
 
-Music Glassの背景テーマを統合した正式版です。
+曲別の表示設定、全画面歌詞、ローマ字に対応した正式版です。Music Glassの背景テーマと、ベータ版で改善した操作性・安定性を統合しました。曲別設定は自動保存されます。
+
+[新機能の使い方・確認範囲](docs/PRACTICE.md)
 
 [背景テーマの設定](docs/MUSIC-GLASS.md)
 
@@ -10,7 +12,7 @@ Music Glassの背景テーマを統合した正式版です。
 
 **YouTube Musicに、追いかけやすい歌詞と読み仮名を。**
 
-![Version 2.7.17](https://img.shields.io/badge/version-2.7.17-f59e0b?style=flat-square)
+![Version 2.8.0](https://img.shields.io/badge/version-2.8.0-f59e0b?style=flat-square)
 ![Edge / Chrome](https://img.shields.io/badge/browser-Edge%20%2F%20Chrome-3b82f6?style=flat-square)
 ![Manifest V3](https://img.shields.io/badge/extension-Manifest%20V3-8b5cf6?style=flat-square)
 [![MIT License](https://img.shields.io/badge/license-MIT-f59e0b?style=flat-square)](LICENSE)

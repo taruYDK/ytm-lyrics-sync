@@ -10,7 +10,7 @@ test('cache writes coalesce and serialize the latest cache only once',()=>{
  vm.runInContext(read('src/content/lyrics-storage.js'),c);
  for(let i=0;i<4;i++){c.STATE.lyricsCache.set('song',{lines:[{text:String(i)}]});c.saveLyricsCacheToStorage();}
  assert.equal(timers.size,1);assert.equal(writes.length,0);[...timers.values()][0]();
- assert.equal(writes.length,1);assert.equal(writes[0].ytmlsLyricsCacheV198.song.lines[0].text,'3');
+ assert.equal(writes.length,1);assert.equal(writes[0].ytmlsLyricsCacheV232.song.lines[0].text,'3');
 });
 
 test('bridge throttles metadata, stops while disabled and resumes',()=>{
@@ -52,9 +52,11 @@ test('real dictionary initializes and tokenizes inside worker global without pag
  }
  const c=vm.createContext({URL,XMLHttpRequest:XHR,setTimeout,clearTimeout,Uint8Array,Uint16Array,Uint32Array,Int8Array,Int16Array,Int32Array,ArrayBuffer,DataView,console,location:{href:'https://local/extension/readings-worker.js'},postMessage:complete});
  c.self=c;c.importScripts=path=>vm.runInContext(read(path),c);
- vm.runInContext(read('readings-worker.js'),c);c.onmessage({data:{id:1,text:'今日'}});
+ vm.runInContext(read('readings-worker.js'),c);c.onmessage({data:{id:1,text:'今日、私は君へ愛を'}});
  const r=await result;assert.equal(r.ok,true);assert.equal(r.tokens[0].reading,'キョウ');
- assert.deepEqual(Object.keys(r.tokens[0]).sort(),['reading','surface_form']);
+ assert.deepEqual(Object.keys(r.tokens[0]).sort(),['pronunciation','reading','surface_form']);
+ assert.equal(r.tokens.find(t=>t.surface_form==='は').pronunciation,'ワ');
+ assert.equal(r.tokens.find(t=>t.surface_form==='へ').pronunciation,'エ');
 });
 
 test('bridge toggles current playback and rejects stale or disabled commands',()=>{

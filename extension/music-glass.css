@@ -90,27 +90,10 @@ html.music-glass::-webkit-scrollbar,
   background-color: transparent !important;
 }
 .music-glass ytmusic-player #song-image {
-  border-radius: 18px !important;
-  overflow: hidden;
   background: transparent !important;
   border: 0 !important;
   box-shadow: none !important;
   outline: none !important;
-}
-.music-glass ytmusic-player #song-image img {
-  display: block;
-  border-radius: 0 !important;
-  border: 0 !important;
-  box-shadow: none !important;
-}
-/* Clip only once, avoiding mismatched inner and outer curved edges. */
-.music-glass ytmusic-player #song-image yt-img-shadow {
-  border-radius: 0 !important;
-  background: transparent !important;
-  border: 0 !important;
-  outline: none !important;
-  box-shadow: none !important;
-  overflow: hidden;
 }
 /* Keep artwork as the hit target; capture handlers stop native playback clicks. */
 .music-glass ytmusic-player #song-image,
@@ -131,14 +114,7 @@ html.music-glass::-webkit-scrollbar,
   opacity: 1 !important;
 }
 /* Preserve the native lyrics panel geometry and tab typography at every width. */
-/* Move only the two desktop player panels, not the page/router or global bars.
-   Individual translate preserves native transforms and all measured dimensions. */
-@media (min-width: 1000px) and (min-height: 650px) {
-  .music-glass ytmusic-app-layout[player-ui-state="PLAYER_PAGE_OPEN"] ytmusic-player-page #main-panel,
-  .music-glass ytmusic-app-layout[player-ui-state="PLAYER_PAGE_OPEN"] ytmusic-player-page #side-panel {
-    translate: 0 -40px;
-  }
-}
+/* Jacket dimensions, clipping and panel positions remain native. */
 .music-glass ytmusic-player-page tp-yt-paper-tabs { --paper-tabs-selection-bar-color: #ffffffb0; }
 /* Lyrics typography and synchronization belong to YouTube Music / lyrics extensions. */
 .music-glass ytmusic-player-bar {
@@ -290,20 +266,6 @@ html.music-glass {
 @media (prefers-reduced-transparency: reduce) {
   .music-glass #music-glass-backdrop { display: none; }
   .music-glass ytmusic-player-bar { background: #24202b !important; backdrop-filter: none !important; }
-}
-
-/* Enlarge only static artwork while preserving native player/video geometry.
-   Compact windows retain the native size to protect the bars and lyrics. */
-@media (min-width: 800px) and (min-height: 650px) {
-  .music-glass ytmusic-app-layout[player-ui-state="PLAYER_PAGE_OPEN"] ytmusic-player #song-image {
-    scale: 1.03;
-    transform-origin: center;
-  }
-}
-@media (min-width: 1100px) and (min-height: 750px) {
-  .music-glass ytmusic-app-layout[player-ui-state="PLAYER_PAGE_OPEN"] ytmusic-player #song-image {
-    scale: 1.06;
-  }
 }
 
 /* Hide only scrollbars in the player page; keep overflow and scrolling intact.

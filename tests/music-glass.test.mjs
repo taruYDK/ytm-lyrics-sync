@@ -103,3 +103,14 @@ test('standalone theme reset includes dislike preference without requiring a mis
  vm.runInNewContext(fs.readFileSync(new URL('../extension/music-glass-settings.js',import.meta.url),'utf8'),{document:{getElementById:id=>nodes[id]},chrome:{runtime:{},storage:{local:{get:(d,f)=>f(d),set:(v,f)=>{saved=v;f();}}}}});
  nodes.reset.click();assert.equal(saved.musicGlassHideDislike,false);assert.equal(nodes.reset.disabled,false);
 });
+
+test('master switch restores saved theme preferences and respects individual theme OFF',()=>{
+ let changed,writes=0,removed=0;const classes={};
+ const doc={body:{prepend(el){el.parentNode=this;}},documentElement:{classList:{toggle:(k,v)=>classes[k]=v},style:{setProperty(){}}},addEventListener(){},querySelector(){return null;},createElement(){return {setAttribute(){},remove(){removed++;}};}};
+ const chrome={storage:{sync:{get:(d,f)=>f({enabled:false})},local:{get:(d,f)=>f({...d,musicGlassHideScrollbar:true,musicGlassHideDislike:true}),set(){writes++;}},onChanged:{addListener:f=>changed=f}}};
+ vm.runInNewContext(fs.readFileSync(new URL('../extension/music-glass.js',import.meta.url),'utf8'),{document:doc,chrome,setInterval(){},setTimeout(){},URL});
+ assert.equal(classes['music-glass'],false);assert.equal(classes['music-glass-hide-scrollbar'],false);assert.equal(classes['music-glass-hide-dislike'],false);
+ changed({enabled:{newValue:true}},'sync');assert.equal(classes['music-glass'],true);assert.equal(classes['music-glass-hide-scrollbar'],true);assert.equal(classes['music-glass-hide-dislike'],true);
+ changed({enabled:{newValue:false}},'sync');assert.equal(classes['music-glass'],false);assert.ok(removed>0);
+ changed({musicGlassEnabled:{newValue:false}},'local');changed({enabled:{newValue:true}},'sync');assert.equal(classes['music-glass'],false);assert.equal(classes['music-glass-hide-dislike'],true);assert.equal(writes,0);
+});

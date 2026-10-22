@@ -3,6 +3,8 @@
   const defaults = { musicGlassEnabled: true, musicGlassArtwork: true, musicGlassIntensity: 65, musicGlassHideScrollbar: false, musicGlassHideDislike: false, musicGlassLightweight: false };
   const root = document.documentElement;
   let settings = { ...defaults };
+  let extensionEnabled = true;
+  const themeEnabled = () => extensionEnabled && settings.musicGlassEnabled;
   let backdrop;
   let timer;
   let generation = 0;
@@ -10,6 +12,14 @@
   let lastArt = '';
   let artworkReady = false;
   const surfaces = new Map();
+  let surfaceFrame = 0;
+  function scheduleSurfacePaint() {
+    if (!themeEnabled() || document.hidden || surfaceFrame) return;
+    if (typeof requestAnimationFrame !== 'function') { paintSurfaces(); return; }
+    surfaceFrame = requestAnimationFrame(() => { surfaceFrame = 0; paintSurfaces(); });
+  }
+  const surfaceResizeObserver = typeof ResizeObserver === 'function'
+    ? new ResizeObserver(scheduleSurfacePaint) : null;
   let artworkHost;
   let artworkObserver;
   function artworkLoaded(event) {
@@ -30,7 +40,7 @@
     artworkObserver.observe(host, {subtree:true, childList:true, attributes:true, attributeFilter:['src','srcset']});
   }
   function paintSurfaces(tabsOnly = false) {
-    if (!settings.musicGlassEnabled) return;
+    if (!themeEnabled()) return;
     const width = globalThis.innerWidth, height = globalThis.innerHeight;
     if (!width || !height) return;
     const selectors = ['ytmusic-nav-bar', 'ytmusic-player-bar', 'ytmusic-player-page', 'ytmusic-browse-response ytmusic-tabs'];
@@ -44,6 +54,7 @@
         canvas.width = 192; canvas.height = 192;
         canvas.setAttribute('aria-hidden', 'true');
         host.prepend(canvas); surfaces.set(host, canvas);
+        surfaceResizeObserver?.observe(host);
       }
       // Layout coordinates do not move with the native opening transform.
       // Sampling a transitioning rectangle can crop outside the bitmap and cache
@@ -70,15 +81,19 @@
         context.drawImage(backdrop, sx, sy, sw, sh, 0, 0, 192, 192);
       }
     }
-    for (const [host, canvas] of surfaces) if (!host.isConnected) { canvas.remove(); surfaces.delete(host); }
+    for (const [host, canvas] of surfaces) if (!host.isConnected) { surfaceResizeObserver?.unobserve(host); canvas.remove(); surfaces.delete(host); }
   }
   let tabsFrame = false;
   document.addEventListener('scroll', () => {
-    if (tabsFrame || !settings.musicGlassEnabled || document.hidden || typeof requestAnimationFrame !== 'function') return;
+    if (tabsFrame || !themeEnabled() || document.hidden || typeof requestAnimationFrame !== 'function') return;
     tabsFrame = true;
     requestAnimationFrame(() => { tabsFrame = false; paintSurfaces(true); });
   }, {capture:true, passive:true});
-  globalThis.addEventListener?.('resize', paintSurfaces);
+  globalThis.addEventListener?.('resize', scheduleSurfacePaint);
+  document.addEventListener('transitionend', event => {
+    if (event.target?.matches?.('ytmusic-app-layout, ytmusic-player-page, ytmusic-nav-bar, #guide-wrapper, #mini-guide-background')) scheduleSurfacePaint();
+  });
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) scheduleSurfacePaint(); });
   document.addEventListener('yt-navigate-finish', paintSurfaces);
   const artSelectors = [
     'ytmusic-player-bar .thumbnail-image-wrapper img',
@@ -96,7 +111,7 @@
     if (document.hidden) return;
     watchArtwork();
     paintSurfaces();
-    if (document.hidden || !settings.musicGlassEnabled || !settings.musicGlassArtwork || settings.musicGlassLightweight) return;
+    if (document.hidden || !themeEnabled() || !settings.musicGlassArtwork || settings.musicGlassLightweight) return;
     const page = document.body;
     if (!page) return;
     if (!backdrop || backdrop.parentNode !== page) {
@@ -141,10 +156,10 @@
     }
   }
   function schedule() {
-    if (!timer && settings.musicGlassEnabled && settings.musicGlassArtwork && !settings.musicGlassLightweight) timer = setTimeout(() => { timer = null; update(); }, 0);
+    if (!timer && themeEnabled() && settings.musicGlassArtwork && !settings.musicGlassLightweight) timer = setTimeout(() => { timer = null; update(); }, 0);
   }
   function trimGuideAtPlayer() {
-    if (document.hidden || !settings.musicGlassEnabled) return;
+    if (document.hidden || !themeEnabled()) return;
     const player = document.querySelector?.('ytmusic-player-bar');
     if (!player?.getBoundingClientRect) return;
     const edge = player.getBoundingClientRect();
@@ -178,7 +193,7 @@
       }
     }
     let open = false;
-    if (settings.musicGlassEnabled && menu?.getClientRects && typeof getComputedStyle === 'function') {
+    if (themeEnabled() && menu?.getClientRects && typeof getComputedStyle === 'function') {
       const style = getComputedStyle(menu);
       open = menu.getClientRects().length > 0 && style.display !== 'none' && style.visibility !== 'hidden';
     }
@@ -187,19 +202,21 @@
   setInterval(syncExpandedControls, 1000);
   document.addEventListener('yt-navigate-finish', syncExpandedControls);
   function apply() {
-    root.classList.toggle('music-glass', settings.musicGlassEnabled);
+    root.classList.toggle('music-glass', themeEnabled());
     trimGuideAtPlayer();
     syncExpandedControls();
-    root.classList.toggle('music-glass-hide-scrollbar', settings.musicGlassHideScrollbar === true);
-    root.classList.toggle('music-glass-hide-dislike', settings.musicGlassHideDislike === true);
+    root.classList.toggle('music-glass-hide-scrollbar', extensionEnabled && settings.musicGlassHideScrollbar === true);
+    root.classList.toggle('music-glass-hide-dislike', extensionEnabled && settings.musicGlassHideDislike === true);
     root.style.setProperty('--mg-art-opacity', String(Math.max(0, Math.min(100, Number(settings.musicGlassIntensity) || 0)) / 100));
-    if (!settings.musicGlassEnabled || !settings.musicGlassArtwork || settings.musicGlassLightweight) { generation++; artworkReady = false; backdrop?.remove(); backdrop = null; lastArt = ''; }
+    if (!themeEnabled() || !settings.musicGlassArtwork || settings.musicGlassLightweight) { generation++; artworkReady = false; backdrop?.remove(); backdrop = null; lastArt = ''; }
     else update();
-    if (!settings.musicGlassEnabled) { for (const canvas of surfaces.values()) canvas.remove(); surfaces.clear(); }
+    if (!themeEnabled()) { surfaceResizeObserver?.disconnect(); for (const canvas of surfaces.values()) canvas.remove(); surfaces.clear(); }
     else paintSurfaces();
   }
+  chrome.storage.sync?.get({enabled:true}, stored => { extensionEnabled = stored.enabled !== false; apply(); });
   chrome.storage.local.get(defaults, stored => { settings = { ...defaults, ...stored }; apply(); });
   chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === 'sync' && changes.enabled) { extensionEnabled = changes.enabled.newValue !== false; apply(); return; }
     if (area !== 'local' || !Object.keys(defaults).some(key => changes[key])) return;
     for (const key of Object.keys(defaults)) if (changes[key]) settings[key] = changes[key].newValue ?? defaults[key];
     apply();
@@ -207,7 +224,7 @@
   // pointer-events:none lets clicks fall through to the native player.
   // Capture artwork activation before it reaches the player's handlers instead.
   function blockArtworkActivation(event) {
-    if (!settings.musicGlassEnabled) return;
+    if (!themeEnabled()) return;
     const path = event.composedPath?.() || [event.target];
     if (!path.some(node => node?.matches?.('ytmusic-player #song-image'))) return;
     if (event.type === 'keydown' && ![' ', 'Enter'].includes(event.key)) return;

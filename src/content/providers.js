@@ -90,16 +90,18 @@
   }
 
   function parseInlineTimedLrc(lrcText) {
-    const base = parseLRC(lrcText);
+    const base = parseLRC(lrcText, false);
     if (!base.length) return { lines: [], syncLevel: "none" };
-    const rawRows = String(lrcText || "").split(/\r?\n/).filter((x) => /\[\d{1,2}:\d{2}/.test(x));
+    const rawRows = String(lrcText || "").split(/\r?\n/).filter((x) => /\[\d{1,3}:\d{2}(?:\.\d{1,3})?\]/.test(x));
+    const globalOffset = lrcOffsetSeconds(lrcText);
     let bi = 0;
     for (const raw of rawRows) {
       if (!base[bi]) break;
-      const lineTags = [...raw.matchAll(/\[(\d{1,2}):(\d{2}(?:\.\d{1,3})?)\]/g)];
-      const expandedCount = Math.max(1, lineTags.length);
-      const content = raw.replace(/^\s*(?:\[\d{1,2}:\d{2}(?:\.\d{1,3})?\])+\s*/, "");
-      const tagRe = /<(\d{1,2}:\d{2}(?:\.\d+)?)>/g;
+      const lineTags = [...raw.matchAll(/\[(\d{1,3}):(\d{2}(?:\.\d{1,3})?)\]/g)];
+      if (!lineTags.length) continue; // No corresponding parseLRC row was consumed.
+      const expandedCount = lineTags.length;
+      const content = raw.replace(/^\s*(?:\[\d{1,3}:\d{2}(?:\.\d{1,3})?\])+\s*/, "");
+      const tagRe = /<(\d{1,3}:\d{2}(?:\.\d+)?)>/g;
       const matches = [...content.matchAll(tagRe)];
       if (matches.length >= 2) {
         const words = [];
@@ -112,17 +114,17 @@
           }
         }
         if (words.length) {
-          const firstLineTime = Number(base[bi].time);
+          const firstLineTime = Number(lineTags[0][1]) * 60 + Number(lineTags[0][2]);
           for (let copyIndex = 0; copyIndex < expandedCount; copyIndex++) {
             const line = base[bi + copyIndex];
             if (!line) continue;
             const shift = Number.isFinite(firstLineTime) && Number.isFinite(line.time)
-              ? line.time - firstLineTime
+              ? Number(lineTags[copyIndex][1]) * 60 + Number(lineTags[copyIndex][2]) - firstLineTime + globalOffset
               : 0;
             line.words = words.map((word) => ({
               ...word,
-              time: word.time + shift,
-              end: word.end + shift,
+              time: Math.max(0, word.time + shift),
+              end: Math.max(0, word.end + shift),
             }));
             line.time = line.words[0].time;
             line.end = line.words[line.words.length - 1].end;
@@ -132,6 +134,8 @@
       }
       bi += expandedCount;
     }
+    base.sort((a,b) => a.time - b.time);
+    base.forEach((line,index) => { if (!line.words.length) line.end = base[index+1]?.time ?? null; });
     const hasWords = base.some((line) => line.words && line.words.length);
     return { lines: base, syncLevel: hasWords ? "word" : "line" };
   }
@@ -282,8 +286,7 @@
     if (duration) p.set("duration", String(Math.round(duration)));
     p.set("alwaysFetchMetadata", "true");
 
-    const savedJwt = await storageLocalGet(BETTER_LYRICS_JWT_KEY);
-    if (typeof savedJwt === "string" && savedJwt) p.set("token", savedJwt);
+    // Legacy GET is unauthenticated: never put a JWT in a URL.
 
     const res = await fetchJson(BETTER_LYRICS_V2_BASE + "lyrics?" + p.toString(), {
       credentials: "include",
@@ -437,7 +440,7 @@
       const p = new URLSearchParams({ track: x.title, artist: x.artist });
       if (info.album) p.set("album", info.album);
       if (duration) p.set("duration", String(Math.round(duration)));
-      const res = await fetchJson(`https://lyrics-api.binimum.org/?${p.toString()}`);
+      const res = await fetchJson(`https://lrc.red/api/v1?${p.toString()}`);
       if (!res.ok || !res.data || !Array.isArray(res.data.results) || !res.data.results.length) {
         await sleep(100);
         continue;
@@ -450,7 +453,7 @@
       }
 
       const lyricsUrl = best.lyricsUrl || best.lyrics_url || "";
-      if (!/^https:\/\/lyrics-storage\.binimum\.org\//i.test(lyricsUrl)) {
+      if (!/^https:\/\/lrc\.red\/s\//i.test(lyricsUrl)) {
         await sleep(100);
         continue;
       }

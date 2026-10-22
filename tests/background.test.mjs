@@ -9,7 +9,7 @@ function harness() {
   const requests=[],timeouts=[];
   const chrome={runtime:{id:'self',getManifest:()=>manifest,onMessage:{addListener:fn=>{handler=fn;}}}};
   vm.runInNewContext(readFileSync(new URL('../extension/background.js',import.meta.url),'utf8'),{
-    chrome, importScripts(){}, URL, AbortController, setTimeout:(fn,ms)=>{timeouts.push(ms);return setTimeout(fn,ms);}, clearTimeout,
+    chrome, importScripts(){}, URL, AbortController, TextEncoder, TextDecoder, setTimeout:(fn,ms)=>{timeouts.push(ms);return setTimeout(fn,ms);}, clearTimeout,
     fetch:async(url,init)=>{requests.push({url,init});return {ok:true,status:200,text:async()=>'{}',headers:{get:()=>null}};},
   });
   return {requests,timeouts,send:(message,sender={id:'self'})=>new Promise(resolve=>handler({type:'YTMLS_FETCH',...message},sender,resolve))};
@@ -42,7 +42,7 @@ test('unknown content types and CRLF cannot inject headers',async()=>{
 test('untrusted sender, HTTP and unapproved hostname never reach fetch',async()=>{
   const h=harness();
   assert.equal((await h.send({url:'https://lrclib.net/api/search'},{id:'other'})).ok,false);
-  for(const url of ['http://lrclib.net/api/search','https://lrclib.net.evil.example/','https://example.com/']){
+  for(const url of ['http://lrclib.net/api/search','https://lrclib.net.evil.example/','https://example.com/','https://lyrics-api.binimum.org/','https://lyrics-storage.binimum.org/']){
     assert.equal((await h.send({url})).ok,false);
   }
   assert.equal(h.requests.length,0);
@@ -52,4 +52,10 @@ test('fetch timeout: finite bounds and safe defaults',async()=>{
  for(const [input,expected] of [[undefined,25000],[0,25000],[-1,25000],[Infinity,25000],['bad',25000],[10,1000],[15000,15000],[1e12,60000]]) {
    const h=harness();await h.send({url:'https://lrclib.net/api/search',timeoutMs:input});assert.equal(h.timeouts[0],expected);
  }
+});
+
+test('only the canonical BiniLyrics host remains permitted',async()=>{
+ for(const old of ['https://lyrics-api.binimum.org/*','https://lyrics-storage.binimum.org/*']) assert(!manifest.host_permissions.includes(old));
+ assert(manifest.host_permissions.includes('https://lrc.red/*'));
+ const h=harness();assert.equal((await h.send({url:'https://lrc.red/api/v1?track=test'})).ok,true);assert.equal(h.requests.length,1);
 });

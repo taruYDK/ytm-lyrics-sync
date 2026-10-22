@@ -1,7 +1,7 @@
 // All user-data mutations run in one service-worker queue, including other tabs.
 const USER_DATA_KEYS = [
   'ytmlsTrackTimingOffsetsV174', 'ytmlsManualSearchOverridesV190',
-  'ytmlsLyricsEditsV199', 'ytmlsPinnedLyricsV200', 'ytmlsLocalLyricsV200', 'ytmlsManualReadingsV256',
+  'ytmlsLyricsEditsV199', 'ytmlsPinnedLyricsV200', 'ytmlsLocalLyricsV200', 'ytmlsManualReadingsV256', 'ytmlsTrackDisplayV280',
 ];
 let userDataQueue = Promise.resolve();
 const userUndo = new Map();
@@ -105,13 +105,14 @@ async function mutateUserData(message) {
       endOffsetMs: points[points.length - 1].offsetMs,
       title: String(message.title || entry?.title || ''), artist: String(message.artist || entry?.artist || ''), updatedAt: Date.now(),
     };
+    if (Object.prototype.hasOwnProperty.call(next[key],id)) YTMLSBackupValidation.local({[key]:{[id]:next[key][id]}});
     changed[key] = next[key];
   } else if (message.action === 'restore') {
     YTMLSBackupValidation.local(message.data);
     for (const key of USER_DATA_KEYS) {
       if (Object.prototype.hasOwnProperty.call(message.data || {}, key)) {
         if (!isMap(message.data[key])) throw new Error('保存データの形式が不正です。');
-        changed[key] = message.data[key];
+        changed[key] = message.merge === true ? {...(await localDataCall('get', [key]))[key], ...message.data[key]} : message.data[key];
       }
     }
   } else if (message.action === 'deleteTracks') {
@@ -130,7 +131,7 @@ async function mutateUserData(message) {
     }
     for (const key of USER_DATA_KEYS.slice(2)) changed[key] = next[key];
   } else if (message.action === 'entry' && safeId && USER_DATA_KEYS.includes(message.key)) {
-    if (message.key === 'ytmlsManualReadingsV256' && message.entry != null) YTMLSBackupValidation.local({[message.key]:{[id]:message.entry}});
+    if (message.entry != null) YTMLSBackupValidation.local({[message.key]:{[id]:message.entry}});
     if (message.entry == null) delete next[message.key][id];
     else {
       if (!isMap(message.entry)) throw new Error('保存データの形式が不正です。');
@@ -155,6 +156,7 @@ async function mutateUserData(message) {
     track.updatedAt = Date.now();
     if (Object.keys(track.candidates).length) next.ytmlsLyricsEditsV199[id] = track;
     else delete next.ytmlsLyricsEditsV199[id];
+    if (message.entry != null) YTMLSBackupValidation.local({ytmlsLyricsEditsV199:{[id]:track}});
     changed.ytmlsLyricsEditsV199 = next.ytmlsLyricsEditsV199;
   } else throw new Error('未対応の保存操作です。');
   await localDataCall('set', changed);
@@ -173,6 +175,12 @@ chrome.runtime.onMessage.addListener((message, sender, respond) => {
   const operation = userDataQueue.then(() => mutateUserData(message));
   // One failed operation must not poison subsequent saves.
   userDataQueue = operation.catch(() => {});
-  operation.then(respond, error => respond({ ok: false, error: error.message }));
+  operation.then(respond, error => respond({ ok: false, error: message.action === 'restore' ? error.message : String(error.message).replace('バックアップの形式が不正です:', '保存する曲データの形式が不正です:') }));
   return true;
 });
+
+// Run once per worker startup; after removal, later startups only read this key.
+userDataQueue = userDataQueue.then(async () => {
+  const bytes = await localDataCall('getBytesInUse', ['ytmlsLyricsCacheV198']);
+  if (bytes > 0) await localDataCall('remove', ['ytmlsLyricsCacheV198']);
+}).catch(() => {});

@@ -12,8 +12,8 @@ test('rich LRC: repeated tags retain words after chronological sorting', () => {
 });
 test('rich LRC: three-digit minutes and offsets also apply to words', () => {
   const {lines} = parse('[offset:1000]\n[100:00]long\n<long:6000:6001>');
-  assert.equal(lines[0].words[0]?.time, 6001);
-  assert.equal(lines[0].words[0]?.end, 6002);
+  assert.equal(lines[0].words[0]?.time, 5999);
+  assert.equal(lines[0].words[0]?.end, 6000);
 });
 test('rich LRC: malformed word times cannot produce NaN', () => {
   const result = parse('[00:10]A\n<A:1.2.3:11>');

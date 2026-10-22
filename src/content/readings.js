@@ -12,8 +12,9 @@
   }
 
   function getEnglishReadings() {
-    if (!englishReadingsPromise) englishReadingsPromise = fetch(chrome.runtime.getURL('vendor/readings/english.json'))
-      .then(response => { if (!response.ok) throw new Error('英語辞書を読み込めません'); return response.json(); });
+    if (!englishReadingsPromise) englishReadingsPromise = chrome.runtime.sendMessage({type:'YTMLS_ENGLISH_READINGS'})
+      .then(response => { if (!response?.ok || !response.dictionary) throw new Error(response?.error || '英語辞書を読み込めません'); return response.dictionary; })
+      .catch(error => { englishReadingsPromise = null; throw error; });
     return englishReadingsPromise;
   }
 
@@ -66,7 +67,7 @@
     }
     ensureReadingEditButton();
     showLyricsReadingStatus('');
-    if ((!ja && !en) || !lines.length) { scheduleTrackingRealignment(); return; }
+    if ((!ja && !en) || !lines.length) { scheduleTrackingRealignment(); if (typeof refreshPracticeExtras === "function") void refreshPracticeExtras(); return; }
     const texts = lines.map(line => editableLineText(line) || '♪');
     const needsJapanese = ja && texts.some(text => /[\p{Script=Han}々〆ヶ]/u.test(text));
     const needsEnglish = en && texts.some(text => /[A-Za-z]/.test(text));
@@ -98,9 +99,9 @@
           ].sort((a,b) => a.start - b.start);
           // A Japanese token may contain Latin letters: prefer its contextual reading.
           ranges = ranges.filter((range, i, all) => !all.slice(0,i).some(previous => previous.end > range.start));
+          lyricsReadingCache.set(key, ranges);
+          if (lyricsReadingCache.size > 250) lyricsReadingCache.delete(lyricsReadingCache.keys().next().value);
         } catch (_) { skipped = true; ranges = []; }
-        lyricsReadingCache.set(key, ranges);
-        if (lyricsReadingCache.size > 250) lyricsReadingCache.delete(lyricsReadingCache.keys().next().value);
       }
       const automatic = ranges;
       const occurrence = texts.slice(0,index).filter(t => t === text).length;
@@ -118,6 +119,7 @@
       if (index % 8 === 7) await new Promise(resolve => setTimeout(resolve, 0));
     }
     if (!current()) return;
+    if (typeof refreshPracticeExtras === 'function') void refreshPracticeExtras();
     const failed = japanese.status === 'rejected' || english.status === 'rejected' || manual.status === 'rejected';
     showLyricsReadingStatus(failed ? '辞書または保存済みの読み仮名を読み込めませんでした。ページを再読み込みしてください。'
       : skipped ? '長い行など、一部の読み仮名を省略しました。' : '');

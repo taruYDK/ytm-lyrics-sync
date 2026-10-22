@@ -3,29 +3,30 @@ import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import {readFileSync} from 'node:fs';
 function harness(){
- let handler,fail=false;const store={};
+ let handler,fail=false;const store={},removals=[];
  const chrome={runtime:{id:'self',onMessage:{addListener:fn=>{handler=fn;}}},storage:{local:{
   get(keys,cb){const snapshot=Object.fromEntries((keys || Object.keys(store)).filter(k=>k in store).map(k=>[k,structuredClone(store[k])]));setTimeout(()=>cb(snapshot),1);},
-  remove(keys,cb){for(const key of keys) delete store[key];cb();},
+  getBytesInUse(keys,cb){cb(keys.reduce((n,key)=>n+(key in store?JSON.stringify(store[key]).length+key.length:0),0));},
+  remove(keys,cb){removals.push([...keys]);for(const key of keys) delete store[key];cb();},
   set(data,cb){setTimeout(()=>{if(fail){fail=false;chrome.runtime.lastError={message:'quota'};cb();delete chrome.runtime.lastError;}else{Object.assign(store,structuredClone(data));cb();}},1);},
  }}};
  const context=vm.createContext({chrome});
  vm.runInContext(readFileSync(new URL('../extension/backup-validation.js',import.meta.url),'utf8'),context);
  vm.runInContext(readFileSync(new URL('../extension/storage-broker.js',import.meta.url),'utf8'),context);
- return {store,failNext:()=>{fail=true;},send:payload=>new Promise(resolve=>handler({type:'YTMLS_USER_DATA',...payload},{id:'self'},resolve))};
+ return {store,removals,failNext:()=>{fail=true;},send:payload=>new Promise(resolve=>handler({type:'YTMLS_USER_DATA',...payload},{id:'self'},resolve))};
 }
 test('storage: concurrent requests preserve separate songs and last-request order',async()=>{
  const h=harness(),key='ytmlsPinnedLyricsV200';
- const results=await Promise.all(Array.from({length:20},(_,i)=>h.send({action:'entry',key,videoId:'song'+i,entry:{candidateId:'A'}})));
+ const results=await Promise.all(Array.from({length:20},(_,i)=>h.send({action:'entry',key,videoId:'song'+i,entry:{candidateId:'A',result:{lines:[{time:0,text:'a'}]}}})));
  assert(results.every(r=>r.ok));assert.equal(Object.keys(h.store[key]).length,20);
- await Promise.all(['A','B','C'].map(candidateId=>h.send({action:'entry',key,videoId:'same',entry:{candidateId}})));
+ await Promise.all(['A','B','C'].map(candidateId=>h.send({action:'entry',key,videoId:'same',entry:{candidateId,result:{lines:[{time:0,text:'a'}]}}})));
  assert.equal(h.store[key].same.candidateId,'C');
 });
 test('storage: failed write does not poison queue; deleting one song does not remove others',async()=>{
  const h=harness(),key='ytmlsLocalLyricsV200';
- h.failNext();assert.equal((await h.send({action:'entry',key,videoId:'fail',entry:{rawLrc:'x'}})).ok,false);
- await h.send({action:'entry',key,videoId:'keep',entry:{rawLrc:'x'}});
- await h.send({action:'entry',key,videoId:'delete',entry:{rawLrc:'x'}});
+ h.failNext();assert.equal((await h.send({action:'entry',key,videoId:'fail',entry:{rawLrc:'[00:00]x'}})).ok,false);
+ await h.send({action:'entry',key,videoId:'keep',entry:{rawLrc:'[00:00]x'}});
+ await h.send({action:'entry',key,videoId:'delete',entry:{rawLrc:'[00:00]x'}});
  await h.send({action:'deleteTracks',videoIds:['delete']});
  assert(h.store[key].keep);assert(!h.store[key].delete);assert(!h.store[key].fail);
 });
@@ -117,7 +118,7 @@ test('manual readings: migration marker prevents full reads and replies contain 
 
 test('undo: lyrics edits restore prior values without affecting another song',async()=>{
  const h=harness(),key='ytmlsLyricsEditsV199';
- const save=(id,text)=>h.send({action:'edit',videoId:id,candidateId:'a',entry:{replacements:{0:text}},captureUndo:true});
+ const save=(id,text)=>h.send({action:'edit',videoId:id,candidateId:'a',entry:{originalLineCount:1,replacements:{0:text}},captureUndo:true});
  await save('song','before');const result=await save('song','after');await save('other','keep');
  assert(result.undoToken);assert.equal((await h.send({action:'undo',token:result.undoToken})).ok,true);
  assert.equal(h.store[key].song.candidates.a.replacements[0],'before');assert.equal(h.store[key].other.candidates.a.replacements[0],'keep');
@@ -152,4 +153,41 @@ test('manual readings: invalid legacy entries do not block valid songs or repeat
  assert.equal(h.store.ytmls_manual_readings_good,undefined);
  assert.equal(h.store.ytmlsReadingsMigratedV262,true);
  assert.equal((await h.send({action:'migrateReadings'})).ok,true);
+});
+
+test('practice data: validation, restore and track deletion include display preferences and translations',async()=>{
+ const h=harness(),key='ytmlsTrackDisplayV280',entry={settings:{fontSize:48,readingJapanese:false,readingEnglish:true,showTranslation:true,showRomaji:false},translations:[{text:'原文',translation:'translation',occurrence:0}]};
+ assert.equal((await h.send({action:'entry',key,videoId:'song',entry})).ok,true);
+ assert.equal((await h.send({action:'entry',key,videoId:'bad',entry:{settings:{fontSize:Infinity}}})).ok,false);
+ assert.equal((await h.send({action:'entry',key,videoId:'bad',entry:{translations:[{text:'a',translation:'b',occurrence:-1}]}})).ok,false);
+ const backup=structuredClone({[key]:{song:entry}});await h.send({action:'deleteTracks',videoIds:['song']});assert(!h.store[key].song);
+ assert.equal((await h.send({action:'restore',data:backup})).ok,true);assert.deepEqual(h.store[key].song,entry);
+});
+
+test('normal saves reject unrestorable pins, local lyrics, edits and timings without altering storage',async()=>{
+ const h=harness(),before=structuredClone(h.store);
+ for(const [key,entry]of [['ytmlsPinnedLyricsV200',{candidateId:'a',result:{lines:[{time:0,text:'a',words:[{time:-1,end:1,text:'a'}]}]}}],['ytmlsLocalLyricsV200',{rawLrc:'no timestamps'}],['ytmlsTrackTimingOffsetsV174',{offsetMs:Infinity}]]){
+   assert.equal((await h.send({action:'entry',key,videoId:'bad',entry})).ok,false);assert.deepEqual(h.store,before);
+ }
+ assert.equal((await h.send({action:'edit',videoId:'bad',candidateId:'a',entry:{originalLineCount:1,replacements:{3:'bad'}}})).ok,false);assert.deepEqual(h.store,before);
+ const good={originalLineCount:1,replacements:{0:'good'}};assert.equal((await h.send({action:'edit',videoId:'good',candidateId:'a',entry:good})).ok,true);
+ const backup=structuredClone(h.store);assert.equal((await h.send({action:'restore',data:backup})).ok,true);
+});
+
+test('partial restore merges accepted songs and leaves skipped existing songs intact',async()=>{
+ const h=harness(),key='ytmlsLocalLyricsV200';h.store[key]={bad:{rawLrc:'[00:00]old'},keep:{rawLrc:'[00:00]keep'}};
+ const r=await h.send({action:'restore',merge:true,data:{[key]:{good:{rawLrc:'[00:00]good'}}}});assert.equal(r.ok,true);
+ assert.equal(h.store[key].bad.rawLrc,'[00:00]old');assert.equal(h.store[key].keep.rawLrc,'[00:00]keep');assert.equal(h.store[key].good.rawLrc,'[00:00]good');
+});
+
+test('startup removes only the legacy cache, leaving current cache and user songs intact',async()=>{
+ const h=harness();h.store.ytmlsLyricsCacheV198={old:{lines:[{text:'old'}]}};h.store.ytmlsLyricsCacheV232={current:{lines:[{text:'current'}]}};h.store.ytmlsLocalLyricsV200={song:{rawLrc:'[00:00]keep'}};
+ await h.send({action:'entry',key:'ytmlsTrackTimingOffsetsV174',videoId:'song',entry:{offsetMs:100}});
+ assert.equal(h.store.ytmlsLyricsCacheV198,undefined);assert(h.store.ytmlsLyricsCacheV232.current);assert.equal(h.store.ytmlsLocalLyricsV200.song.rawLrc,'[00:00]keep');
+ await h.send({action:'entry',key:'ytmlsTrackTimingOffsetsV174',videoId:'song',entry:{offsetMs:200}});assert.equal(h.removals.filter(keys=>keys.includes('ytmlsLyricsCacheV198')).length,1);
+ const fresh=harness();await fresh.send({action:'entry',key:'ytmlsTrackTimingOffsetsV174',videoId:'song',entry:{offsetMs:0}});assert.equal(fresh.removals.length,0);
+});
+test('normal-save validation uses save wording while restore keeps backup wording',async()=>{
+ const h=harness();const result=await h.send({action:'edit',videoId:'song',candidateId:'x',entry:{originalLineCount:0,replacements:{1:'bad'}}});assert.equal(result.ok,false);assert.match(result.error,/保存する曲データ/);assert.doesNotMatch(result.error,/バックアップ/);
+ const restored=await h.send({action:'restore',data:{ytmlsLocalLyricsV200:{bad:{rawLrc:4}}}});assert.match(restored.error,/バックアップ/);
 });

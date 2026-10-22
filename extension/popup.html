@@ -51,6 +51,12 @@
   .data-button { display:block; width:100%; padding:10px 12px; border:1px solid rgba(255,255,255,.13); border-radius:9px; background:var(--card2); color:var(--text); font-size:12px; font-weight:700; text-align:center; text-decoration:none; }
   .data-button:hover { border-color:rgba(255,61,79,.65); }
   .footer-note { padding:0 3px; color:#858b94; font-size:10.5px; line-height:1.55; }
+  .glass-details { margin-top:10px; border-top:1px solid var(--border); }
+  .glass-details summary { padding:12px 0 0; cursor:pointer; font-size:13px; font-weight:700; }
+  .glass-details summary .hint { display:block; padding-left:16px; font-weight:400; }
+  .glass-details-body { padding-top:14px; font-size:12px; }
+  .threshold-control { display:flex; align-items:center; gap:5px; flex-shrink:0; font-size:12px; }
+  #backupReminderThreshold { width:75px; border:1px solid var(--border); border-radius:9px; padding:8px; background:var(--card2); color:var(--text); }
 </style>
 <style>
   #backupReminder { padding:10px; border:1px solid #c6a65f; border-radius:8px; color:#ffe6a1; font-size:12px; }
@@ -62,13 +68,14 @@
 <body>
   <div class="header">
     <div><h1>YT Music 歌詞シンクロ</h1><div class="version" id="extensionVersion"></div></div>
-    <label class="switch" title="拡張機能を有効/無効"><input type="checkbox" id="enabledToggle" aria-label="拡張機能を有効にする" /><span class="slider"></span></label>
+    <label class="switch" title="歌詞・背景テーマをまとめてON/OFF"><input type="checkbox" id="enabledToggle" aria-label="歌詞と背景テーマをまとめて有効にする" /><span class="slider"></span></label>
   </div>
 
   <nav class="settings-nav" aria-label="設定カテゴリ"><a href="#settings-display">表示</a><a href="#settings-tracking">追跡</a><a href="#settings-reading">読み仮名</a><a href="#settings-theme">背景</a><a href="#settings-providers">提供元</a><a href="#settings-data">データ</a></nav>
-  <p class="save-note">設定は変更すると自動保存されます</p>
+  <p class="save-note">一番上のスイッチで歌詞・背景をまとめてON/OFFできます。設定は自動保存されます。</p>
   <section class="section" id="settings-display" aria-label="表示">
     <div class="section-title">表示</div>
+    <p class="info">ここでは共通設定を変更します。曲ごとの文字サイズ・読み・訳・ローマ字は、歌詞の「その他 → この曲の表示設定」から保存できます。</p>
     <div class="setting-row">
       <div class="label-block"><div class="label">文字サイズ</div><div class="hint">歌詞本文の大きさ</div></div>
       <select id="fontSizeSelect" aria-label="文字サイズ"><option value="26">26px 小さめ</option><option value="28">28px</option><option value="32">32px 標準</option><option value="36">36px</option><option value="40">40px 大きめ</option></select>
@@ -124,12 +131,30 @@
     <div class="section-title">データ保護</div>
     <div class="hint" style="margin-bottom:9px;">曲ごとの補正値、固定した歌詞、追加・作成したローカル歌詞、書き換えた歌詞、表示設定をファイルに保存して復元できます。</div>
     <p id="savedDataSummary">保存データを確認中…</p>
+    <div class="setting-row"><div class="label-block"><label class="label" for="backupReminderThreshold">バックアップ通知の曲数</label><div class="hint">書き出し後に保存・更新した曲が、この数に達すると通知（標準20曲）</div></div><div class="threshold-control"><input id="backupReminderThreshold" type="number" min="1" max="1000" step="1" value="20" disabled><span>曲</span></div></div>
+    <p id="backupReminderSettingsStatus" class="hint" role="status"></p>
     <p id="backupReminder" role="status" hidden></p>
     <a class="data-button" href="backup.html#dataManager" target="_blank" rel="noopener">お気に入り・編集履歴を開く</a>
     <a class="data-button" href="backup.html" target="_blank" rel="noopener">バックアップ・復元・管理を開く</a>
   </section>
 
-  <section class="section" id="settings-theme" aria-label="Music Glass"><div class="section-title">Music Glass</div><div class="setting-row"><span>背景・テーマ</span><div class="glass-toggle-control"><span id="musicGlassQuickState" aria-hidden="true">読込中</span><label class="switch glass-switch"><input type="checkbox" id="musicGlassQuickToggle" aria-label="Music Glassの背景・テーマを有効にする" disabled><span class="slider"></span></label></div></div><label class="setting-row" style="margin-top:12px;font-size:12px"><span>再生画面のスクロールバーを隠す</span><input id="musicGlassScrollbarToggle" type="checkbox" disabled style="width:18px;height:18px;accent-color:var(--accent)"></label><label class="setting-row" style="margin-top:12px;font-size:12px"><span>ジャケットを背景に使う</span><input id="musicGlassArtworkToggle" type="checkbox" disabled style="width:18px;height:18px;accent-color:var(--accent)"></label><label class="setting-row" style="margin-top:12px;font-size:12px"><span>再生バーの低評価ボタンを隠す</span><input id="musicGlassDislikeToggle" type="checkbox" disabled style="width:18px;height:18px;accent-color:var(--accent)"></label><p id="musicGlassQuickStatus" role="status" class="hint"></p><div class="setting-row"><label for="musicGlassIntensity">背景画像の濃さ</label><output id="musicGlassIntensityValue" for="musicGlassIntensity">65%</output></div><input id="musicGlassIntensity" type="range" min="0" max="100" step="5" value="65" disabled style="width:100%;margin:12px 0;accent-color:var(--accent)"><button id="musicGlassReset" type="button" class="data-button" disabled>テーマ設定を初期値に戻す</button><p class="hint">自動保存されます。リセットはテーマ設定だけに適用します。</p></section>
+  <section class="section" id="settings-theme" aria-label="Music Glass">
+    <div class="section-title">Music Glass</div>
+    <div class="setting-row"><span>背景・テーマ</span><div class="glass-toggle-control"><span id="musicGlassQuickState" aria-hidden="true">読込中</span><label class="switch glass-switch"><input type="checkbox" id="musicGlassQuickToggle" aria-label="Music Glassの背景・テーマを有効にする" disabled><span class="slider"></span></label></div></div>
+    <p id="musicGlassQuickStatus" role="status" class="hint"></p>
+    <details class="glass-details">
+      <summary>表示の詳細設定<span class="hint">スクロールバー・ジャケット・低評価など</span></summary>
+      <div class="glass-details-body">
+        <div class="setting-row"><label for="musicGlassScrollbarToggle">再生画面のスクロールバーを隠す</label><label class="switch small glass-switch"><input id="musicGlassScrollbarToggle" type="checkbox" disabled><span class="slider"></span></label></div>
+        <div class="setting-row"><label for="musicGlassArtworkToggle">ジャケットを背景に使う</label><label class="switch small glass-switch"><input id="musicGlassArtworkToggle" type="checkbox" disabled><span class="slider"></span></label></div>
+        <div class="setting-row"><label for="musicGlassDislikeToggle">再生バーの低評価ボタンを隠す</label><label class="switch small glass-switch"><input id="musicGlassDislikeToggle" type="checkbox" disabled><span class="slider"></span></label></div>
+        <div class="setting-row"><label for="musicGlassIntensity">背景画像の濃さ</label><output id="musicGlassIntensityValue" for="musicGlassIntensity">65%</output></div>
+        <input id="musicGlassIntensity" type="range" min="0" max="100" step="5" value="65" disabled style="width:100%;margin:12px 0;accent-color:var(--accent)">
+        <button id="musicGlassReset" type="button" class="data-button" disabled>テーマ設定を初期値に戻す</button>
+        <p class="hint">自動保存されます。リセットはテーマ設定だけに適用します。</p>
+      </div>
+    </details>
+  </section>
   <div class="footer-note">自動表示ONでは、「次のコンテンツ」表示中の最後のクリック・キー操作・スクロールから2秒間何もしなければ歌詞へ移動します。手動スクロール後は設定した待ち時間で現在位置へ戻ります。追跡停止や曲ID不一致を検出した場合は自動復旧します。</div>
   <script src="backup-reminder.js"></script>
   <script src="popup.js"></script>

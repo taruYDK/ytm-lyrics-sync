@@ -65,8 +65,8 @@
     const offsetMatch = (lrcText || "").match(/\[offset:([+-]?\d+(?:\.\d+)?)\]/i);
     if (offsetMatch) {
       const raw = Number(offsetMatch[1]);
-      // LRC標準はms。ただし一部ソースは秒小数を返すため、小さい小数は秒として扱う。
-      globalOffset = Number.isFinite(raw) ? (Math.abs(raw) < 20 && String(offsetMatch[1]).includes(".") ? raw : raw / 1000) : 0;
+      // Standard LRC offset is milliseconds: positive means earlier lyrics.
+      globalOffset = Number.isFinite(raw) ? -raw / 1000 : 0;
     }
 
     return globalOffset;

@@ -8,3 +8,5 @@
 - 英語辞書再生成：node scripts/build-readings.mjs。変換処理はsrc/core/readings.mjs。
 
 辞書とコードは拡張フォルダー内からのみ読み込み、歌詞本文を送信しない。
+
+原文のreadings/cmudict.dict.gzと再生成用scripts/build-readings.mjsは開発用ソースにあります。配布ZIPには変換済みenglish.jsonとライセンスを同梱しています。

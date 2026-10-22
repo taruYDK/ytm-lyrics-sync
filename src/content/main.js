@@ -1,6 +1,7 @@
   // ---------- メイン ----------
   function tick() {
     if (document.hidden || !runtimeAvailable()) return;
+    if (typeof practiceTick === "function") practiceTick();
     updateLyricsTheme();
     ensureLyricsMount();
     ensureVideoListener();
@@ -46,6 +47,7 @@
     });
     bindAutoLyricsIdleInteractionWatch();
     loadSettings();
+    initPracticeStorage();
     loadTrackTimingOffsets();
     loadLyricsCacheFromStorage();
     loadManualSearchOverrides();
