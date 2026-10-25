@@ -1,0 +1,53 @@
+/* Hover feedback only for the player header, not lyrics or the bottom bar. */
+html.music-glass ytmusic-player-page tp-yt-paper-tab,
+html.music-glass ytmusic-player-page ytmusic-av-toggle :is(.song-button,.video-button),
+html.music-glass ytmusic-player-page #ytmls-tools > .ytmls-tool-button,
+html.music-glass ytmusic-player-page #ytmls-more > summary.ytmls-tool-button {
+  opacity:.48;
+  transition:opacity .16s ease,background-color .14s ease,color .14s ease;
+}
+html.music-glass ytmusic-player-page tp-yt-paper-tab:not([disabled]):not([aria-disabled="true"]):is(:hover,:focus-visible) {
+  background-color:rgba(255,255,255,.1) !important;
+  color:#fff !important;
+}
+html.music-glass ytmusic-player-page tp-yt-paper-tab:not([disabled]):not([aria-disabled="true"]):is(:hover,:focus-visible) :is(.tab-content,[style-target="tab-content"]) {
+  opacity:1 !important;
+}
+html.music-glass ytmusic-player-page ytmusic-av-toggle:not([toggle-disabled]) :is(.song-button,.video-button):not(:disabled):is(:hover,:focus-visible),
+html.music-glass ytmusic-player-page #ytmls-tools > .ytmls-tool-button:not(:disabled):is(:hover,:focus-visible),
+html.music-glass ytmusic-player-page #ytmls-more > summary.ytmls-tool-button:is(:hover,:focus-visible) {
+  background-color:rgba(255,255,255,.16) !important;
+  color:#fff !important;
+}
+html.music-glass ytmusic-player-page :is(tp-yt-paper-tab,.song-button,.video-button,#ytmls-tools > .ytmls-tool-button,#ytmls-more > summary.ytmls-tool-button):focus-visible {
+  outline:2px solid rgba(255,255,255,.65);
+  outline-offset:-2px;
+}
+/* Keep even the selected header control subdued until pointed at or focused. */
+html.music-glass ytmusic-player-page tp-yt-paper-tab:not([disabled]):not([aria-disabled="true"]):is(:hover,:focus-visible),
+html.music-glass ytmusic-player-page ytmusic-av-toggle:not([toggle-disabled]) :is(.song-button,.video-button):not(:disabled):is(:hover,:focus-visible),
+html.music-glass ytmusic-player-page #ytmls-tools > .ytmls-tool-button:not(:disabled):is(:hover,:focus-visible),
+html.music-glass ytmusic-player-page #ytmls-more > summary.ytmls-tool-button:is(:hover,:focus-visible) {
+  opacity:1;
+}
+@media (prefers-reduced-motion:reduce) {
+  html.music-glass ytmusic-player-page tp-yt-paper-tab,
+  html.music-glass ytmusic-player-page ytmusic-av-toggle :is(.song-button,.video-button),
+  html.music-glass ytmusic-player-page #ytmls-tools > .ytmls-tool-button,
+  html.music-glass ytmusic-player-page #ytmls-more > summary.ytmls-tool-button {
+    transition:none;
+  }
+}
+
+/* Acquisition status is secondary text, with the same quiet hover response. */
+html.music-glass #ytmls-helpful > .ytmls-fetch-status {
+  color:rgba(var(--ytmls-ink,255,255,255),.52);
+  opacity:1;
+  transition:color .16s ease;
+}
+html.music-glass #ytmls-helpful > .ytmls-fetch-status:hover {
+  color:rgba(var(--ytmls-ink,255,255,255),.92);
+}
+@media (prefers-reduced-motion:reduce) {
+  html.music-glass #ytmls-helpful > .ytmls-fetch-status { transition:none; }
+}

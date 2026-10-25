@@ -1,0 +1,28 @@
+/* Blend the header/guide seam into the shared artwork. Keep search-field
+   outlines, lyric tabs and the bottom player bar untouched. */
+html.music-glass ytmusic-app-layout #nav-bar-divider {
+  visibility:hidden !important;
+  pointer-events:none;
+}
+html.music-glass ytmusic-nav-bar,
+html.music-glass ytmusic-app-layout #nav-bar-background {
+  border-bottom:0 !important;
+  box-shadow:none !important;
+}
+html.music-glass ytmusic-app-layout #guide-wrapper,
+html.music-glass ytmusic-app-layout #mini-guide-background,
+html.music-glass ytmusic-app-layout #mini-guide,
+html.music-glass ytmusic-mini-guide-renderer {
+  border-top:0 !important;
+}
+
+/* The collapsed guide and expanded drawer both blend into the page.
+   Make only the outer edge transparent, retaining its width to avoid a shift. */
+html.music-glass ytmusic-app-layout :is(#guide-wrapper,#mini-guide-background,#mini-guide,#guide,[slot="guide"],[slot="mini-guide"]),
+html.music-glass ytmusic-app-layout :is(#guide-wrapper,#guide,[slot="guide"]) #contentContainer,
+html.music-glass ytmusic-guide-renderer,
+html.music-glass ytmusic-mini-guide-renderer {
+  border-right-color:transparent !important;
+  border-inline-end-color:transparent !important;
+  box-shadow:none !important;
+}

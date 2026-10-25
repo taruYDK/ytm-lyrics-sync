@@ -1,6 +1,6 @@
-# YT Music 歌詞シンクロ 2.8.0
+# YT Music 歌詞シンクロ 2.9.0
 
-曲別の表示設定、全画面歌詞、ローマ字に対応した正式版です。Music Glassの背景テーマと、ベータ版で改善した操作性・安定性を統合しました。
+設定画面とMusic Glassの操作性、歌詞追従を改善した正式版です。再生バーの変更はON/OFFで切り替えられます。
 
 <div align="center">
 
@@ -8,7 +8,7 @@
 
 **YouTube Musicに、追いかけやすい歌詞と読み仮名を。**
 
-![Version 2.8.0](https://img.shields.io/badge/version-2.8.0-f59e0b?style=flat-square)
+![Version 2.9.0](https://img.shields.io/badge/version-2.9.0-f59e0b?style=flat-square)
 ![Edge / Chrome](https://img.shields.io/badge/browser-Edge%20%2F%20Chrome-3b82f6?style=flat-square)
 ![Manifest V3](https://img.shields.io/badge/extension-Manifest%20V3-8b5cf6?style=flat-square)
 [![MIT License](https://img.shields.io/badge/license-MIT-f59e0b?style=flat-square)](LICENSE)
@@ -108,11 +108,13 @@
 
 歌詞検索では、曲名・アーティスト名などを有効な歌詞提供元へ送信します。自分で追加・編集した歌詞や手動読みは外部へ送信しません。認証通信を含む詳細は[プライバシーポリシー](docs/PRIVACY.md)を参照してください。
 
-## v2.8.0の更新内容
+再生バーの角丸・開閉位置調整は「表示 → 再生バーの変更」で切り替えます。初期値はONで、Music GlassがONのときに適用されます。
 
-曲別表示設定の自動保存、全画面歌詞、ローマ字を追加しました。Music Glass、歌詞追跡、キーボード操作、保存・復元、提供元との通信を改善しています。
+## v2.9.0の更新内容
 
-[正式版の更新内容・更新方法](docs/RELEASE-v2.8.0.md) · [過去の変更履歴](CHANGELOG.md)
+設定画面の整理、再生バー変更のON/OFF、タブと操作ボタンのホバー表示、境界線、歌詞パネルの位置を調整しました。歌詞追従を軽量化し、ジャケットサイズはYouTube Music標準を使用します。
+
+[正式版の更新内容・更新方法](docs/RELEASE-v2.9.0.md) · [過去の変更履歴](CHANGELOG.md)
 
 ## 開発・不具合報告
 
@@ -124,7 +126,7 @@ npm run check
 npm run package
 ```
 
-`src/`を編集したら`extension/content.js`を再生成してください。v2.8.0では、自動テスト127件と生成物の一致を確認しています。自動テストだけで実サイトの表示や外部APIの動作を保証するものではありません。
+`src/`を編集したら`extension/content.js`を再生成してください。この版では、リポジトリの自動テストと生成物の一致を確認しています。自動テストだけで実サイトの表示や外部APIの動作を保証するものではありません。
 
 `npm run package`は、確認後に配布用フォルダーを`dist/`へ生成します。そのフォルダーの中身を圧縮すると、ZIP直下に`manifest.json`が入る構成になります。配布ZIPには開発用ソースとテストを含めません。
 

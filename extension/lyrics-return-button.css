@@ -1,0 +1,19 @@
+/* This button sits inside #ytmls-helpful, unlike the adjacent tool buttons. */
+html.music-glass #ytmls-tools #ytmls-helpful > button.ytmls-tool-button {
+  opacity:.48 !important;
+  transition:opacity .16s ease,background-color .14s ease,color .14s ease;
+}
+html.music-glass #ytmls-tools #ytmls-helpful > button.ytmls-tool-button:not(:disabled):is(:hover,:focus-visible) {
+  opacity:1 !important;
+  background-color:rgba(255,255,255,.16) !important;
+  color:#fff !important;
+}
+html.music-glass #ytmls-tools #ytmls-helpful > button.ytmls-tool-button:focus-visible {
+  outline:2px solid rgba(255,255,255,.65);
+  outline-offset:-2px;
+}
+@media (prefers-reduced-motion:reduce) {
+  html.music-glass #ytmls-tools #ytmls-helpful > button.ytmls-tool-button {
+    transition:none;
+  }
+}

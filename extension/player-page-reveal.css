@@ -1,0 +1,28 @@
+/* Match the native 0.3s slide, with a stationary reveal edge at the bar top.
+   The page still travels its original distance. Clip length cancels that travel:
+   viewport bottom = page top + translateY + page height - clip bottom. */
+html.music-glass.ytmls-custom-playerbar ytmusic-app-layout:not([is-mweb-modernization-enabled]):not([player-fullscreened]) > ytmusic-player-page[slot="player-page"] {
+  --ytmls-reveal-gap:0px;
+  clip-path:inset(0px 0px calc(100vh + var(--ytmls-reveal-gap)) 0px);
+  transition-property:transform,clip-path;
+  transition-duration:.3s;
+  transition-timing-function:cubic-bezier(.2,0,.6,1);
+}
+@media (min-width:1101px) {
+  html.music-glass.ytmls-custom-playerbar ytmusic-app-layout:not([is-mweb-modernization-enabled]):not([player-fullscreened]) > ytmusic-player-page[slot="player-page"] {
+    --ytmls-reveal-gap:10px;
+  }
+}
+html.music-glass.ytmls-custom-playerbar ytmusic-app-layout:not([is-mweb-modernization-enabled]):not([player-fullscreened])[player-page-open] > ytmusic-player-page[slot="player-page"] {
+  clip-path:inset(0px 0px var(--ytmls-reveal-gap) 0px);
+}
+/* Native instant layout changes and reduced-motion preferences remain instant. */
+html.music-glass.ytmls-custom-playerbar ytmusic-app-layout[no-animation] > ytmusic-player-page[slot="player-page"] {
+  transition:none !important;
+}
+@media (prefers-reduced-motion:reduce) {
+  html.music-glass.ytmls-custom-playerbar ytmusic-app-layout > ytmusic-player-page[slot="player-page"] {
+    transition:none !important;
+  }
+}
+

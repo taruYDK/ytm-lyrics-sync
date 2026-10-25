@@ -64,18 +64,18 @@
 </style>
 <link rel="stylesheet" href="settings-theme.css">
 <link rel="stylesheet" href="popup-layout.css">
+<link rel="stylesheet" href="popup-readable.css">
 </head>
 <body>
-  <div class="header">
-    <div><h1>YT Music 歌詞シンクロ</h1><div class="version" id="extensionVersion"></div></div>
-    <label class="switch" title="歌詞・背景テーマをまとめてON/OFF"><input type="checkbox" id="enabledToggle" aria-label="歌詞と背景テーマをまとめて有効にする" /><span class="slider"></span></label>
-  </div>
-
-  <nav class="settings-nav" aria-label="設定カテゴリ"><a href="#settings-display">表示</a><a href="#settings-tracking">追跡</a><a href="#settings-reading">読み仮名</a><a href="#settings-theme">背景</a><a href="#settings-providers">提供元</a><a href="#settings-data">データ</a></nav>
-  <p class="save-note">一番上のスイッチで歌詞・背景をまとめてON/OFFできます。設定は自動保存されます。</p>
-  <section class="section" id="settings-display" aria-label="表示">
-    <div class="section-title">表示</div>
-    <p class="info">ここでは共通設定を変更します。曲ごとの文字サイズ・読み・訳・ローマ字は、歌詞の「その他 → この曲の表示設定」から保存できます。</p>
+<header class="header"><div class="header-copy"><h1>YT Music 歌詞シンクロ</h1><div class="header-meta"><span>設定</span><div class="version" id="extensionVersion"></div></div></div><div class="master-control"><span>全体の<br>ON／OFF</span><label class="switch" title="歌詞・背景テーマをまとめてON/OFF"><input type="checkbox" id="enabledToggle" aria-label="歌詞と背景テーマをまとめて有効にする"><span class="slider"></span></label></div></header>
+<div class="popup-settings-layout"><aside class="settings-sidebar"><p class="sidebar-heading">設定項目</p><nav class="settings-nav" aria-label="設定カテゴリ"><a href="#settings-display">表示</a><a href="#settings-tracking">歌詞追跡</a><a href="#settings-reading">読み仮名</a><a href="#settings-theme">背景</a><a href="#settings-providers">歌詞提供元</a><a href="#settings-data">データ管理</a></nav><p class="sidebar-note">変更は自動で<br>保存されます。</p></aside><main class="settings-content" aria-label="設定の内容"><section class="section" id="settings-display" aria-label="表示">
+    <h2 class="section-title">表示</h2><p class="section-description">文字の大きさと表示の動作を設定します。</p>
+    <div class="setting-row">
+      <div class="label-block"><label class="label" for="playerBarCustomToggle">再生バーの変更</label><div class="hint">ON：角丸・開閉位置の調整<br>OFF：元の再生バー<br>Music GlassがONのときに適用されます。</div></div>
+      <div class="glass-toggle-control"><span id="playerBarCustomState" aria-hidden="true">読込中</span><label class="switch glass-switch"><input type="checkbox" id="playerBarCustomToggle" aria-label="再生バーの変更を有効にする" disabled><span class="slider"></span></label></div>
+    </div>
+    <p id="playerBarCustomStatus" class="hint" role="status"></p>
+    <details class="help-details"><summary>共通設定と曲別設定について</summary><p class="info">ここでは共通設定を変更します。曲ごとの文字サイズ・読み・訳・ローマ字は、歌詞の「その他 → この曲の表示設定」から保存できます。</p></details>
     <div class="setting-row">
       <div class="label-block"><div class="label">文字サイズ</div><div class="hint">歌詞本文の大きさ</div></div>
       <select id="fontSizeSelect" aria-label="文字サイズ"><option value="26">26px 小さめ</option><option value="28">28px</option><option value="32">32px 標準</option><option value="36">36px</option><option value="40">40px 大きめ</option></select>
@@ -89,9 +89,8 @@
       <label class="switch small"><input type="checkbox" id="autoLyricsOnIdleToggle" aria-label="無操作時に歌詞を自動表示" /><span class="slider"></span></label>
     </div>
   </section>
-
-  <section class="section" id="settings-tracking" aria-label="歌詞追跡">
-    <div class="section-title">歌詞追跡</div>
+<section class="section" id="settings-tracking" aria-label="歌詞追跡">
+    <h2 class="section-title">歌詞追跡</h2><p class="section-description">歌詞の追従位置やスクロールの動きを調整します。</p>
     <div class="setting-row">
       <div class="label-block"><label class="label" for="trackingToggle">歌詞を自動スクロール</label><div class="hint">現在行をハイライトし、指定位置へ自動スクロール</div></div>
       <label class="switch small"><input type="checkbox" id="trackingToggle" aria-label="歌詞追跡" /><span class="slider"></span></label>
@@ -109,37 +108,17 @@
       <select id="manualScrollReturnMs"><option value="1000">1秒</option><option value="2000">2秒</option><option value="3500" selected>3.5秒（標準）</option><option value="5000">5秒</option><option value="10000">10秒</option></select>
     </div>
     <p id="trackingSettingsStatus" class="hint" role="status"></p>
-    <div class="info">追跡できる同期歌詞だけを使用します。歌詞タブ上部の「歌詞候補」でおすすめ度を見ながら歌詞を選択でき、「手動検索」で曲名と歌手を修正できます。</div>
-  </section>
-
-  <section class="section" id="settings-reading" aria-label="読み仮名">
-    <div class="section-title">読み仮名</div>
+    <details class="help-details"><summary>歌詞の取得について</summary><div class="info">追跡できる同期歌詞だけを使用します。歌詞タブ上部の「歌詞候補」でおすすめ度を見ながら歌詞を選択でき、「手動検索」で曲名と歌手を修正できます。</div></details>
+  <details class="help-details"><summary>自動表示と追跡の動作について</summary><div class="footer-note">自動表示ONでは、「次のコンテンツ」表示中の最後のクリック・キー操作・スクロールから2秒間何もしなければ歌詞へ移動します。手動スクロール後は設定した待ち時間で現在位置へ戻ります。追跡停止や曲ID不一致を検出した場合は自動復旧します。</div></details></section>
+<section class="section" id="settings-reading" aria-label="読み仮名">
+    <h2 class="section-title">読み仮名</h2><p class="section-description">日本語・英語の読みの表示を設定します。</p>
     <div class="setting-row"><div class="label-block"><label class="label" for="readingJapaneseToggle">漢字のふりがな</label><div class="hint">漢字の上にひらがなを表示</div></div><label class="switch small"><input type="checkbox" id="readingJapaneseToggle" aria-label="漢字のふりがな" /><span class="slider"></span></label></div>
     <div class="setting-row"><div class="label-block"><label class="label" for="readingEnglishToggle">英語のカタカナ読み</label><div class="hint">英単語の上に発音の目安を表示</div></div><label class="switch small"><input type="checkbox" id="readingEnglishToggle" aria-label="英語のカタカナ読み" /><span class="slider"></span></label></div>
     <div class="hint" style="margin-top:10px">端末内の辞書で自動生成します。固有名詞・同じ綴りの別の読み・歌詞独自の読みは誤る場合があります。辞書にない語は読みを表示しません。初回の日本語辞書読み込みには少し時間がかかります。</div>
     <p id="readingSettingsStatus" class="hint" role="status"></p>
   </section>
-
-<section class="section" id="settings-providers" aria-label="歌詞提供元">
-    <div class="section-title">歌詞提供元</div>
-    <div class="hint" style="margin-bottom:9px;">ローカル歌詞は常に最優先です。その下の5つの取得元は、有効・無効と優先順位を変更できます。</div>
-    <div id="providerList" class="provider-list"></div>
-    <div id="providerNote" class="provider-note"></div>
-  </section>
-
-  <section class="section" id="settings-data" aria-label="データ保護">
-    <div class="section-title">データ保護</div>
-    <div class="hint" style="margin-bottom:9px;">曲ごとの補正値、固定した歌詞、追加・作成したローカル歌詞、書き換えた歌詞、表示設定をファイルに保存して復元できます。</div>
-    <p id="savedDataSummary">保存データを確認中…</p>
-    <div class="setting-row"><div class="label-block"><label class="label" for="backupReminderThreshold">バックアップ通知の曲数</label><div class="hint">書き出し後に保存・更新した曲が、この数に達すると通知（標準20曲）</div></div><div class="threshold-control"><input id="backupReminderThreshold" type="number" min="1" max="1000" step="1" value="20" disabled><span>曲</span></div></div>
-    <p id="backupReminderSettingsStatus" class="hint" role="status"></p>
-    <p id="backupReminder" role="status" hidden></p>
-    <a class="data-button" href="backup.html#dataManager" target="_blank" rel="noopener">お気に入り・編集履歴を開く</a>
-    <a class="data-button" href="backup.html" target="_blank" rel="noopener">バックアップ・復元・管理を開く</a>
-  </section>
-
-  <section class="section" id="settings-theme" aria-label="Music Glass">
-    <div class="section-title">Music Glass</div>
+<section class="section" id="settings-theme" aria-label="Music Glass">
+    <h2 class="section-title">背景</h2><p class="section-description">ジャケット背景と画面の見た目を設定します。</p>
     <div class="setting-row"><span>背景・テーマ</span><div class="glass-toggle-control"><span id="musicGlassQuickState" aria-hidden="true">読込中</span><label class="switch glass-switch"><input type="checkbox" id="musicGlassQuickToggle" aria-label="Music Glassの背景・テーマを有効にする" disabled><span class="slider"></span></label></div></div>
     <p id="musicGlassQuickStatus" role="status" class="hint"></p>
     <details class="glass-details">
@@ -155,10 +134,26 @@
       </div>
     </details>
   </section>
-  <div class="footer-note">自動表示ONでは、「次のコンテンツ」表示中の最後のクリック・キー操作・スクロールから2秒間何もしなければ歌詞へ移動します。手動スクロール後は設定した待ち時間で現在位置へ戻ります。追跡停止や曲ID不一致を検出した場合は自動復旧します。</div>
-  <script src="backup-reminder.js"></script>
-  <script src="popup.js"></script>
-  <script src="music-glass-quick.js"></script>
-  <script src="music-glass-popup-details.js"></script>
-</body>
-</html>
+<section class="section" id="settings-providers" aria-label="歌詞提供元">
+    <h2 class="section-title">歌詞提供元</h2><p class="section-description">使用する提供元と検索の順番を設定します。</p>
+    <div class="hint" style="margin-bottom:9px;">ローカル歌詞は常に最優先です。その下の5つの取得元は、有効・無効と優先順位を変更できます。</div>
+    <div id="providerList" class="provider-list"></div>
+    <div id="providerNote" class="provider-note"></div>
+  </section>
+<section class="section" id="settings-data" aria-label="データ保護">
+    <h2 class="section-title">データ管理</h2><p class="section-description">保存した歌詞や編集内容を管理します。</p>
+    <div class="hint" style="margin-bottom:9px;">曲ごとの補正値、固定した歌詞、追加・作成したローカル歌詞、書き換えた歌詞、表示設定をファイルに保存して復元できます。</div>
+    <p id="savedDataSummary">保存データを確認中…</p>
+    <div class="setting-row"><div class="label-block"><label class="label" for="backupReminderThreshold">バックアップ通知の曲数</label><div class="hint">書き出し後に保存・更新した曲が、この数に達すると通知（標準20曲）</div></div><div class="threshold-control"><input id="backupReminderThreshold" type="number" min="1" max="1000" step="1" value="20" disabled><span>曲</span></div></div>
+    <p id="backupReminderSettingsStatus" class="hint" role="status"></p>
+    <p id="backupReminder" role="status" hidden></p>
+    <a class="data-button" href="backup.html#dataManager" target="_blank" rel="noopener">お気に入り・編集履歴を開く</a>
+    <a class="data-button" href="backup.html" target="_blank" rel="noopener">バックアップ・復元・管理を開く</a>
+  </section></main></div>
+<script src="backup-reminder.js"></script>
+<script src="popup.js"></script>
+<script src="music-glass-quick.js"></script>
+<script src="music-glass-popup-details.js"></script>
+<script src="popup-navigation.js"></script>
+<script src="player-bar-toggle-popup.js"></script>
+</body></html>

@@ -5,12 +5,12 @@ import vm from 'node:vm';
 const source = name => fs.readFileSync(new URL('../src/content/' + name, import.meta.url),'utf8');
 function tracking() {
   let now=100, resize; const frames=[], scrolls=[];
-  const line={getBoundingClientRect:()=>({top:400,height:40})};
-  const list={clientHeight:500, scrollTop:100, children:[line], style:{setProperty(){}},
+  const line={isConnected:true,getBoundingClientRect:()=>({top:400,height:40})};
+  const list={isConnected:true,clientHeight:500,scrollHeight:2000, scrollTop:100, children:[line], style:{getPropertyValue(){return '';},setProperty(){}},
     getBoundingClientRect:()=>({top:0}),scrollTo:arg=>scrolls.push(arg),addEventListener(){}};
   const c=vm.createContext({STATE:{enabled:true,hasSync:true,trackingEnabled:true,trackingPosition:42,manualScrollReturnMs:5000,currentIndex:0},
     listEl:list,manualScrollUntil:0,pendingReturnToCurrent:false,autoScrollUntil:0,scrollInteractionBound:false,
-    performance:{now:()=>now},requestAnimationFrame:fn=>{frames.push(fn);return frames.length;},
+    performance:{now:()=>now},requestAnimationFrame:fn=>{frames.push(fn);return frames.length;},cancelAnimationFrame(){frames.length=0;},
     ResizeObserver:class {constructor(fn){resize=fn;}observe(){}}, window:{addEventListener(){}},
     canTrackCurrentPlayback:()=>true,getVideoElement:()=>({})});
   vm.runInContext(source('tracking.js'),c);
@@ -18,10 +18,22 @@ function tracking() {
 }
 test('tracking: configurable focus and original start position',()=>{
   const {c,line,scrolls}=tracking();
-  c.scrollCurrentLineIntoView(line); assert.equal(scrolls.at(-1).top,310);
-  c.STATE.trackingPosition=50; c.scrollCurrentLineIntoView(line); assert.equal(scrolls.at(-1).top,270);
+  c.scrollCurrentLineIntoView(line,'auto'); assert.equal(scrolls.at(-1).top,310);
+  c.STATE.trackingPosition=50; c.scrollCurrentLineIntoView(line,'auto'); assert.equal(scrolls.at(-1).top,270);
   line.getBoundingClientRect=()=>({top:-76,height:40});
-  c.scrollCurrentLineIntoView(line); assert.equal(scrolls.at(-1).top,0);
+  c.scrollCurrentLineIntoView(line,'auto'); assert.equal(scrolls.at(-1).top,0);
+});
+
+test('tracking animation arrives promptly, cancels for manual input and honors reduced motion',()=>{
+  const h=tracking();
+  h.c.scrollCurrentLineIntoView(h.line);assert.equal(h.scrolls.length,0);
+  h.setNow(175);h.frames.shift()(175);
+  assert(h.scrolls.at(-1).top>100&&h.scrolls.at(-1).top<310);
+  h.setNow(340);h.frames.shift()(340);
+  assert.equal(h.scrolls.at(-1).top,310);assert.equal(h.scrolls.at(-1).left,0);assert.equal(h.frames.length,0);
+  h.c.scrollCurrentLineIntoView(h.line);h.c.pauseAutoScrollFromUser();assert.equal(h.frames.length,0);
+  h.c.manualScrollUntil=0;h.c.matchMedia=()=>({matches:true});
+  h.c.scrollCurrentLineIntoView(h.line);assert.equal(h.frames.length,0);assert.equal(h.scrolls.at(-1).top,310);
 });
 test('resize: events coalesce and respect manual reading and tracking disabled',()=>{
   const h=tracking();h.c.bindScrollInteraction();h.c.pauseAutoScrollFromUser();

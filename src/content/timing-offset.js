@@ -502,6 +502,7 @@
   }
 
   function resetLyricsScrollPosition() {
+    cancelLyricsFollowScroll();
     if (!listEl) return;
 
     // 旧曲で開始済みの smooth scroll を確実に打ち切る。

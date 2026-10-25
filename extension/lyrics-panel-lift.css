@@ -1,0 +1,8 @@
+/* Lift the complete right column into the unused top space. Flex stretching
+   keeps its bottom edge in place, leaving the jacket and player bar untouched. */
+@media (min-width:936px) {
+  html.music-glass ytmusic-player-page:not([player-fullscreened]):not([player-ui-state="MINIPLAYER"]):not([is-mweb-modernization-enabled]) #side-panel {
+    --ytmls-side-lift:clamp(0px,calc(var(--ytmusic-player-page-vertical-padding,32px) - 16px),48px);
+    margin-top:calc(-1 * var(--ytmls-side-lift));
+  }
+}

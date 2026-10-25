@@ -1,0 +1,35 @@
+/* Keep only the rounded floating shape. Background and controls remain original. */
+@media (min-width:1101px) {
+  html.music-glass.ytmls-custom-playerbar ytmusic-player-bar {
+    --pb-radius:8px;
+    box-sizing:border-box;
+    width:calc(100% - 24px) !important;
+    margin-inline:12px;
+    bottom:10px;
+    border-radius:var(--pb-radius);
+    outline:1px solid rgba(255,255,255,.14);
+    outline-offset:-1px;
+    box-shadow:0 3px 10px rgba(0,0,0,.18) !important;
+  }
+  html.music-glass.ytmls-custom-playerbar ytmusic-player-bar > .music-glass-surface {
+    border-radius:inherit;
+  }
+  /* Follow the rounded edge without clipping the seek knob or native menus. */
+  html.music-glass.ytmls-custom-playerbar ytmusic-player-bar #progress-bar {
+    left:calc(var(--pb-radius) - 16px);
+    right:auto;
+    width:calc(100% - var(--pb-radius) * 2);
+    --paper-slider-bar-container-ring-left:0px;
+    --paper-slider-progress-container-border-radius:999px;
+  }
+}
+
+/* Brighter usable controls; native disabled and selected-state icons remain. */
+html.music-glass.ytmls-custom-playerbar ytmusic-player-bar .right-controls yt-icon-button:not([disabled]):not([aria-disabled="true"]):not(:has(button:disabled,button[aria-disabled="true"])) {
+  color:rgba(255,255,255,.88) !important;
+  --iron-icon-fill-color:currentColor;
+  --icon-color:currentColor;
+}
+html.music-glass.ytmls-custom-playerbar ytmusic-player-bar .right-controls yt-icon-button:not([disabled]):not([aria-disabled="true"]):not(:has(button:disabled,button[aria-disabled="true"])):is(:hover,:focus-within) {
+  color:#fff !important;
+}

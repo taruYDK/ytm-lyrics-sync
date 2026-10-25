@@ -11,6 +11,7 @@
   // ---------- 手動スクロール制御 ----------
   function pauseAutoScrollFromUser() {
     if (!STATE.trackingEnabled) return;
+    cancelLyricsFollowScroll();
     manualScrollUntil = performance.now() + STATE.manualScrollReturnMs;
     pendingReturnToCurrent = true;
     if (typeof updateHelpfulUi === "function") updateHelpfulUi();
@@ -25,6 +26,7 @@
   }
 
   function clearTrackingVisuals() {
+    cancelLyricsFollowScroll();
     if (!listEl) return;
     listEl.querySelectorAll(".ytmls-active, .ytmls-near, .ytmls-middle, .ytmls-far, .ytmls-upcoming").forEach((el) => el.classList.remove("ytmls-active", "ytmls-near", "ytmls-middle", "ytmls-far", "ytmls-upcoming"));
     listEl.querySelectorAll(".ytmls-word").forEach((el) => {
@@ -35,25 +37,50 @@
     STATE.currentWordIndex = -1;
   }
 
+  let lyricScrollFrame = 0;
+  function cancelLyricsFollowScroll() {
+    if (lyricScrollFrame) cancelAnimationFrame(lyricScrollFrame);
+    lyricScrollFrame = 0;
+  }
+
   function scrollCurrentLineIntoView(lineEl, behavior = "smooth") {
-    if (!lineEl || !listEl || !trackingAllowsAutoScroll()) return;
-    autoScrollUntil = performance.now() + (behavior === "smooth" ? 900 : 250);
-
-    // Follow slightly above center, with enough space after the last line.
-    // Pseudo-elements preserve the line indices in listEl.children.
-    if (!listEl.clientHeight) { pendingReturnToCurrent = true; return false; }
-    const focusHeight = listEl.clientHeight * STATE.trackingPosition / 100;
-    listEl.style.setProperty("--ytmls-trailing-space", Math.max(0, listEl.clientHeight - focusHeight - 180) + "px");
-    const listRect = listEl.getBoundingClientRect();
+    if (!lineEl || !listEl || !trackingAllowsAutoScroll()) return false;
+    cancelLyricsFollowScroll();
+    const scroller = listEl;
+    const height = scroller.clientHeight;
+    if (!height) { pendingReturnToCurrent = true; return false; }
+    const focusHeight = height * STATE.trackingPosition / 100;
+    const listRect = scroller.getBoundingClientRect();
     const lineRect = lineEl.getBoundingClientRect();
-    const currentTop = listEl.scrollTop;
-    const lineTopInList = currentTop + (lineRect.top - listRect.top);
-
-
-    // scrollIntoViewはYouTube Music本体までスクロールする場合があるため、歌詞リストだけ動かす。
-    const targetTop = Math.max(0, lineTopInList + lineRect.height / 2 - focusHeight);
-    // 'auto' inherits CSS scroll-behavior:smooth; explicitly cancel animation on return.
-    listEl.scrollTo({ top: targetTop, behavior: behavior === 'auto' ? 'instant' : behavior });
+    const start = scroller.scrollTop;
+    const desired = Math.max(0, start + lineRect.top - listRect.top + lineRect.height / 2 - focusHeight);
+    const tail = Math.max(0, height - focusHeight - 180) + "px";
+    if (scroller.style.getPropertyValue("--ytmls-trailing-space") !== tail) {
+      scroller.style.setProperty("--ytmls-trailing-space", tail);
+    }
+    const target = Math.min(desired, Math.max(0, scroller.scrollHeight - height));
+    const reducedMotion = typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
+    // A bounded animation follows promptly, independent of the browser's variable
+    // native smooth-scroll duration. 'instant' bypasses CSS scroll-behavior:smooth.
+    if (behavior === "auto" || reducedMotion || Math.abs(target - start) < 1) {
+      autoScrollUntil = performance.now() + 150;
+      scroller.scrollTo({left:0,top:target, behavior:"instant"});
+      return true;
+    }
+    const duration = Math.min(240, Math.max(150, 120 + Math.abs(target - start) * .12));
+    const startedAt = performance.now();
+    autoScrollUntil = startedAt + duration + 150;
+    function step(now) {
+      lyricScrollFrame = 0;
+      if (listEl !== scroller || !scroller.isConnected || !lineEl.isConnected ||
+          !STATE.enabled || !STATE.trackingEnabled || !STATE.hasSync || isManualScrollPaused()) return;
+      const progress = Math.min(1, Math.max(0, (now - startedAt) / duration));
+      const eased = 1 - Math.pow(1 - progress, 3);
+      scroller.scrollTo({left:0,top:start + (target - start) * eased, behavior:"instant"});
+      autoScrollUntil = now + 150;
+      if (progress < 1) lyricScrollFrame = requestAnimationFrame(step);
+    }
+    lyricScrollFrame = requestAnimationFrame(step);
     return true;
   }
 
@@ -118,6 +145,7 @@
     return ans;
   }
 
+  const trackingWordElements = new WeakMap();
   function updateWordHighlight(lineIndex, currentTime) {
     if (!listEl || lineIndex < 0) return;
     const line = STATE.lines[lineIndex];
@@ -125,7 +153,13 @@
 
     const lineEl = listEl.children[lineIndex];
     if (!lineEl) return;
-    const wordEls = lineEl.querySelectorAll(".ytmls-word");
+    let wordsRebuilt = false;
+    let wordEls = trackingWordElements.get(lineEl);
+    if (!wordEls || !wordEls.length || !wordEls[0].isConnected || !wordEls[wordEls.length - 1].isConnected) {
+      wordEls = lineEl.querySelectorAll(".ytmls-word");
+      trackingWordElements.set(lineEl, wordEls);
+      wordsRebuilt = true;
+    }
     const mode = STATE.wordTrackingStyle || "smooth";
 
     let currentWord = -1;
@@ -135,7 +169,7 @@
       else if (Number.isFinite(start) && start > currentTime) break;
     }
 
-    const wordChanged = STATE.currentWordIndex !== currentWord;
+    const wordChanged = wordsRebuilt || STATE.currentWordIndex !== currentWord;
 
     // 単語が変わった瞬間だけ、前後の単語の確定状態を更新。
     // 毎フレーム全単語を書き換えないので、DOM負荷を大幅に下げて滑らかにする。
@@ -153,7 +187,9 @@
 
     if (currentWord < 0 || !wordEls[currentWord]) return;
     if (mode === "step") {
-      wordEls[currentWord].style.setProperty("--ytmls-word-progress", "100%");
+      if (wordEls[currentWord].style.getPropertyValue("--ytmls-word-progress") !== "100%") {
+        wordEls[currentWord].style.setProperty("--ytmls-word-progress", "100%");
+      }
       return;
     }
 
@@ -173,9 +209,12 @@
     const raw = Math.max(0, Math.min(1, (currentTime + lookAhead - start) / Math.max(0.08, end - start)));
     const progress = mode === "silky" ? raw * raw * (3 - 2 * raw) : raw;
     const currentEl = wordEls[currentWord];
-    currentEl.style.setProperty("--ytmls-word-progress", `${(progress * 100).toFixed(3)}%`);
-    currentEl.classList.toggle("ytmls-word-sung", progress >= 0.999);
-    currentEl.classList.add("ytmls-word-current");
+    const progressValue =       (progress * 100).toFixed(3) + "%";
+    if (currentEl.style.getPropertyValue("--ytmls-word-progress") !== progressValue) {
+      currentEl.style.setProperty("--ytmls-word-progress", progressValue);
+    }
+    const sung = progress >= 0.999;
+    if (currentEl.classList.contains("ytmls-word-sung") !== sung) currentEl.classList.toggle("ytmls-word-sung", sung);
   }
 
   function updateHighlight(currentTime, force = false) {
