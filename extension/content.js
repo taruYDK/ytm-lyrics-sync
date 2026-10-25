@@ -7218,7 +7218,12 @@ let practiceFullscreen = null, practiceFullSignature = '', practiceFullIndex = -
 const practiceRomajiCache = new Map();
 function practiceVideoId() { return String(getAuthoritativeVideoId() || ''); }
 function practiceEntry(id=practiceVideoId()) { return practiceData[id] || {}; }
-function practicePrefs() { return {...practiceGlobal,...(practiceEntry().settings||{})}; }
+function practicePrefs() {
+ const prefs={...practiceGlobal,...(practiceEntry().settings||{})};
+ // Global OFF suppresses readings without discarding the per-track preference.
+ for(const key of ['readingJapanese','readingEnglish'])prefs[key]=practiceGlobal[key]!==false&&prefs[key]!==false;
+ return prefs;
+}
 function practiceCurrent(id,lines=STATE.lines) { return Boolean(id && id===practiceVideoId() && id===STATE.displayedVideoId && lines===STATE.lines && STATE.enabled); }
 async function savePracticeEntry(id,entry) {
  if(!id)throw Error('曲を読み込んでください');

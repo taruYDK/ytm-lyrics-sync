@@ -18,6 +18,17 @@ test('per-track display: saved override and common settings on next song',()=>{
  assert.equal(h.c.STATE.fontSize,48);assert.equal(h.c.STATE.readingJapanese,false);
  h.track('two');h.run('applyPracticePrefs()');assert.equal(h.c.STATE.fontSize,32);assert.equal(h.c.STATE.readingJapanese,true);
 });
+
+test('global reading OFF overrides saved per-track ON without deleting the preference',()=>{
+ const h=harness();
+ h.run("practiceLocalReady=practiceSyncReady=true;practiceData={one:{settings:{fontSize:48,readingJapanese:true,readingEnglish:true}}};practiceGlobal={fontSize:32,readingJapanese:false,readingEnglish:true};applyPracticePrefs()");
+ assert.equal(h.c.STATE.readingJapanese,false);assert.equal(h.c.STATE.readingEnglish,true);assert.equal(h.c.STATE.fontSize,48);
+ assert.equal(h.run('practiceData.one.settings.readingJapanese'),true);
+ h.run('practiceGlobal.readingEnglish=false;applyPracticePrefs()');assert.equal(h.c.STATE.readingEnglish,false);
+ h.run('practiceGlobal.readingJapanese=true;applyPracticePrefs()');assert.equal(h.c.STATE.readingJapanese,true);assert.equal(h.c.STATE.readingEnglish,false);
+ h.run('practiceData.one.settings.readingJapanese=false;applyPracticePrefs()');assert.equal(h.c.STATE.readingJapanese,false);
+ h.track('two');h.run('applyPracticePrefs()');assert.equal(h.c.STATE.readingJapanese,true);assert.equal(h.c.STATE.readingEnglish,false);
+});
 test('translation filtering: translation rows are removed without changing the input',()=>{
  const c=vm.createContext({});vm.runInContext(read('src/content/language-filter.js'),c);
  const original={syncLevel:'line',lines:[{time:10,text:'Hello my friend'},{time:10,text:'こんにちは友達'},{time:20,text:'How are you today'},{time:20,text:'今日は元気ですか'}]};c.original=structuredClone(original);

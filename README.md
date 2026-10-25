@@ -1,6 +1,6 @@
-# YT Music 歌詞シンクロ 2.9.0
+# YT Music 歌詞シンクロ 2.9.1
 
-設定画面とMusic Glassの操作性、歌詞追従を改善した正式版です。再生バーの変更はON/OFFで切り替えられます。
+2.9.0のUI・歌詞追従の改善に加え、設定画面で読み仮名をOFFにしても曲別設定によって再表示される問題を修正しました。
 
 <div align="center">
 
@@ -8,7 +8,7 @@
 
 **YouTube Musicに、追いかけやすい歌詞と読み仮名を。**
 
-![Version 2.9.0](https://img.shields.io/badge/version-2.9.0-f59e0b?style=flat-square)
+![Version 2.9.1](https://img.shields.io/badge/version-2.9.1-f59e0b?style=flat-square)
 ![Edge / Chrome](https://img.shields.io/badge/browser-Edge%20%2F%20Chrome-3b82f6?style=flat-square)
 ![Manifest V3](https://img.shields.io/badge/extension-Manifest%20V3-8b5cf6?style=flat-square)
 [![MIT License](https://img.shields.io/badge/license-MIT-f59e0b?style=flat-square)](LICENSE)
@@ -110,11 +110,13 @@
 
 再生バーの角丸・開閉位置調整は「表示 → 再生バーの変更」で切り替えます。初期値はONで、Music GlassがONのときに適用されます。
 
-## v2.9.0の更新内容
+設定画面の読み仮名OFFは、保存済みの曲別ON設定より優先されます。共通設定をONへ戻すと、その曲の設定を再び適用します。
+
+## v2.9.1の更新内容
 
 設定画面の整理、再生バー変更のON/OFF、タブと操作ボタンのホバー表示、境界線、歌詞パネルの位置を調整しました。歌詞追従を軽量化し、ジャケットサイズはYouTube Music標準を使用します。
 
-[正式版の更新内容・更新方法](docs/RELEASE-v2.9.0.md) · [過去の変更履歴](CHANGELOG.md)
+[正式版の更新内容・更新方法](docs/RELEASE-v2.9.1.md) · [過去の変更履歴](CHANGELOG.md)
 
 ## 開発・不具合報告
 
