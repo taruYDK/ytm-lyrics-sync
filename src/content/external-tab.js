@@ -93,7 +93,13 @@
     if (externalLyricsOpen) hideExternalBackdrop(side, tab);
     Object.assign(externalLyricsButton.style, {left: rect.left + 'px', top: rect.top + 'px', width: rect.width + 'px', height: rect.height + 'px'});
     const bottom = Math.min(sideRect.bottom, document.querySelector('ytmusic-player-bar')?.getBoundingClientRect().top || innerHeight, innerHeight);
-    Object.assign(externalLyricsHost.style, {left: sideRect.left + 'px', top: rect.bottom + 'px', width: sideRect.width + 'px', height: Math.max(0, bottom - rect.bottom) + 'px'});
+        // Align the external lyrics surface with the visible tabs, including the
+    // widened left edge on wide screens. Native lyrics keep their own layout.
+    const tabs = document.querySelector('ytmusic-player-page tp-yt-paper-tabs') || document.querySelector('ytmusic-player-page [role="tablist"]');
+    const tabsRect = tabs?.getBoundingClientRect();
+    const left = tabsRect?.width > 0 ? tabsRect.left : sideRect.left;
+    const right = tabsRect?.width > 0 ? tabsRect.right : sideRect.right;
+    Object.assign(externalLyricsHost.style, {left: left + 'px', top: rect.bottom + 'px', width: Math.max(0, right - left) + 'px', height: Math.max(0, bottom - rect.bottom) + 'px'});
     externalLyricsHost.hidden = !externalLyricsOpen;
     externalLyricsButton.setAttribute('aria-expanded', String(externalLyricsOpen));
   }

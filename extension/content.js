@@ -1405,7 +1405,13 @@ function readingTokensToRomaji(tokens) {
     if (externalLyricsOpen) hideExternalBackdrop(side, tab);
     Object.assign(externalLyricsButton.style, {left: rect.left + 'px', top: rect.top + 'px', width: rect.width + 'px', height: rect.height + 'px'});
     const bottom = Math.min(sideRect.bottom, document.querySelector('ytmusic-player-bar')?.getBoundingClientRect().top || innerHeight, innerHeight);
-    Object.assign(externalLyricsHost.style, {left: sideRect.left + 'px', top: rect.bottom + 'px', width: sideRect.width + 'px', height: Math.max(0, bottom - rect.bottom) + 'px'});
+        // Align the external lyrics surface with the visible tabs, including the
+    // widened left edge on wide screens. Native lyrics keep their own layout.
+    const tabs = document.querySelector('ytmusic-player-page tp-yt-paper-tabs') || document.querySelector('ytmusic-player-page [role="tablist"]');
+    const tabsRect = tabs?.getBoundingClientRect();
+    const left = tabsRect?.width > 0 ? tabsRect.left : sideRect.left;
+    const right = tabsRect?.width > 0 ? tabsRect.right : sideRect.right;
+    Object.assign(externalLyricsHost.style, {left: left + 'px', top: rect.bottom + 'px', width: Math.max(0, right - left) + 'px', height: Math.max(0, bottom - rect.bottom) + 'px'});
     externalLyricsHost.hidden = !externalLyricsOpen;
     externalLyricsButton.setAttribute('aria-expanded', String(externalLyricsOpen));
   }
@@ -3308,6 +3314,7 @@ function readingTokensToRomaji(tokens) {
     });
   }
 
+  let lyricsMotionTrack = '';
   function renderLines(options = {}) {
     if (!listEl) return;
 
@@ -3316,6 +3323,24 @@ function readingTokensToRomaji(tokens) {
       resetLyricsScrollPosition();
     }
 
+    const motionTrack = String(STATE.lastDisplayedTrackKey || STATE.displayedVideoId || '');
+    const motionAllowed = !document.documentElement.classList.contains('ytmls-lyrics-motion-lightweight') && !(typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches);
+    if (motionAllowed && motionTrack && lyricsMotionTrack && motionTrack !== lyricsMotionTrack && listEl.querySelector('.ytmls-line')) {
+      const rect = listEl.getBoundingClientRect();
+      if (rect.width && rect.height) {
+        const ghost = listEl.cloneNode(true);
+        ghost.removeAttribute('id'); ghost.classList.add('ytmls-crossfade-old'); ghost.setAttribute('aria-hidden','true');
+        Object.assign(ghost.style, {position:'fixed',left:rect.left+'px',top:rect.top+'px',width:rect.width+'px',height:rect.height+'px',overflow:'hidden',pointerEvents:'none',zIndex:'95',boxSizing:'border-box'});
+        document.body.appendChild(ghost); ghost.scrollTop = listEl.scrollTop;
+        ghost.addEventListener('animationend',()=>ghost.remove(),{once:true}); setTimeout(()=>ghost.remove(),400);
+      }
+      listEl.classList.remove('ytmls-crossfade-new'); void listEl.offsetWidth; listEl.classList.add('ytmls-crossfade-new');
+      const fadingList = listEl;
+      const clearFade = event => { if (event.target === fadingList && event.animationName === 'ytmls-crossfade-in') { fadingList.classList.remove('ytmls-crossfade-new'); fadingList.removeEventListener('animationend', clearFade); } };
+      fadingList.addEventListener('animationend', clearFade);
+      setTimeout(() => { fadingList.classList.remove('ytmls-crossfade-new'); fadingList.removeEventListener('animationend', clearFade); }, 400);
+    }
+    if (motionTrack) lyricsMotionTrack = motionTrack;
     listEl.innerHTML = "";
     STATE.currentIndex = -1;
     STATE.currentWordIndex = -1;
@@ -6580,12 +6605,12 @@ function readingTokensToRomaji(tokens) {
     const reducedMotion = typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
     // A bounded animation follows promptly, independent of the browser's variable
     // native smooth-scroll duration. 'instant' bypasses CSS scroll-behavior:smooth.
-    if (behavior === "auto" || reducedMotion || Math.abs(target - start) < 1) {
+    if (behavior === "auto" || reducedMotion || document.documentElement.classList.contains("ytmls-lyrics-motion-lightweight") || Math.abs(target - start) < 1) {
       autoScrollUntil = performance.now() + 150;
       scroller.scrollTo({left:0,top:target, behavior:"instant"});
       return true;
     }
-    const duration = Math.min(240, Math.max(150, 120 + Math.abs(target - start) * .12));
+    const duration = Math.min(190, Math.max(110, 95 + Math.abs(target - start) * .10));
     const startedAt = performance.now();
     autoScrollUntil = startedAt + duration + 150;
     function step(now) {
@@ -6901,6 +6926,7 @@ function readingTokensToRomaji(tokens) {
     // timeupdateだけでなくrequestAnimationFrameでも追跡し、単語/音節の細かいタイミングも追う。
     startTrackingLoop();
   }
+
 
 // Feature: readings.js
   // Reading annotations are display-only. Never write ruby text into STATE.lines.

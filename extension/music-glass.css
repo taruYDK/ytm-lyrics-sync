@@ -470,3 +470,20 @@ html.music-glass #music-glass-backdrop {
   background:transparent !important;
   --ytmusic-tabs-background:transparent;
 }
+/* Search tabs share the opaque, artwork-matched surface used by library tabs. */
+.music-glass :is(ytmusic-search-page, ytmusic-tabbed-search-results-renderer) ytmusic-tabs,
+.music-glass :is(ytmusic-search-page, ytmusic-tabbed-search-results-renderer) tp-yt-paper-tabs {
+  background: #302a36 !important;
+  --ytmusic-tabs-background: #302a36;
+  backdrop-filter: none !important;
+}
+.music-glass :is(ytmusic-search-page, ytmusic-tabbed-search-results-renderer) ytmusic-tabs {
+  isolation: isolate;
+  background: #221e29 !important;
+  --ytmusic-tabs-background: transparent;
+}
+.music-glass :is(ytmusic-search-page, ytmusic-tabbed-search-results-renderer) ytmusic-tabs tp-yt-paper-tabs {
+  background: transparent !important;
+  --ytmusic-tabs-background: transparent;
+}
+

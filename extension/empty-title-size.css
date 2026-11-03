@@ -1,0 +1,2 @@
+/* Only the no-lyrics headline follows the selected lyric text size. */
+#ytmls-empty > .ytmls-empty-main {font-size:inherit;}

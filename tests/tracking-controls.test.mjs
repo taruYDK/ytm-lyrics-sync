@@ -11,7 +11,7 @@ function tracking() {
   const c=vm.createContext({STATE:{enabled:true,hasSync:true,trackingEnabled:true,trackingPosition:42,manualScrollReturnMs:5000,currentIndex:0},
     listEl:list,manualScrollUntil:0,pendingReturnToCurrent:false,autoScrollUntil:0,scrollInteractionBound:false,
     performance:{now:()=>now},requestAnimationFrame:fn=>{frames.push(fn);return frames.length;},cancelAnimationFrame(){frames.length=0;},
-    ResizeObserver:class {constructor(fn){resize=fn;}observe(){}}, window:{addEventListener(){}},
+    document:{documentElement:{classList:{contains:()=>false}}}, ResizeObserver:class {constructor(fn){resize=fn;}observe(){}}, window:{addEventListener(){}},
     canTrackCurrentPlayback:()=>true,getVideoElement:()=>({})});
   vm.runInContext(source('tracking.js'),c);
   return {c,line,list,frames,scrolls,setNow:n=>now=n,resize:()=>resize()};
@@ -28,7 +28,7 @@ test('tracking animation arrives promptly, cancels for manual input and honors r
   const h=tracking();
   h.c.scrollCurrentLineIntoView(h.line);assert.equal(h.scrolls.length,0);
   h.setNow(175);h.frames.shift()(175);
-  assert(h.scrolls.at(-1).top>100&&h.scrolls.at(-1).top<310);
+  assert(h.scrolls.at(-1).top>240&&h.scrolls.at(-1).top<310);
   h.setNow(340);h.frames.shift()(340);
   assert.equal(h.scrolls.at(-1).top,310);assert.equal(h.scrolls.at(-1).left,0);assert.equal(h.frames.length,0);
   h.c.scrollCurrentLineIntoView(h.line);h.c.pauseAutoScrollFromUser();assert.equal(h.frames.length,0);
@@ -105,3 +105,4 @@ test('lyrics seek resumes immediately instead of retaining manual pause or start
  assert.equal(h.c.pendingReturnToCurrent,true);assert.equal(h.c.STATE.currentIndex,-1);
  assert.equal(h.c.STATE.currentWordIndex,-1);assert.equal(h.frames.length,1);
 });
+

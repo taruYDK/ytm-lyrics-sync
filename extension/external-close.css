@@ -1,0 +1,8 @@
+/* The external lyrics view is mounted on body, outside the player page. */
+html:has(ytmusic-app-layout:not([player-page-open]):not([player-fullscreened])) #ytmls-external-view,
+html:has(ytmusic-app-layout:not([player-page-open]):not([player-fullscreened])) #ytmls-external-tab,
+html:has(ytmusic-app-layout:not([player-page-open]):not([player-fullscreened])) #ytmls-empty-width-overlay,
+html:has(ytmusic-app-layout:not([player-page-open]):not([player-fullscreened])) #ytmls-empty-status-overlay {
+  display: none !important;
+  pointer-events: none !important;
+}
