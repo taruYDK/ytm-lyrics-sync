@@ -31,3 +31,9 @@
 @media (max-width:900px) {
   #ytmls-panel > #ytmls-list { padding-inline:22px; }
 }
+
+/* Align lyrics with the left edge of the tab strip on desktop. */
+@media (min-width:1101px) { #ytmls-panel > #ytmls-list { padding-left:0; } }
+
+/* Keep the status aligned with the lyric text at desktop widths. */
+@media (min-width:1101px) { #ytmls-panel > #ytmls-tools { padding-left:0; } }

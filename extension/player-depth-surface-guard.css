@@ -1,0 +1,10 @@
+/* Keep the shared artwork visible below/around the floating bar by suppressing
+   the browse layer, without changing its layout, scroll position or colors. */
+html.ytmls-depth-open,html.ytmls-depth-open body {overflow:hidden!important;overscroll-behavior:none;}
+html.ytmls-depth-open ytmusic-app-layout > [slot="browse-page"],
+html.ytmls-depth-open ytmusic-app-layout :is(ytmusic-browse-response,ytmusic-search-page),
+html.ytmls-depth-open ytmusic-app-layout > [slot="browse-page"] *,
+html.ytmls-depth-open ytmusic-app-layout :is(ytmusic-browse-response,ytmusic-search-page) * {
+  visibility:hidden!important;
+  pointer-events:none!important;
+}

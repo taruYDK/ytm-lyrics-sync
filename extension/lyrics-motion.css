@@ -1,0 +1,24 @@
+@media (prefers-reduced-motion: no-preference) {
+  html:not(.ytmls-lyrics-motion-lightweight) #ytmls-panel[data-sync]:not([data-sync="none"]) .ytmls-line {
+    transform-origin: left center;
+    transition: transform 220ms ease, opacity 220ms ease, filter 220ms ease, color 220ms ease;
+  }
+  html:not(.ytmls-lyrics-motion-lightweight) #ytmls-panel[data-sync]:not([data-sync="none"]) .ytmls-line.ytmls-active {
+    transform: scale(1.025);
+    filter: none;
+  }
+  html:not(.ytmls-lyrics-motion-lightweight) #ytmls-panel[data-sync]:not([data-sync="none"]) .ytmls-line.ytmls-far { filter: blur(.5px); }
+}
+@media (prefers-reduced-motion: no-preference) {
+  html:not(.ytmls-lyrics-motion-lightweight) .ytmls-crossfade-old { animation:ytmls-crossfade-out 220ms ease both; }
+  html:not(.ytmls-lyrics-motion-lightweight) #ytmls-list.ytmls-crossfade-new { animation:ytmls-crossfade-in 220ms ease both; }
+}
+@keyframes ytmls-crossfade-out { from {opacity:1} to {opacity:0} }
+@keyframes ytmls-crossfade-in { from {opacity:0} to {opacity:1} }
+html:has(ytmusic-app-layout:not([player-page-open]):not([player-fullscreened])) .ytmls-crossfade-old { display:none !important; }
+html.music-glass #ytmls-panel[data-tracking-mode="auto"] .ytmls-active .ytmls-word:not([data-reading-parts="true"]) {
+  background-image:linear-gradient(90deg, rgb(var(--ytmls-art-accent, 255 255 255)) 0%, rgb(var(--ytmls-art-accent, 255 255 255)) var(--ytmls-word-progress,0%), rgba(255,255,255,.45) calc(var(--ytmls-word-progress,0%) + .7%), rgba(255,255,255,.45) 100%);
+}
+
+/* Reserve enough space for the active line scale. */
+@media (min-width:1101px) { #ytmls-panel > #ytmls-list { padding-right: calc(32px + 2.5%); } }

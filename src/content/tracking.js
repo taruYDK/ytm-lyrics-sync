@@ -62,12 +62,12 @@
     const reducedMotion = typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
     // A bounded animation follows promptly, independent of the browser's variable
     // native smooth-scroll duration. 'instant' bypasses CSS scroll-behavior:smooth.
-    if (behavior === "auto" || reducedMotion || Math.abs(target - start) < 1) {
+    if (behavior === "auto" || reducedMotion || document.documentElement.classList.contains("ytmls-lyrics-motion-lightweight") || Math.abs(target - start) < 1) {
       autoScrollUntil = performance.now() + 150;
       scroller.scrollTo({left:0,top:target, behavior:"instant"});
       return true;
     }
-    const duration = Math.min(240, Math.max(150, 120 + Math.abs(target - start) * .12));
+    const duration = Math.min(190, Math.max(110, 95 + Math.abs(target - start) * .10));
     const startedAt = performance.now();
     autoScrollUntil = startedAt + duration + 150;
     function step(now) {
@@ -383,3 +383,4 @@
     // timeupdateだけでなくrequestAnimationFrameでも追跡し、単語/音節の細かいタイミングも追う。
     startTrackingLoop();
   }
+

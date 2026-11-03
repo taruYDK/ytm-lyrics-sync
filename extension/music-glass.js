@@ -43,7 +43,7 @@
     if (!themeEnabled()) return;
     const width = globalThis.innerWidth, height = globalThis.innerHeight;
     if (!width || !height) return;
-    const selectors = ['ytmusic-nav-bar', 'ytmusic-player-bar', 'ytmusic-player-page', 'ytmusic-browse-response ytmusic-tabs'];
+    const selectors = ['ytmusic-nav-bar', 'ytmusic-player-bar', 'ytmusic-player-page', 'ytmusic-browse-response ytmusic-tabs', ':is(ytmusic-search-page, ytmusic-tabbed-search-results-renderer) ytmusic-tabs'];
     for (const selector of tabsOnly === true ? selectors.slice(3) : selectors) {
       const host = document.querySelector(selector);
       if (!host?.prepend || !host.getBoundingClientRect) continue;
@@ -64,7 +64,7 @@
         left += node.offsetLeft || 0;
         top += node.offsetTop || 0;
       }
-      const isTabs = selector === 'ytmusic-browse-response ytmusic-tabs';
+      const isTabs = selector === 'ytmusic-browse-response ytmusic-tabs' || selector === ':is(ytmusic-search-page, ytmusic-tabbed-search-results-renderer) ytmusic-tabs';
       const bounds = isTabs ? host.getBoundingClientRect() : {left, top, width:host.clientWidth, height:host.clientHeight};
       if (isTabs) { left = bounds.left; top = bounds.top; }
       if (!bounds.width || !bounds.height) continue;
@@ -133,25 +133,42 @@
     }
     if (art !== lastArt) {
       lastArt = art;
+      root.style.removeProperty("--ytmls-art-accent");
       // Keep the previous frame until the replacement image has decoded.
       const token = ++generation;
       const canvas = backdrop;
-      const context = canvas.getContext('2d');
+      const context = canvas.getContext('2d', { willReadFrequently: true });
       if (art) {
+        function loadArtwork(cors) {
         const image = new Image();
+        if (cors) image.crossOrigin = "anonymous";
+        image.onerror = () => { if (token !== generation || backdrop !== canvas) return; root.style.removeProperty("--ytmls-art-accent"); if (cors) loadArtwork(false); };
         image.onload = () => {
           if (token !== generation || backdrop !== canvas) return;
           // Bake blur into a tiny bitmap once per cover, not a viewport filter.
           const side = Math.min(image.naturalWidth, image.naturalHeight);
           if (!side) return;
+          canvas.width = 96; canvas.height = 96;
           context.clearRect(0, 0, 96, 96);
           context.filter = 'blur(5px) saturate(1.55) brightness(.62)';
           context.drawImage(image, (image.naturalWidth-side)/2, (image.naturalHeight-side)/2, side, side, -12, -12, 120, 120);
+          try {
+            const pixels = context.getImageData(0, 0, 96, 96).data;
+            let best = null, score = 0;
+            for (let i=0; i<pixels.length; i+=64) {
+              const r=pixels[i], g=pixels[i+1], b=pixels[i+2], hi=Math.max(r,g,b), lo=Math.min(r,g,b);
+              const weight=(hi-lo)*Math.min(hi,180); if (weight>score) {score=weight;best=[r,g,b];}
+            }
+            if (!best) root.style.removeProperty("--ytmls-art-accent");
+            if (best) document.documentElement.style.setProperty('--ytmls-art-accent', best.map(n=>Math.min(255,Math.round(n*.55+140))).join(' '));
+          } catch (_) { document.documentElement.style.removeProperty('--ytmls-art-accent'); }
           artworkReady = true;
           artworkRevision++;
           paintSurfaces();
         };
         image.src = art;
+        }
+        loadArtwork(true);
       }
     }
   }
@@ -208,7 +225,7 @@
     root.classList.toggle('music-glass-hide-scrollbar', extensionEnabled && settings.musicGlassHideScrollbar === true);
     root.classList.toggle('music-glass-hide-dislike', extensionEnabled && settings.musicGlassHideDislike === true);
     root.style.setProperty('--mg-art-opacity', String(Math.max(0, Math.min(100, Number(settings.musicGlassIntensity) || 0)) / 100));
-    if (!themeEnabled() || !settings.musicGlassArtwork || settings.musicGlassLightweight) { generation++; artworkReady = false; backdrop?.remove(); backdrop = null; lastArt = ''; }
+    if (!themeEnabled() || !settings.musicGlassArtwork || settings.musicGlassLightweight) { root.style.removeProperty('--ytmls-art-accent'); generation++; artworkReady = false; backdrop?.remove(); backdrop = null; lastArt = ''; }
     else update();
     if (!themeEnabled()) { surfaceResizeObserver?.disconnect(); for (const canvas of surfaces.values()) canvas.remove(); surfaces.clear(); }
     else paintSurfaces();
@@ -240,4 +257,8 @@
   document.addEventListener('yt-navigate-finish', schedule);
 
 })();
+
+
+
+
 

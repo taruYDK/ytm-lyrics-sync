@@ -56,7 +56,7 @@ test('lyrics: Enter seeks, Space toggles playback without repeats or modifiers',
  const nodes=[];function element(){return {dataset:{},handlers:{},classList:{add(){}},setAttribute(key,value){this[key]=value;},addEventListener(key,fn){this.handlers[key]=fn;},click(){this.activations=(this.activations||0)+1;}};}
  const c=vm.createContext({STATE:{lines:[{time:1,text:'line',words:[]}],lastDisplayedTrackKey:'key',displayedVideoId:'song'},
  requestPlayerToggle:id=>{assert.equal(id,'song');toggles++;},getAuthoritativeVideoId:()=> 'song',
- refreshLyricsReadings(){},listEl:{appendChild:node=>nodes.push(node)},document:{createElement:element},getVideoElement:()=>null});
+ refreshLyricsReadings(){},listEl:{appendChild:node=>nodes.push(node)},document:{createElement:element,documentElement:{classList:{contains:()=>false}}},getVideoElement:()=>null});
  vm.runInContext(read('src/content/timing-offset.js'),c);c.renderLines();
  const line=nodes[0];assert.equal(line.tabIndex,0);assert.equal(line.role,'button');
  for(const key of ['Enter',' '])line.handlers.keydown({key,preventDefault(){},stopPropagation(){}});

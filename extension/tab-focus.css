@@ -1,0 +1,7 @@
+/* Suppress the player tab focus ring only after pointer interaction.
+   Keyboard Tab restores the native focus indicator. */
+html.ytmls-pointer-focus ytmusic-player-page :is(tp-yt-paper-tab, paper-tab, [role="tab"]):focus,
+html.ytmls-pointer-focus ytmusic-player-page :is(tp-yt-paper-tab, paper-tab, [role="tab"]):focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+}

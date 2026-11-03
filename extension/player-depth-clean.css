@@ -1,0 +1,39 @@
+/* Page and artwork animation only. No lyric panel/row/font rules. */
+html.music-glass.ytmls-custom-playerbar ytmusic-app-layout:not([is-mweb-modernization-enabled]):not([player-fullscreened]) > ytmusic-player-page[slot="player-page"] {
+  --ytmls-reveal-gap:0px;
+  transform:translateZ(0)!important;
+  clip-path:inset(50%)!important;
+  opacity:0;
+  visibility:hidden;
+  pointer-events:none;
+  transition:opacity 220ms ease-in, clip-path 220ms ease-in, visibility 0s linear 220ms;
+}
+@media(min-width:1101px){
+  html.music-glass.ytmls-custom-playerbar ytmusic-app-layout > ytmusic-player-page[slot="player-page"] {--ytmls-reveal-gap:10px;}
+}
+html.music-glass.ytmls-custom-playerbar ytmusic-app-layout:not([is-mweb-modernization-enabled]):not([player-fullscreened])[player-page-open] > ytmusic-player-page[slot="player-page"] {
+  clip-path:inset(0 0 var(--ytmls-reveal-gap) 0)!important;
+  opacity:1;
+  visibility:visible;
+  pointer-events:auto;
+  transition:opacity 220ms ease-out;
+}
+html.music-glass.ytmls-custom-playerbar ytmusic-app-layout:not([is-mweb-modernization-enabled]):not([player-fullscreened]) > ytmusic-player-page[slot="player-page"] #main-panel > ytmusic-player:not([video-mode]):not([player-ui-state="FULLSCREEN"]):not([player-ui-state="MINIPLAYER"]) {
+  transform:translateY(8px) scale(.965);
+  transform-origin:center;
+  transition:transform 220ms ease-in;
+}
+html.music-glass.ytmls-custom-playerbar ytmusic-app-layout:not([is-mweb-modernization-enabled]):not([player-fullscreened])[player-page-open] > ytmusic-player-page[slot="player-page"] #main-panel > ytmusic-player:not([video-mode]):not([player-ui-state="FULLSCREEN"]):not([player-ui-state="MINIPLAYER"]) {
+  transform:none;
+  transition:transform 340ms cubic-bezier(.2,.75,.25,1);
+}
+html.ytmls-depth-animation-disabled.music-glass.ytmls-custom-playerbar ytmusic-app-layout > ytmusic-player-page[slot="player-page"],
+html.ytmls-depth-animation-disabled.music-glass.ytmls-custom-playerbar ytmusic-app-layout > ytmusic-player-page[slot="player-page"] #main-panel > ytmusic-player,
+html.music-glass.ytmls-custom-playerbar ytmusic-app-layout[no-animation] > ytmusic-player-page[slot="player-page"],
+html.music-glass.ytmls-custom-playerbar ytmusic-app-layout[no-animation] > ytmusic-player-page[slot="player-page"] #main-panel > ytmusic-player {transition:none!important;}
+@media(prefers-reduced-motion:reduce){
+ html.music-glass.ytmls-custom-playerbar ytmusic-app-layout > ytmusic-player-page[slot="player-page"],
+ html.music-glass.ytmls-custom-playerbar ytmusic-app-layout > ytmusic-player-page[slot="player-page"] #main-panel > ytmusic-player {transition:none!important;}
+}
+
+

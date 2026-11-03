@@ -526,6 +526,7 @@
     });
   }
 
+  let lyricsMotionTrack = '';
   function renderLines(options = {}) {
     if (!listEl) return;
 
@@ -534,6 +535,24 @@
       resetLyricsScrollPosition();
     }
 
+    const motionTrack = String(STATE.lastDisplayedTrackKey || STATE.displayedVideoId || '');
+    const motionAllowed = !document.documentElement.classList.contains('ytmls-lyrics-motion-lightweight') && !(typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches);
+    if (motionAllowed && motionTrack && lyricsMotionTrack && motionTrack !== lyricsMotionTrack && listEl.querySelector('.ytmls-line')) {
+      const rect = listEl.getBoundingClientRect();
+      if (rect.width && rect.height) {
+        const ghost = listEl.cloneNode(true);
+        ghost.removeAttribute('id'); ghost.classList.add('ytmls-crossfade-old'); ghost.setAttribute('aria-hidden','true');
+        Object.assign(ghost.style, {position:'fixed',left:rect.left+'px',top:rect.top+'px',width:rect.width+'px',height:rect.height+'px',overflow:'hidden',pointerEvents:'none',zIndex:'95',boxSizing:'border-box'});
+        document.body.appendChild(ghost); ghost.scrollTop = listEl.scrollTop;
+        ghost.addEventListener('animationend',()=>ghost.remove(),{once:true}); setTimeout(()=>ghost.remove(),400);
+      }
+      listEl.classList.remove('ytmls-crossfade-new'); void listEl.offsetWidth; listEl.classList.add('ytmls-crossfade-new');
+      const fadingList = listEl;
+      const clearFade = event => { if (event.target === fadingList && event.animationName === 'ytmls-crossfade-in') { fadingList.classList.remove('ytmls-crossfade-new'); fadingList.removeEventListener('animationend', clearFade); } };
+      fadingList.addEventListener('animationend', clearFade);
+      setTimeout(() => { fadingList.classList.remove('ytmls-crossfade-new'); fadingList.removeEventListener('animationend', clearFade); }, 400);
+    }
+    if (motionTrack) lyricsMotionTrack = motionTrack;
     listEl.innerHTML = "";
     STATE.currentIndex = -1;
     STATE.currentWordIndex = -1;
