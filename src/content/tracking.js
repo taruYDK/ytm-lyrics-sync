@@ -275,6 +275,12 @@
       updateWordHighlight(idx, adjustedTime);
     }
   }
+  function trackingDisplayVisible() {
+    // Fullscreen lyrics mirror the normal rows, even if the lyrics tab is hidden.
+    return (typeof lyricsWasVisible === 'undefined' || lyricsWasVisible) ||
+      (typeof practiceFullscreen !== 'undefined' && Boolean(practiceFullscreen));
+  }
+
   function startTrackingLoop() {
     if (trackingRaf) return;
 
@@ -282,7 +288,11 @@
         if (STATE.contextInvalidated) { trackingRaf = 0; return; }
         trackingRaf = requestAnimationFrame(frame);
       if (!STATE.enabled || !STATE.hasSync) return;
+      if (!trackingDisplayVisible()) return;
       const video = videoEl && videoEl.isConnected ? videoEl : getVideoElement();
+      // A paused seek is updated by seeked. A pending manual-scroll return
+      // still needs one update when its timeout has elapsed.
+      if (video?.paused === true && !(pendingReturnToCurrent && !isManualScrollPaused())) return;
       // updateHighlight performs the playback guard once for this frame.
       if (updateHighlight(getAuthoritativePlaybackTime(video) || 0) === false) return;
       if (typeof syncPracticeFullscreenTracking === "function") syncPracticeFullscreenTracking();
@@ -337,7 +347,7 @@
 
       videoEl = video;
       videoTimeUpdateHandler = () => {
-        if (!STATE.enabled || !videoEl || videoEl.ended || !canTrackCurrentPlayback(videoEl)) return;
+        if (!STATE.enabled || !videoEl || videoEl.ended || !trackingDisplayVisible() || videoEl.paused === true || !canTrackCurrentPlayback(videoEl)) return;
         // timeupdate は再生中に何度も来るため force=true にしない。
         // 同じ行への smooth scroll を連続発行すると、曲切替後まで旧スクロールが残る原因になる。
         updateHighlight(getAuthoritativePlaybackTime(videoEl) || 0, false);
@@ -345,6 +355,7 @@
       videoForceUpdateHandler = () => {
         if (!STATE.enabled || !videoEl || videoEl.ended || !canTrackCurrentPlayback(videoEl)) return;
         updateHighlight(getAuthoritativePlaybackTime(videoEl) || 0, true);
+        if (typeof syncPracticeFullscreenTracking === "function") syncPracticeFullscreenTracking();
       };
       videoEndedHandler = () => {
         if (!STATE.enabled) return;

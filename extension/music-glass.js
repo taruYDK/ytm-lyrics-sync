@@ -189,8 +189,9 @@
       const bounds = guide.getBoundingClientRect();
       const overlap = edge.height > 0 ? Math.max(0, Math.min(bounds.height, bounds.bottom - edge.top)) : 0;
       const top = navBounds?.height > 0 ? Math.max(0, Math.min(bounds.height - overlap, navBounds.bottom - bounds.top)) : 0;
-      guide.style.setProperty('--mg-guide-top-clip', top + 'px');
-      guide.style.setProperty('--mg-guide-bottom-clip', overlap + 'px');
+      const topValue = top + 'px', bottomValue = overlap + 'px';
+      if (guide.style.getPropertyValue('--mg-guide-top-clip') !== topValue) guide.style.setProperty('--mg-guide-top-clip', topValue);
+      if (guide.style.getPropertyValue('--mg-guide-bottom-clip') !== bottomValue) guide.style.setProperty('--mg-guide-bottom-clip', bottomValue);
     }
   }
   document.addEventListener('yt-navigate-finish', trimGuideAtPlayer);

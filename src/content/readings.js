@@ -1,6 +1,5 @@
   // Reading annotations are display-only. Never write ruby text into STATE.lines.
   let lyricsReadingGeneration = 0;
-  let englishReadingsPromise = null;
   const lyricsReadingCache = new Map();
 
   function getJapaneseReadingTokenizer() {
@@ -11,11 +10,13 @@
     }});
   }
 
-  function getEnglishReadings() {
-    if (!englishReadingsPromise) englishReadingsPromise = chrome.runtime.sendMessage({type:'YTMLS_ENGLISH_READINGS'})
-      .then(response => { if (!response?.ok || !response.dictionary) throw new Error(response?.error || '英語辞書を読み込めません'); return response.dictionary; })
-      .catch(error => { englishReadingsPromise = null; throw error; });
-    return englishReadingsPromise;
+  function getEnglishReadings(texts = []) {
+    const words = [...new Set(texts.flatMap(text => Array.from(String(text).matchAll(/[A-Za-z]+(?:['’][A-Za-z]+)*/g), match => match[0].toLowerCase().replaceAll('’', "'"))))].filter(word => word.length <= 128).slice(0, 10000);
+    if (!words.length) return Promise.resolve({});
+    return chrome.runtime.sendMessage({type:'YTMLS_ENGLISH_READINGS', words}).then(response => {
+      if (!response?.ok || !response.dictionary) throw new Error(response?.error || '英語辞書を読み込めません');
+      return response.dictionary;
+    });
   }
 
   function showLyricsReadingStatus(message) {
@@ -76,7 +77,7 @@
     const videoId = typeof getAuthoritativeVideoId === 'function' ? String(getAuthoritativeVideoId() || '') : '';
     const [japanese, english, manual] = await Promise.allSettled([
       needsJapanese ? getJapaneseReadingTokenizer() : Promise.resolve(null),
-      needsEnglish ? getEnglishReadings() : Promise.resolve(null),
+      needsEnglish ? getEnglishReadings(texts) : Promise.resolve(null),
       loadManualReadings(videoId),
     ]);
     const current = () => generation === lyricsReadingGeneration && listEl === list && STATE.lines === lines && !STATE.contextInvalidated && (!videoId || String(getAuthoritativeVideoId() || '') === videoId);
@@ -190,7 +191,7 @@
     let entries, tokenizer = null, dictionary = null;
     save.disabled = reset.disabled = select.disabled = reading.disabled = true;
     try {
-      const results = await Promise.allSettled([loadManualReadings(videoId), getJapaneseReadingTokenizer(), getEnglishReadings()]);
+      const results = await Promise.allSettled([loadManualReadings(videoId), getJapaneseReadingTokenizer(), getEnglishReadings(lines.map(line => editableLineText(line)))]);
       if (results[0].status === 'rejected') throw results[0].reason;
       entries = results[0].value; tokenizer = results[1].status === 'fulfilled' ? results[1].value : null; dictionary = results[2].status === 'fulfilled' ? results[2].value : null;
     }

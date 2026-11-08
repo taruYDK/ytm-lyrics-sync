@@ -68,7 +68,38 @@
       statusSource.style.opacity = '0';
     }
   }
-  new MutationObserver(schedule).observe(document.documentElement,{childList:true,subtree:true,characterData:true,attributes:true,attributeFilter:['player-page-open','player-fullscreened','hidden']});
+  // Page-wide playback and card changes must not trigger layout measurements.
+  let watchedPanel = null;
+  const panelObserver = new MutationObserver(records => {
+    const interesting = node => node?.nodeType === 1 &&
+      (node.matches?.('#ytmls-empty, #ytmls-searching, #ytmls-helpful') ||
+       node.querySelector?.('#ytmls-empty, #ytmls-searching, #ytmls-helpful'));
+    if (records.some(record => {
+      const target = record.target.nodeType === 1 ? record.target : record.target.parentElement;
+      return target?.closest?.('#ytmls-empty, #ytmls-searching, #ytmls-helpful') ||
+        [...record.addedNodes, ...record.removedNodes].some(interesting);
+    })) schedule();
+  });
+  function attachPanel() {
+    const panel = document.querySelector('#ytmls-panel');
+    if (panel === watchedPanel) return;
+    panelObserver.disconnect();
+    watchedPanel = panel;
+    if (panel) panelObserver.observe(panel, {childList:true, subtree:true, characterData:true, attributes:true, attributeFilter:['hidden']});
+    schedule();
+  }
+  const relevant = node => node.nodeType === 1 &&
+    (node.matches?.('#ytmls-panel, ytmusic-player-page, tp-yt-paper-tabs, [role=tablist]') ||
+     node.querySelector?.('#ytmls-panel, ytmusic-player-page, tp-yt-paper-tabs, [role=tablist]'));
+  new MutationObserver(records => {
+    if (records.some(record => record.type === 'attributes'
+      ? record.attributeName !== 'hidden' || record.target.closest?.('ytmusic-player-page')
+      : [...record.addedNodes, ...record.removedNodes].some(relevant))) {
+      attachPanel();
+      schedule();
+    }
+  }).observe(document.documentElement, {childList:true, subtree:true, attributes:true, attributeFilter:['player-page-open','player-fullscreened','hidden']});
+  attachPanel();
   window.addEventListener('resize',schedule,{passive:true});
   window.addEventListener('scroll',schedule,{passive:true,capture:true});
   schedule();

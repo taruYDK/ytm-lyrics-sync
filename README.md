@@ -1,6 +1,6 @@
-# YT Music 歌詞シンクロ 3.0.0
+# YT Music 歌詞シンクロ 3.1.0
 
-Music Glassの表示と再生画面の開閉、歌詞表示、Spaceキーの操作を見直した3.0.0です。
+歌詞追跡と英語読み仮名の処理を軽量化し、表示設定の内部処理を整理した3.1.0です。
 
 <div align="center">
 
@@ -8,7 +8,7 @@ Music Glassの表示と再生画面の開閉、歌詞表示、Spaceキーの操�
 
 **YouTube Musicに、追いかけやすい歌詞と読み仮名を。**
 
-![Version 3.0.0](https://img.shields.io/badge/version-3.0.0-f59e0b?style=flat-square)
+![Version 3.1.0](https://img.shields.io/badge/version-3.1.0-f59e0b?style=flat-square)
 ![Edge / Chrome](https://img.shields.io/badge/browser-Edge%20%2F%20Chrome-3b82f6?style=flat-square)
 ![Manifest V3](https://img.shields.io/badge/extension-Manifest%20V3-8b5cf6?style=flat-square)
 [![MIT License](https://img.shields.io/badge/license-MIT-f59e0b?style=flat-square)](LICENSE)
@@ -112,13 +112,13 @@ Music Glassの表示と再生画面の開閉、歌詞表示、Spaceキーの操�
 
 設定画面の読み仮名OFFは、保存済みの曲別ON設定より優先されます。共通設定をONへ戻すと、その曲の設定を再び適用します。
 
-## v3.0.0の更新内容
+## v3.1.0の更新内容
 
-再生画面の奥行きのある開閉アニメーションと、そのON/OFF設定を追加しました。歌詞の表示位置、検索中・未取得時の案内、外部歌詞画面の開閉とスクロールを調整しています。
+停止中や歌詞を表示していないときの追跡処理、検索中・歌詞未取得時の表示処理を軽量化しました。英語の読み仮名は、曲に必要な単語だけをタブへ渡します。
 
-Spaceキーの再生・一時停止を設定で切り替えられます。歌詞の現在行の強調、追従スクロール、曲切り替え時の表示を調整しました。ジャケットから色を取得できる場合は、単語追跡の強調色に使います。間奏の点表示は含まれません。
+歌詞表示を再開した直後の不要な自動再同期を防ぎ、表示設定の内部処理を整理しました。
 
-[3.0.0の更新内容・更新方法](docs/RELEASE-v3.0.0.md) · [過去の変更履歴](CHANGELOG.md)
+[3.1.0の更新内容・更新方法](docs/RELEASE-v3.1.0.md) · [過去の変更履歴](CHANGELOG.md)
 
 ## 開発・不具合報告
 

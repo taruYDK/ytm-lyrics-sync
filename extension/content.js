@@ -69,37 +69,6 @@ function buildExportLrc(lines, info, points, duration, applyOffsets) {
 }
 
 // Core: readings.mjs
-// English readings are Japanese approximations of dictionary phonemes, not IPA.
-function englishPhonesToKana(phonemes) {
-  const phones = String(phonemes || '').trim().split(/\s+/).map(p => p.replace(/[012]$/, ''));
-  const vowels = {AA:['a',''],AE:['a',''],AH:['a',''],AO:['o',''],AW:['a','ウ'],AY:['a','イ'],EH:['e',''],ER:['a','ー'],EY:['e','イ'],IH:['i',''],IY:['i','ー'],OW:['o','ウ'],OY:['o','イ'],UH:['u',''],UW:['u','ー']};
-  const rows = {
-    '':['ア','イ','ウ','エ','オ'],B:['バ','ビ','ブ','ベ','ボ'],CH:['チャ','チ','チュ','チェ','チョ'],D:['ダ','ディ','ドゥ','デ','ド'],
-    DH:['ザ','ジ','ズ','ゼ','ゾ'],F:['ファ','フィ','フ','フェ','フォ'],G:['ガ','ギ','グ','ゲ','ゴ'],HH:['ハ','ヒ','フ','ヘ','ホ'],
-    JH:['ジャ','ジ','ジュ','ジェ','ジョ'],K:['カ','キ','ク','ケ','コ'],L:['ラ','リ','ル','レ','ロ'],M:['マ','ミ','ム','メ','モ'],N:['ナ','ニ','ヌ','ネ','ノ'],
-    P:['パ','ピ','プ','ペ','ポ'],R:['ラ','リ','ル','レ','ロ'],S:['サ','スィ','ス','セ','ソ'],SH:['シャ','シ','シュ','シェ','ショ'],
-    T:['タ','ティ','トゥ','テ','ト'],TH:['サ','シ','ス','セ','ソ'],V:['ヴァ','ヴィ','ヴ','ヴェ','ヴォ'],W:['ワ','ウィ','ウ','ウェ','ウォ'],
-    Y:['ヤ','イ','ユ','イェ','ヨ'],Z:['ザ','ズィ','ズ','ゼ','ゾ'],ZH:['ジャ','ジ','ジュ','ジェ','ジョ']
-  };
-  const codas = {B:'ブ',CH:'チ',D:'ド',DH:'ズ',F:'フ',G:'グ',HH:'',JH:'ジ',K:'ク',L:'ル',M:'ム',N:'ン',NG:'ング',P:'プ',R:'ー',S:'ス',SH:'シュ',T:'ト',TH:'ス',V:'ヴ',W:'ウ',Y:'イ',Z:'ズ',ZH:'ジュ'};
-  let out='';
-  for(let i=0;i<phones.length;i++) {
-    const phone=phones[i];
-    if (phone==='N' && phones[i+1]==='G' && !vowels[phones[i+2]]) {out+='ング';i++;continue;}
-    if (rows[phone] && phones[i+1]==='Y' && vowels[phones[i+2]] && ['B','P','M','K','G','N','HH','R','L'].includes(phone)) {
-      const [v,tail]=vowels[phones[i+2]];const small={a:'ャ',i:'ィ',u:'ュ',e:'ェ',o:'ョ'};
-      out+=rows[phone][1]+small[v]+tail;i+=2;continue;
-    }
-    if (rows[phone] && vowels[phones[i+1]]) {
-      const [v,tail]=vowels[phones[++i]];out+=rows[phone]['aiueo'.indexOf(v)]+tail;continue;
-    }
-    if (vowels[phone]) {const [v,tail]=vowels[phone];out+=rows['']['aiueo'.indexOf(v)]+tail;}
-    else if (Object.prototype.hasOwnProperty.call(codas,phone)) out+=codas[phone];
-    else return ''; // Never guess unknown phone codes.
-  }
-  return out.replace(/ーー+/g,'ー');
-}
-
 function toReadingHiragana(text) {
   return String(text || '').replace(/[ァ-ヶ]/g, char=>String.fromCharCode(char.charCodeAt(0)-0x60));
 }
@@ -405,6 +374,7 @@ function readingTokensToRomaji(tokens) {
   let autoScrollUntil = 0;
   let scrollInteractionBound = false;
   let lyricsWasVisible = false;
+  let trackingDisplayResumedAt = 0;
 
   const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -2373,7 +2343,7 @@ function readingTokensToRomaji(tokens) {
     const sync = syncLevelShortLabel(snapshot.sync);
     const summary = `状態：${snapshot.health.label}  •  曲ID：${snapshot.videoId}  •  歌詞：${snapshot.provider}  •  同期：${sync}  •  候補：${snapshot.candidates}件`;
     if (diagnosticsSummaryEl.textContent !== summary) diagnosticsSummaryEl.textContent = summary;
-    diagnosticsSummaryEl.title = diagnosticText(snapshot);
+    // Construct the detailed tooltip only when requested.
   }
 
   async function copyDiagnostics() {
@@ -2478,6 +2448,8 @@ function readingTokensToRomaji(tokens) {
     diagnosticsEl.id = "ytmls-diagnostics";
     diagnosticsSummaryEl = document.createElement("span");
     diagnosticsSummaryEl.className = "ytmls-diagnostics-summary";
+    diagnosticsSummaryEl.addEventListener("mouseenter", () => { diagnosticsSummaryEl.title = diagnosticText(); });
+    diagnosticsSummaryEl.addEventListener("focus", () => { diagnosticsSummaryEl.title = diagnosticText(); });
     diagnosticsCopyButtonEl = document.createElement("button");
     diagnosticsCopyButtonEl.type = "button";
     diagnosticsCopyButtonEl.className = "ytmls-diagnostics-button";
@@ -2535,6 +2507,8 @@ function readingTokensToRomaji(tokens) {
     // 歌詞タブを開き直した時、古いスクロール位置（特に最下部）をそのまま使わない。
     const isVisible = isLyricsPanelActive() && renderer.getClientRects().length > 0 && getComputedStyle(renderer).display !== "none";
     if (isVisible && !lyricsWasVisible) {
+      // Give the next animation frame time to restart before the watchdog checks.
+      trackingDisplayResumedAt = performance.now();
       // v1.7.1: 「歌詞」タブを開いた瞬間にも実再生曲と表示歌詞を照合する。
       // 前曲DOM/歌詞が裏で残っていても、そのまま見せず次曲検索へ切り替える。
       const activeVideoId = getAuthoritativeVideoId();
@@ -2770,8 +2744,11 @@ function readingTokensToRomaji(tokens) {
     STATE.healthPlaybackTime = t;
     STATE.healthPlaybackSampleAt = now;
 
+    // Hidden lyric panels intentionally suspend highlighting, not a tracking failure.
+    if (!trackingDisplayVisible()) return;
     const playbackAdvancing = now - STATE.healthLastAdvanceAt < 1600;
-    const trackingPulseAge = STATE.lastTrackingPulseAt ? now - STATE.lastTrackingPulseAt : Infinity;
+    const lastTrackingActivity = Math.max(STATE.lastTrackingPulseAt || 0, trackingDisplayResumedAt || 0);
+    const trackingPulseAge = lastTrackingActivity ? now - lastTrackingActivity : Infinity;
     const lyricsHaveSettled = STATE.lyricsAppliedAt > 0 && now - STATE.lyricsAppliedAt > 3600;
     if (lyricsHaveSettled && playbackAdvancing && trackingPulseAge > 3600) {
       performLyricsResync("歌詞追跡が止まったため自動復旧中…", true);
@@ -2810,10 +2787,6 @@ function readingTokensToRomaji(tokens) {
     return String(getAuthoritativeVideoId() || STATE.displayedVideoId || STATE.lastKnownVideoId || '');
   }
 
-  function getTrackTimingOffsetMs(videoId = getTrackOffsetVideoId(true)) {
-    return getTrackTimingPoints(videoId)[0].offsetMs;
-  }
-
   function getTrackTimingPoints(videoId = getTrackOffsetVideoId(true)) {
     const id = String(videoId || '');
     if (!id) return [{ position: 0, offsetMs: 0 }];
@@ -2845,14 +2818,6 @@ function readingTokensToRomaji(tokens) {
     }
     const legacyMs = clampTrackOffsetMs(entry);
     return [{ position: 0, offsetMs: legacyMs }];
-  }
-
-  function getTrackTimingOffsets(videoId = getTrackOffsetVideoId(true)) {
-    const points = getTrackTimingPoints(videoId);
-    return {
-      startMs: points[0].offsetMs,
-      endMs: points[points.length - 1].offsetMs,
-    };
   }
 
   function effectiveTimingOffsetMs(playbackTime = null, duration = null) {
@@ -5303,23 +5268,6 @@ function readingTokensToRomaji(tokens) {
   const LOCAL_LYRICS_MAX_TRACKS = null;
   const LOCAL_LYRICS_MAX_CHARS = 500000;
 
-  function checkedLocalStorageGet(defaults) {
-    return new Promise((resolve, reject) => {
-      try {
-        chrome.storage.local.get(defaults, (data) => {
-          const error = chrome.runtime && chrome.runtime.lastError;
-          if (error) {
-            reject(new Error(error.message || "保存データを読み込めませんでした。"));
-            return;
-          }
-          resolve(data || {});
-        });
-      } catch (error) {
-        reject(error);
-      }
-    });
-  }
-
   function checkedLocalStorageSet(value) {
     return new Promise((resolve, reject) => {
       try {
@@ -5340,14 +5288,6 @@ function readingTokensToRomaji(tokens) {
   async function mutateStoredTrackMap(storageKey, fallbackMap, videoId, entry, maxEntries, isValid) {
     const data = await sendUserDataMutation({ action: "entry", key: storageKey, videoId, entry });
     return data[storageKey];
-  }
-
-  function limitedTrackMap(value, maxEntries, isValid) {
-    let entries = Object.entries(value || {})
-      .filter(([videoId, entry]) => videoId && entry && (!isValid || isValid(entry)))
-      .sort((a, b) => Number(b[1].updatedAt || 0) - Number(a[1].updatedAt || 0));
-    if (Number.isFinite(maxEntries) && maxEntries > 0) entries = entries.slice(0, maxEntries);
-    return Object.fromEntries(entries);
   }
 
   function getPinnedLyricsEntry(videoId) {
@@ -6818,6 +6758,12 @@ function readingTokensToRomaji(tokens) {
       updateWordHighlight(idx, adjustedTime);
     }
   }
+  function trackingDisplayVisible() {
+    // Fullscreen lyrics mirror the normal rows, even if the lyrics tab is hidden.
+    return (typeof lyricsWasVisible === 'undefined' || lyricsWasVisible) ||
+      (typeof practiceFullscreen !== 'undefined' && Boolean(practiceFullscreen));
+  }
+
   function startTrackingLoop() {
     if (trackingRaf) return;
 
@@ -6825,7 +6771,11 @@ function readingTokensToRomaji(tokens) {
         if (STATE.contextInvalidated) { trackingRaf = 0; return; }
         trackingRaf = requestAnimationFrame(frame);
       if (!STATE.enabled || !STATE.hasSync) return;
+      if (!trackingDisplayVisible()) return;
       const video = videoEl && videoEl.isConnected ? videoEl : getVideoElement();
+      // A paused seek is updated by seeked. A pending manual-scroll return
+      // still needs one update when its timeout has elapsed.
+      if (video?.paused === true && !(pendingReturnToCurrent && !isManualScrollPaused())) return;
       // updateHighlight performs the playback guard once for this frame.
       if (updateHighlight(getAuthoritativePlaybackTime(video) || 0) === false) return;
       if (typeof syncPracticeFullscreenTracking === "function") syncPracticeFullscreenTracking();
@@ -6880,7 +6830,7 @@ function readingTokensToRomaji(tokens) {
 
       videoEl = video;
       videoTimeUpdateHandler = () => {
-        if (!STATE.enabled || !videoEl || videoEl.ended || !canTrackCurrentPlayback(videoEl)) return;
+        if (!STATE.enabled || !videoEl || videoEl.ended || !trackingDisplayVisible() || videoEl.paused === true || !canTrackCurrentPlayback(videoEl)) return;
         // timeupdate は再生中に何度も来るため force=true にしない。
         // 同じ行への smooth scroll を連続発行すると、曲切替後まで旧スクロールが残る原因になる。
         updateHighlight(getAuthoritativePlaybackTime(videoEl) || 0, false);
@@ -6888,6 +6838,7 @@ function readingTokensToRomaji(tokens) {
       videoForceUpdateHandler = () => {
         if (!STATE.enabled || !videoEl || videoEl.ended || !canTrackCurrentPlayback(videoEl)) return;
         updateHighlight(getAuthoritativePlaybackTime(videoEl) || 0, true);
+        if (typeof syncPracticeFullscreenTracking === "function") syncPracticeFullscreenTracking();
       };
       videoEndedHandler = () => {
         if (!STATE.enabled) return;
@@ -6931,7 +6882,6 @@ function readingTokensToRomaji(tokens) {
 // Feature: readings.js
   // Reading annotations are display-only. Never write ruby text into STATE.lines.
   let lyricsReadingGeneration = 0;
-  let englishReadingsPromise = null;
   const lyricsReadingCache = new Map();
 
   function getJapaneseReadingTokenizer() {
@@ -6942,11 +6892,13 @@ function readingTokensToRomaji(tokens) {
     }});
   }
 
-  function getEnglishReadings() {
-    if (!englishReadingsPromise) englishReadingsPromise = chrome.runtime.sendMessage({type:'YTMLS_ENGLISH_READINGS'})
-      .then(response => { if (!response?.ok || !response.dictionary) throw new Error(response?.error || '英語辞書を読み込めません'); return response.dictionary; })
-      .catch(error => { englishReadingsPromise = null; throw error; });
-    return englishReadingsPromise;
+  function getEnglishReadings(texts = []) {
+    const words = [...new Set(texts.flatMap(text => Array.from(String(text).matchAll(/[A-Za-z]+(?:['’][A-Za-z]+)*/g), match => match[0].toLowerCase().replaceAll('’', "'"))))].filter(word => word.length <= 128).slice(0, 10000);
+    if (!words.length) return Promise.resolve({});
+    return chrome.runtime.sendMessage({type:'YTMLS_ENGLISH_READINGS', words}).then(response => {
+      if (!response?.ok || !response.dictionary) throw new Error(response?.error || '英語辞書を読み込めません');
+      return response.dictionary;
+    });
   }
 
   function showLyricsReadingStatus(message) {
@@ -7007,7 +6959,7 @@ function readingTokensToRomaji(tokens) {
     const videoId = typeof getAuthoritativeVideoId === 'function' ? String(getAuthoritativeVideoId() || '') : '';
     const [japanese, english, manual] = await Promise.allSettled([
       needsJapanese ? getJapaneseReadingTokenizer() : Promise.resolve(null),
-      needsEnglish ? getEnglishReadings() : Promise.resolve(null),
+      needsEnglish ? getEnglishReadings(texts) : Promise.resolve(null),
       loadManualReadings(videoId),
     ]);
     const current = () => generation === lyricsReadingGeneration && listEl === list && STATE.lines === lines && !STATE.contextInvalidated && (!videoId || String(getAuthoritativeVideoId() || '') === videoId);
@@ -7121,7 +7073,7 @@ function readingTokensToRomaji(tokens) {
     let entries, tokenizer = null, dictionary = null;
     save.disabled = reset.disabled = select.disabled = reading.disabled = true;
     try {
-      const results = await Promise.allSettled([loadManualReadings(videoId), getJapaneseReadingTokenizer(), getEnglishReadings()]);
+      const results = await Promise.allSettled([loadManualReadings(videoId), getJapaneseReadingTokenizer(), getEnglishReadings(lines.map(line => editableLineText(line)))]);
       if (results[0].status === 'rejected') throw results[0].reason;
       entries = results[0].value; tokenizer = results[1].status === 'fulfilled' ? results[1].value : null; dictionary = results[2].status === 'fulfilled' ? results[2].value : null;
     }
@@ -7432,7 +7384,7 @@ function openPracticeFullscreen() {
  const canvas=document.createElement('canvas');canvas.width=96;canvas.height=96;canvas.className='ytmls-full-backdrop';box.append(canvas);
  const corner=document.createElement('div');corner.className='ytmls-full-corner';box.append(corner);const close=practiceButton(corner,'全画面を閉じる',closePracticeFullscreen);close.className='ytmls-full-close';box.classList.add('ytmls-full-intro');box.closeTimer=setTimeout(()=>{if(practiceFullscreen===box)box.classList.remove('ytmls-full-intro');},3000);
  const title=document.createElement('h1');title.textContent=STATE.lastDisplayedTitle||'歌詞';box.append(title);const list=document.createElement('div');list.className='ytmls-full-list';box.append(list);
- box.returnFocus=document.activeElement;document.body.append(box);practiceFullscreen=box;document.addEventListener('keydown',handlePracticeFullscreenSpace,true);document.addEventListener('keyup',handlePracticeFullscreenSpace,true);practiceFullSignature='';practiceFullIndex=-1;refreshPracticeFullscreen();box.tabIndex=-1;box.focus();
+ box.returnFocus=document.activeElement;document.body.append(box);practiceFullscreen=box;trackingDisplayResumedAt=performance.now();document.addEventListener('keydown',handlePracticeFullscreenSpace,true);document.addEventListener('keyup',handlePracticeFullscreenSpace,true);practiceFullSignature='';practiceFullIndex=-1;refreshPracticeFullscreen();box.tabIndex=-1;box.focus();
  box.resizeObserver=new ResizeObserver(()=>{if(practiceFullscreen===box){box.pendingFollow=true;syncPracticeFullscreenTracking();}});box.resizeObserver.observe(list);
  const pause=()=>{box.manualUntil=performance.now()+(STATE.manualScrollReturnMs||3500);box.pendingFollow=true;};list.addEventListener('wheel',pause,{passive:true});list.addEventListener('touchmove',pause,{passive:true});list.addEventListener('keydown',e=>{if(['ArrowUp','ArrowDown','PageUp','PageDown','Home','End'].includes(e.key))pause();});
  box.addEventListener('keydown',e=>{if(e.key==='Escape'){e.stopPropagation();closePracticeFullscreen();}else if(e.key==='Tab'){const buttons=[...box.querySelectorAll('button')];const first=buttons[0],last=buttons.at(-1);if(e.shiftKey&&document.activeElement===first){e.preventDefault();last?.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first?.focus();}}});

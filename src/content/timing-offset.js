@@ -22,10 +22,6 @@
     return String(getAuthoritativeVideoId() || STATE.displayedVideoId || STATE.lastKnownVideoId || '');
   }
 
-  function getTrackTimingOffsetMs(videoId = getTrackOffsetVideoId(true)) {
-    return getTrackTimingPoints(videoId)[0].offsetMs;
-  }
-
   function getTrackTimingPoints(videoId = getTrackOffsetVideoId(true)) {
     const id = String(videoId || '');
     if (!id) return [{ position: 0, offsetMs: 0 }];
@@ -57,14 +53,6 @@
     }
     const legacyMs = clampTrackOffsetMs(entry);
     return [{ position: 0, offsetMs: legacyMs }];
-  }
-
-  function getTrackTimingOffsets(videoId = getTrackOffsetVideoId(true)) {
-    const points = getTrackTimingPoints(videoId);
-    return {
-      startMs: points[0].offsetMs,
-      endMs: points[points.length - 1].offsetMs,
-    };
   }
 
   function effectiveTimingOffsetMs(playbackTime = null, duration = null) {

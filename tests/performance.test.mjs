@@ -79,3 +79,59 @@ test('hidden main tick performs no DOM or playback work and resumes when visible
  assert.equal(reads,0);
  c.document.hidden=false;c.tick();assert.equal(reads,1);
 });
+
+test('empty state measurements ignore unrelated page and lyric-row updates',()=>{
+ let frames=[];const observers=[];const panel={};
+ const doc={documentElement:{},querySelector:s=>s==='#ytmls-panel'?panel:null};
+ const c=vm.createContext({document:doc,window:{addEventListener(){}},requestAnimationFrame:fn=>frames.push(fn),ResizeObserver:class{observe(){} disconnect(){}},MutationObserver:class{constructor(fn){this.fn=fn;observers.push(this);}observe(target,opts){this.opts=opts;}disconnect(){}}});
+ vm.runInContext(read('empty-width.js'),c);
+ assert.equal(frames.length,1);frames.shift()();
+ assert.equal(observers[0].opts.characterData,true);
+ assert.equal(observers[1].opts.characterData,undefined);
+ const unrelated={nodeType:1,matches:()=>false,querySelector:()=>null,closest:()=>null};
+ observers[1].fn([{type:'childList',addedNodes:[unrelated],removedNodes:[]}]);
+ observers[0].fn([{type:'characterData',target:{nodeType:3,parentElement:unrelated},addedNodes:[],removedNodes:[]}]);
+ assert.equal(frames.length,0);
+ const status={...unrelated,closest:()=>true};
+ observers[0].fn([{type:'characterData',target:{nodeType:3,parentElement:status},addedNodes:[],removedNodes:[]}]);
+ assert.equal(frames.length,1);frames.shift()();
+ observers[1].fn([{type:'attributes',attributeName:'player-page-open',target:unrelated,addedNodes:[],removedNodes:[]}]);
+ assert.equal(frames.length,1);
+});
+
+test('combined display settings preserve defaults and newer changes',()=>{
+ let listener,finish;const classes=new Map();
+ const c=vm.createContext({document:{documentElement:{classList:{toggle:(name,value)=>classes.set(name,value)}}},chrome:{runtime:{},storage:{local:{get:(defaults,cb)=>{finish=()=>cb(defaults);}},onChanged:{addListener:fn=>listener=fn}}}});
+ vm.runInContext(read('display-class-settings.js'),c);
+ listener({ytmlsPlayerBarCustomEnabled:{newValue:false},musicGlassLightweight:{newValue:true}},'local');
+ finish();
+ assert.equal(classes.get('ytmls-custom-playerbar'),false);
+ assert.equal(classes.get('ytmls-lyrics-motion-lightweight'),true);
+ assert.equal(classes.get('ytmls-depth-animation-disabled'),false);
+ listener({ytmlsDepthAnimationEnabled:{newValue:false}},'local');
+ assert.equal(classes.get('ytmls-depth-animation-disabled'),true);
+ listener({ytmlsDepthAnimationEnabled:{newValue:true}},'sync');
+ assert.equal(classes.get('ytmls-depth-animation-disabled'),true);
+});
+
+test('tracking skips paused or hidden frames while seek and play force updates',()=>{
+ const frames=[],events={};let updates=[],fullscreenUpdates=0;
+ const video={isConnected:true,paused:true,ended:false,addEventListener:(name,fn)=>events[name]=fn,removeEventListener(){}};
+ const c=vm.createContext({STATE:{enabled:true,hasSync:true,contextInvalidated:false},videoEl:null,videoTimeUpdateHandler:null,videoForceUpdateHandler:null,videoEndedHandler:null,videoMetadataHandler:null,trackingRaf:0,lyricsWasVisible:true,practiceFullscreen:null,pendingReturnToCurrent:false,manualScrollUntil:0,performance:{now:()=>10},getVideoElement:()=>video,getAuthoritativePlaybackTime:()=>17,canTrackCurrentPlayback:()=>true,requestAnimationFrame:fn=>{frames.push(fn);return frames.length;},syncPracticeFullscreenTracking:()=>fullscreenUpdates++});
+ vm.runInContext(read('src/content/tracking.js'),c);c.updateHighlight=(time,force)=>{updates.push([time,force]);};
+ c.ensureVideoListener();frames.shift()();assert.equal(updates.length,0);
+ events.seeked();assert.deepEqual(updates.at(-1),[17,true]);assert.equal(fullscreenUpdates,1);
+ video.paused=false;events.play();assert.deepEqual(updates.at(-1),[17,true]);
+ frames.shift()();assert.equal(updates.length,3);
+ c.lyricsWasVisible=false;frames.shift()();assert.equal(updates.length,3);
+ c.practiceFullscreen={};frames.shift()();assert.equal(updates.length,4);
+});
+
+test('watchdog allows resumed display a fresh tracking grace period',()=>{
+ let now=10000,recoveries=0;
+ const state={enabled:true,hasSync:true,trackingEnabled:true,healthVideoId:'song',healthPlaybackTime:8,healthPlaybackSampleAt:9700,healthLastAdvanceAt:9700,lyricsAppliedAt:100,lastTrackingPulseAt:1000,lines:[],currentIndex:0};
+ const c=vm.createContext({STATE:state,trackingDisplayResumedAt:10000,performance:{now:()=>now},getFreshPlayerSnapshot:()=>({playerState:1,currentTime:now/1000}),getAuthoritativeVideoId:()=> 'song',trackingDisplayVisible:()=>true,performLyricsResync:()=>recoveries++,effectiveTimingOffsetMs:()=>0,isManualScrollPaused:()=>false});
+ vm.runInContext(read('src/content/health.js'),c);c.performLyricsResync=()=>recoveries++;
+ c.runAutoRecoveryWatchdog();assert.equal(recoveries,0);
+ now=14000;c.runAutoRecoveryWatchdog();assert.equal(recoveries,1);
+});
