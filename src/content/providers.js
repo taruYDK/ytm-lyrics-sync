@@ -85,7 +85,7 @@
   }
 
   function angleTimeToSeconds(tag) {
-    const m = String(tag || "").match(/^(\d{1,2}):(\d{2}(?:\.\d+)?)$/);
+    const m = String(tag || "").match(/^(\d{1,3}):(\d{2}(?:\.\d+)?)$/);
     return m ? Number(m[1]) * 60 + Number(m[2]) : null;
   }
 
@@ -103,13 +103,14 @@
       const content = raw.replace(/^\s*(?:\[\d{1,3}:\d{2}(?:\.\d{1,3})?\])+\s*/, "");
       const tagRe = /<(\d{1,3}:\d{2}(?:\.\d+)?)>/g;
       const matches = [...content.matchAll(tagRe)];
-      if (matches.length >= 2) {
+      if (matches.length) {
         const words = [];
-        for (let i = 0; i < matches.length - 1; i++) {
+        for (let i = 0; i < matches.length; i++) {
           const start = angleTimeToSeconds(matches[i][1]);
-          const end = angleTimeToSeconds(matches[i + 1][1]);
-          const text = content.slice(matches[i].index + matches[i][0].length, matches[i + 1].index).trim();
-          if (text && start != null && end != null && end >= start) {
+          const next = matches[i + 1];
+          const end = next ? angleTimeToSeconds(next[1]) : null;
+          const text = content.slice(matches[i].index + matches[i][0].length, next?.index ?? content.length);
+          if (text && start != null && (!next || (end != null && end >= start))) {
             words.push({ text, time: start, end, background: false });
           }
         }
@@ -124,7 +125,7 @@
             line.words = words.map((word) => ({
               ...word,
               time: Math.max(0, word.time + shift),
-              end: Math.max(0, word.end + shift),
+              end: word.end == null ? null : Math.max(0, word.end + shift),
             }));
             line.time = line.words[0].time;
             line.end = line.words[line.words.length - 1].end;
@@ -135,7 +136,11 @@
       bi += expandedCount;
     }
     base.sort((a,b) => a.time - b.time);
-    base.forEach((line,index) => { if (!line.words.length) line.end = base[index+1]?.time ?? null; });
+    base.forEach((line, index) => {
+      if (line.words.length && line.end != null) return;
+      line.end = base[index + 1]?.time ?? null;
+      if (line.words.length) line.words.at(-1).end = line.end;
+    });
     const hasWords = base.some((line) => line.words && line.words.length);
     return { lines: base, syncLevel: hasWords ? "word" : "line" };
   }

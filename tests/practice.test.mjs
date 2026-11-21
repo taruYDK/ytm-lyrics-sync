@@ -10,6 +10,10 @@ test('romaji: digraphs, gemination, nasal boundary, long vowels and mixed text',
 function harness(){
  const lines=[{text:'同じ',time:10},{text:'同じ',time:20}];const seeks=[];let id='one',time=0,now=2000;
  const c=vm.createContext({STATE:{enabled:true,displayedVideoId:'one',lines,fontSize:32,readingJapanese:true,readingEnglish:true},getAuthoritativeVideoId:()=>id,applySettings:()=>{},refreshLyricsReadings:()=>{},getVideoElement:()=>({}),getAuthoritativePlaybackTime:()=>time,getFreshPlayerSnapshot:()=>({playerState:1}),getAuthoritativeDuration:()=>100,playbackTimeForLyricsTime:t=>t-.5,requestPlayerSeek:(...args)=>seeks.push(args),performance:{now:()=>now}});
+ c.window={addEventListener(){}};
+ c.getVideoId=()=>id;
+ c.document={documentElement:{classList:{contains:()=>false}}};
+ vm.runInContext(read('src/content/player-bridge.js'),c);
  vm.runInContext(read('src/content/practice.js'),c);
  return {c,lines,seeks,run:s=>vm.runInContext(s,c),track:value=>id=value,time:value=>time=value,clock:value=>now=value};
 }
@@ -88,7 +92,10 @@ test('fullscreen Space works on root and after rows disappear, suppresses repeat
  fire({type:'keyup'});assert.equal(prevented,3);assert.equal(stopped,3);
  fire({target:{isContentEditable:true}});fire({target:{closest:()=>({})}});fire({ctrlKey:true});assert.equal(toggles,1);
  h.c.STATE.trackingEnabled=false;fire();assert.equal(toggles,2);
- h.run('practiceFullscreen=null');fire();assert.equal(toggles,2);
+ h.c.row={click:()=>{throw Error('Space should not activate the custom row handler');}};
+ h.c.event={key:' ',preventDefault(){},stopPropagation(){}};
+ h.run("handlePracticeLineKey(event,'one',STATE.lines,row)");assert.equal(toggles,3);
+ h.run('practiceFullscreen=null');fire();assert.equal(toggles,3);
 });
 
 
@@ -102,4 +109,26 @@ test('startup reads retry transient errors and allow manual recovery after bound
   failures=4;const failed=h.run(`loadPracticeSettings('${area}')`);while(timers.length)timers.shift()();assert.equal(await failed,false);assert(h.run(`practiceLoadErrors.${area}`).includes('再試行できます'));
   failures=0;assert.equal(await h.run(`loadPracticeSettings('${area}')`),true);assert.equal(h.run(`practiceLoadErrors.${area}`),undefined);
  }
+});
+
+test('editing only font size preserves the masked per-track reading preference',async()=>{
+ const h=harness(),fields=[];
+ h.run("practiceLocalReady=practiceSyncReady=true;practiceGlobal.readingJapanese=false;practiceData={one:{settings:{readingJapanese:true}}}");
+ h.c.practicePane=()=>({body:{isConnected:true},status:{},id:'one',lines:h.lines});
+ h.c.practiceButton=()=>{};
+ h.c.practiceField=(body,label,type,value)=>{
+  const field={value,checked:value,addEventListener:(event,fn)=>{field.change=fn;}};
+  fields.push(field);return field;
+ };
+ h.c.sendUserDataMutation=async({entry})=>({ytmlsTrackDisplayV280:{one:entry}});
+ h.c.refreshPracticeExtras=async()=>{};
+ h.run('showTrackDisplay()');
+ assert.equal(fields[1].checked,true);
+ fields[0].value='40';fields[0].change();
+ await h.run('practiceSettingsSaveQueue');
+ assert.equal(h.c.STATE.fontSize,40);
+ assert.equal(h.c.STATE.readingJapanese,false);
+ h.run('practiceGlobal.readingJapanese=true;applyPracticePrefs()');
+ assert.equal(h.c.STATE.readingJapanese,true);
+ assert.equal(h.run('practiceData.one.settings.readingEnglish'),undefined);
 });

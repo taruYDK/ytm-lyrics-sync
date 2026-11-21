@@ -1,7 +1,7 @@
 // All user-data mutations run in one service-worker queue, including other tabs.
 const USER_DATA_KEYS = [
   'ytmlsTrackTimingOffsetsV174', 'ytmlsManualSearchOverridesV190',
-  'ytmlsLyricsEditsV199', 'ytmlsPinnedLyricsV200', 'ytmlsLocalLyricsV200', 'ytmlsManualReadingsV256', 'ytmlsTrackDisplayV280',
+  'ytmlsLyricsEditsV199', 'ytmlsPinnedLyricsV200', 'ytmlsLocalLyricsV200', 'ytmlsManualReadingsV256', 'ytmlsTrackDisplayV280', 'ytmlsBookmarksV310',
 ];
 let userDataQueue = Promise.resolve();
 const userUndo = new Map();
@@ -15,6 +15,12 @@ function localDataCall(method, value) {
       else resolve(result);
     });
   });
+}
+// Storage can return an object's fields in a different order after a write.
+function readingSnapshot(entries) {
+  return JSON.stringify(entries, (_, value) => isMap(value)
+    ? Object.fromEntries(Object.keys(value).sort().map(key => [key, value[key]]))
+    : value);
 }
 async function mutateUserData(message) {
   if (message.action === 'undo') {
@@ -131,6 +137,10 @@ async function mutateUserData(message) {
     }
     for (const key of USER_DATA_KEYS.slice(2)) changed[key] = next[key];
   } else if (message.action === 'entry' && safeId && USER_DATA_KEYS.includes(message.key)) {
+    if (message.key === 'ytmlsManualReadingsV256' && 'expectedEntries' in message &&
+        readingSnapshot(next[message.key][id]?.entries || []) !== readingSnapshot(message.expectedEntries)) {
+      throw new Error('ほかの画面で読み仮名が更新されました。編集画面を開き直してください。');
+    }
     if (message.entry != null) YTMLSBackupValidation.local({[message.key]:{[id]:message.entry}});
     if (message.entry == null) delete next[message.key][id];
     else {

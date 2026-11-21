@@ -1,5 +1,5 @@
 // A reminder, not an automatic download. Count distinct saved tracks, not slider events.
-const BACKUP_REMINDER_KEYS = ['ytmlsTrackTimingOffsetsV174','ytmlsManualSearchOverridesV190','ytmlsLyricsEditsV199','ytmlsPinnedLyricsV200','ytmlsLocalLyricsV200', 'ytmlsManualReadingsV256','ytmlsTrackDisplayV280'];
+const BACKUP_REMINDER_KEYS = ['ytmlsTrackTimingOffsetsV174','ytmlsManualSearchOverridesV190','ytmlsLyricsEditsV199','ytmlsPinnedLyricsV200','ytmlsLocalLyricsV200', 'ytmlsManualReadingsV256','ytmlsTrackDisplayV280', 'ytmlsBookmarksV310'];
 function countUnbackedTracks(data, since) {
   const ids = new Set();
   for (const key of BACKUP_REMINDER_KEYS) for (const [id, entry] of Object.entries(data[key] || {})) {

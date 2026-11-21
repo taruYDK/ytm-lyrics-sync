@@ -153,11 +153,7 @@
     button.disabled = !canEditLyricsReadings();
     button.title = button.disabled ? '曲と歌詞の読み込みが完了すると編集できます' : '行ごとのふりがなを編集';
     button.addEventListener('click', () => { const more = lyricsToolsEl.querySelector('#ytmls-more'); if (more) more.open = false; openManualReadingEditor(); });
-    const menu = lyricsToolsEl.querySelector('.ytmls-more-menu');
-    if (menu) {
-      const addLyrics = menu.querySelector('.ytmls-local-lyrics-button');
-      menu.insertBefore(button, addLyrics ? addLyrics.nextSibling : null);
-    }
+    lyricsToolsEl.querySelector('#ytmls-lyrics-menu')?.append(button);
   }
 
   async function openManualReadingEditor() {
@@ -167,33 +163,55 @@
     closeLyricsToolsPane();
     const pane = lyricsToolsPaneEl, lines = STATE.lines;
     lyricsToolsPaneMode = 'readings'; pane.hidden = false;
+    const editor = document.createElement('div');
+    editor.className = 'ytmls-reading-editor';
     const heading = document.createElement('div'); heading.className = 'ytmls-tools-heading'; heading.textContent = 'ふりがな編集';
     const note = document.createElement('p');
     note.textContent = '行を選んで、読みを書き直すだけ。空にして保存すると、その行のふりがなを非表示にできます。';
     const form = document.createElement('form'); form.id = 'ytmls-reading-form';
-    const select = document.createElement('select'); select.setAttribute('aria-label', '編集する歌詞行');
+    const select = document.createElement('select'); select.id = 'ytmls-reading-line';
+    const lineLabel = document.createElement('label');
+    lineLabel.htmlFor = select.id;
+    lineLabel.textContent = '編集する行';
     lines.forEach((line, index) => { const option = document.createElement('option'); option.value = String(index); option.textContent = `${index + 1}. ${editableLineText(line)}`; select.appendChild(option); });
-    const reading = document.createElement('textarea'); reading.id = 'ytmls-reading-text'; reading.rows = 3; reading.placeholder = 'この行の読みを入力'; reading.maxLength = 1000; reading.setAttribute('aria-label', 'この行のふりがな');
+    const reading = document.createElement('textarea'); reading.id = 'ytmls-reading-text'; reading.rows = 2; reading.placeholder = 'この行の読みを入力'; reading.maxLength = 1000;
     const label = document.createElement('label'); label.htmlFor = reading.id; label.textContent = 'この行のふりがな';
     const save = document.createElement('button'); save.type = 'submit'; save.textContent = 'この行を保存'; save.className = 'ytmls-tool-button ytmls-reading-primary';
     const reset = document.createElement('button'); reset.type = 'button'; reset.textContent = 'この行を自動読みに戻す';
     const preview = document.createElement('div'); preview.className = 'ytmls-reading-preview';
     preview.setAttribute('aria-label', '保存後のふりがなプレビュー');
-    const previewLabel = document.createElement('div'); previewLabel.textContent = 'プレビュー';
+    const previewLabel = document.createElement('div'); previewLabel.className = 'ytmls-reading-field-label'; previewLabel.textContent = 'プレビュー';
     const saved = document.createElement('div');
     const status = document.createElement('div'); status.setAttribute('role', 'status'); status.textContent = '読み込み中…';
     const close = document.createElement('button'); close.type = 'button'; close.textContent = '閉じる'; close.addEventListener('click', closeLyricsToolsPane);
     reset.className = close.className = 'ytmls-tool-button';
     const actions = document.createElement('div'); actions.className = 'ytmls-reading-actions'; actions.append(save, reset, close);
-    form.append(select, label, reading, previewLabel, preview, saved, actions, status); pane.append(heading, note, form);
+    const lineField = document.createElement('div');
+    lineField.className = 'ytmls-reading-field';
+    lineField.append(lineLabel, select);
+    const inputField = document.createElement('div');
+    inputField.className = 'ytmls-reading-field';
+    inputField.append(label, reading);
+    const previewField = document.createElement('div');
+    previewField.className = 'ytmls-reading-field';
+    previewField.append(previewLabel, preview);
+    const readingFields = document.createElement('div');
+    readingFields.className = 'ytmls-reading-fields';
+    readingFields.append(inputField, previewField);
+    const messages = document.createElement('div');
+    messages.className = 'ytmls-reading-messages';
+    messages.append(saved, status);
+    form.append(lineField, readingFields, messages, actions);
+    editor.append(heading, note, form);
+    pane.append(editor);
     form.addEventListener('keydown', event => { if (event.key === 'Escape') { event.stopPropagation(); closeLyricsToolsPane(); } });
     const current = () => form.isConnected && STATE.lines === lines && String(getAuthoritativeVideoId() || '') === videoId;
-    let entries, tokenizer = null, dictionary = null;
+    let loadedEntries, entries, tokenizer = null, dictionary = null;
     save.disabled = reset.disabled = select.disabled = reading.disabled = true;
     try {
       const results = await Promise.allSettled([loadManualReadings(videoId), getJapaneseReadingTokenizer(), getEnglishReadings(lines.map(line => editableLineText(line)))]);
       if (results[0].status === 'rejected') throw results[0].reason;
-      entries = results[0].value; tokenizer = results[1].status === 'fulfilled' ? results[1].value : null; dictionary = results[2].status === 'fulfilled' ? results[2].value : null;
+      loadedEntries = results[0].value; entries = loadedEntries; tokenizer = results[1].status === 'fulfilled' ? results[1].value : null; dictionary = results[2].status === 'fulfilled' ? results[2].value : null;
     }
     catch (_) { if (current()) status.textContent = '読み込みに失敗しました。閉じてから再度お試しください。'; return; }
     if (!current()) return;
@@ -239,11 +257,11 @@
       save.disabled = reset.disabled = select.disabled = reading.disabled = true;
       try {
         const info = STATE.activeBaseInfo || STATE.activeSearchInfo || {};
-        await sendUserDataMutation({action:'entry', key:'ytmlsManualReadingsV256', videoId,
+        await sendUserDataMutation({action:'entry', key:'ytmlsManualReadingsV256', videoId, expectedEntries:loadedEntries,
           entry: next.length ? {entries:next,title:info.title || '',artist:info.artist || '',updatedAt:Date.now()} : null});
-        entries = next;
+        loadedEntries = entries = next;
         if (current()) { await update(); status.textContent = '保存しました。表示設定がONの読み仮名に反映します。'; refreshLyricsReadings(); }
-      } catch (_) { if (current()) status.textContent = '保存できませんでした。もう一度お試しください。'; }
+      } catch (error) { if (current()) status.textContent = error.message || '保存できませんでした。もう一度お試しください。'; }
       finally { save.disabled = reset.disabled = select.disabled = reading.disabled = false; }
     }
     form.addEventListener('submit', event => {

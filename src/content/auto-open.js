@@ -59,7 +59,7 @@
 
   function isLyricsLabelText(text) {
     const label = String(text || '').replace(/\s+/g, ' ').trim().toLowerCase();
-    return label === '歌詞' || label === 'lyrics' || label.includes('歌詞') || /(^|\s)lyrics($|\s)/i.test(label);
+    return label === '歌詞' || /^(letras?|paroles|testi|testo|songtexte?|가사|歌词)(?:\s+\1)*$/iu.test(label) || label === 'lyrics' || label.includes('歌詞') || /(^|\s)lyrics($|\s)/i.test(label);
   }
 
   function closestTabLikeElement(node) {
@@ -79,7 +79,17 @@
   function findLyricsTabButton() {
     const tabs = getPlayerPageTabs();
 
-    // 1) 通常のタブ要素からラベルで特定。
+    // Prefer the associated lyrics panel whenever the tab exposes aria-controls.
+    for (const tab of tabs) {
+      const controls = tab.getAttribute('aria-controls');
+      if (controls?.split(/\s+/).some(id => {
+        const panel = document.getElementById(id);
+        const selector = '[page-type="MUSIC_PAGE_TYPE_TRACK_LYRICS"]';
+        return panel?.matches(selector) || panel?.querySelector(selector);
+      })) return tab;
+    }
+
+    // 通常のタブ要素からラベルで特定。
     for (const el of tabs) {
       if (isLyricsLabelText(normalizedTabText(el))) return el;
     }

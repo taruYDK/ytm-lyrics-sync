@@ -6,12 +6,24 @@
     if (STATE.hasLyricsResult) return (STATE.hasSync ? '同期歌詞を取得済み' : '同期時刻のない歌詞') + (STATE.source ? ' · ' + STATE.source : '');
     return STATE.lastTrackKey ? '同期歌詞が見つかりません' : '曲の読み込み待ち';
   }
+  function fitMoreMenu(more, menu) {
+    if (!more.open || !panelEl) return;
+    const panelBottom = panelEl.getBoundingClientRect().bottom;
+    const menuTop = more.getBoundingClientRect().top + menu.offsetTop;
+    const available = Math.max(0, Math.floor(Math.min(window.innerHeight, panelBottom) - menuTop - 8));
+    const maxHeight = available + 'px';
+    if (menu.style.maxHeight !== maxHeight) menu.style.maxHeight = maxHeight;
+  }
+
   function updateHelpfulUi() {
     if (!panelEl || !lyricsToolsEl) return;
     let bar = panelEl.querySelector('#ytmls-helpful');
     if (!bar) {
       bar = document.createElement('div'); bar.id = 'ytmls-helpful';
       const status = document.createElement('span'); status.className = 'ytmls-fetch-status'; status.setAttribute('role','status');
+      const statusText = document.createElement('span');
+      statusText.className = 'ytmls-fetch-status-text';
+      status.append(statusText);
       const back = document.createElement('button'); back.type = 'button'; back.className = 'ytmls-tool-button'; back.textContent = '今の歌詞に戻る';
       back.addEventListener('click', () => {
         if (!STATE.enabled || !STATE.trackingEnabled || !STATE.hasSync) return;
@@ -19,25 +31,36 @@
         updateHighlight(getAuthoritativePlaybackTime(getVideoElement()) || 0, true);
         updateHelpfulUi();
       });
-      bar.append(status, back); lyricsToolsEl.prepend(bar);
+      const source = document.createElement('span'); source.className = 'ytmls-source-badge';
+      bar.append(status, source, back); lyricsToolsEl.prepend(bar);
     }
     const text = helpfulStatus();
-    if (bar.firstChild.textContent !== text) { bar.firstChild.textContent = text; bar.firstChild.title = text; }
+    const badge = bar.querySelector('.ytmls-source-badge');
+    const source = STATE.enabled && !STATE.contextInvalidated && STATE.hasLyricsResult ? STATE.source || '' : '';
+    badge.hidden = !source;
+    if (badge.textContent !== source) { badge.textContent = source; badge.title = source; }
+    const summary = source ? text.replace(' · ' + source, '') : text;
+    const statusText = bar.querySelector('.ytmls-fetch-status-text');
+    if (statusText.textContent !== summary) { statusText.textContent = summary; statusText.title = summary; }
     bar.lastChild.hidden = !(STATE.enabled && STATE.trackingEnabled && STATE.hasSync && isManualScrollPaused());
-    const menu = lyricsToolsEl.querySelector('.ytmls-more-menu');
-    if (menu && lyricsToolsEl.querySelector('#ytmls-more')?.open) {
-      const bottom = Math.min(window.innerHeight, panelEl.getBoundingClientRect().bottom);
-      const available = Math.max(0, Math.floor(bottom - menu.getBoundingClientRect().top - 8));
-      menu.style.maxHeight = Math.min(480, available) + 'px';
-    }
-    if (menu) for (const button of menu.querySelectorAll('button')) {
-      let hint = button.nextElementSibling;
-      if (!hint?.classList.contains('ytmls-menu-hint')) {
-        hint = document.createElement('small'); hint.className = 'ytmls-menu-hint'; button.after(hint);
-      }
-      hint.hidden = !button.disabled;
-      const reason = button.disabled ? button.title || '曲と歌詞の読み込み後に使用できます' : '';
-      if (hint.textContent !== reason) hint.textContent = reason;
-    }
+    const more = lyricsToolsEl.querySelector('#ytmls-more');
+    const menu = more?.querySelector('.ytmls-more-menu');
+    if (menu) fitMoreMenu(more, menu);
+    if (menu) for (const button of menu.querySelectorAll('button')) updateHelpfulMenuHint(button);
     if (helpfulTimer === null) helpfulTimer = setTimeout(() => { helpfulTimer = null; updateHelpfulUi(); }, 500);
+  }
+
+  function updateHelpfulMenuHint(button) {
+    let hint = button.nextElementSibling;
+    // Presets share a flex row: per-button hints would become extra columns.
+    if (button.closest?.('.ytmls-size-presets')) {
+      if (hint?.classList.contains('ytmls-menu-hint')) hint.remove();
+      return;
+    }
+    if (!hint?.classList.contains('ytmls-menu-hint')) {
+      hint = document.createElement('small'); hint.className = 'ytmls-menu-hint'; button.after(hint);
+    }
+    hint.hidden = !button.disabled;
+    const reason = button.disabled ? button.title || '曲と歌詞の読み込み後に使用できます' : '';
+    if (hint.textContent !== reason) hint.textContent = reason;
   }

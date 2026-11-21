@@ -1,9 +1,6 @@
 (() => {
   'use strict';
   let enabled = true, bridgeEnabled = true, currentId = '', snapshotAt = 0, held = false;
-  let spaceEnabled = true, settingRev = 0;
-  chrome.storage.local.get({ytmlsSpacePlaybackEnabled:true}, v => { if (!settingRev && !chrome.runtime.lastError) spaceEnabled = v.ytmlsSpacePlaybackEnabled !== false; });
-  chrome.storage.onChanged.addListener((c,a) => { if(a === 'local' && c.ytmlsSpacePlaybackEnabled) { settingRev++; spaceEnabled = c.ytmlsSpacePlaybackEnabled.newValue !== false; } });
   const source = 'ytmls-player-bridge-v1';
   let keyboardFocus = true;
   window.addEventListener('pointerdown', () => { keyboardFocus = false; document.documentElement.classList.add('ytmls-pointer-focus'); }, true);
@@ -24,7 +21,7 @@
   }
   window.addEventListener('keydown', e => {
     if (e.code !== 'Space' || e.ctrlKey || e.metaKey || e.altKey || e.shiftKey || e.isComposing || editable(e)) return;
-    if (!spaceEnabled || !enabled || !bridgeEnabled || !currentId || performance.now() - snapshotAt > 1500) return;
+    if (!enabled || !bridgeEnabled || !currentId || performance.now() - snapshotAt > 1500) return;
     const author = document.querySelector('#ytmls-tools-pane:not([hidden]) .ytmls-sync-current-line');
     if (author && author.getClientRects().length && getComputedStyle(author).visibility === 'visible') return;
     const path = e.composedPath();

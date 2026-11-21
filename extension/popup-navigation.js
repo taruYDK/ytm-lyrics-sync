@@ -21,6 +21,6 @@
       if(next!==undefined){event.preventDefault();show(next,true);}
     });
   });
-  function fromHash(){const index=links.findIndex(link=>link.hash===location.hash);show(index<0?0:index);}
+  function fromHash(){const target=document.getElementById(location.hash.slice(1));const index=panels.findIndex(panel=>target && panel.contains(target));show(index<0?0:index);if(index>=0 && target!==panels[index])target.scrollIntoView({block:"start"});}
   window.addEventListener('hashchange',fromHash);fromHash();
 })();

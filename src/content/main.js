@@ -19,6 +19,9 @@
       }
 
       checkTrackChange();
+      if (STATE.pendingInitialHighlight && STATE.hasSync && trackingDisplayVisible()) {
+        updateHighlight(getAuthoritativePlaybackTime(getVideoElement()), true);
+      }
       runAutoRecoveryWatchdog();
       updatePlayerBarHealth();
       updateDiagnosticsSummary();

@@ -251,7 +251,7 @@ trackingToggle.addEventListener("change", () => chrome.storage.sync.set({ tracki
 autoLyricsOnIdleToggle.addEventListener("change", () => chrome.storage.sync.set({ autoLyricsOnIdle: autoLyricsOnIdleToggle.checked }));
 wordTrackingStyleSelect.addEventListener("change", () => chrome.storage.sync.set({ wordTrackingStyle: wordTrackingStyleSelect.value }));
 
-const userDataKeys = ["ytmlsTrackTimingOffsetsV174", "ytmlsManualSearchOverridesV190", "ytmlsLyricsEditsV199", "ytmlsPinnedLyricsV200", "ytmlsLocalLyricsV200", "ytmlsManualReadingsV256", "ytmlsTrackDisplayV280"];
+const userDataKeys = ["ytmlsTrackTimingOffsetsV174", "ytmlsManualSearchOverridesV190", "ytmlsLyricsEditsV199", "ytmlsPinnedLyricsV200", "ytmlsLocalLyricsV200", "ytmlsManualReadingsV256", "ytmlsTrackDisplayV280", "ytmlsBookmarksV310"];
 chrome.storage.local.get(userDataKeys, data => {
   const summary = document.getElementById("savedDataSummary");
   if (chrome.runtime.lastError) { summary.textContent = "保存件数を取得できませんでした。"; return; }

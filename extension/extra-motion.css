@@ -1,0 +1,28 @@
+.ytmls-size-presets { display:flex; gap:6px; padding:4px 10px; }
+.ytmls-size-presets button { flex:1; }
+#ytmls-empty-actions:not([hidden]) { display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin-top:6px; }
+@media (prefers-reduced-motion: no-preference) {
+ html:not(.ytmls-extra-motion-disabled):not(.ytmls-lyrics-motion-lightweight) ytmusic-player-bar #play-pause-button { transition:transform 120ms ease; }
+ html:not(.ytmls-extra-motion-disabled):not(.ytmls-lyrics-motion-lightweight) ytmusic-player-bar #play-pause-button:active { transform:scale(.91); }
+ html:not(.ytmls-extra-motion-disabled):not(.ytmls-lyrics-motion-lightweight) #ytmls-more[open] > .ytmls-more-menu { animation:ytmls-menu-enter 160ms ease-out both; transform-origin:top right; }
+ html:not(.ytmls-extra-motion-disabled):not(.ytmls-lyrics-motion-lightweight) .ytmls-number-changed { animation:ytmls-number-pulse 180ms ease-out; }
+}
+@keyframes ytmls-menu-enter { from { opacity:0; transform:translateY(-5px) scale(.98); } to { opacity:1; transform:none; } }
+@keyframes ytmls-number-pulse { from { opacity:.6; transform:translateY(3px); } to { opacity:1; transform:none; } }
+@media (prefers-reduced-motion: no-preference) {
+  html:not(.ytmls-extra-motion-disabled):not(.ytmls-lyrics-motion-lightweight) .ytmls-seek-flash { position: relative; }
+  html:not(.ytmls-extra-motion-disabled):not(.ytmls-lyrics-motion-lightweight) .ytmls-seek-flash::after {
+    content: "";
+    position: absolute;
+    pointer-events: none;
+    left: 0;
+    bottom: 2px;
+    width: 28%;
+    height: 2px;
+    opacity: 0;
+    background: linear-gradient(90deg, transparent, rgb(var(--ytmls-art-accent, 255 255 255)), transparent);
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+ html:not(.ytmls-extra-motion-disabled):not(.ytmls-lyrics-motion-lightweight) #ytmls-tools-pane:not([hidden]) { animation:ytmls-menu-enter 160ms ease-out; transform-origin:top right; }
+}

@@ -68,3 +68,13 @@ test('BiniLyrics requests the verified canonical API and accepts only canonical 
   const result=await c.fetchFromBiniLyrics({title:'title',artist:'artist'},100,'song');assert.equal(new URL(urls[0]).origin,'https://lrc.red');assert.equal(new URL(urls[0]).pathname,'/api/v1');assert.equal(texts.length,storageUrl.startsWith('https://lrc.red/')?1:0);assert.equal(Boolean(result),texts.length>0);
  }
 });
+
+test('inline LRC preserves spacing and the final word without a closing timestamp', () => {
+  const c = vm.createContext({});
+  vm.runInContext(read('src/content/lyrics-parser.js') + read('src/content/providers.js'), c);
+  const {lines} = c.parseInlineTimedLrc('[00:01]<00:01>Hello <00:02>world\n[00:05]<00:05>Bye');
+  assert.equal(lines[0].text, 'Hello world');
+  assert.deepEqual(Array.from(lines[0].words, w => [w.text,w.time,w.end]), [['Hello ',1,2],['world',2,5]]);
+  assert.equal(lines[1].words[0].text, 'Bye');
+  assert.equal(lines[1].words[0].end, null);
+});

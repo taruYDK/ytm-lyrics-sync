@@ -135,3 +135,21 @@ test('watchdog allows resumed display a fresh tracking grace period',()=>{
  c.runAutoRecoveryWatchdog();assert.equal(recoveries,0);
  now=14000;c.runAutoRecoveryWatchdog();assert.equal(recoveries,1);
 });
+
+test('a paused seek highlights the new row even before the bridge publishes its updated time',()=>{
+ const frames=[],events={};
+ const video={isConnected:true,paused:true,ended:false,currentTime:12,addEventListener:(type,fn)=>{events[type]=fn;}};
+ const STATE={enabled:true,hasSync:true,trackingEnabled:true,syncLevel:'line',currentIndex:0,currentWordIndex:-1,
+  lines:[{time:0},{time:60}],playerSnapshot:{videoId:'song',currentTime:12,receivedAt:100,playerState:2},displayedVideoId:'song',trackStartGuardActive:false};
+ const c=vm.createContext({STATE,videoEl:null,videoTimeUpdateHandler:null,trackingRaf:0,lyricsWasVisible:true,pendingReturnToCurrent:false,manualScrollUntil:0,
+  performance:{now:()=>100},window:{addEventListener(){}},requestAnimationFrame:fn=>frames.push(fn),getVideoElement:()=>video,getVideoId:()=> 'song',getPlayerVideoIdFromDom:()=> 'song',timingOffsetSeconds:()=>0,
+  listEl:{children:STATE.lines.map(()=>({classList:{toggle(){}}}))}});
+ for(const name of ['player-bridge','lyrics-storage','tracking'])vm.runInContext(read('src/content/'+name+'.js'),c);
+ c.scrollCurrentLineIntoView=()=>true;c.ensureVideoListener();
+ video.currentTime=75;events.seeked({type:'seeked'});
+ assert.equal(STATE.currentIndex,1);
+ assert.equal(STATE.playerSnapshot.currentTime,12);
+ frames.shift()();assert.equal(STATE.currentIndex,1);
+ STATE.playerSnapshot.videoId='other';video.currentTime=4;events.seeked({type:'seeked'});
+ assert.equal(STATE.currentIndex,1);
+});

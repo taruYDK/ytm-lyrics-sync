@@ -283,16 +283,46 @@
     trackTimingPointsEl.appendChild(fragment);
   }
 
+  let trackTimingAnchor = null;
+
+  function visibleTrackTimingAnchor() {
+    for (const target of [trackTimingAnchor, trackTimingButtonEl, document.querySelector('#ytmls-more > summary')]) {
+      if (!target?.isConnected) continue;
+      const rect = target.getBoundingClientRect();
+      if (rect.width > 0 && rect.height > 0) return { target, rect };
+    }
+    return null;
+  }
+
   function positionTrackTimingPopover() {
-    if (!trackTimingPopoverEl || !trackTimingButtonEl || trackTimingPopoverEl.hidden) return;
-    const rect = trackTimingButtonEl.getBoundingClientRect();
+    if (!trackTimingPopoverEl || trackTimingPopoverEl.hidden) return;
+    const rect = visibleTrackTimingAnchor()?.rect;
     const width = trackTimingPopoverEl.offsetWidth || 330;
     const height = trackTimingPopoverEl.offsetHeight || 230;
-    const left = Math.max(12, Math.min(window.innerWidth - width - 12, rect.left + rect.width / 2 - width / 2));
-    let top = rect.top - height - 12;
-    if (top < 12) top = Math.min(window.innerHeight - height - 12, rect.bottom + 12);
+    const centerX = rect ? rect.left + rect.width / 2 : window.innerWidth / 2;
+    const left = Math.max(12, Math.min(window.innerWidth - width - 12, centerX - width / 2));
+    let top = (window.innerHeight - height) / 2;
+    if (rect) {
+      top = rect.top - height - 12;
+      if (top < 12) top = Math.min(window.innerHeight - height - 12, rect.bottom + 12);
+    }
     trackTimingPopoverEl.style.left = `${Math.round(left)}px`;
     trackTimingPopoverEl.style.top = `${Math.round(Math.max(12, top))}px`;
+  }
+
+  function toggleTrackTimingPopover(anchor = trackTimingButtonEl) {
+    if (!trackTimingButtonEl?.isConnected || trackTimingButtonEl.disabled) return;
+    ensureTrackTimingPopover();
+    if (!trackTimingPopoverEl.hidden) { closeTrackTimingPopover(); return; }
+    trackTimingAnchor = anchor;
+    trackTimingPopoverEl.hidden = false;
+    trackTimingButtonEl.setAttribute('aria-expanded', 'true');
+    updateTrackTimingControl();
+    requestAnimationFrame(() => {
+      if (trackTimingPopoverEl.hidden) return;
+      positionTrackTimingPopover();
+      trackTimingPopoverEl.querySelector('.ytmls-track-offset-close')?.focus();
+    });
   }
 
   function updateTrackTimingControl(renderPoints = true) {
@@ -340,6 +370,13 @@
     if (trackTimingPreview?.videoId === getTrackOffsetVideoId(false)) saveCurrentTrackTimingPoints(trackTimingPreview.points, false);
     if (trackTimingPopoverEl) trackTimingPopoverEl.hidden = true;
     if (trackTimingButtonEl) trackTimingButtonEl.setAttribute('aria-expanded', 'false');
+    trackTimingAnchor = null;
+  }
+
+  function dismissTrackTimingPopover() {
+    const trigger = visibleTrackTimingAnchor()?.target;
+    closeTrackTimingPopover();
+    trigger?.focus();
   }
 
   function updateOffsetPreview() {
@@ -407,16 +444,7 @@
       button.addEventListener('click', (event) => {
         event.preventDefault();
         event.stopPropagation();
-        if (button.disabled) return;
-        ensureTrackTimingPopover();
-        const willOpen = trackTimingPopoverEl.hidden;
-        trackTimingPopoverEl.hidden = !willOpen;
-        button.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
-        updateTrackTimingControl();
-        if (willOpen) requestAnimationFrame(() => {
-          positionTrackTimingPopover();
-          trackTimingPopoverEl.querySelector(".ytmls-track-offset-close")?.focus();
-        });
+        toggleTrackTimingPopover();
       });
     } else if (trackTimingButtonEl.parentElement !== host) {
       host.appendChild(trackTimingButtonEl);
@@ -466,11 +494,10 @@
     pop.addEventListener('keydown', event => {
       if (event.key !== 'Escape') return;
       event.preventDefault(); event.stopPropagation();
-      closeTrackTimingPopover();
-      trackTimingButtonEl?.focus();
+      dismissTrackTimingPopover();
     });
     pop.addEventListener('click', (event) => event.stopPropagation());
-    pop.querySelector('.ytmls-track-offset-close').addEventListener('click', closeTrackTimingPopover);
+    pop.querySelector('.ytmls-track-offset-close').addEventListener('click', dismissTrackTimingPopover);
     trackTimingAddPointEl.addEventListener('click', addCurrentTrackTimingPoint);
     const resetButton = pop.querySelector('[data-reset]');
     if (resetButton) {
@@ -516,6 +543,7 @@
 
   let lyricsMotionTrack = '';
   function renderLines(options = {}) {
+    STATE.pendingInitialHighlight = STATE.hasSync;
     if (!listEl) return;
 
     const resetScroll = Boolean(options.resetScroll);
@@ -612,7 +640,7 @@
         div.setAttribute('role', 'button');
         div.setAttribute('aria-label', (line.text || editableLineText(line) || '間奏') + '：この位置へ移動');
         div.addEventListener('keydown', event => {
-          if ((event.key === 'Enter' || event.key === ' ') && !event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey) {
+          if ((event.key === 'Enter' || event.key === ' ') && !event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey && !event.isComposing) {
             event.preventDefault(); event.stopPropagation();
             if (!event.repeat) {
               if (event.key === 'Enter') div.click();
@@ -648,6 +676,10 @@
           if (requestPlayerSeek(currentVideoId, target)) {
             resumeTrackingAfterLyricsSeek();
             updateHighlight(target, true);
+            const visibleRow = practiceFullscreen
+              ? practiceFullscreen.querySelector('.ytmls-full-list')?.children[i]
+              : div;
+            flashSeekLine(visibleRow);
           }
         });
       }
@@ -656,7 +688,7 @@
     });
 
     const video = getVideoElement();
-    if (video && STATE.hasSync && canTrackCurrentPlayback(video)) {
+    if (STATE.hasSync && canTrackCurrentPlayback(video)) {
       updateHighlight(getAuthoritativePlaybackTime(video) || 0, true);
     }
     // Track plain lyrics first, before dictionary initialization can block rendering.

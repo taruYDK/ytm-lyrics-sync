@@ -39,6 +39,16 @@
     // Observe only the player bar, never the scrolling home or lyrics tree.
     artworkObserver.observe(host, {subtree:true, childList:true, attributes:true, attributeFilter:['src','srcset']});
   }
+  function fadeOldCanvas(canvas, host, backdropSurface = false) {
+    if (!canvas?.cloneNode || !host?.appendChild || !canvas.width || !canvas.height || !canvas.dataset?.paint) return;
+    if (root.classList.contains('ytmls-extra-motion-disabled') || root.classList.contains('ytmls-lyrics-motion-lightweight') || (typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches)) return;
+    const old = canvas.cloneNode(false); old.removeAttribute('id');old.setAttribute('aria-hidden','true');
+    if (backdropSurface) Object.assign(old.style,{position:'fixed',inset:'0',width:'100%',height:'100%',zIndex:'-1',pointerEvents:'none'});
+    const ctx=old.getContext('2d');if(!ctx||!old.animate)return;
+    ctx.drawImage(canvas,0,0);host.appendChild(old);
+    const animation=old.animate([{opacity:Math.max(0,Math.min(100,Number(settings.musicGlassIntensity)||0))/100},{opacity:0}],{duration:260,easing:'ease-out'});
+    animation.finished.catch(()=>{}).finally(()=>old.remove());
+  }
   function paintSurfaces(tabsOnly = false) {
     if (!themeEnabled()) return;
     const width = globalThis.innerWidth, height = globalThis.innerHeight;
@@ -74,7 +84,9 @@
       const sh = Math.max(1, Math.min(96 - sy, bounds.height / height * 96));
       const signature = [artworkRevision, artworkReady, width, height, sx, sy, sw, sh].join(':');
       if (canvas.dataset.paint === signature) continue;
+      if (canvas.dataset.artworkRevision && canvas.dataset.artworkRevision !== String(artworkRevision)) fadeOldCanvas(canvas, host);
       canvas.dataset.paint = signature;
+      canvas.dataset.artworkRevision = String(artworkRevision);
       const context = canvas.getContext('2d');
       context.clearRect(0, 0, 192, 192);
       if (artworkReady && backdrop && bounds.width > 0 && bounds.height > 0) {
@@ -148,6 +160,7 @@
           // Bake blur into a tiny bitmap once per cover, not a viewport filter.
           const side = Math.min(image.naturalWidth, image.naturalHeight);
           if (!side) return;
+          if (artworkReady) { canvas.dataset.paint = '1'; fadeOldCanvas(canvas, page, true); }
           canvas.width = 96; canvas.height = 96;
           context.clearRect(0, 0, 96, 96);
           context.filter = 'blur(5px) saturate(1.55) brightness(.62)';
@@ -165,6 +178,7 @@
           artworkReady = true;
           artworkRevision++;
           paintSurfaces();
+          document.dispatchEvent?.(new Event("ytmls-glass-artwork-painted"));
         };
         image.src = art;
         }

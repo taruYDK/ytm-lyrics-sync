@@ -227,6 +227,7 @@ function readingTokensToRomaji(tokens) {
     lines: [],
     syncLevel: "none", // none | line | word | syllable
     hasSync: false,
+    pendingInitialHighlight: false,
     currentIndex: -1,
     currentWordIndex: -1,
     lastTrackKey: null,
@@ -835,7 +836,7 @@ function readingTokensToRomaji(tokens) {
 
   function isLyricsLabelText(text) {
     const label = String(text || '').replace(/\s+/g, ' ').trim().toLowerCase();
-    return label === '歌詞' || label === 'lyrics' || label.includes('歌詞') || /(^|\s)lyrics($|\s)/i.test(label);
+    return label === '歌詞' || /^(letras?|paroles|testi|testo|songtexte?|가사|歌词)(?:\s+\1)*$/iu.test(label) || label === 'lyrics' || label.includes('歌詞') || /(^|\s)lyrics($|\s)/i.test(label);
   }
 
   function closestTabLikeElement(node) {
@@ -855,7 +856,17 @@ function readingTokensToRomaji(tokens) {
   function findLyricsTabButton() {
     const tabs = getPlayerPageTabs();
 
-    // 1) 通常のタブ要素からラベルで特定。
+    // Prefer the associated lyrics panel whenever the tab exposes aria-controls.
+    for (const tab of tabs) {
+      const controls = tab.getAttribute('aria-controls');
+      if (controls?.split(/\s+/).some(id => {
+        const panel = document.getElementById(id);
+        const selector = '[page-type="MUSIC_PAGE_TYPE_TRACK_LYRICS"]';
+        return panel?.matches(selector) || panel?.querySelector(selector);
+      })) return tab;
+    }
+
+    // 通常のタブ要素からラベルで特定。
     for (const el of tabs) {
       if (isLyricsLabelText(normalizedTabText(el))) return el;
     }
@@ -1277,6 +1288,36 @@ function readingTokensToRomaji(tokens) {
 
     armLyricsAutoOpenIfNeeded(getAuthoritativeVideoId());
     tryAutoOpenLyricsTab();
+  }
+
+// Feature: player-motion.js
+  function playerFeedbackEnabled() {
+    const root = document.documentElement;
+    return STATE.enabled && !root.classList.contains('ytmls-extra-motion-disabled') &&
+      !root.classList.contains('ytmls-lyrics-motion-lightweight') &&
+      !matchMedia('(prefers-reduced-motion: reduce)').matches;
+  }
+
+  let seekFlash = null;
+  function flashSeekLine(row) {
+    if (!row || !playerFeedbackEnabled()) return;
+    if (seekFlash) {
+      seekFlash.effect.target.classList.remove('ytmls-seek-flash');
+      seekFlash.cancel();
+    }
+    row.classList.add('ytmls-seek-flash');
+    const animation = row.animate([
+      { transform: 'translateX(0)', opacity: 0 },
+      { opacity: 1, offset: 0.18 },
+      { transform: 'translateX(250%)', opacity: 0 }
+    ], { pseudoElement: '::after', duration: 420, easing: 'ease-out' });
+    seekFlash = animation;
+    const release = () => {
+      if (seekFlash !== animation) return;
+      row.classList.remove('ytmls-seek-flash');
+      seekFlash = null;
+    };
+    animation.finished.then(release, release);
   }
 
 // Feature: external-tab.js
@@ -2146,7 +2187,7 @@ function readingTokensToRomaji(tokens) {
       if (authorShortcutTargetsControl(event.target, record)) return;
       const space = event.code === "Space" && !event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey;
       const back = event.key.toLowerCase() === "z" && (event.ctrlKey || event.metaKey) && !event.altKey && !event.shiftKey;
-      if (!space && !back) return;
+      if ((!space && !back) || (space ? record : undo).disabled) return;
       event.preventDefault(); event.stopImmediatePropagation();
       if (!event.repeat) (space ? record : undo).click();
     }, { capture: true, signal: authorShortcutController.signal });
@@ -2371,6 +2412,17 @@ function readingTokensToRomaji(tokens) {
     }, 1800);
   }
 
+  function closeMoreMenu(more) {
+    if (!more?.open) return;
+    const menu=more.querySelector('.ytmls-more-menu');
+    const motion=!document.documentElement.classList.contains('ytmls-extra-motion-disabled') && !document.documentElement.classList.contains('ytmls-lyrics-motion-lightweight') && !(typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches);
+    if (!motion || !menu?.animate) { more.open=false; return; }
+    if (more.dataset.closing==='true') return;
+    more.dataset.closing='true';menu.style.pointerEvents='none';
+    const animation=menu.animate([{opacity:1,transform:'none'},{opacity:0,transform:'translateY(-5px) scale(.98)'}],{duration:140,easing:'ease-in'});
+    animation.finished.catch(()=>{}).finally(()=>{more.open=false;delete more.dataset.closing;menu.style.removeProperty('pointer-events');});
+  }
+
   function createPanel() {
     if (panelEl) return;
 
@@ -2424,23 +2476,39 @@ function readingTokensToRomaji(tokens) {
     const moreToggle = document.createElement("summary");
     moreToggle.className = "ytmls-tool-button";
     moreToggle.textContent = "その他";
+    moreToggle.addEventListener('click',event=>{if(more.open){event.preventDefault();closeMoreMenu(more);}});
     const menu = document.createElement("div");
     menu.className = "ytmls-more-menu";
-    const sectionLabel = text => { const label = document.createElement('div'); label.className = 'ytmls-menu-label'; label.textContent = text; return label; };
-    const playbackGroup = document.createElement('div'); playbackGroup.id = 'ytmls-playback-menu';
-    playbackGroup.setAttribute('role', 'group'); playbackGroup.setAttribute('aria-label', '再生・同期');
-    playbackGroup.appendChild(sectionLabel('再生・同期'));
-    menu.append(sectionLabel('歌詞を探す'), manualSearchButtonEl, sectionLabel('編集する'), editLyricsButtonEl, localLyricsButtonEl, playbackGroup, sectionLabel('保存・診断'), exportLyricsButtonEl);
+    function menuGroup(title, id) {
+      const group = document.createElement('div');
+      group.id = id;
+      group.className = 'ytmls-menu-group';
+      group.setAttribute('role', 'group');
+      const label = document.createElement('div');
+      label.className = 'ytmls-menu-label';
+      label.id = id + '-label';
+      label.textContent = title;
+      group.setAttribute('aria-labelledby', label.id);
+      group.append(label);
+      return group;
+    }
+    const displayGroup = menuGroup('表示', 'ytmls-practice-controls');
+    const playbackGroup = menuGroup('再生・同期', 'ytmls-playback-menu');
+    const lyricsGroup = menuGroup('歌詞の検索・編集', 'ytmls-lyrics-menu');
+    lyricsGroup.append(manualSearchButtonEl, localLyricsButtonEl, editLyricsButtonEl);
+    const storageGroup = menuGroup('保存・診断', 'ytmls-storage-menu');
+    storageGroup.append(exportLyricsButtonEl);
+    menu.append(displayGroup, playbackGroup, lyricsGroup, storageGroup);
     more.append(moreToggle, menu);
     lyricsToolsEl.append(candidateButtonEl, more);
     for (const button of [candidateButtonEl, manualSearchButtonEl, editLyricsButtonEl, localLyricsButtonEl, exportLyricsButtonEl]) {
-      button.addEventListener("click", () => { more.open = false; });
+      button.addEventListener("click", () => { closeMoreMenu(more); });
     }
     document.addEventListener("click", event => {
-      if (more.open && !more.contains(event.target)) more.open = false;
+      if (more.open && !more.contains(event.target)) closeMoreMenu(more);
     });
     more.addEventListener("keydown", event => {
-      if (event.key === "Escape") { more.open = false; moreToggle.focus(); event.stopPropagation(); }
+      if (event.key === "Escape") { closeMoreMenu(more); moreToggle.focus(); event.stopPropagation(); }
     });
     panelEl.appendChild(lyricsToolsEl);
 
@@ -2461,9 +2529,10 @@ function readingTokensToRomaji(tokens) {
     const diagnosticToggle = document.createElement("summary");
     diagnosticToggle.textContent = "診断情報";
     diagnosticDetails.append(diagnosticToggle, diagnosticsEl);
-    menu.appendChild(diagnosticDetails);
+    storageGroup.append(diagnosticDetails);
     more.addEventListener("toggle", () => {
-      if (!more.open) diagnosticDetails.open = false;
+      if (more.open) fitMoreMenu(more, menu);
+      else diagnosticDetails.open = false;
     });
 
     lyricsToolsPaneEl = document.createElement("div");
@@ -3048,16 +3117,46 @@ function readingTokensToRomaji(tokens) {
     trackTimingPointsEl.appendChild(fragment);
   }
 
+  let trackTimingAnchor = null;
+
+  function visibleTrackTimingAnchor() {
+    for (const target of [trackTimingAnchor, trackTimingButtonEl, document.querySelector('#ytmls-more > summary')]) {
+      if (!target?.isConnected) continue;
+      const rect = target.getBoundingClientRect();
+      if (rect.width > 0 && rect.height > 0) return { target, rect };
+    }
+    return null;
+  }
+
   function positionTrackTimingPopover() {
-    if (!trackTimingPopoverEl || !trackTimingButtonEl || trackTimingPopoverEl.hidden) return;
-    const rect = trackTimingButtonEl.getBoundingClientRect();
+    if (!trackTimingPopoverEl || trackTimingPopoverEl.hidden) return;
+    const rect = visibleTrackTimingAnchor()?.rect;
     const width = trackTimingPopoverEl.offsetWidth || 330;
     const height = trackTimingPopoverEl.offsetHeight || 230;
-    const left = Math.max(12, Math.min(window.innerWidth - width - 12, rect.left + rect.width / 2 - width / 2));
-    let top = rect.top - height - 12;
-    if (top < 12) top = Math.min(window.innerHeight - height - 12, rect.bottom + 12);
+    const centerX = rect ? rect.left + rect.width / 2 : window.innerWidth / 2;
+    const left = Math.max(12, Math.min(window.innerWidth - width - 12, centerX - width / 2));
+    let top = (window.innerHeight - height) / 2;
+    if (rect) {
+      top = rect.top - height - 12;
+      if (top < 12) top = Math.min(window.innerHeight - height - 12, rect.bottom + 12);
+    }
     trackTimingPopoverEl.style.left = `${Math.round(left)}px`;
     trackTimingPopoverEl.style.top = `${Math.round(Math.max(12, top))}px`;
+  }
+
+  function toggleTrackTimingPopover(anchor = trackTimingButtonEl) {
+    if (!trackTimingButtonEl?.isConnected || trackTimingButtonEl.disabled) return;
+    ensureTrackTimingPopover();
+    if (!trackTimingPopoverEl.hidden) { closeTrackTimingPopover(); return; }
+    trackTimingAnchor = anchor;
+    trackTimingPopoverEl.hidden = false;
+    trackTimingButtonEl.setAttribute('aria-expanded', 'true');
+    updateTrackTimingControl();
+    requestAnimationFrame(() => {
+      if (trackTimingPopoverEl.hidden) return;
+      positionTrackTimingPopover();
+      trackTimingPopoverEl.querySelector('.ytmls-track-offset-close')?.focus();
+    });
   }
 
   function updateTrackTimingControl(renderPoints = true) {
@@ -3105,6 +3204,13 @@ function readingTokensToRomaji(tokens) {
     if (trackTimingPreview?.videoId === getTrackOffsetVideoId(false)) saveCurrentTrackTimingPoints(trackTimingPreview.points, false);
     if (trackTimingPopoverEl) trackTimingPopoverEl.hidden = true;
     if (trackTimingButtonEl) trackTimingButtonEl.setAttribute('aria-expanded', 'false');
+    trackTimingAnchor = null;
+  }
+
+  function dismissTrackTimingPopover() {
+    const trigger = visibleTrackTimingAnchor()?.target;
+    closeTrackTimingPopover();
+    trigger?.focus();
   }
 
   function updateOffsetPreview() {
@@ -3172,16 +3278,7 @@ function readingTokensToRomaji(tokens) {
       button.addEventListener('click', (event) => {
         event.preventDefault();
         event.stopPropagation();
-        if (button.disabled) return;
-        ensureTrackTimingPopover();
-        const willOpen = trackTimingPopoverEl.hidden;
-        trackTimingPopoverEl.hidden = !willOpen;
-        button.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
-        updateTrackTimingControl();
-        if (willOpen) requestAnimationFrame(() => {
-          positionTrackTimingPopover();
-          trackTimingPopoverEl.querySelector(".ytmls-track-offset-close")?.focus();
-        });
+        toggleTrackTimingPopover();
       });
     } else if (trackTimingButtonEl.parentElement !== host) {
       host.appendChild(trackTimingButtonEl);
@@ -3231,11 +3328,10 @@ function readingTokensToRomaji(tokens) {
     pop.addEventListener('keydown', event => {
       if (event.key !== 'Escape') return;
       event.preventDefault(); event.stopPropagation();
-      closeTrackTimingPopover();
-      trackTimingButtonEl?.focus();
+      dismissTrackTimingPopover();
     });
     pop.addEventListener('click', (event) => event.stopPropagation());
-    pop.querySelector('.ytmls-track-offset-close').addEventListener('click', closeTrackTimingPopover);
+    pop.querySelector('.ytmls-track-offset-close').addEventListener('click', dismissTrackTimingPopover);
     trackTimingAddPointEl.addEventListener('click', addCurrentTrackTimingPoint);
     const resetButton = pop.querySelector('[data-reset]');
     if (resetButton) {
@@ -3281,6 +3377,7 @@ function readingTokensToRomaji(tokens) {
 
   let lyricsMotionTrack = '';
   function renderLines(options = {}) {
+    STATE.pendingInitialHighlight = STATE.hasSync;
     if (!listEl) return;
 
     const resetScroll = Boolean(options.resetScroll);
@@ -3377,7 +3474,7 @@ function readingTokensToRomaji(tokens) {
         div.setAttribute('role', 'button');
         div.setAttribute('aria-label', (line.text || editableLineText(line) || '間奏') + '：この位置へ移動');
         div.addEventListener('keydown', event => {
-          if ((event.key === 'Enter' || event.key === ' ') && !event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey) {
+          if ((event.key === 'Enter' || event.key === ' ') && !event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey && !event.isComposing) {
             event.preventDefault(); event.stopPropagation();
             if (!event.repeat) {
               if (event.key === 'Enter') div.click();
@@ -3413,6 +3510,10 @@ function readingTokensToRomaji(tokens) {
           if (requestPlayerSeek(currentVideoId, target)) {
             resumeTrackingAfterLyricsSeek();
             updateHighlight(target, true);
+            const visibleRow = practiceFullscreen
+              ? practiceFullscreen.querySelector('.ytmls-full-list')?.children[i]
+              : div;
+            flashSeekLine(visibleRow);
           }
         });
       }
@@ -3421,7 +3522,7 @@ function readingTokensToRomaji(tokens) {
     });
 
     const video = getVideoElement();
-    if (video && STATE.hasSync && canTrackCurrentPlayback(video)) {
+    if (STATE.hasSync && canTrackCurrentPlayback(video)) {
       updateHighlight(getAuthoritativePlaybackTime(video) || 0, true);
     }
     // Track plain lyrics first, before dictionary initialization can block rendering.
@@ -3530,7 +3631,7 @@ function readingTokensToRomaji(tokens) {
 
     title = title.trim();
     artist = String(artist || "").trim();
-    const album = (media && media.album ? media.album : (parts.length > 2 ? parts[1] : "")).trim();
+    const album = (media && media.album ? media.album : (parts.length > 2 && !/^(?:[\d.,]+\s*[kmb万億]?\s*(?:views?|回視聴)|視聴回数\s*[\d.,]+[万億]?回?)$/iu.test(parts[1]) ? parts[1] : "")).trim();
     // Home等、URLが/watchでないページに移動するとgetVideoId()が空文字になる。
     // 再生自体は裏で続いているだけなので、これを「別の曲」として扱うと
     // 歌詞タブに戻った時に不要な再検索が走り、レース次第で別の候補が採用されて
@@ -4229,7 +4330,7 @@ function readingTokensToRomaji(tokens) {
   }
 
   function angleTimeToSeconds(tag) {
-    const m = String(tag || "").match(/^(\d{1,2}):(\d{2}(?:\.\d+)?)$/);
+    const m = String(tag || "").match(/^(\d{1,3}):(\d{2}(?:\.\d+)?)$/);
     return m ? Number(m[1]) * 60 + Number(m[2]) : null;
   }
 
@@ -4247,13 +4348,14 @@ function readingTokensToRomaji(tokens) {
       const content = raw.replace(/^\s*(?:\[\d{1,3}:\d{2}(?:\.\d{1,3})?\])+\s*/, "");
       const tagRe = /<(\d{1,3}:\d{2}(?:\.\d+)?)>/g;
       const matches = [...content.matchAll(tagRe)];
-      if (matches.length >= 2) {
+      if (matches.length) {
         const words = [];
-        for (let i = 0; i < matches.length - 1; i++) {
+        for (let i = 0; i < matches.length; i++) {
           const start = angleTimeToSeconds(matches[i][1]);
-          const end = angleTimeToSeconds(matches[i + 1][1]);
-          const text = content.slice(matches[i].index + matches[i][0].length, matches[i + 1].index).trim();
-          if (text && start != null && end != null && end >= start) {
+          const next = matches[i + 1];
+          const end = next ? angleTimeToSeconds(next[1]) : null;
+          const text = content.slice(matches[i].index + matches[i][0].length, next?.index ?? content.length);
+          if (text && start != null && (!next || (end != null && end >= start))) {
             words.push({ text, time: start, end, background: false });
           }
         }
@@ -4268,7 +4370,7 @@ function readingTokensToRomaji(tokens) {
             line.words = words.map((word) => ({
               ...word,
               time: Math.max(0, word.time + shift),
-              end: Math.max(0, word.end + shift),
+              end: word.end == null ? null : Math.max(0, word.end + shift),
             }));
             line.time = line.words[0].time;
             line.end = line.words[line.words.length - 1].end;
@@ -4279,7 +4381,11 @@ function readingTokensToRomaji(tokens) {
       bi += expandedCount;
     }
     base.sort((a,b) => a.time - b.time);
-    base.forEach((line,index) => { if (!line.words.length) line.end = base[index+1]?.time ?? null; });
+    base.forEach((line, index) => {
+      if (line.words.length && line.end != null) return;
+      line.end = base[index + 1]?.time ?? null;
+      if (line.words.length) line.words.at(-1).end = line.end;
+    });
     const hasWords = base.some((line) => line.words && line.words.length);
     return { lines: base, syncLevel: hasWords ? "word" : "line" };
   }
@@ -5259,13 +5365,10 @@ function readingTokensToRomaji(tokens) {
   const LYRICS_CACHE_STORAGE_KEY = "ytmlsLyricsCacheV232";
   const LYRICS_CACHE_MAX_ENTRIES = 150;
   const MANUAL_SEARCH_STORAGE_KEY = "ytmlsManualSearchOverridesV190";
-  const MANUAL_SEARCH_MAX_ENTRIES = 200;
   const LYRICS_EDITS_STORAGE_KEY = "ytmlsLyricsEditsV199";
-  const PINNED_LYRICS_STORAGE_KEY = "ytmlsPinnedLyricsV200";
   // 固定・ローカル歌詞はユーザーデータなので、キャッシュのように件数で自動削除しない。
-  const PINNED_LYRICS_MAX_TRACKS = null;
+  const PINNED_LYRICS_STORAGE_KEY = "ytmlsPinnedLyricsV200";
   const LOCAL_LYRICS_STORAGE_KEY = "ytmlsLocalLyricsV200";
-  const LOCAL_LYRICS_MAX_TRACKS = null;
   const LOCAL_LYRICS_MAX_CHARS = 500000;
 
   function checkedLocalStorageSet(value) {
@@ -5285,7 +5388,7 @@ function readingTokensToRomaji(tokens) {
     });
   }
 
-  async function mutateStoredTrackMap(storageKey, fallbackMap, videoId, entry, maxEntries, isValid) {
+  async function mutateStoredTrackMap(storageKey, videoId, entry) {
     const data = await sendUserDataMutation({ action: "entry", key: storageKey, videoId, entry });
     return data[storageKey];
   }
@@ -5322,14 +5425,7 @@ function readingTokensToRomaji(tokens) {
       updatedAt: Date.now(),
     };
     try {
-      STATE.pinnedLyrics = await mutateStoredTrackMap(
-        PINNED_LYRICS_STORAGE_KEY,
-        STATE.pinnedLyrics,
-        id,
-        entry,
-        PINNED_LYRICS_MAX_TRACKS,
-        (value) => value.result && Array.isArray(value.result.lines) && value.result.lines.length
-      );
+      STATE.pinnedLyrics = await mutateStoredTrackMap(PINNED_LYRICS_STORAGE_KEY, id, entry);
       updateDiagnosticsSummary();
       return { ok: true };
     } catch (_) {
@@ -5341,14 +5437,7 @@ function readingTokensToRomaji(tokens) {
     const id = String(videoId || "");
     if (!id) return { ok: false, message: "曲IDを取得できませんでした。" };
     try {
-      STATE.pinnedLyrics = await mutateStoredTrackMap(
-        PINNED_LYRICS_STORAGE_KEY,
-        STATE.pinnedLyrics,
-        id,
-        null,
-        PINNED_LYRICS_MAX_TRACKS,
-        (value) => value.result && Array.isArray(value.result.lines) && value.result.lines.length
-      );
+      STATE.pinnedLyrics = await mutateStoredTrackMap(PINNED_LYRICS_STORAGE_KEY, id, null);
       updateDiagnosticsSummary();
       return { ok: true };
     } catch (_) {
@@ -5410,14 +5499,7 @@ function readingTokensToRomaji(tokens) {
     if (!result) return { ok: false, message: "[00:14.32] のような時刻付き歌詞が見つかりません。" };
 
     try {
-      STATE.localLyrics = await mutateStoredTrackMap(
-        LOCAL_LYRICS_STORAGE_KEY,
-        STATE.localLyrics,
-        id,
-        entry,
-        LOCAL_LYRICS_MAX_TRACKS,
-        (value) => typeof value.rawLrc === "string" && value.rawLrc.trim()
-      );
+      STATE.localLyrics = await mutateStoredTrackMap(LOCAL_LYRICS_STORAGE_KEY, id, entry);
       // Local candidate edits are cleared atomically by the storage worker.
       updateDiagnosticsSummary();
       return { ok: true, entry, result };
@@ -5762,7 +5844,7 @@ function readingTokensToRomaji(tokens) {
     STATE.transitionTargetVideoId = "";
     STATE.transitionOldTime = getAuthoritativePlaybackTime(media) ?? 0;
     STATE.transitionOldDuration = getAuthoritativeDuration(media) ?? 0;
-    STATE.transitionOldSrc = media && media.currentSrc ? String(media.currentSrc) : "";
+    STATE.transitionOldSrc = String(media?.currentSrc || "");
     STATE.currentIndex = -1;
     STATE.currentWordIndex = -1;
     resetLyricsScrollPosition();
@@ -5800,7 +5882,7 @@ function readingTokensToRomaji(tokens) {
     STATE.transitionTargetVideoId = target;
     STATE.transitionOldTime = getAuthoritativePlaybackTime(media) ?? 0;
     STATE.transitionOldDuration = getAuthoritativeDuration(media) ?? 0;
-    STATE.transitionOldSrc = media && media.currentSrc ? String(media.currentSrc) : "";
+    STATE.transitionOldSrc = String(media?.currentSrc || "");
     resetLyricsScrollPosition();
   }
 
@@ -5916,7 +5998,7 @@ function readingTokensToRomaji(tokens) {
       const age = now - STATE.endedAt;
       const t = Number(getAuthoritativePlaybackTime(media));
       const duration = Number(getAuthoritativeDuration(media));
-      const currentSrc = media.currentSrc ? String(media.currentSrc) : "";
+      const currentSrc = String(media?.currentSrc || "");
       const oldTime = Number(STATE.transitionOldTime);
       const oldDuration = Number(STATE.transitionOldDuration);
 
@@ -6078,7 +6160,7 @@ function readingTokensToRomaji(tokens) {
     const now = performance.now();
     const currentTime = Number(getAuthoritativePlaybackTime(media));
     const duration = Number(getAuthoritativeDuration(media));
-    const currentSrc = media.currentSrc ? String(media.currentSrc) : "";
+    const currentSrc = String(media?.currentSrc || "");
 
     const transitionAge = now - STATE.transitionStartedAt;
     const resetNearStart = transitionAge >= 650 && Number.isFinite(currentTime) && currentTime <= 5.0;
@@ -6700,7 +6782,7 @@ function readingTokensToRomaji(tokens) {
     if (currentEl.classList.contains("ytmls-word-sung") !== sung) currentEl.classList.toggle("ytmls-word-sung", sung);
   }
 
-  function updateHighlight(currentTime, force = false) {
+  function updateHighlight(currentTime, force = false, seekedMedia = null) {
     if (!STATE.hasSync || !STATE.lines.length || !listEl) return false;
 
     // 曲切り替え直後のvideo要素は旧曲のcurrentTimeを一瞬保持する。
@@ -6709,9 +6791,15 @@ function readingTokensToRomaji(tokens) {
     // さらに次曲開始ガードで不自然な前方ジャンプを拒否する。
     const media = getVideoElement();
     if (!canTrackCurrentPlayback(media)) return false;
-    const safeCurrentTime = getGuardedPlaybackTime(media);
+    // A completed seek on the current media can precede the next bridge sample.
+    // Use the media's new time for this event only, after the track identity check.
+    const seekTime = seekedMedia && seekedMedia === media && !media.seeking ? media.currentTime : null;
+    const safeCurrentTime = Number.isFinite(seekTime) && seekTime >= 0
+      ? seekTime
+      : getGuardedPlaybackTime(media);
     if (safeCurrentTime == null) return false;
 
+    STATE.pendingInitialHighlight = false;
     STATE.lastTrackingPulseAt = performance.now();
 
     if (!STATE.trackingEnabled) {
@@ -6835,9 +6923,10 @@ function readingTokensToRomaji(tokens) {
         // 同じ行への smooth scroll を連続発行すると、曲切替後まで旧スクロールが残る原因になる。
         updateHighlight(getAuthoritativePlaybackTime(videoEl) || 0, false);
       };
-      videoForceUpdateHandler = () => {
-        if (!STATE.enabled || !videoEl || videoEl.ended || !canTrackCurrentPlayback(videoEl)) return;
-        updateHighlight(getAuthoritativePlaybackTime(videoEl) || 0, true);
+      videoForceUpdateHandler = (event) => {
+        if (!STATE.enabled || !video.isConnected || video !== getVideoElement() || video.ended) return;
+        const seekedMedia = event?.type === "seeked" ? video : null;
+        if (updateHighlight(getAuthoritativePlaybackTime(video) || 0, true, seekedMedia) === false) return;
         if (typeof syncPracticeFullscreenTracking === "function") syncPracticeFullscreenTracking();
       };
       videoEndedHandler = () => {
@@ -7035,11 +7124,7 @@ function readingTokensToRomaji(tokens) {
     button.disabled = !canEditLyricsReadings();
     button.title = button.disabled ? '曲と歌詞の読み込みが完了すると編集できます' : '行ごとのふりがなを編集';
     button.addEventListener('click', () => { const more = lyricsToolsEl.querySelector('#ytmls-more'); if (more) more.open = false; openManualReadingEditor(); });
-    const menu = lyricsToolsEl.querySelector('.ytmls-more-menu');
-    if (menu) {
-      const addLyrics = menu.querySelector('.ytmls-local-lyrics-button');
-      menu.insertBefore(button, addLyrics ? addLyrics.nextSibling : null);
-    }
+    lyricsToolsEl.querySelector('#ytmls-lyrics-menu')?.append(button);
   }
 
   async function openManualReadingEditor() {
@@ -7049,33 +7134,55 @@ function readingTokensToRomaji(tokens) {
     closeLyricsToolsPane();
     const pane = lyricsToolsPaneEl, lines = STATE.lines;
     lyricsToolsPaneMode = 'readings'; pane.hidden = false;
+    const editor = document.createElement('div');
+    editor.className = 'ytmls-reading-editor';
     const heading = document.createElement('div'); heading.className = 'ytmls-tools-heading'; heading.textContent = 'ふりがな編集';
     const note = document.createElement('p');
     note.textContent = '行を選んで、読みを書き直すだけ。空にして保存すると、その行のふりがなを非表示にできます。';
     const form = document.createElement('form'); form.id = 'ytmls-reading-form';
-    const select = document.createElement('select'); select.setAttribute('aria-label', '編集する歌詞行');
+    const select = document.createElement('select'); select.id = 'ytmls-reading-line';
+    const lineLabel = document.createElement('label');
+    lineLabel.htmlFor = select.id;
+    lineLabel.textContent = '編集する行';
     lines.forEach((line, index) => { const option = document.createElement('option'); option.value = String(index); option.textContent = `${index + 1}. ${editableLineText(line)}`; select.appendChild(option); });
-    const reading = document.createElement('textarea'); reading.id = 'ytmls-reading-text'; reading.rows = 3; reading.placeholder = 'この行の読みを入力'; reading.maxLength = 1000; reading.setAttribute('aria-label', 'この行のふりがな');
+    const reading = document.createElement('textarea'); reading.id = 'ytmls-reading-text'; reading.rows = 2; reading.placeholder = 'この行の読みを入力'; reading.maxLength = 1000;
     const label = document.createElement('label'); label.htmlFor = reading.id; label.textContent = 'この行のふりがな';
     const save = document.createElement('button'); save.type = 'submit'; save.textContent = 'この行を保存'; save.className = 'ytmls-tool-button ytmls-reading-primary';
     const reset = document.createElement('button'); reset.type = 'button'; reset.textContent = 'この行を自動読みに戻す';
     const preview = document.createElement('div'); preview.className = 'ytmls-reading-preview';
     preview.setAttribute('aria-label', '保存後のふりがなプレビュー');
-    const previewLabel = document.createElement('div'); previewLabel.textContent = 'プレビュー';
+    const previewLabel = document.createElement('div'); previewLabel.className = 'ytmls-reading-field-label'; previewLabel.textContent = 'プレビュー';
     const saved = document.createElement('div');
     const status = document.createElement('div'); status.setAttribute('role', 'status'); status.textContent = '読み込み中…';
     const close = document.createElement('button'); close.type = 'button'; close.textContent = '閉じる'; close.addEventListener('click', closeLyricsToolsPane);
     reset.className = close.className = 'ytmls-tool-button';
     const actions = document.createElement('div'); actions.className = 'ytmls-reading-actions'; actions.append(save, reset, close);
-    form.append(select, label, reading, previewLabel, preview, saved, actions, status); pane.append(heading, note, form);
+    const lineField = document.createElement('div');
+    lineField.className = 'ytmls-reading-field';
+    lineField.append(lineLabel, select);
+    const inputField = document.createElement('div');
+    inputField.className = 'ytmls-reading-field';
+    inputField.append(label, reading);
+    const previewField = document.createElement('div');
+    previewField.className = 'ytmls-reading-field';
+    previewField.append(previewLabel, preview);
+    const readingFields = document.createElement('div');
+    readingFields.className = 'ytmls-reading-fields';
+    readingFields.append(inputField, previewField);
+    const messages = document.createElement('div');
+    messages.className = 'ytmls-reading-messages';
+    messages.append(saved, status);
+    form.append(lineField, readingFields, messages, actions);
+    editor.append(heading, note, form);
+    pane.append(editor);
     form.addEventListener('keydown', event => { if (event.key === 'Escape') { event.stopPropagation(); closeLyricsToolsPane(); } });
     const current = () => form.isConnected && STATE.lines === lines && String(getAuthoritativeVideoId() || '') === videoId;
-    let entries, tokenizer = null, dictionary = null;
+    let loadedEntries, entries, tokenizer = null, dictionary = null;
     save.disabled = reset.disabled = select.disabled = reading.disabled = true;
     try {
       const results = await Promise.allSettled([loadManualReadings(videoId), getJapaneseReadingTokenizer(), getEnglishReadings(lines.map(line => editableLineText(line)))]);
       if (results[0].status === 'rejected') throw results[0].reason;
-      entries = results[0].value; tokenizer = results[1].status === 'fulfilled' ? results[1].value : null; dictionary = results[2].status === 'fulfilled' ? results[2].value : null;
+      loadedEntries = results[0].value; entries = loadedEntries; tokenizer = results[1].status === 'fulfilled' ? results[1].value : null; dictionary = results[2].status === 'fulfilled' ? results[2].value : null;
     }
     catch (_) { if (current()) status.textContent = '読み込みに失敗しました。閉じてから再度お試しください。'; return; }
     if (!current()) return;
@@ -7121,11 +7228,11 @@ function readingTokensToRomaji(tokens) {
       save.disabled = reset.disabled = select.disabled = reading.disabled = true;
       try {
         const info = STATE.activeBaseInfo || STATE.activeSearchInfo || {};
-        await sendUserDataMutation({action:'entry', key:'ytmlsManualReadingsV256', videoId,
+        await sendUserDataMutation({action:'entry', key:'ytmlsManualReadingsV256', videoId, expectedEntries:loadedEntries,
           entry: next.length ? {entries:next,title:info.title || '',artist:info.artist || '',updatedAt:Date.now()} : null});
-        entries = next;
+        loadedEntries = entries = next;
         if (current()) { await update(); status.textContent = '保存しました。表示設定がONの読み仮名に反映します。'; refreshLyricsReadings(); }
-      } catch (_) { if (current()) status.textContent = '保存できませんでした。もう一度お試しください。'; }
+      } catch (error) { if (current()) status.textContent = error.message || '保存できませんでした。もう一度お試しください。'; }
       finally { save.disabled = reset.disabled = select.disabled = reading.disabled = false; }
     }
     form.addEventListener('submit', event => {
@@ -7149,12 +7256,24 @@ function readingTokensToRomaji(tokens) {
     if (STATE.hasLyricsResult) return (STATE.hasSync ? '同期歌詞を取得済み' : '同期時刻のない歌詞') + (STATE.source ? ' · ' + STATE.source : '');
     return STATE.lastTrackKey ? '同期歌詞が見つかりません' : '曲の読み込み待ち';
   }
+  function fitMoreMenu(more, menu) {
+    if (!more.open || !panelEl) return;
+    const panelBottom = panelEl.getBoundingClientRect().bottom;
+    const menuTop = more.getBoundingClientRect().top + menu.offsetTop;
+    const available = Math.max(0, Math.floor(Math.min(window.innerHeight, panelBottom) - menuTop - 8));
+    const maxHeight = available + 'px';
+    if (menu.style.maxHeight !== maxHeight) menu.style.maxHeight = maxHeight;
+  }
+
   function updateHelpfulUi() {
     if (!panelEl || !lyricsToolsEl) return;
     let bar = panelEl.querySelector('#ytmls-helpful');
     if (!bar) {
       bar = document.createElement('div'); bar.id = 'ytmls-helpful';
       const status = document.createElement('span'); status.className = 'ytmls-fetch-status'; status.setAttribute('role','status');
+      const statusText = document.createElement('span');
+      statusText.className = 'ytmls-fetch-status-text';
+      status.append(statusText);
       const back = document.createElement('button'); back.type = 'button'; back.className = 'ytmls-tool-button'; back.textContent = '今の歌詞に戻る';
       back.addEventListener('click', () => {
         if (!STATE.enabled || !STATE.trackingEnabled || !STATE.hasSync) return;
@@ -7162,27 +7281,38 @@ function readingTokensToRomaji(tokens) {
         updateHighlight(getAuthoritativePlaybackTime(getVideoElement()) || 0, true);
         updateHelpfulUi();
       });
-      bar.append(status, back); lyricsToolsEl.prepend(bar);
+      const source = document.createElement('span'); source.className = 'ytmls-source-badge';
+      bar.append(status, source, back); lyricsToolsEl.prepend(bar);
     }
     const text = helpfulStatus();
-    if (bar.firstChild.textContent !== text) { bar.firstChild.textContent = text; bar.firstChild.title = text; }
+    const badge = bar.querySelector('.ytmls-source-badge');
+    const source = STATE.enabled && !STATE.contextInvalidated && STATE.hasLyricsResult ? STATE.source || '' : '';
+    badge.hidden = !source;
+    if (badge.textContent !== source) { badge.textContent = source; badge.title = source; }
+    const summary = source ? text.replace(' · ' + source, '') : text;
+    const statusText = bar.querySelector('.ytmls-fetch-status-text');
+    if (statusText.textContent !== summary) { statusText.textContent = summary; statusText.title = summary; }
     bar.lastChild.hidden = !(STATE.enabled && STATE.trackingEnabled && STATE.hasSync && isManualScrollPaused());
-    const menu = lyricsToolsEl.querySelector('.ytmls-more-menu');
-    if (menu && lyricsToolsEl.querySelector('#ytmls-more')?.open) {
-      const bottom = Math.min(window.innerHeight, panelEl.getBoundingClientRect().bottom);
-      const available = Math.max(0, Math.floor(bottom - menu.getBoundingClientRect().top - 8));
-      menu.style.maxHeight = Math.min(480, available) + 'px';
-    }
-    if (menu) for (const button of menu.querySelectorAll('button')) {
-      let hint = button.nextElementSibling;
-      if (!hint?.classList.contains('ytmls-menu-hint')) {
-        hint = document.createElement('small'); hint.className = 'ytmls-menu-hint'; button.after(hint);
-      }
-      hint.hidden = !button.disabled;
-      const reason = button.disabled ? button.title || '曲と歌詞の読み込み後に使用できます' : '';
-      if (hint.textContent !== reason) hint.textContent = reason;
-    }
+    const more = lyricsToolsEl.querySelector('#ytmls-more');
+    const menu = more?.querySelector('.ytmls-more-menu');
+    if (menu) fitMoreMenu(more, menu);
+    if (menu) for (const button of menu.querySelectorAll('button')) updateHelpfulMenuHint(button);
     if (helpfulTimer === null) helpfulTimer = setTimeout(() => { helpfulTimer = null; updateHelpfulUi(); }, 500);
+  }
+
+  function updateHelpfulMenuHint(button) {
+    let hint = button.nextElementSibling;
+    // Presets share a flex row: per-button hints would become extra columns.
+    if (button.closest?.('.ytmls-size-presets')) {
+      if (hint?.classList.contains('ytmls-menu-hint')) hint.remove();
+      return;
+    }
+    if (!hint?.classList.contains('ytmls-menu-hint')) {
+      hint = document.createElement('small'); hint.className = 'ytmls-menu-hint'; button.after(hint);
+    }
+    hint.hidden = !button.disabled;
+    const reason = button.disabled ? button.title || '曲と歌詞の読み込み後に使用できます' : '';
+    if (hint.textContent !== reason) hint.textContent = reason;
   }
 
 // Feature: practice.js
@@ -7253,7 +7383,7 @@ function loadPracticeSettings(area) {
  return operation;
 }
 function initPracticeStorage() {
- document.addEventListener('fullscreenchange',()=>{if(practiceFullscreen?.dataset.native==='true'&&document.fullscreenElement!==practiceFullscreen)closePracticeFullscreen();});
+ document.addEventListener('fullscreenchange',()=>{if(practiceFullscreen?.dataset.native==='true'&&document.fullscreenElement!==practiceFullscreen)closePracticeFullscreen(false);});
  void loadPracticeSettings('local');void loadPracticeSettings('sync');
  chrome.storage.onChanged.addListener((changes,area)=>{
   if(area==='local'&&changes[PRACTICE_KEY]){practiceData=changes[PRACTICE_KEY].newValue||{};applyPracticePrefs();void refreshPracticeExtras();}
@@ -7290,7 +7420,8 @@ function queuePracticeSettingsSave(operation) {
  return result;
 }
 function showTrackDisplay() {
- const p=practicePane('この曲の表示設定');const prefs=practicePrefs();
+ const p=practicePane('この曲の表示設定');
+ const editingPrefs=()=>({...practiceGlobal,...(practiceEntry(p.id).settings||{})});
  if(!practiceLocalReady||!practiceSyncReady){
   p.status.textContent=Object.values(practiceLoadErrors).join(' ')||'曲別設定を読み込んでいます。';
   const retry=practiceButton(p.body,'設定の読み込みを再試行',async()=>{
@@ -7303,31 +7434,41 @@ function showTrackDisplay() {
   return;
  }
 
- p.status.textContent='変更すると、この曲だけに自動保存されます。';
+ const prefs=editingPrefs();
+ p.status.textContent='変更すると、この曲だけに自動保存されます。共通設定がOFFの読み仮名は表示されません。';
  const size=practiceField(p.body,'文字サイズ（10〜100px）','number',prefs.fontSize);size.min='10';size.max='100';
  const ja=practiceField(p.body,'日本語ふりがな','checkbox',prefs.readingJapanese),en=practiceField(p.body,'英語カタカナ読み','checkbox',prefs.readingEnglish);
  const ro=practiceField(p.body,'ローマ字を表示','checkbox',prefs.showRomaji);
  const metadata={title:STATE.lastDisplayedTitle||'',artist:STATE.lastDisplayedArtist||''};let revision=0;
  const report=(version,text)=>{if(version===revision&&p.body.isConnected&&practiceCurrent(p.id,p.lines))p.status.textContent=text;};
- const save=()=>{
+ const save=(key,value)=>{
   if(!practiceGuard(p))return;
-  const fontSize=Number(size.value);if(!size.value||!Number.isFinite(fontSize)||fontSize<10||fontSize>100){p.status.textContent='文字サイズは10〜100です';return;}
-  const version=++revision,settings={fontSize,readingJapanese:ja.checked,readingEnglish:en.checked,showRomaji:ro.checked};
+  const version=++revision;
   p.status.textContent='保存中…';
-  void queuePracticeSettingsSave(()=>savePracticeEntry(p.id,{...practiceEntry(p.id),...metadata,settings})).then(()=>report(version,'自動保存しました'),e=>report(version,'保存できませんでした：'+e.message));
+  void queuePracticeSettingsSave(()=>{
+   const entry=practiceEntry(p.id);
+   return savePracticeEntry(p.id,{...entry,...metadata,settings:{...entry.settings,[key]:value}});
+  }).then(()=>report(version,'自動保存しました'),e=>report(version,'保存できませんでした：'+e.message));
  };
- for(const input of [size,ja,en,ro])input.addEventListener('change',save);
+ size.addEventListener('change',()=>{
+  const fontSize=Number(size.value);
+  if(!size.value||!Number.isFinite(fontSize)||fontSize<10||fontSize>100){p.status.textContent='文字サイズは10〜100です';return;}
+  save('fontSize',fontSize);
+ });
+ for(const [field,key] of [[ja,'readingJapanese'],[en,'readingEnglish'],[ro,'showRomaji']]){
+  field.addEventListener('change',()=>save(key,field.checked));
+ }
  practiceButton(p.body,'共通設定に戻す',()=>{
   if(!practiceGuard(p))return;
   const version=++revision;p.status.textContent='保存中…';
   void queuePracticeSettingsSave(()=>{const entry={...practiceEntry(p.id),...metadata};delete entry.settings;return savePracticeEntry(p.id,entry);}).then(()=>{
    if(version!==revision||!p.body.isConnected||!practiceCurrent(p.id,p.lines))return;
-   const restored=practicePrefs();size.value=String(restored.fontSize);ja.checked=restored.readingJapanese;en.checked=restored.readingEnglish;ro.checked=Boolean(restored.showRomaji);report(version,'共通の表示設定に戻しました');
+   const restored=editingPrefs();size.value=String(restored.fontSize);ja.checked=restored.readingJapanese;en.checked=restored.readingEnglish;ro.checked=Boolean(restored.showRomaji);report(version,'共通の表示設定に戻しました');
   },e=>report(version,'保存できませんでした：'+e.message));
  });
 }
 function handlePracticeLineKey(event,id,lines,row) {
- if(!['Enter',' '].includes(event.key)||event.ctrlKey||event.metaKey||event.altKey||event.shiftKey)return;
+ if(!['Enter',' '].includes(event.key)||event.ctrlKey||event.metaKey||event.altKey||event.shiftKey||event.isComposing)return;
  event.preventDefault();event.stopPropagation();
  if(event.repeat||!practiceCurrent(id,lines))return;
  if(event.key==='Enter')row.click();else requestPlayerToggle(id);
@@ -7341,7 +7482,7 @@ function handlePracticeFullscreenSpace(event) {
  }
  if(event.ctrlKey||event.metaKey||event.altKey||event.shiftKey||event.isComposing)return;
  const target=event.target;
- if(target?.isContentEditable||target?.closest?.('input,textarea,select,[role="textbox"],.ytmls-full-close'))return;
+ if(target?.isContentEditable||target?.closest?.('input,textarea,select,[role="textbox"],.ytmls-full-close,.ytmls-full-size button'))return;
  box.spaceHandled=true;event.preventDefault();event.stopImmediatePropagation();
  if(event.repeat||!STATE.enabled)return;
  const id=practiceVideoId();if(id)requestPlayerToggle(id);
@@ -7366,7 +7507,29 @@ async function refreshPracticeExtras() {
  }
  practiceFullSignature='';scheduleTrackingRealignment();
 }
-function closePracticeFullscreen() {const current=practiceFullscreen;practiceFullscreen=null;if(current){document.removeEventListener('keydown',handlePracticeFullscreenSpace,true);document.removeEventListener('keyup',handlePracticeFullscreenSpace,true);clearTimeout(current.closeTimer);current.resizeObserver?.disconnect();}current?.remove();if(current?.returnFocus?.isConnected)current.returnFocus.focus();if(current&&document.fullscreenElement===current)void document.exitFullscreen().catch(()=>{});}
+function closePracticeFullscreen(animate = true) {
+ const box = practiceFullscreen;
+ if (!box || box.inert) return;
+ box.inert = true;
+ document.removeEventListener('keydown', handlePracticeFullscreenSpace, true);
+ document.removeEventListener('keyup', handlePracticeFullscreenSpace, true);
+ clearTimeout(box.closeTimer);
+ box.resizeObserver?.disconnect();
+ const finish = () => {
+  practiceFullscreen = null;
+  const exiting = document.fullscreenElement === box ? document.exitFullscreen() : Promise.resolve();
+  box.remove();
+  void exiting.catch(() => {}).finally(() => {
+   if (!practiceFullscreen && box.returnFocus?.isConnected) box.returnFocus.focus();
+  });
+ };
+ if (animate === false || !playerFeedbackEnabled()) { finish(); return; }
+ box.backgroundMotion?.cancel();
+ const canvas = box.querySelector('canvas');
+ const blur = getComputedStyle(canvas).filter;
+ canvas.animate([{filter:blur},{filter:'blur(0px)'}], {duration:220,easing:'ease-in',fill:'forwards'});
+ box.animate([{opacity:1},{opacity:0}], {duration:220,easing:'ease-in',fill:'forwards'}).finished.then(finish,finish);
+}
 function paintPracticeBackground(box) {
  const canvas=box.querySelector('canvas'),ctx=canvas.getContext('2d');
  const glass=document.getElementById('music-glass-backdrop');
@@ -7379,20 +7542,41 @@ function paintPracticeBackground(box) {
  ctx.drawImage(image,(image.naturalWidth-side)/2,(image.naturalHeight-side)/2,side,side,-12,-12,120,120);ctx.filter='none';
 }
 function openPracticeFullscreen() {
- if(!STATE.enabled||!STATE.lines.length)return;closePracticeFullscreen();
+ if (!STATE.enabled || !STATE.lines.length || practiceFullscreen) return;
  const box=document.createElement('div');box.id='ytmls-fullscreen';box.setAttribute('role','dialog');box.setAttribute('aria-label','全画面歌詞');box.setAttribute('aria-modal','true');
  const canvas=document.createElement('canvas');canvas.width=96;canvas.height=96;canvas.className='ytmls-full-backdrop';box.append(canvas);
  const corner=document.createElement('div');corner.className='ytmls-full-corner';box.append(corner);const close=practiceButton(corner,'全画面を閉じる',closePracticeFullscreen);close.className='ytmls-full-close';box.classList.add('ytmls-full-intro');box.closeTimer=setTimeout(()=>{if(practiceFullscreen===box)box.classList.remove('ytmls-full-intro');},3000);
+ const sizeControls = document.createElement('div');
+ sizeControls.className = 'ytmls-full-size';
+ sizeControls.setAttribute('role', 'group');
+ sizeControls.setAttribute('aria-label', '歌詞の文字サイズ');
+ box.append(sizeControls);
+ let scale = 100;
+ const resize = delta => {
+  scale = Math.min(150, Math.max(70, scale + delta));
+  box.style.setProperty('--ytmls-full-font-scale', String(scale / 100));
+  smaller.disabled = scale <= 70;
+  larger.disabled = scale >= 150;
+ };
+ const smaller = practiceButton(sizeControls, 'A−', () => resize(-10));
+ const larger = practiceButton(sizeControls, 'A+', () => resize(10));
+ smaller.setAttribute('aria-label', '歌詞の文字を小さくする');
+ larger.setAttribute('aria-label', '歌詞の文字を大きくする');
  const title=document.createElement('h1');title.textContent=STATE.lastDisplayedTitle||'歌詞';box.append(title);const list=document.createElement('div');list.className='ytmls-full-list';box.append(list);
  box.returnFocus=document.activeElement;document.body.append(box);practiceFullscreen=box;trackingDisplayResumedAt=performance.now();document.addEventListener('keydown',handlePracticeFullscreenSpace,true);document.addEventListener('keyup',handlePracticeFullscreenSpace,true);practiceFullSignature='';practiceFullIndex=-1;refreshPracticeFullscreen();box.tabIndex=-1;box.focus();
  box.resizeObserver=new ResizeObserver(()=>{if(practiceFullscreen===box){box.pendingFollow=true;syncPracticeFullscreenTracking();}});box.resizeObserver.observe(list);
  const pause=()=>{box.manualUntil=performance.now()+(STATE.manualScrollReturnMs||3500);box.pendingFollow=true;};list.addEventListener('wheel',pause,{passive:true});list.addEventListener('touchmove',pause,{passive:true});list.addEventListener('keydown',e=>{if(['ArrowUp','ArrowDown','PageUp','PageDown','Home','End'].includes(e.key))pause();});
- box.addEventListener('keydown',e=>{if(e.key==='Escape'){e.stopPropagation();closePracticeFullscreen();}else if(e.key==='Tab'){const buttons=[...box.querySelectorAll('button')];const first=buttons[0],last=buttons.at(-1);if(e.shiftKey&&document.activeElement===first){e.preventDefault();last?.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first?.focus();}}});
+ box.addEventListener('keydown',e=>{if(e.key==='Escape'){e.stopPropagation();closePracticeFullscreen();}else if(e.key==='Tab'){const buttons=[...box.querySelectorAll('button:not(:disabled)')];const first=buttons[0],last=buttons.at(-1);if(e.shiftKey&&document.activeElement===first){e.preventDefault();last?.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first?.focus();}}});
 
+ if (playerFeedbackEnabled()) {
+  box.backgroundMotion = canvas.animate(
+    [{filter:'blur(0px)',opacity:0},{filter:'blur(12px)',opacity:.65}],
+    {duration:240,easing:'ease-out'});
+ }
  if(box.requestFullscreen)void box.requestFullscreen().then(()=>{box.dataset.native='true';}).catch(()=>{});
 }
 function refreshPracticeFullscreen() {
- const box=practiceFullscreen;if(!box)return;if(!STATE.enabled){closePracticeFullscreen();return;}
+ const box=practiceFullscreen;if(!box || box.inert)return;if(!STATE.enabled){closePracticeFullscreen(false);return;}
  paintPracticeBackground(box);
  const sig=[STATE.displayedVideoId,STATE.activeCandidateId,practiceExtrasGeneration,STATE.lines.length].join(':');const list=box.querySelector('.ytmls-full-list');
  if(sig!==practiceFullSignature){practiceFullSignature=sig;practiceFullIndex=-1;box.querySelector('h1').textContent=STATE.lastDisplayedTitle||'歌詞';const restoreFocus=list.contains(document.activeElement);list.replaceChildren();if(restoreFocus)box.focus({preventScroll:true});const renderedId=STATE.displayedVideoId,renderedLines=STATE.lines;for(let i=0;i<STATE.lines.length;i++){const b=document.createElement('button');b.className='ytmls-full-line ytmls-line';b.append(...[...(listEl?.children[i]?.childNodes||[])].map(x=>x.cloneNode(true)));if(!b.childNodes.length)b.textContent=STATE.lines[i].text;b.addEventListener('keydown',e=>handlePracticeLineKey(e,renderedId,renderedLines,b));b.addEventListener('click',()=>{if(practiceCurrent(renderedId,renderedLines)){box.manualUntil=0;box.pendingFollow=true;practiceSeek(i);}});list.append(b);}}
@@ -7420,19 +7604,52 @@ function syncPracticeFullscreenTracking() {
 }
 function ensurePracticeControls() {
  const menu=lyricsToolsEl?.querySelector('.ytmls-more-menu');if(!menu)return;
- let group=menu.querySelector('#ytmls-practice-controls');
- if(!group){
-  group=document.createElement('div');group.id='ytmls-practice-controls';
-  group.setAttribute('role','group');group.setAttribute('aria-label','表示・便利機能');
-  const label=document.createElement('div');label.className='ytmls-menu-label';label.textContent='表示・便利機能';group.append(label);
-  menu.prepend(group);
-  for(const [title,fn] of [['この曲の表示設定',showTrackDisplay],['全画面歌詞ビュー',openPracticeFullscreen]])practiceButton(group,title,()=>{const details=menu.closest('details');if(details)details.open=false;fn();});
+ const group = menu.querySelector('#ytmls-practice-controls');
+ if (!group) return;
+ if (!group.querySelector('button')) {
+  for(const [title,fn] of [['この曲の表示設定',showTrackDisplay],['全画面歌詞ビュー',openPracticeFullscreen]])practiceButton(group,title,()=>{const details=menu.closest('details');if(details)closeMoreMenu(details);fn();});
  }
  const available=practiceCurrent(STATE.displayedVideoId)&&STATE.lines.length>0;
- for(const button of group.querySelectorAll('button'))button.disabled=!available;
+ for(const button of group.querySelectorAll(':scope > button'))button.disabled=!available;
 }
 function practiceTick() {
- reportPracticeLoadError();applyPracticePrefs();ensurePracticeControls();refreshPracticeFullscreen();
+ reportPracticeLoadError();applyPracticePrefs();ensurePracticeControls();if(typeof ensureEnhancementControls === "function")ensureEnhancementControls();refreshPracticeFullscreen();
+}
+
+// Feature: enhancements.js
+// Convenience controls reuse the existing playback and settings paths.
+function ensureEnhancementControls(){
+ const menu=lyricsToolsEl?.querySelector('.ytmls-more-menu');if(!menu||!panelEl)return;
+ const display = menu.querySelector('#ytmls-practice-controls');
+ const playback = menu.querySelector('#ytmls-playback-menu');
+ if (!display || !playback) return;
+ if (!display.querySelector('.ytmls-size-presets')) {
+  const sizes=document.createElement('div');sizes.className='ytmls-size-presets';sizes.setAttribute('aria-label','歌詞の文字サイズ');
+  for(const [name,size] of [['小',26],['中',32],['大',40]]){const button=practiceButton(sizes,name,()=>{
+   const id=practiceVideoId();if(!practiceCurrent(id)||!practiceLocalReady||!practiceSyncReady)return;
+   button.dataset.saving='true';button.disabled=true;void queuePracticeSettingsSave(()=>savePracticeEntry(id,{...practiceEntry(id),settings:{...(practiceEntry(id).settings||{}),fontSize:size}})).catch(e=>{button.title='保存できませんでした：'+e.message;}).finally(()=>{delete button.dataset.saving;button.disabled=false;});
+  });button.setAttribute('aria-label','文字サイズ '+name);}
+  display.querySelector('.ytmls-menu-label').after(sizes);
+  const mode=practiceButton(playback,'読むモード',()=>{chrome.storage.sync.set({trackingEnabled:!STATE.trackingEnabled},()=>{if(chrome.runtime.lastError)mode.title='設定を保存できませんでした';});});mode.id='ytmls-reading-mode';
+  const timing=practiceButton(playback,'同期タイミングを調整',event=>{
+   event.stopPropagation();
+   const details=menu.closest('details');
+   if(details)closeMoreMenu(details);
+   toggleTrackTimingPopover(details?.querySelector('summary') || trackTimingButtonEl);
+  });timing.id='ytmls-timing-shortcut';
+ }
+ const mode=playback.querySelector('#ytmls-reading-mode'),modeLabel=STATE.trackingEnabled?'読むモードに切り替え':'追跡モードに切り替え';if(mode.textContent!==modeLabel)mode.textContent=modeLabel;const pressed=String(!STATE.trackingEnabled);if(mode.getAttribute('aria-pressed')!==pressed)mode.setAttribute('aria-pressed',pressed);
+ const available=practiceCurrent(STATE.displayedVideoId)&&STATE.lines.length>0;
+ display.querySelectorAll('.ytmls-size-presets button').forEach(b=>{if(!b.dataset.saving)b.disabled=!available||!practiceLocalReady||!practiceSyncReady;});
+ playback.querySelector('#ytmls-timing-shortcut').disabled=!STATE.hasSync||!trackTimingButtonEl?.isConnected||trackTimingButtonEl.disabled;
+ const empty = panelEl.querySelector('#ytmls-empty');
+ if (!empty) return;
+ let emptyActions=empty.querySelector('#ytmls-empty-actions');
+ if(!emptyActions){emptyActions=document.createElement('div');emptyActions.id='ytmls-empty-actions';
+  practiceButton(emptyActions,'歌詞を追加',()=>renderLocalLyricsPane());practiceButton(emptyActions,'別の条件で探す',()=>renderManualSearchPane());empty.append(emptyActions);}
+ emptyActions.hidden=Boolean(STATE.lines.length||STATE.isSearching||!STATE.enabled||!STATE.lastTrackKey);
+ emptyActions.children[0].disabled = Boolean(localLyricsButtonEl?.disabled);
+ emptyActions.children[1].disabled = Boolean(manualSearchButtonEl?.disabled);
 }
 
 // Feature: main.js
@@ -7457,6 +7674,9 @@ function practiceTick() {
       }
 
       checkTrackChange();
+      if (STATE.pendingInitialHighlight && STATE.hasSync && trackingDisplayVisible()) {
+        updateHighlight(getAuthoritativePlaybackTime(getVideoElement()), true);
+      }
       runAutoRecoveryWatchdog();
       updatePlayerBarHealth();
       updateDiagnosticsSummary();

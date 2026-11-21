@@ -92,7 +92,7 @@
 
     title = title.trim();
     artist = String(artist || "").trim();
-    const album = (media && media.album ? media.album : (parts.length > 2 ? parts[1] : "")).trim();
+    const album = (media && media.album ? media.album : (parts.length > 2 && !/^(?:[\d.,]+\s*[kmb万億]?\s*(?:views?|回視聴)|視聴回数\s*[\d.,]+[万億]?回?)$/iu.test(parts[1]) ? parts[1] : "")).trim();
     // Home等、URLが/watchでないページに移動するとgetVideoId()が空文字になる。
     // 再生自体は裏で続いているだけなので、これを「別の曲」として扱うと
     // 歌詞タブに戻った時に不要な再検索が走り、レース次第で別の候補が採用されて

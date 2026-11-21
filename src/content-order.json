@@ -4,6 +4,7 @@
   "player-bridge.js",
   "settings.js",
   "auto-open.js",
+  "player-motion.js",
   "external-tab.js",
   "lyrics-panel.js",
   "health.js",
@@ -20,5 +21,6 @@
   "readings.js",
   "helpful-ui.js",
   "practice.js",
+  "enhancements.js",
   "main.js"
 ]

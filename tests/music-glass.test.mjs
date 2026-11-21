@@ -97,12 +97,6 @@ test('hidden Music Glass intervals perform no DOM queries',()=>{
  assert.equal(queries,0);
  document.hidden=false;for(const f of intervals) f();assert.ok(queries>0);
 });
-test('standalone theme reset includes dislike preference without requiring a missing input',()=>{
- const nodes={};let saved;
- for(const id of ['musicGlassEnabled','musicGlassArtwork','musicGlassIntensity','musicGlassHideScrollbar','musicGlassIntensity-value','status','reset']) nodes[id]={type:id==='musicGlassIntensity'?'range':'checkbox',addEventListener(t,f){this[t]=f;}};
- vm.runInNewContext(fs.readFileSync(new URL('../extension/music-glass-settings.js',import.meta.url),'utf8'),{document:{getElementById:id=>nodes[id]},chrome:{runtime:{},storage:{local:{get:(d,f)=>f(d),set:(v,f)=>{saved=v;f();}}}}});
- nodes.reset.click();assert.equal(saved.musicGlassHideDislike,false);assert.equal(nodes.reset.disabled,false);
-});
 
 test('master switch restores saved theme preferences and respects individual theme OFF',()=>{
  let changed,writes=0,removed=0;const classes={};

@@ -217,7 +217,7 @@
     if (currentEl.classList.contains("ytmls-word-sung") !== sung) currentEl.classList.toggle("ytmls-word-sung", sung);
   }
 
-  function updateHighlight(currentTime, force = false) {
+  function updateHighlight(currentTime, force = false, seekedMedia = null) {
     if (!STATE.hasSync || !STATE.lines.length || !listEl) return false;
 
     // 曲切り替え直後のvideo要素は旧曲のcurrentTimeを一瞬保持する。
@@ -226,9 +226,15 @@
     // さらに次曲開始ガードで不自然な前方ジャンプを拒否する。
     const media = getVideoElement();
     if (!canTrackCurrentPlayback(media)) return false;
-    const safeCurrentTime = getGuardedPlaybackTime(media);
+    // A completed seek on the current media can precede the next bridge sample.
+    // Use the media's new time for this event only, after the track identity check.
+    const seekTime = seekedMedia && seekedMedia === media && !media.seeking ? media.currentTime : null;
+    const safeCurrentTime = Number.isFinite(seekTime) && seekTime >= 0
+      ? seekTime
+      : getGuardedPlaybackTime(media);
     if (safeCurrentTime == null) return false;
 
+    STATE.pendingInitialHighlight = false;
     STATE.lastTrackingPulseAt = performance.now();
 
     if (!STATE.trackingEnabled) {
@@ -352,9 +358,10 @@
         // 同じ行への smooth scroll を連続発行すると、曲切替後まで旧スクロールが残る原因になる。
         updateHighlight(getAuthoritativePlaybackTime(videoEl) || 0, false);
       };
-      videoForceUpdateHandler = () => {
-        if (!STATE.enabled || !videoEl || videoEl.ended || !canTrackCurrentPlayback(videoEl)) return;
-        updateHighlight(getAuthoritativePlaybackTime(videoEl) || 0, true);
+      videoForceUpdateHandler = (event) => {
+        if (!STATE.enabled || !video.isConnected || video !== getVideoElement() || video.ended) return;
+        const seekedMedia = event?.type === "seeked" ? video : null;
+        if (updateHighlight(getAuthoritativePlaybackTime(video) || 0, true, seekedMedia) === false) return;
         if (typeof syncPracticeFullscreenTracking === "function") syncPracticeFullscreenTracking();
       };
       videoEndedHandler = () => {

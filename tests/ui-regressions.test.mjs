@@ -55,12 +55,32 @@ test('lyrics: Enter seeks, Space toggles playback without repeats or modifiers',
  let toggles=0;
  const nodes=[];function element(){return {dataset:{},handlers:{},classList:{add(){}},setAttribute(key,value){this[key]=value;},addEventListener(key,fn){this.handlers[key]=fn;},click(){this.activations=(this.activations||0)+1;}};}
  const c=vm.createContext({STATE:{lines:[{time:1,text:'line',words:[]}],lastDisplayedTrackKey:'key',displayedVideoId:'song'},
- requestPlayerToggle:id=>{assert.equal(id,'song');toggles++;},getAuthoritativeVideoId:()=> 'song',
+ getVideoId:()=> 'song',
  refreshLyricsReadings(){},listEl:{appendChild:node=>nodes.push(node)},document:{createElement:element,documentElement:{classList:{contains:()=>false}}},getVideoElement:()=>null});
+ c.window={addEventListener(){}};
+ vm.runInContext(read('src/content/player-bridge.js'),c);
+ c.requestPlayerToggle=id=>{assert.equal(id,'song');toggles++;};
  vm.runInContext(read('src/content/timing-offset.js'),c);c.renderLines();
  const line=nodes[0];assert.equal(line.tabIndex,0);assert.equal(line.role,'button');
  for(const key of ['Enter',' '])line.handlers.keydown({key,preventDefault(){},stopPropagation(){}});
  line.handlers.keydown({key:' ',repeat:true,preventDefault(){},stopPropagation(){}});
  line.handlers.keydown({key:'Enter',ctrlKey:true});
- line.handlers.keydown({key:' ',ctrlKey:true});assert.equal(line.activations,1);assert.equal(toggles,1);
+ line.handlers.keydown({key:' ',ctrlKey:true});
+ line.handlers.keydown({key:'Enter',preventDefault(){},stopPropagation(){}});
+ assert.equal(line.activations,2);assert.equal(toggles,1);
+});
+
+test('timing popover anchors to the visible menu summary when the compact button becomes hidden',()=>{
+ const bounds={left:700,top:320,bottom:350,width:90,height:30};
+ const summary={isConnected:true,getBoundingClientRect:()=>bounds,focus(){this.focused=true;}};
+ const compactButton={isConnected:true,getBoundingClientRect:()=>({left:0,top:0,bottom:0,width:0,height:0}),setAttribute(){}};
+ const popover={hidden:true,offsetHeight:200,offsetWidth:320,style:{},querySelector:()=>null};
+ const c=vm.createContext({document:{querySelector:()=>summary},window:{innerWidth:900,innerHeight:620},
+  trackTimingPopoverEl:popover,trackTimingButtonEl:compactButton,trackTimingPreview:null,requestAnimationFrame:fn=>fn()});
+ vm.runInContext(read('src/content/timing-offset.js'),c);
+ c.ensureTrackTimingPopover=()=>{};c.updateTrackTimingControl=()=>{};c.getTrackOffsetVideoId=()=> 'song';
+ c.toggleTrackTimingPopover(summary);
+ assert.equal(popover.hidden,false);assert.deepEqual(popover.style,{left:'568px',top:'108px'});
+ c.dismissTrackTimingPopover();
+ assert.equal(popover.hidden,true);assert.equal(summary.focused,true);
 });

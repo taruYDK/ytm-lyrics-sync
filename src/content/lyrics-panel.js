@@ -757,7 +757,7 @@
       if (authorShortcutTargetsControl(event.target, record)) return;
       const space = event.code === "Space" && !event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey;
       const back = event.key.toLowerCase() === "z" && (event.ctrlKey || event.metaKey) && !event.altKey && !event.shiftKey;
-      if (!space && !back) return;
+      if ((!space && !back) || (space ? record : undo).disabled) return;
       event.preventDefault(); event.stopImmediatePropagation();
       if (!event.repeat) (space ? record : undo).click();
     }, { capture: true, signal: authorShortcutController.signal });
@@ -982,6 +982,17 @@
     }, 1800);
   }
 
+  function closeMoreMenu(more) {
+    if (!more?.open) return;
+    const menu=more.querySelector('.ytmls-more-menu');
+    const motion=!document.documentElement.classList.contains('ytmls-extra-motion-disabled') && !document.documentElement.classList.contains('ytmls-lyrics-motion-lightweight') && !(typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches);
+    if (!motion || !menu?.animate) { more.open=false; return; }
+    if (more.dataset.closing==='true') return;
+    more.dataset.closing='true';menu.style.pointerEvents='none';
+    const animation=menu.animate([{opacity:1,transform:'none'},{opacity:0,transform:'translateY(-5px) scale(.98)'}],{duration:140,easing:'ease-in'});
+    animation.finished.catch(()=>{}).finally(()=>{more.open=false;delete more.dataset.closing;menu.style.removeProperty('pointer-events');});
+  }
+
   function createPanel() {
     if (panelEl) return;
 
@@ -1035,23 +1046,39 @@
     const moreToggle = document.createElement("summary");
     moreToggle.className = "ytmls-tool-button";
     moreToggle.textContent = "その他";
+    moreToggle.addEventListener('click',event=>{if(more.open){event.preventDefault();closeMoreMenu(more);}});
     const menu = document.createElement("div");
     menu.className = "ytmls-more-menu";
-    const sectionLabel = text => { const label = document.createElement('div'); label.className = 'ytmls-menu-label'; label.textContent = text; return label; };
-    const playbackGroup = document.createElement('div'); playbackGroup.id = 'ytmls-playback-menu';
-    playbackGroup.setAttribute('role', 'group'); playbackGroup.setAttribute('aria-label', '再生・同期');
-    playbackGroup.appendChild(sectionLabel('再生・同期'));
-    menu.append(sectionLabel('歌詞を探す'), manualSearchButtonEl, sectionLabel('編集する'), editLyricsButtonEl, localLyricsButtonEl, playbackGroup, sectionLabel('保存・診断'), exportLyricsButtonEl);
+    function menuGroup(title, id) {
+      const group = document.createElement('div');
+      group.id = id;
+      group.className = 'ytmls-menu-group';
+      group.setAttribute('role', 'group');
+      const label = document.createElement('div');
+      label.className = 'ytmls-menu-label';
+      label.id = id + '-label';
+      label.textContent = title;
+      group.setAttribute('aria-labelledby', label.id);
+      group.append(label);
+      return group;
+    }
+    const displayGroup = menuGroup('表示', 'ytmls-practice-controls');
+    const playbackGroup = menuGroup('再生・同期', 'ytmls-playback-menu');
+    const lyricsGroup = menuGroup('歌詞の検索・編集', 'ytmls-lyrics-menu');
+    lyricsGroup.append(manualSearchButtonEl, localLyricsButtonEl, editLyricsButtonEl);
+    const storageGroup = menuGroup('保存・診断', 'ytmls-storage-menu');
+    storageGroup.append(exportLyricsButtonEl);
+    menu.append(displayGroup, playbackGroup, lyricsGroup, storageGroup);
     more.append(moreToggle, menu);
     lyricsToolsEl.append(candidateButtonEl, more);
     for (const button of [candidateButtonEl, manualSearchButtonEl, editLyricsButtonEl, localLyricsButtonEl, exportLyricsButtonEl]) {
-      button.addEventListener("click", () => { more.open = false; });
+      button.addEventListener("click", () => { closeMoreMenu(more); });
     }
     document.addEventListener("click", event => {
-      if (more.open && !more.contains(event.target)) more.open = false;
+      if (more.open && !more.contains(event.target)) closeMoreMenu(more);
     });
     more.addEventListener("keydown", event => {
-      if (event.key === "Escape") { more.open = false; moreToggle.focus(); event.stopPropagation(); }
+      if (event.key === "Escape") { closeMoreMenu(more); moreToggle.focus(); event.stopPropagation(); }
     });
     panelEl.appendChild(lyricsToolsEl);
 
@@ -1072,9 +1099,10 @@
     const diagnosticToggle = document.createElement("summary");
     diagnosticToggle.textContent = "診断情報";
     diagnosticDetails.append(diagnosticToggle, diagnosticsEl);
-    menu.appendChild(diagnosticDetails);
+    storageGroup.append(diagnosticDetails);
     more.addEventListener("toggle", () => {
-      if (!more.open) diagnosticDetails.open = false;
+      if (more.open) fitMoreMenu(more, menu);
+      else diagnosticDetails.open = false;
     });
 
     lyricsToolsPaneEl = document.createElement("div");

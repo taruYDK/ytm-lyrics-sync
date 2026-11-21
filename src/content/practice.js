@@ -65,7 +65,7 @@ function loadPracticeSettings(area) {
  return operation;
 }
 function initPracticeStorage() {
- document.addEventListener('fullscreenchange',()=>{if(practiceFullscreen?.dataset.native==='true'&&document.fullscreenElement!==practiceFullscreen)closePracticeFullscreen();});
+ document.addEventListener('fullscreenchange',()=>{if(practiceFullscreen?.dataset.native==='true'&&document.fullscreenElement!==practiceFullscreen)closePracticeFullscreen(false);});
  void loadPracticeSettings('local');void loadPracticeSettings('sync');
  chrome.storage.onChanged.addListener((changes,area)=>{
   if(area==='local'&&changes[PRACTICE_KEY]){practiceData=changes[PRACTICE_KEY].newValue||{};applyPracticePrefs();void refreshPracticeExtras();}
@@ -102,7 +102,8 @@ function queuePracticeSettingsSave(operation) {
  return result;
 }
 function showTrackDisplay() {
- const p=practicePane('この曲の表示設定');const prefs=practicePrefs();
+ const p=practicePane('この曲の表示設定');
+ const editingPrefs=()=>({...practiceGlobal,...(practiceEntry(p.id).settings||{})});
  if(!practiceLocalReady||!practiceSyncReady){
   p.status.textContent=Object.values(practiceLoadErrors).join(' ')||'曲別設定を読み込んでいます。';
   const retry=practiceButton(p.body,'設定の読み込みを再試行',async()=>{
@@ -115,31 +116,41 @@ function showTrackDisplay() {
   return;
  }
 
- p.status.textContent='変更すると、この曲だけに自動保存されます。';
+ const prefs=editingPrefs();
+ p.status.textContent='変更すると、この曲だけに自動保存されます。共通設定がOFFの読み仮名は表示されません。';
  const size=practiceField(p.body,'文字サイズ（10〜100px）','number',prefs.fontSize);size.min='10';size.max='100';
  const ja=practiceField(p.body,'日本語ふりがな','checkbox',prefs.readingJapanese),en=practiceField(p.body,'英語カタカナ読み','checkbox',prefs.readingEnglish);
  const ro=practiceField(p.body,'ローマ字を表示','checkbox',prefs.showRomaji);
  const metadata={title:STATE.lastDisplayedTitle||'',artist:STATE.lastDisplayedArtist||''};let revision=0;
  const report=(version,text)=>{if(version===revision&&p.body.isConnected&&practiceCurrent(p.id,p.lines))p.status.textContent=text;};
- const save=()=>{
+ const save=(key,value)=>{
   if(!practiceGuard(p))return;
-  const fontSize=Number(size.value);if(!size.value||!Number.isFinite(fontSize)||fontSize<10||fontSize>100){p.status.textContent='文字サイズは10〜100です';return;}
-  const version=++revision,settings={fontSize,readingJapanese:ja.checked,readingEnglish:en.checked,showRomaji:ro.checked};
+  const version=++revision;
   p.status.textContent='保存中…';
-  void queuePracticeSettingsSave(()=>savePracticeEntry(p.id,{...practiceEntry(p.id),...metadata,settings})).then(()=>report(version,'自動保存しました'),e=>report(version,'保存できませんでした：'+e.message));
+  void queuePracticeSettingsSave(()=>{
+   const entry=practiceEntry(p.id);
+   return savePracticeEntry(p.id,{...entry,...metadata,settings:{...entry.settings,[key]:value}});
+  }).then(()=>report(version,'自動保存しました'),e=>report(version,'保存できませんでした：'+e.message));
  };
- for(const input of [size,ja,en,ro])input.addEventListener('change',save);
+ size.addEventListener('change',()=>{
+  const fontSize=Number(size.value);
+  if(!size.value||!Number.isFinite(fontSize)||fontSize<10||fontSize>100){p.status.textContent='文字サイズは10〜100です';return;}
+  save('fontSize',fontSize);
+ });
+ for(const [field,key] of [[ja,'readingJapanese'],[en,'readingEnglish'],[ro,'showRomaji']]){
+  field.addEventListener('change',()=>save(key,field.checked));
+ }
  practiceButton(p.body,'共通設定に戻す',()=>{
   if(!practiceGuard(p))return;
   const version=++revision;p.status.textContent='保存中…';
   void queuePracticeSettingsSave(()=>{const entry={...practiceEntry(p.id),...metadata};delete entry.settings;return savePracticeEntry(p.id,entry);}).then(()=>{
    if(version!==revision||!p.body.isConnected||!practiceCurrent(p.id,p.lines))return;
-   const restored=practicePrefs();size.value=String(restored.fontSize);ja.checked=restored.readingJapanese;en.checked=restored.readingEnglish;ro.checked=Boolean(restored.showRomaji);report(version,'共通の表示設定に戻しました');
+   const restored=editingPrefs();size.value=String(restored.fontSize);ja.checked=restored.readingJapanese;en.checked=restored.readingEnglish;ro.checked=Boolean(restored.showRomaji);report(version,'共通の表示設定に戻しました');
   },e=>report(version,'保存できませんでした：'+e.message));
  });
 }
 function handlePracticeLineKey(event,id,lines,row) {
- if(!['Enter',' '].includes(event.key)||event.ctrlKey||event.metaKey||event.altKey||event.shiftKey)return;
+ if(!['Enter',' '].includes(event.key)||event.ctrlKey||event.metaKey||event.altKey||event.shiftKey||event.isComposing)return;
  event.preventDefault();event.stopPropagation();
  if(event.repeat||!practiceCurrent(id,lines))return;
  if(event.key==='Enter')row.click();else requestPlayerToggle(id);
@@ -153,7 +164,7 @@ function handlePracticeFullscreenSpace(event) {
  }
  if(event.ctrlKey||event.metaKey||event.altKey||event.shiftKey||event.isComposing)return;
  const target=event.target;
- if(target?.isContentEditable||target?.closest?.('input,textarea,select,[role="textbox"],.ytmls-full-close'))return;
+ if(target?.isContentEditable||target?.closest?.('input,textarea,select,[role="textbox"],.ytmls-full-close,.ytmls-full-size button'))return;
  box.spaceHandled=true;event.preventDefault();event.stopImmediatePropagation();
  if(event.repeat||!STATE.enabled)return;
  const id=practiceVideoId();if(id)requestPlayerToggle(id);
@@ -178,7 +189,29 @@ async function refreshPracticeExtras() {
  }
  practiceFullSignature='';scheduleTrackingRealignment();
 }
-function closePracticeFullscreen() {const current=practiceFullscreen;practiceFullscreen=null;if(current){document.removeEventListener('keydown',handlePracticeFullscreenSpace,true);document.removeEventListener('keyup',handlePracticeFullscreenSpace,true);clearTimeout(current.closeTimer);current.resizeObserver?.disconnect();}current?.remove();if(current?.returnFocus?.isConnected)current.returnFocus.focus();if(current&&document.fullscreenElement===current)void document.exitFullscreen().catch(()=>{});}
+function closePracticeFullscreen(animate = true) {
+ const box = practiceFullscreen;
+ if (!box || box.inert) return;
+ box.inert = true;
+ document.removeEventListener('keydown', handlePracticeFullscreenSpace, true);
+ document.removeEventListener('keyup', handlePracticeFullscreenSpace, true);
+ clearTimeout(box.closeTimer);
+ box.resizeObserver?.disconnect();
+ const finish = () => {
+  practiceFullscreen = null;
+  const exiting = document.fullscreenElement === box ? document.exitFullscreen() : Promise.resolve();
+  box.remove();
+  void exiting.catch(() => {}).finally(() => {
+   if (!practiceFullscreen && box.returnFocus?.isConnected) box.returnFocus.focus();
+  });
+ };
+ if (animate === false || !playerFeedbackEnabled()) { finish(); return; }
+ box.backgroundMotion?.cancel();
+ const canvas = box.querySelector('canvas');
+ const blur = getComputedStyle(canvas).filter;
+ canvas.animate([{filter:blur},{filter:'blur(0px)'}], {duration:220,easing:'ease-in',fill:'forwards'});
+ box.animate([{opacity:1},{opacity:0}], {duration:220,easing:'ease-in',fill:'forwards'}).finished.then(finish,finish);
+}
 function paintPracticeBackground(box) {
  const canvas=box.querySelector('canvas'),ctx=canvas.getContext('2d');
  const glass=document.getElementById('music-glass-backdrop');
@@ -191,20 +224,41 @@ function paintPracticeBackground(box) {
  ctx.drawImage(image,(image.naturalWidth-side)/2,(image.naturalHeight-side)/2,side,side,-12,-12,120,120);ctx.filter='none';
 }
 function openPracticeFullscreen() {
- if(!STATE.enabled||!STATE.lines.length)return;closePracticeFullscreen();
+ if (!STATE.enabled || !STATE.lines.length || practiceFullscreen) return;
  const box=document.createElement('div');box.id='ytmls-fullscreen';box.setAttribute('role','dialog');box.setAttribute('aria-label','全画面歌詞');box.setAttribute('aria-modal','true');
  const canvas=document.createElement('canvas');canvas.width=96;canvas.height=96;canvas.className='ytmls-full-backdrop';box.append(canvas);
  const corner=document.createElement('div');corner.className='ytmls-full-corner';box.append(corner);const close=practiceButton(corner,'全画面を閉じる',closePracticeFullscreen);close.className='ytmls-full-close';box.classList.add('ytmls-full-intro');box.closeTimer=setTimeout(()=>{if(practiceFullscreen===box)box.classList.remove('ytmls-full-intro');},3000);
+ const sizeControls = document.createElement('div');
+ sizeControls.className = 'ytmls-full-size';
+ sizeControls.setAttribute('role', 'group');
+ sizeControls.setAttribute('aria-label', '歌詞の文字サイズ');
+ box.append(sizeControls);
+ let scale = 100;
+ const resize = delta => {
+  scale = Math.min(150, Math.max(70, scale + delta));
+  box.style.setProperty('--ytmls-full-font-scale', String(scale / 100));
+  smaller.disabled = scale <= 70;
+  larger.disabled = scale >= 150;
+ };
+ const smaller = practiceButton(sizeControls, 'A−', () => resize(-10));
+ const larger = practiceButton(sizeControls, 'A+', () => resize(10));
+ smaller.setAttribute('aria-label', '歌詞の文字を小さくする');
+ larger.setAttribute('aria-label', '歌詞の文字を大きくする');
  const title=document.createElement('h1');title.textContent=STATE.lastDisplayedTitle||'歌詞';box.append(title);const list=document.createElement('div');list.className='ytmls-full-list';box.append(list);
  box.returnFocus=document.activeElement;document.body.append(box);practiceFullscreen=box;trackingDisplayResumedAt=performance.now();document.addEventListener('keydown',handlePracticeFullscreenSpace,true);document.addEventListener('keyup',handlePracticeFullscreenSpace,true);practiceFullSignature='';practiceFullIndex=-1;refreshPracticeFullscreen();box.tabIndex=-1;box.focus();
  box.resizeObserver=new ResizeObserver(()=>{if(practiceFullscreen===box){box.pendingFollow=true;syncPracticeFullscreenTracking();}});box.resizeObserver.observe(list);
  const pause=()=>{box.manualUntil=performance.now()+(STATE.manualScrollReturnMs||3500);box.pendingFollow=true;};list.addEventListener('wheel',pause,{passive:true});list.addEventListener('touchmove',pause,{passive:true});list.addEventListener('keydown',e=>{if(['ArrowUp','ArrowDown','PageUp','PageDown','Home','End'].includes(e.key))pause();});
- box.addEventListener('keydown',e=>{if(e.key==='Escape'){e.stopPropagation();closePracticeFullscreen();}else if(e.key==='Tab'){const buttons=[...box.querySelectorAll('button')];const first=buttons[0],last=buttons.at(-1);if(e.shiftKey&&document.activeElement===first){e.preventDefault();last?.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first?.focus();}}});
+ box.addEventListener('keydown',e=>{if(e.key==='Escape'){e.stopPropagation();closePracticeFullscreen();}else if(e.key==='Tab'){const buttons=[...box.querySelectorAll('button:not(:disabled)')];const first=buttons[0],last=buttons.at(-1);if(e.shiftKey&&document.activeElement===first){e.preventDefault();last?.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first?.focus();}}});
 
+ if (playerFeedbackEnabled()) {
+  box.backgroundMotion = canvas.animate(
+    [{filter:'blur(0px)',opacity:0},{filter:'blur(12px)',opacity:.65}],
+    {duration:240,easing:'ease-out'});
+ }
  if(box.requestFullscreen)void box.requestFullscreen().then(()=>{box.dataset.native='true';}).catch(()=>{});
 }
 function refreshPracticeFullscreen() {
- const box=practiceFullscreen;if(!box)return;if(!STATE.enabled){closePracticeFullscreen();return;}
+ const box=practiceFullscreen;if(!box || box.inert)return;if(!STATE.enabled){closePracticeFullscreen(false);return;}
  paintPracticeBackground(box);
  const sig=[STATE.displayedVideoId,STATE.activeCandidateId,practiceExtrasGeneration,STATE.lines.length].join(':');const list=box.querySelector('.ytmls-full-list');
  if(sig!==practiceFullSignature){practiceFullSignature=sig;practiceFullIndex=-1;box.querySelector('h1').textContent=STATE.lastDisplayedTitle||'歌詞';const restoreFocus=list.contains(document.activeElement);list.replaceChildren();if(restoreFocus)box.focus({preventScroll:true});const renderedId=STATE.displayedVideoId,renderedLines=STATE.lines;for(let i=0;i<STATE.lines.length;i++){const b=document.createElement('button');b.className='ytmls-full-line ytmls-line';b.append(...[...(listEl?.children[i]?.childNodes||[])].map(x=>x.cloneNode(true)));if(!b.childNodes.length)b.textContent=STATE.lines[i].text;b.addEventListener('keydown',e=>handlePracticeLineKey(e,renderedId,renderedLines,b));b.addEventListener('click',()=>{if(practiceCurrent(renderedId,renderedLines)){box.manualUntil=0;box.pendingFollow=true;practiceSeek(i);}});list.append(b);}}
@@ -232,17 +286,14 @@ function syncPracticeFullscreenTracking() {
 }
 function ensurePracticeControls() {
  const menu=lyricsToolsEl?.querySelector('.ytmls-more-menu');if(!menu)return;
- let group=menu.querySelector('#ytmls-practice-controls');
- if(!group){
-  group=document.createElement('div');group.id='ytmls-practice-controls';
-  group.setAttribute('role','group');group.setAttribute('aria-label','表示・便利機能');
-  const label=document.createElement('div');label.className='ytmls-menu-label';label.textContent='表示・便利機能';group.append(label);
-  menu.prepend(group);
-  for(const [title,fn] of [['この曲の表示設定',showTrackDisplay],['全画面歌詞ビュー',openPracticeFullscreen]])practiceButton(group,title,()=>{const details=menu.closest('details');if(details)details.open=false;fn();});
+ const group = menu.querySelector('#ytmls-practice-controls');
+ if (!group) return;
+ if (!group.querySelector('button')) {
+  for(const [title,fn] of [['この曲の表示設定',showTrackDisplay],['全画面歌詞ビュー',openPracticeFullscreen]])practiceButton(group,title,()=>{const details=menu.closest('details');if(details)closeMoreMenu(details);fn();});
  }
  const available=practiceCurrent(STATE.displayedVideoId)&&STATE.lines.length>0;
- for(const button of group.querySelectorAll('button'))button.disabled=!available;
+ for(const button of group.querySelectorAll(':scope > button'))button.disabled=!available;
 }
 function practiceTick() {
- reportPracticeLoadError();applyPracticePrefs();ensurePracticeControls();refreshPracticeFullscreen();
+ reportPracticeLoadError();applyPracticePrefs();ensurePracticeControls();if(typeof ensureEnhancementControls === "function")ensureEnhancementControls();refreshPracticeFullscreen();
 }

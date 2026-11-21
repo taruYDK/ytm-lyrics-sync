@@ -12,6 +12,7 @@
     lines: [],
     syncLevel: "none", // none | line | word | syllable
     hasSync: false,
+    pendingInitialHighlight: false,
     currentIndex: -1,
     currentWordIndex: -1,
     lastTrackKey: null,

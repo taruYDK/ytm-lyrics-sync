@@ -1,6 +1,7 @@
 (() => {
   'use strict';
   const settings = {
+    ytmlsExtraMotionEnabled: { defaultValue: true, className: 'ytmls-extra-motion-disabled', enabled: value => value === false },
     musicGlassLightweight: { defaultValue: false, className: 'ytmls-lyrics-motion-lightweight', enabled: value => value === true },
     ytmlsDepthAnimationEnabled: { defaultValue: true, className: 'ytmls-depth-animation-disabled', enabled: value => value === false },
     ytmlsPlayerBarCustomEnabled: { defaultValue: true, className: 'ytmls-custom-playerbar', enabled: value => value !== false },

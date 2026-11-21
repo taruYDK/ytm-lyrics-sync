@@ -1,6 +1,6 @@
-# YT Music 歌詞シンクロ 3.1.0
+# YT Music 歌詞シンクロ 3.2.0
 
-歌詞追跡と英語読み仮名の処理を軽量化し、表示設定の内部処理を整理した3.1.0です。
+設定を機能別に整理し、歌詞メニュー、全画面歌詞、ふりがな編集を使いやすくした3.2.0です。
 
 <div align="center">
 
@@ -8,7 +8,7 @@
 
 **YouTube Musicに、追いかけやすい歌詞と読み仮名を。**
 
-![Version 3.1.0](https://img.shields.io/badge/version-3.1.0-f59e0b?style=flat-square)
+![Version 3.2.0](https://img.shields.io/badge/version-3.2.0-f59e0b?style=flat-square)
 ![Edge / Chrome](https://img.shields.io/badge/browser-Edge%20%2F%20Chrome-3b82f6?style=flat-square)
 ![Manifest V3](https://img.shields.io/badge/extension-Manifest%20V3-8b5cf6?style=flat-square)
 [![MIT License](https://img.shields.io/badge/license-MIT-f59e0b?style=flat-square)](LICENSE)
@@ -74,7 +74,7 @@
 | 背景テーマを設定する | ポップアップ → **背景** |
 | データを保存・復元する | ポップアップ → **データ保護** |
 
-歌詞のクリック・Enterでその位置へ移動できます。Spaceの再生／一時停止は「表示 → Spaceキーで再生・一時停止」で切り替えられます。文字入力中やキーボードで選んだボタンは通常の操作を優先し、同期歌詞作成モードではSpaceで行を記録します。全画面の閉じるボタンは最初の3秒間表示し、その後は右上へカーソルを合わせるか、Tabで移動すると表示します。
+歌詞のクリック・Enterでその位置へ移動できます。Spaceで再生／一時停止します。文字入力中やキーボードで選んだボタンは通常の操作を優先し、同期歌詞作成モードではSpaceで行を記録します。全画面の閉じるボタンは最初の3秒間表示し、その後は右上へカーソルを合わせるか、Tabで移動すると表示します。
 
 詳細は[曲別設定・全画面歌詞・ローマ字の使い方](docs/PRACTICE.md)と[Music Glassの設定](docs/MUSIC-GLASS.md)を参照してください。
 
@@ -112,13 +112,11 @@
 
 設定画面の読み仮名OFFは、保存済みの曲別ON設定より優先されます。共通設定をONへ戻すと、その曲の設定を再び適用します。
 
-## v3.1.0の更新内容
+## v3.2.0の更新内容
 
-停止中や歌詞を表示していないときの追跡処理、検索中・歌詞未取得時の表示処理を軽量化しました。英語の読み仮名は、曲に必要な単語だけをタブへ渡します。
+設定を「歌詞表示」「自動追跡」「再生バー・演出」「背景」「歌詞取得」「データ管理」の6カテゴリに分けました。「その他」には文字サイズ、読むモード、同期調整などをまとめ、全画面内でも文字サイズを調整できます。
 
-歌詞表示を再開した直後の不要な自動再同期を防ぎ、表示設定の内部処理を整理しました。
-
-[3.1.0の更新内容・更新方法](docs/RELEASE-v3.1.0.md) · [過去の変更履歴](CHANGELOG.md)
+[3.2.0の更新内容・更新方法](docs/RELEASE-v3.2.0.md) · [過去の変更履歴](CHANGELOG.md)
 
 ## 開発・不具合報告
 

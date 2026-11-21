@@ -5,13 +5,10 @@
   const LYRICS_CACHE_STORAGE_KEY = "ytmlsLyricsCacheV232";
   const LYRICS_CACHE_MAX_ENTRIES = 150;
   const MANUAL_SEARCH_STORAGE_KEY = "ytmlsManualSearchOverridesV190";
-  const MANUAL_SEARCH_MAX_ENTRIES = 200;
   const LYRICS_EDITS_STORAGE_KEY = "ytmlsLyricsEditsV199";
-  const PINNED_LYRICS_STORAGE_KEY = "ytmlsPinnedLyricsV200";
   // 固定・ローカル歌詞はユーザーデータなので、キャッシュのように件数で自動削除しない。
-  const PINNED_LYRICS_MAX_TRACKS = null;
+  const PINNED_LYRICS_STORAGE_KEY = "ytmlsPinnedLyricsV200";
   const LOCAL_LYRICS_STORAGE_KEY = "ytmlsLocalLyricsV200";
-  const LOCAL_LYRICS_MAX_TRACKS = null;
   const LOCAL_LYRICS_MAX_CHARS = 500000;
 
   function checkedLocalStorageSet(value) {
@@ -31,7 +28,7 @@
     });
   }
 
-  async function mutateStoredTrackMap(storageKey, fallbackMap, videoId, entry, maxEntries, isValid) {
+  async function mutateStoredTrackMap(storageKey, videoId, entry) {
     const data = await sendUserDataMutation({ action: "entry", key: storageKey, videoId, entry });
     return data[storageKey];
   }
@@ -68,14 +65,7 @@
       updatedAt: Date.now(),
     };
     try {
-      STATE.pinnedLyrics = await mutateStoredTrackMap(
-        PINNED_LYRICS_STORAGE_KEY,
-        STATE.pinnedLyrics,
-        id,
-        entry,
-        PINNED_LYRICS_MAX_TRACKS,
-        (value) => value.result && Array.isArray(value.result.lines) && value.result.lines.length
-      );
+      STATE.pinnedLyrics = await mutateStoredTrackMap(PINNED_LYRICS_STORAGE_KEY, id, entry);
       updateDiagnosticsSummary();
       return { ok: true };
     } catch (_) {
@@ -87,14 +77,7 @@
     const id = String(videoId || "");
     if (!id) return { ok: false, message: "曲IDを取得できませんでした。" };
     try {
-      STATE.pinnedLyrics = await mutateStoredTrackMap(
-        PINNED_LYRICS_STORAGE_KEY,
-        STATE.pinnedLyrics,
-        id,
-        null,
-        PINNED_LYRICS_MAX_TRACKS,
-        (value) => value.result && Array.isArray(value.result.lines) && value.result.lines.length
-      );
+      STATE.pinnedLyrics = await mutateStoredTrackMap(PINNED_LYRICS_STORAGE_KEY, id, null);
       updateDiagnosticsSummary();
       return { ok: true };
     } catch (_) {
@@ -156,14 +139,7 @@
     if (!result) return { ok: false, message: "[00:14.32] のような時刻付き歌詞が見つかりません。" };
 
     try {
-      STATE.localLyrics = await mutateStoredTrackMap(
-        LOCAL_LYRICS_STORAGE_KEY,
-        STATE.localLyrics,
-        id,
-        entry,
-        LOCAL_LYRICS_MAX_TRACKS,
-        (value) => typeof value.rawLrc === "string" && value.rawLrc.trim()
-      );
+      STATE.localLyrics = await mutateStoredTrackMap(LOCAL_LYRICS_STORAGE_KEY, id, entry);
       // Local candidate edits are cleared atomically by the storage worker.
       updateDiagnosticsSummary();
       return { ok: true, entry, result };
@@ -508,7 +484,7 @@
     STATE.transitionTargetVideoId = "";
     STATE.transitionOldTime = getAuthoritativePlaybackTime(media) ?? 0;
     STATE.transitionOldDuration = getAuthoritativeDuration(media) ?? 0;
-    STATE.transitionOldSrc = media && media.currentSrc ? String(media.currentSrc) : "";
+    STATE.transitionOldSrc = String(media?.currentSrc || "");
     STATE.currentIndex = -1;
     STATE.currentWordIndex = -1;
     resetLyricsScrollPosition();
@@ -546,7 +522,7 @@
     STATE.transitionTargetVideoId = target;
     STATE.transitionOldTime = getAuthoritativePlaybackTime(media) ?? 0;
     STATE.transitionOldDuration = getAuthoritativeDuration(media) ?? 0;
-    STATE.transitionOldSrc = media && media.currentSrc ? String(media.currentSrc) : "";
+    STATE.transitionOldSrc = String(media?.currentSrc || "");
     resetLyricsScrollPosition();
   }
 
@@ -662,7 +638,7 @@
       const age = now - STATE.endedAt;
       const t = Number(getAuthoritativePlaybackTime(media));
       const duration = Number(getAuthoritativeDuration(media));
-      const currentSrc = media.currentSrc ? String(media.currentSrc) : "";
+      const currentSrc = String(media?.currentSrc || "");
       const oldTime = Number(STATE.transitionOldTime);
       const oldDuration = Number(STATE.transitionOldDuration);
 
@@ -824,7 +800,7 @@
     const now = performance.now();
     const currentTime = Number(getAuthoritativePlaybackTime(media));
     const duration = Number(getAuthoritativeDuration(media));
-    const currentSrc = media.currentSrc ? String(media.currentSrc) : "";
+    const currentSrc = String(media?.currentSrc || "");
 
     const transitionAge = now - STATE.transitionStartedAt;
     const resetNearStart = transitionAge >= 650 && Number.isFinite(currentTime) && currentTime <= 5.0;

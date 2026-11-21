@@ -27,7 +27,7 @@ const LOCAL_KEYS = [
   "ytmlsManualSearchOverridesV190",
   "ytmlsLyricsEditsV199",
   "ytmlsPinnedLyricsV200",
-  "ytmlsLocalLyricsV200", "ytmlsManualReadingsV256", "ytmlsTrackDisplayV280",
+  "ytmlsLocalLyricsV200", "ytmlsManualReadingsV256", "ytmlsTrackDisplayV280", "ytmlsBookmarksV310",
 ];
 
 function storageGet(area, keys) {

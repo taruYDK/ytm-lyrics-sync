@@ -191,3 +191,18 @@ test('normal-save validation uses save wording while restore keeps backup wordin
  const h=harness();const result=await h.send({action:'edit',videoId:'song',candidateId:'x',entry:{originalLineCount:0,replacements:{1:'bad'}}});assert.equal(result.ok,false);assert.match(result.error,/保存する曲データ/);assert.doesNotMatch(result.error,/バックアップ/);
  const restored=await h.send({action:'restore',data:{ytmlsLocalLyricsV200:{bad:{rawLrc:4}}}});assert.match(restored.error,/バックアップ/);
 });
+
+test('existing bookmark data remains restorable after feature removal',async()=>{
+ const h=harness(),key='ytmlsBookmarksV310',data={[key]:{abcdefghijk:{title:'曲',artist:'人',entries:[{time:12,text:'歌詞'}]}}};
+ assert.equal((await h.send({action:'restore',data})).ok,true);assert.equal(h.store[key].abcdefghijk.entries[0].text,'歌詞');
+});
+
+test('stale reading editor cannot overwrite a concurrent save', async () => {
+  const h = harness();
+  const key = 'ytmlsManualReadingsV256';
+  const entry = {entries:[{text:'日',start:0,end:1,reading:'ひ',lineIndex:0}]};
+  const payload = {action:'entry', key, videoId:'song', expectedEntries:[]};
+  assert.equal((await h.send({...payload, entry})).ok, true);
+  assert.equal((await h.send({...payload, entry:null})).ok, false);
+  assert.deepEqual(h.store[key].song, entry);
+});
