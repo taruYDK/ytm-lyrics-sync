@@ -954,7 +954,7 @@
     const sync = syncLevelShortLabel(snapshot.sync);
     const summary = `状態：${snapshot.health.label}  •  曲ID：${snapshot.videoId}  •  歌詞：${snapshot.provider}  •  同期：${sync}  •  候補：${snapshot.candidates}件`;
     if (diagnosticsSummaryEl.textContent !== summary) diagnosticsSummaryEl.textContent = summary;
-    diagnosticsSummaryEl.title = diagnosticText(snapshot);
+    // Construct the detailed tooltip only when requested.
   }
 
   async function copyDiagnostics() {
@@ -1059,6 +1059,8 @@
     diagnosticsEl.id = "ytmls-diagnostics";
     diagnosticsSummaryEl = document.createElement("span");
     diagnosticsSummaryEl.className = "ytmls-diagnostics-summary";
+    diagnosticsSummaryEl.addEventListener("mouseenter", () => { diagnosticsSummaryEl.title = diagnosticText(); });
+    diagnosticsSummaryEl.addEventListener("focus", () => { diagnosticsSummaryEl.title = diagnosticText(); });
     diagnosticsCopyButtonEl = document.createElement("button");
     diagnosticsCopyButtonEl.type = "button";
     diagnosticsCopyButtonEl.className = "ytmls-diagnostics-button";
@@ -1116,6 +1118,8 @@
     // 歌詞タブを開き直した時、古いスクロール位置（特に最下部）をそのまま使わない。
     const isVisible = isLyricsPanelActive() && renderer.getClientRects().length > 0 && getComputedStyle(renderer).display !== "none";
     if (isVisible && !lyricsWasVisible) {
+      // Give the next animation frame time to restart before the watchdog checks.
+      trackingDisplayResumedAt = performance.now();
       // v1.7.1: 「歌詞」タブを開いた瞬間にも実再生曲と表示歌詞を照合する。
       // 前曲DOM/歌詞が裏で残っていても、そのまま見せず次曲検索へ切り替える。
       const activeVideoId = getAuthoritativeVideoId();

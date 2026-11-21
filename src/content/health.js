@@ -131,8 +131,11 @@
     STATE.healthPlaybackTime = t;
     STATE.healthPlaybackSampleAt = now;
 
+    // Hidden lyric panels intentionally suspend highlighting, not a tracking failure.
+    if (!trackingDisplayVisible()) return;
     const playbackAdvancing = now - STATE.healthLastAdvanceAt < 1600;
-    const trackingPulseAge = STATE.lastTrackingPulseAt ? now - STATE.lastTrackingPulseAt : Infinity;
+    const lastTrackingActivity = Math.max(STATE.lastTrackingPulseAt || 0, trackingDisplayResumedAt || 0);
+    const trackingPulseAge = lastTrackingActivity ? now - lastTrackingActivity : Infinity;
     const lyricsHaveSettled = STATE.lyricsAppliedAt > 0 && now - STATE.lyricsAppliedAt > 3600;
     if (lyricsHaveSettled && playbackAdvancing && trackingPulseAge > 3600) {
       performLyricsResync("歌詞追跡が止まったため自動復旧中…", true);

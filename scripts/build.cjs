@@ -4,9 +4,16 @@ const vm = require('node:vm');
 const root = path.resolve(__dirname, '..');
 const read = file => fs.readFileSync(path.join(root, file), 'utf8').replaceAll('\r\n', '\n');
 const order = JSON.parse(read('src/content-order.json'));
-const core = ['timing.mjs', 'lrc.mjs', 'readings.mjs', 'practice.mjs'].map(file =>
-  '// Core: ' + file + '\n' + read('src/core/' + file).replace(/^export (?=function )/gm, '')
-).join('\n');
+const core = ['timing.mjs', 'lrc.mjs', 'readings.mjs', 'practice.mjs'].map(file => {
+  let source = read('src/core/' + file);
+  // Phoneme conversion is needed by the dictionary builder, not the extension.
+  if (file === 'readings.mjs') {
+    const start = source.indexOf('export function toReadingHiragana');
+    if (start < 0) throw Error('Missing readings entry point');
+    source = source.slice(start);
+  }
+  return '// Core: ' + file + '\n' + source.replace(/^export (?=function )/gm, '');
+}).join('\n');
 const parts = order.map(file => {
   if (!/^[a-z-]+\.js$/.test(file)) throw Error('Invalid source name: ' + file);
   return '// Feature: ' + file + '\n' + read('src/content/' + file);

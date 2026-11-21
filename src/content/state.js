@@ -159,6 +159,7 @@
   let autoScrollUntil = 0;
   let scrollInteractionBound = false;
   let lyricsWasVisible = false;
+  let trackingDisplayResumedAt = 0;
 
   const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 

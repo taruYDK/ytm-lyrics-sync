@@ -14,23 +14,6 @@
   const LOCAL_LYRICS_MAX_TRACKS = null;
   const LOCAL_LYRICS_MAX_CHARS = 500000;
 
-  function checkedLocalStorageGet(defaults) {
-    return new Promise((resolve, reject) => {
-      try {
-        chrome.storage.local.get(defaults, (data) => {
-          const error = chrome.runtime && chrome.runtime.lastError;
-          if (error) {
-            reject(new Error(error.message || "保存データを読み込めませんでした。"));
-            return;
-          }
-          resolve(data || {});
-        });
-      } catch (error) {
-        reject(error);
-      }
-    });
-  }
-
   function checkedLocalStorageSet(value) {
     return new Promise((resolve, reject) => {
       try {
@@ -51,14 +34,6 @@
   async function mutateStoredTrackMap(storageKey, fallbackMap, videoId, entry, maxEntries, isValid) {
     const data = await sendUserDataMutation({ action: "entry", key: storageKey, videoId, entry });
     return data[storageKey];
-  }
-
-  function limitedTrackMap(value, maxEntries, isValid) {
-    let entries = Object.entries(value || {})
-      .filter(([videoId, entry]) => videoId && entry && (!isValid || isValid(entry)))
-      .sort((a, b) => Number(b[1].updatedAt || 0) - Number(a[1].updatedAt || 0));
-    if (Number.isFinite(maxEntries) && maxEntries > 0) entries = entries.slice(0, maxEntries);
-    return Object.fromEntries(entries);
   }
 
   function getPinnedLyricsEntry(videoId) {

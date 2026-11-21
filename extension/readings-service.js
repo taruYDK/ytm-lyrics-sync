@@ -10,11 +10,11 @@ async function ensureReadingDocument() {
 }
 chrome.runtime.onMessage.addListener((message,sender,reply)=>{
   if (message?.type === 'YTMLS_ENGLISH_READINGS') {
-    if (sender.id !== chrome.runtime.id) { reply({ok:false,error:'Invalid reading request'}); return; }
+    if (sender.id !== chrome.runtime.id || !Array.isArray(message.words) || message.words.length > 10000 || message.words.some(word => typeof word !== 'string' || word.length > 128 || !/^[a-z]+(?:'[a-z]+)*$/.test(word))) { reply({ok:false,error:'Invalid reading request'}); return; }
     if (!englishDictionaryPromise) englishDictionaryPromise = fetch(chrome.runtime.getURL('vendor/readings/english.json'))
       .then(response => { if (!response.ok) throw new Error('英語辞書を読み込めません'); return response.json(); })
       .catch(error => { englishDictionaryPromise = null; throw error; });
-    englishDictionaryPromise.then(dictionary=>reply({ok:true,dictionary}),error=>reply({ok:false,error:error.message}));
+    englishDictionaryPromise.then(dictionary=>{ const readings = Object.create(null); for (const word of message.words) if (Object.prototype.hasOwnProperty.call(dictionary, word)) readings[word] = dictionary[word]; reply({ok:true,dictionary:readings}); },error=>reply({ok:false,error:error.message}));
     return true;
   }
   if (message?.type !== 'YTMLS_JAPANESE_TOKENS') return;
