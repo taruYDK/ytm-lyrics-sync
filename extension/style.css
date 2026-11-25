@@ -1184,7 +1184,7 @@ html.music-glass-hide-scrollbar #ytmls-more > .ytmls-more-menu::-webkit-scrollba
 .ytmls-full-backdrop { position:absolute; inset:0; width:100%; height:100%; opacity:.65; filter:blur(12px); z-index:-1; pointer-events:none; }
 .ytmls-full-close { position:absolute; z-index:1; top:18px; right:18px; padding:10px 14px; border:1px solid #ffffff40; border-radius:10px; background:#221e29; color:white; cursor:pointer; }
 .ytmls-full-list { flex:1; min-height:0; overflow:auto; padding:20vh 0; overscroll-behavior:contain; }
-.ytmls-full-line { display:block; width:100%; border:0; background:transparent; color:#ffffff80; padding:18px 0; text-align:start; font-size:calc(clamp(28px,4vw,64px) * var(--ytmls-full-font-scale, 1)); line-height:1.6; font-weight:600; cursor:pointer; }
+.ytmls-full-line { display:block; width:100%; border:0; background:transparent; color:#ffffff80; padding-inline:0; text-align:start; cursor:pointer; }
 .ytmls-full-line.active { color:#fff; }
 .ytmls-full-line .ytmls-word { color:inherit; opacity:1; filter:none; background:none; -webkit-text-fill-color:currentColor; }
 .ytmls-full-line { overflow-wrap:anywhere; opacity:1; transform:none; }
@@ -1275,7 +1275,7 @@ html.music-glass-hide-scrollbar .ytmls-full-list::-webkit-scrollbar { display:no
 
 /* Emphasis changes ink only: identical font metrics keep lyric wrapping stable. */
 .ytmls-line.ytmls-active { font-weight:800; }
-#ytmls-fullscreen .ytmls-full-line { font-family:inherit; font-weight:800; }
+#ytmls-fullscreen .ytmls-full-line { font-family:inherit; }
 #ytmls-fullscreen .ytmls-full-line:focus,
 #ytmls-fullscreen .ytmls-full-line:focus-visible,
 #ytmls-list .ytmls-line[role="button"]:focus,
@@ -1297,7 +1297,7 @@ html.music-glass-hide-scrollbar .ytmls-full-list::-webkit-scrollbar { display:no
 #ytmls-panel[data-focus-fade="on"]:not([data-sync="none"]) .ytmls-line.ytmls-middle { opacity:.50; }
 #ytmls-panel[data-focus-fade="on"]:not([data-sync="none"]) .ytmls-line.ytmls-near { opacity:.60; }
 #ytmls-panel[data-focus-fade="on"]:not([data-sync="none"]) .ytmls-line.ytmls-active { color:var(--ytmusic-text-primary,var(--ytmls-text)); opacity:1; }
-#ytmls-fullscreen .ytmls-full-line { line-height:1.68; padding-top:14px; padding-bottom:14px; color:rgba(255,255,255,.9); opacity:.78; }
+#ytmls-fullscreen .ytmls-full-line { color:rgba(255,255,255,.9); opacity:.78; }
 #ytmls-fullscreen[data-focus-fade="on"] .ytmls-full-line { opacity:.45; }
 #ytmls-fullscreen[data-focus-fade="on"] .ytmls-full-line.ytmls-middle { opacity:.50; }
 #ytmls-fullscreen[data-focus-fade="on"] .ytmls-full-line.ytmls-near { opacity:.60; }
@@ -1308,14 +1308,6 @@ html.music-glass-hide-scrollbar .ytmls-full-list::-webkit-scrollbar { display:no
   color: inherit;
   opacity: 1;
 }
-
-/* Upcoming lyrics stay subdued, even when close to the current line. */
-#ytmls-panel[data-focus-fade="on"]:not([data-sync="none"]) .ytmls-line.ytmls-upcoming,
-#ytmls-fullscreen[data-focus-fade="on"] .ytmls-full-line.ytmls-upcoming { opacity: .32; }
-#ytmls-panel[data-focus-fade="on"]:not([data-sync="none"]) .ytmls-line.ytmls-upcoming.ytmls-near,
-#ytmls-fullscreen[data-focus-fade="on"] .ytmls-full-line.ytmls-upcoming.ytmls-near { opacity: .48; }
-#ytmls-panel[data-focus-fade="on"]:not([data-sync="none"]) .ytmls-line.ytmls-upcoming.ytmls-middle,
-#ytmls-fullscreen[data-focus-fade="on"] .ytmls-full-line.ytmls-upcoming.ytmls-middle { opacity: .42; }
 
 /* Current lyrics stay crisp; upcoming word/row dimming is unchanged. */
 #ytmls-panel .ytmls-line.ytmls-active { color: rgb(var(--ytmls-ink)); }
@@ -1346,7 +1338,6 @@ html.music-glass-hide-scrollbar .ytmls-full-list::-webkit-scrollbar { display:no
 
 .ytmls-full-size { position:absolute; z-index:2; top:18px; left:18px; display:flex; gap:14px; }
 .ytmls-full-group { display:flex; gap:6px; }
-.ytmls-full-group button[aria-pressed="true"] { border-color:rgba(255,255,255,.7); background:rgba(255,255,255,.2); }
 .ytmls-full-size button { min-width:44px; min-height:36px; }
 .ytmls-source-badge {
   flex:0 1 auto; min-width:0; max-width:min(14em, 80%); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
@@ -1361,7 +1352,7 @@ html.music-glass-hide-scrollbar .ytmls-full-list::-webkit-scrollbar { display:no
   color: var(--ytmls-text, #fff);
 }
 
-/* Fullscreen: keep readings centered over their words and the lyrics in a centered column. */
+/* Fullscreen: keep readings centered over their words. */
 #ytmls-fullscreen .ytmls-ruby { ruby-position: over; ruby-align: center; }
 #ytmls-fullscreen .ytmls-ruby rt { letter-spacing: .02em; }
 /* "中央" places a left-aligned lyrics column in the middle; "左" uses the full width from the left edge. */
@@ -1371,8 +1362,8 @@ html.music-glass-hide-scrollbar .ytmls-full-list::-webkit-scrollbar { display:no
   margin-inline: auto;
 }
 /* The column is as wide as the song's longest line, so the block sits in the middle. */
-#ytmls-fullscreen[data-align="center"] > .ytmls-full-list { width: fit-content; max-width: min(100%, 1100px); }
-#ytmls-fullscreen[data-align="center"] > h1 { width: min(100%, 1100px); text-align: center; }
+#ytmls-fullscreen[data-align="center"] > .ytmls-full-list { width: fit-content; max-width: min(100%, 1280px); }
+#ytmls-fullscreen[data-align="center"] > h1 { width: min(100%, 1280px); text-align: center; }
 
 /* Fullscreen: lyrics fade out at the top and bottom instead of running under the title. */
 #ytmls-fullscreen > h1 { margin-bottom: 8px; }
@@ -1386,14 +1377,12 @@ html.music-glass-hide-scrollbar .ytmls-full-list::-webkit-scrollbar { display:no
 
 /* The current line is slightly larger; transform keeps the layout and scroll positions stable. */
 #ytmls-panel .ytmls-line,
-#ytmls-fullscreen .ytmls-full-line { transform-origin: 0 50%; transition: transform 180ms ease; }
+#ytmls-fullscreen .ytmls-full-line { transform-origin: 0 50%; }
 #ytmls-panel .ytmls-line[dir="rtl"] { transform-origin: 100% 50%; }
 #ytmls-panel .ytmls-line.ytmls-active,
 #ytmls-fullscreen .ytmls-full-line.active { transform: scale(1.04); }
-html.ytmls-lyrics-motion-lightweight :is(#ytmls-panel .ytmls-line, #ytmls-fullscreen .ytmls-full-line) { transition: none; }
-@media (prefers-reduced-motion: reduce) {
-  #ytmls-panel .ytmls-line, #ytmls-fullscreen .ytmls-full-line { transition: none; }
-}
+html.ytmls-lyrics-motion-lightweight #ytmls-fullscreen .ytmls-full-line { transition: none; }
+@media (prefers-reduced-motion: reduce) { #ytmls-fullscreen .ytmls-full-line { transition: none; } }
 
 /* Frosted glass for menus, panes and fullscreen controls (light and dark follow --ytmls-bg). */
 .ytmls-more-menu,
@@ -1445,5 +1434,3 @@ html #ytmls-fullscreen .ytmls-full-line:not(.active):hover { filter: none !impor
   padding-top: 12px;
   padding-bottom: 12px;
 }
-#ytmls-fullscreen[data-align="center"] > .ytmls-full-list { max-width: min(100%, 1280px); }
-#ytmls-fullscreen[data-align="center"] > h1 { width: min(100%, 1280px); }

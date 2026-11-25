@@ -135,6 +135,10 @@
     root.style.setProperty('--mg-aurora-2', region(28, 28, 68, 68));
     root.style.setProperty('--mg-aurora-3', region(56, 56, 96, 96));
   }
+  // Without readable pixels (or artwork), fall back to the neutral haze instead of the last song's colors.
+  function clearAuroraPalette() {
+    for (const key of ['--mg-aurora-1', '--mg-aurora-2', '--mg-aurora-3']) root.style.removeProperty(key);
+  }
   // The haze lives in the player page, above its surface bitmap and below the content.
   let aurora;
   function ensureAurora() {
@@ -217,7 +221,7 @@
             // Bright covers make white lyrics hard to read: darken only those, toward a fixed brightness.
             const shade = backdropShadeAlpha(pixels);
             if (shade > 0) { context.filter = 'none'; context.fillStyle = `rgba(0,0,0,${shade})`; context.fillRect(0, 0, 96, 96); }
-          } catch (_) { document.documentElement.style.removeProperty('--ytmls-art-accent'); }
+          } catch (_) { document.documentElement.style.removeProperty('--ytmls-art-accent'); clearAuroraPalette(); }
           artworkReady = true;
           artworkRevision++;
           paintSurfaces();
@@ -283,7 +287,7 @@
     root.classList.toggle('music-glass-hide-scrollbar', extensionEnabled && settings.musicGlassHideScrollbar === true);
     root.classList.toggle('music-glass-hide-dislike', extensionEnabled && settings.musicGlassHideDislike === true);
     root.style.setProperty('--mg-art-opacity', String(Math.max(0, Math.min(100, Number(settings.musicGlassIntensity) || 0)) / 100));
-    if (!themeEnabled() || !settings.musicGlassArtwork || settings.musicGlassLightweight) { root.style.removeProperty('--ytmls-art-accent'); generation++; artworkReady = false; backdrop?.remove(); backdrop = null; lastArt = ''; }
+    if (!themeEnabled() || !settings.musicGlassArtwork || settings.musicGlassLightweight) { root.style.removeProperty('--ytmls-art-accent'); clearAuroraPalette(); generation++; artworkReady = false; backdrop?.remove(); backdrop = null; lastArt = ''; }
     else update();
     if (!themeEnabled()) { surfaceResizeObserver?.disconnect(); for (const canvas of surfaces.values()) canvas.remove(); surfaces.clear(); }
     else paintSurfaces();

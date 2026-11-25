@@ -14,14 +14,14 @@ test('Music Glass settings are isolated; disabling restores root and intensity i
 });
 test('Quick toggle state follows saved settings, rollback, and external changes',()=>{
  const toggle={checked:false,addEventListener:(name,f)=>toggle.change=f};
- const state={textContent:'読込中',dataset:{}};const status={textContent:''};
+ const status={textContent:''};
  let changed;const runtime={};let fail=false;const scrollbar={addEventListener(){}};
  const chrome={runtime,storage:{local:{get:(d,cb)=>cb({...d,musicGlassEnabled:false}),set:(data,cb)=>{assert.deepEqual(Object.keys(data),['musicGlassEnabled']);runtime.lastError=fail?{message:'failed'}:undefined;cb();runtime.lastError=undefined;}},onChanged:{addListener:f=>{if(!changed) changed=f;}}}};
- vm.runInNewContext(fs.readFileSync(new URL('../extension/music-glass-quick.js',import.meta.url),'utf8'),{chrome,document:{getElementById:id=>({musicGlassDislikeToggle:{addEventListener(){}},musicGlassArtworkToggle:{addEventListener(){}},musicGlassScrollbarToggle:scrollbar,musicGlassQuickToggle:toggle,musicGlassQuickState:state,musicGlassQuickStatus:status})[id]}});
- assert.equal(state.textContent,'OFF');assert.equal(toggle.disabled,false);
- toggle.checked=true;toggle.change();assert.equal(state.textContent,'ON');assert.equal(state.dataset.enabled,'true');
- fail=true;toggle.checked=false;toggle.change();assert.equal(toggle.checked,true);assert.equal(state.textContent,'ON');assert.ok(status.textContent);
- changed({musicGlassEnabled:{newValue:false}},'local');assert.equal(state.textContent,'OFF');assert.equal(toggle.checked,false);
+ vm.runInNewContext(fs.readFileSync(new URL('../extension/music-glass-quick.js',import.meta.url),'utf8'),{chrome,document:{getElementById:id=>({musicGlassDislikeToggle:{addEventListener(){}},musicGlassArtworkToggle:{addEventListener(){}},musicGlassScrollbarToggle:scrollbar,musicGlassQuickToggle:toggle,musicGlassQuickStatus:status})[id]}});
+ assert.equal(toggle.checked,false);assert.equal(toggle.disabled,false);
+ toggle.checked=true;toggle.change();assert.equal(toggle.checked,true);
+ fail=true;toggle.checked=false;toggle.change();assert.equal(toggle.checked,true);assert.ok(status.textContent);
+ changed({musicGlassEnabled:{newValue:false}},'local');assert.equal(toggle.checked,false);
 });
 test('Lightweight mode removes artwork and restores it when disabled',()=>{
  let listener,created=0,removed=0;
@@ -52,16 +52,16 @@ test('Artwork activation is blocked only while theme is enabled; controls remain
  changed({musicGlassEnabled:{newValue:false}},'local');handlers.click(event);assert.equal(stopped,2);
 });
 test('Inline theme intensity saves on change and reset touches only theme keys',()=>{
- const nodes={};for(const id of ['musicGlassIntensity','musicGlassIntensityValue','musicGlassReset','musicGlassQuickStatus','musicGlassQuickToggle','musicGlassQuickState','musicGlassArtworkToggle','musicGlassDislikeToggle','musicGlassScrollbarToggle'])nodes[id]={dataset:{},addEventListener(name,fn){this[name]=fn;}};
+ const nodes={};for(const id of ['musicGlassIntensity','musicGlassIntensityValue','musicGlassReset','musicGlassQuickStatus','musicGlassQuickToggle','musicGlassArtworkToggle','musicGlassDislikeToggle','musicGlassScrollbarToggle'])nodes[id]={dataset:{},addEventListener(name,fn){this[name]=fn;}};
  const writes=[];let fail=false;const runtime={};
  vm.runInNewContext(fs.readFileSync(new URL('../extension/music-glass-popup-details.js',import.meta.url),'utf8'),{document:{getElementById:id=>nodes[id]},chrome:{runtime,storage:{local:{get:(d,cb)=>cb(d),set:(d,cb)=>{writes.push(d);runtime.lastError=fail?{}:undefined;cb();runtime.lastError=undefined;}},onChanged:{addListener(){}}}}});
  const range=nodes.musicGlassIntensity;range.value='40';range.input();assert.equal(writes.length,0);range.change();assert.equal(writes[0].musicGlassIntensity,40);
  fail=true;range.value='90';range.change();assert.equal(range.value,40);
- fail=false;nodes.musicGlassReset.click();assert.ok(Object.keys(writes.at(-1)).every(k=>k.startsWith('musicGlass')));assert.equal(nodes.musicGlassQuickState.textContent,'ON');assert.equal(range.value,65);
+ fail=false;nodes.musicGlassReset.click();assert.ok(Object.keys(writes.at(-1)).every(k=>k.startsWith('musicGlass')));assert.equal(nodes.musicGlassQuickToggle.checked,true);assert.equal(range.value,65);
 });
 test('Scrollbar setting saves and applies independently of the theme',()=>{
  const handlers={};const nodes={};let changed;
- for(const id of ['musicGlassQuickToggle','musicGlassQuickState','musicGlassQuickStatus','musicGlassScrollbarToggle','musicGlassDislikeToggle','musicGlassArtworkToggle'])nodes[id]={dataset:{},addEventListener(name,fn){this[name]=fn;}};
+ for(const id of ['musicGlassQuickToggle','musicGlassQuickStatus','musicGlassScrollbarToggle','musicGlassDislikeToggle','musicGlassArtworkToggle'])nodes[id]={dataset:{},addEventListener(name,fn){this[name]=fn;}};
  const state={musicGlassEnabled:false};const listeners=[];
  const chrome={runtime:{},storage:{local:{get:(d,cb)=>cb({...d,...state}),set:(d,cb)=>{Object.assign(state,d);cb();for(const f of listeners)f(Object.fromEntries(Object.entries(d).map(([k,v])=>[k,{newValue:v}])),'local');}},onChanged:{addListener:f=>listeners.push(f)}}};
  vm.runInNewContext(fs.readFileSync(new URL('../extension/music-glass.js',import.meta.url),'utf8'),{document:{body:null,documentElement:{classList:{toggle:(k,v)=>handlers[k]=v},style:{setProperty(){},removeProperty(){}}},addEventListener(){}},chrome,setInterval(){},setTimeout,URL});
@@ -147,4 +147,13 @@ test('cover colors feed the drifting haze, which is added to the player page and
  assert.ok(page.children.some(el=>el.className==='music-glass-aurora'));
  listener({musicGlassEnabled:{newValue:false}},'local');
  assert.ok(!page.children.some(el=>el.className==='music-glass-aurora'));
+});
+test('haze colors are cleared when the cover pixels cannot be read',()=>{
+ const removed=[];const images=[];
+ const context={clearRect(){},drawImage(){},getImageData:()=>{throw new Error('tainted');},fillRect(){}};
+ const document={hidden:false,body:{prepend(el){el.parentNode=this;}},documentElement:{classList:{toggle(){}},style:{setProperty(){},removeProperty:k=>removed.push(k)}},addEventListener(){},
+  querySelector:s=>s.includes('img')?{src:'https://i.ytimg.com/a.jpg'}:null,createElement:()=>({style:{},dataset:{},setAttribute(){},remove(){},getContext:()=>context}),dispatchEvent(){}};
+ vm.runInNewContext(fs.readFileSync(new URL('../extension/music-glass.js',import.meta.url),'utf8'),{document,Event:class{},Image:class{constructor(){this.naturalWidth=400;this.naturalHeight=400;images.push(this);}},chrome:{storage:{local:{get:(d,cb)=>cb(d)},onChanged:{addListener(){}}}},setInterval(){},setTimeout,URL});
+ removed.length=0;images[0].onload();
+ assert.ok(['--mg-aurora-1','--mg-aurora-2','--mg-aurora-3'].every(k=>removed.includes(k)));
 });

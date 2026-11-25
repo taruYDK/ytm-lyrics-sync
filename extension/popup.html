@@ -27,8 +27,6 @@
   input:checked + .slider { background:var(--accent); } input:checked + .slider::before { transform:translateX(20px); }
   .switch.small input:checked + .slider::before { transform:translateX(18px); }
   .glass-toggle-control { display:flex; align-items:center; gap:10px; flex-shrink:0; font-size:13px; font-weight:800; }
-  #musicGlassQuickState { min-width:30px; color:#c5c9d0; }
-  #musicGlassQuickState[data-enabled="true"] { color:#ff8994; }
   .glass-switch input { display:block; position:absolute; inset:0; width:100%; height:100%; margin:0; opacity:0; }
   .glass-switch input:focus-visible + .slider { outline:2px solid #fff; outline-offset:3px; }
   .glass-switch input:disabled + .slider { opacity:.5; cursor:wait; }
@@ -148,7 +146,7 @@
     <div class="settings-group">
     <div class="setting-row">
       <div class="label-block"><label class="label" for="playerBarCustomToggle">再生バーの変更</label><div class="hint">ON：角丸・開閉位置の調整<br>OFF：元の再生バー<br>Music GlassがONのときに適用されます。</div></div>
-      <div class="glass-toggle-control"><span id="playerBarCustomState" aria-hidden="true">読込中</span><label class="switch glass-switch"><input type="checkbox" id="playerBarCustomToggle" aria-label="再生バーの変更を有効にする" disabled><span class="slider"></span></label>
+      <div class="glass-toggle-control"><label class="switch glass-switch"><input type="checkbox" id="playerBarCustomToggle" aria-label="再生バーの変更を有効にする" disabled><span class="slider"></span></label>
 </div>
     </div>
     
@@ -164,7 +162,7 @@
 <section class="section" id="settings-theme" aria-label="Music Glass">
     <h2 class="section-title">背景</h2><p class="section-description">ジャケット背景と画面の見た目を設定します。</p>
     <div class="settings-group">
-    <div class="setting-row"><div class="label-block"><label class="label" for="musicGlassQuickToggle">背景・テーマ</label><div class="hint">ジャケットの色に合わせて、画面全体の背景を変えます</div></div><div class="glass-toggle-control"><span id="musicGlassQuickState" aria-hidden="true">読込中</span><label class="switch glass-switch"><input type="checkbox" id="musicGlassQuickToggle" aria-label="Music Glassの背景・テーマを有効にする" disabled><span class="slider"></span></label>
+    <div class="setting-row"><div class="label-block"><label class="label" for="musicGlassQuickToggle">背景・テーマ</label><div class="hint">ジャケットの色に合わせて、画面全体の背景を変えます</div></div><div class="glass-toggle-control"><label class="switch glass-switch"><input type="checkbox" id="musicGlassQuickToggle" aria-label="Music Glassの背景・テーマを有効にする" disabled><span class="slider"></span></label>
 </div></div>
     </div>
     <p id="musicGlassQuickStatus" role="status" class="hint"></p>
