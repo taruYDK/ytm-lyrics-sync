@@ -7313,7 +7313,8 @@ function readingTokensToRomaji(tokens) {
         updateHelpfulUi();
       });
       const source = document.createElement('span'); source.className = 'ytmls-source-badge';
-      bar.append(status, source, back); lyricsToolsEl.prepend(bar);
+      // Source first: it is the one label shown while lyrics play normally.
+      bar.append(source, status, back); lyricsToolsEl.prepend(bar);
     }
     const text = helpfulStatus();
     const badge = bar.querySelector('.ytmls-source-badge');
