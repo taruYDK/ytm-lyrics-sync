@@ -24,9 +24,28 @@
   #status.success { color:#80dfaa; }
   #status.error { color:#ff8d98; }
   #trackFilter { width:100%; padding:9px; margin:8px 0; color:var(--text); background:var(--bg); border:1px solid var(--border); border-radius:6px; }
-  .saved-track { display:flex; align-items:flex-start; gap:10px; padding:12px 0; border-bottom:1px solid var(--border); overflow-wrap:anywhere; }
-  .saved-track small { display:block; color:var(--sub); margin-top:4px; }
-  #savedTracks { max-height:450px; overflow:auto; }
+  .list-head { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:10px 12px; margin-top:6px; border:1px solid var(--border); border-bottom:0; border-radius:10px 10px 0 0; color:var(--sub); font-size:12px; }
+  .select-all { display:flex; align-items:center; gap:8px; cursor:pointer; color:var(--text); font-weight:600; }
+  .list-meta { display:flex; gap:12px; }
+  #listSelectionCount { color:var(--danger); font-weight:700; }
+  #savedTracks { max-height:min(560px,60vh); overflow:auto; border:1px solid var(--border); border-radius:0 0 10px 10px; }
+  .saved-track { display:grid; grid-template-columns:auto minmax(0,1fr) auto; align-items:center; gap:12px; padding:11px 12px; border-bottom:1px solid var(--border); cursor:pointer; transition:background-color .12s ease; }
+  .saved-track:last-child { border-bottom:0; }
+  .saved-track:hover { background:color-mix(in srgb, var(--text) 5%, transparent); }
+  .saved-track[data-selected="true"] { background:color-mix(in srgb, var(--danger) 10%, transparent); }
+  .saved-track input { width:16px; height:16px; margin:0; accent-color:var(--accent); }
+  .track-main { display:flex; flex-direction:column; gap:2px; min-width:0; }
+  .track-title { font-size:14px; font-weight:700; color:var(--text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .track-artist { font-size:12px; color:var(--sub); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .track-tags { display:flex; flex-wrap:wrap; gap:4px; margin-top:4px; }
+  .track-tag { padding:1px 7px; border:1px solid var(--border); border-radius:999px; font-size:10.5px; line-height:1.6; color:var(--sub); }
+  .track-tag.favorite { border-color:color-mix(in srgb, #e3b23c 55%, transparent); color:#e3b23c; }
+  .track-side { display:flex; flex-direction:column; align-items:flex-end; gap:6px; }
+  .track-date { font-size:11px; color:var(--sub); font-variant-numeric:tabular-nums; }
+  .track-open { padding:3px 9px; border:1px solid var(--border); border-radius:999px; color:var(--text); font-size:11px; text-decoration:none; white-space:nowrap; }
+  .track-open:hover { border-color:var(--sub); }
+  .saved-empty { margin:0; padding:22px 12px; text-align:center; }
+  @media(prefers-color-scheme:light) { .track-tag.favorite { color:#8a6200; } }
   #dataManager button { margin:4px 0; }
   .card.danger { border-color:color-mix(in srgb, var(--danger) 45%, var(--border)); }
   .card.danger h2 { color:var(--danger); }
@@ -61,6 +80,10 @@
     <label class="track-view-field">表示する曲<select id="trackView"><option value="recent">最近保存・編集した曲</option><option value="pinned">お気に入り（固定した曲）</option><option value="name">すべて・曲名順</option></select></label>
     <p id="storageUsage" role="status">使用量を確認中…</p>
     <label>曲名・アーティスト・曲IDで検索 <input type="search" id="trackFilter" /></label>
+    <div class="list-head">
+      <label class="select-all"><input type="checkbox" id="selectAllTracks"> 表示中の曲をすべて選択</label>
+      <span class="list-meta"><span id="listSelectionCount"></span><span id="visibleTrackCount"></span></span>
+    </div>
     <div id="savedTracks"></div>
     <div class="tools">
       <button type="button" id="loadMoreTracks" hidden>さらに50曲表示</button>
