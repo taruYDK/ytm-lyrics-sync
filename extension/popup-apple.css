@@ -1,0 +1,92 @@
+/* System-settings look: grouped inset lists, sidebar icons, rounded toggles.
+   Loaded after the other popup styles; uses only the platform's own UI font. */
+:root {
+  --bg:#1c1c1e; --sidebar:#232325; --group:#2c2c2e; --control:#3a3a3c;
+  --separator:rgba(255,255,255,.09); --text:#f5f5f7; --sub:#98989d; --border:rgba(255,255,255,.07);
+  --accent:#ff4f6d; --settings-focus:#ff9db0;
+}
+@media (prefers-color-scheme:light) {
+  :root { --bg:#f2f2f7; --sidebar:#e9e9ee; --group:#fff; --control:#e5e5ea; --separator:rgba(60,60,67,.14); --text:#1c1c1e; --sub:#6c6c70; --border:rgba(0,0,0,.06); --accent:#e0244a; --settings-focus:#b3163a; }
+}
+body { font-family: system-ui, "Segoe UI Variable Text", "Segoe UI", "Hiragino Sans", "Noto Sans JP", sans-serif; background:var(--bg); -webkit-font-smoothing:antialiased; }
+
+/* Header */
+.header { background:var(--bg); border-bottom:1px solid var(--separator); }
+h1 { font-size:18px; font-weight:700; letter-spacing:-.01em; }
+.header-meta > span, .version { color:var(--sub); }
+
+/* Sidebar with colored icons; the selected row is filled */
+.settings-sidebar { background:var(--sidebar); border-right:1px solid var(--separator); padding:14px 10px; }
+.settings-nav { gap:2px; }
+.settings-nav a {
+  display:flex; align-items:center; justify-content:flex-start; gap:9px; min-height:34px; padding:6px 8px; text-align:left;
+  border:0 !important; border-radius:8px; background:transparent; color:var(--text); font-size:13px; font-weight:500;
+}
+.settings-nav a:hover { background:color-mix(in srgb, var(--text) 7%, transparent); color:var(--text); }
+.settings-nav a[aria-selected=true] { background:var(--accent) !important; color:#fff; font-weight:600; }
+.nav-icon {
+  display:inline-grid; place-items:center; flex:0 0 22px; width:22px; height:22px; border-radius:6px;
+  color:#fff; font-size:12px; line-height:1; font-weight:700; box-shadow:inset 0 0 0 .5px rgba(0,0,0,.15);
+}
+.nav-icon[data-icon="lyrics"] { background:#ff375f; } .nav-icon[data-icon="lyrics"]::before { content:"♪"; font-size:13px; }
+.nav-icon[data-icon="tracking"] { background:#0a84ff; } .nav-icon[data-icon="tracking"]::before { content:"⇅"; }
+.nav-icon[data-icon="playback"] { background:#ff9f0a; } .nav-icon[data-icon="playback"]::before { content:"▶"; font-size:10px; }
+.nav-icon[data-icon="theme"] { background:#bf5af2; } .nav-icon[data-icon="theme"]::before { content:"✦"; font-size:11px; }
+.nav-icon[data-icon="source"] { background:#30b0c7; } .nav-icon[data-icon="source"]::before { content:"↓"; }
+.nav-icon[data-icon="data"] { background:#8e8e93; } .nav-icon[data-icon="data"]::before { content:"▤"; }
+.settings-nav a[aria-selected=true] .nav-icon { box-shadow:inset 0 0 0 1px rgba(255,255,255,.35); }
+.sidebar-note { color:var(--sub); }
+
+/* Content */
+.settings-content { background:var(--bg); padding:20px 20px 24px; }
+.section-title { font-size:22px; font-weight:700; letter-spacing:-.015em; }
+.section-description { color:var(--sub); margin:4px 0 10px; }
+.section + .section { border-top:0; margin-top:26px; padding-top:0; }
+/* Category panels show one at a time: no gap from a hidden previous panel. */
+.settings-content > .section { margin-top:0; }
+
+/* Grouped inset list: rows share one rounded container with inset separators */
+.settings-group { margin-top:10px; border-radius:12px; background:var(--group); overflow:hidden; box-shadow:0 0 0 1px var(--border); }
+.settings-group > .setting-row {
+  position:relative; margin:0 !important; padding:11px 14px !important; min-height:46px;
+  border:0 !important; border-radius:0 !important; background:transparent !important;
+}
+.settings-group > .setting-row + .setting-row::before {
+  content:""; position:absolute; top:0; left:14px; right:0; height:1px; background:var(--separator);
+}
+.settings-group .label { font-size:13.5px; font-weight:500; }
+.settings-group .hint { margin-top:2px; font-size:11.5px; line-height:1.55; color:var(--sub); }
+.section > p.hint[role=status], .section > .hint { padding:0 14px; }
+
+/* Rounded toggles */
+.switch, .switch.small { width:44px; height:26px; }
+.slider { background:var(--control); }
+.slider::before, .switch.small .slider::before { width:22px; height:22px; left:2px; top:2px; box-shadow:0 2px 4px rgba(0,0,0,.25), 0 0 0 .5px rgba(0,0,0,.06); }
+input:checked + .slider { background:var(--accent); }
+input:checked + .slider::before, .switch.small input:checked + .slider::before { transform:translateX(18px); }
+
+/* Pop-up buttons and fields */
+.section select, #backupReminderThreshold {
+  border:0; border-radius:7px; background:var(--control); color:var(--text);
+  box-shadow:0 0.5px 1px rgba(0,0,0,.25);
+}
+input[type=range] { accent-color:var(--accent); }
+
+/* Disclosure rows look like grouped rows too */
+.help-details, .glass-details { border:0; border-radius:12px; background:var(--group); box-shadow:0 0 0 1px var(--border); }
+.help-details[open] summary, .glass-details[open] summary { border-bottom-color:var(--separator); }
+
+/* Provider list as one grouped list */
+.provider-list { gap:0; border-radius:12px; overflow:hidden; background:var(--group); box-shadow:0 0 0 1px var(--border); }
+.provider-row { position:relative; border:0; border-radius:0; background:transparent; min-height:46px; padding:8px 12px; }
+.provider-row + .provider-row::before { content:""; position:absolute; top:0; left:44px; right:0; height:1px; background:var(--separator); }
+.provider-row[data-fixed="true"] { border:0; background:color-mix(in srgb, #ffca5c 9%, transparent); }
+.provider-move { border:0; border-radius:7px; background:var(--control); }
+
+/* Buttons and summaries */
+.data-button { border:0; border-radius:9px; background:var(--group); color:var(--accent); font-weight:600; box-shadow:0 0 0 1px var(--border); }
+.data-button:hover { background:color-mix(in srgb, var(--accent) 10%, var(--group)); }
+#savedDataSummary { border:0; border-radius:12px; background:var(--group); box-shadow:0 0 0 1px var(--border); }
+/* Room for the longest category name next to its icon. */
+.popup-settings-layout { grid-template-columns:158px minmax(0,1fr); }
+@media(max-width:600px) { .popup-settings-layout { grid-template-columns:140px minmax(0,1fr); } .settings-nav a { font-size:12px; gap:7px; } }
