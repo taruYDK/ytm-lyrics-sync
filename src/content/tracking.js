@@ -228,7 +228,9 @@
     if (!canTrackCurrentPlayback(media)) return false;
     // A completed seek on the current media can precede the next bridge sample.
     // Use the media's new time for this event only, after the track identity check.
-    const seekTime = seekedMedia && seekedMedia === media && !media.seeking ? media.currentTime : null;
+    // During the track-start guard a seeked event may still carry the previous track's time.
+    const seekTime = seekedMedia && seekedMedia === media && !media.seeking && !STATE.trackStartGuardActive
+      ? media.currentTime : null;
     const safeCurrentTime = Number.isFinite(seekTime) && seekTime >= 0
       ? seekTime
       : getGuardedPlaybackTime(media);

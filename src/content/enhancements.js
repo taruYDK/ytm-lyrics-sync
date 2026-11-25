@@ -19,7 +19,7 @@ function ensureEnhancementControls(){
    toggleTrackTimingPopover(details?.querySelector('summary') || trackTimingButtonEl);
   });timing.id='ytmls-timing-shortcut';
  }
- const mode=playback.querySelector('#ytmls-reading-mode'),modeLabel=STATE.trackingEnabled?'読むモードに切り替え':'追跡モードに切り替え';if(mode.textContent!==modeLabel)mode.textContent=modeLabel;const pressed=String(!STATE.trackingEnabled);if(mode.getAttribute('aria-pressed')!==pressed)mode.setAttribute('aria-pressed',pressed);
+ const mode=playback.querySelector('#ytmls-reading-mode'),modeLabel=STATE.trackingEnabled?'読むモードに切り替え':'追跡モードに切り替え';if(mode.textContent!==modeLabel)mode.textContent=modeLabel;mode.removeAttribute('aria-pressed');
  const available=practiceCurrent(STATE.displayedVideoId)&&STATE.lines.length>0;
  display.querySelectorAll('.ytmls-size-presets button').forEach(b=>{if(!b.dataset.saving)b.disabled=!available||!practiceLocalReady||!practiceSyncReady;});
  playback.querySelector('#ytmls-timing-shortcut').disabled=!STATE.hasSync||!trackTimingButtonEl?.isConnected||trackTimingButtonEl.disabled;

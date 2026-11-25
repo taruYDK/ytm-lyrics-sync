@@ -153,3 +153,18 @@ test('a paused seek highlights the new row even before the bridge publishes its 
  STATE.playerSnapshot.videoId='other';video.currentTime=4;events.seeked({type:'seeked'});
  assert.equal(STATE.currentIndex,1);
 });
+
+test('a seeked event during the track-start guard does not jump to the previous track time',()=>{
+ const frames=[],events={};
+ const video={isConnected:true,paused:false,ended:false,seeking:false,currentTime:1,addEventListener:(type,fn)=>{events[type]=fn;}};
+ const STATE={enabled:true,hasSync:true,trackingEnabled:true,syncLevel:'line',currentIndex:0,currentWordIndex:-1,
+  lines:[{time:0},{time:60}],playerSnapshot:{videoId:'song',currentTime:1,receivedAt:100,playerState:1},displayedVideoId:'song',
+  trackStartGuardActive:true,trackStartGuardVideoId:'song',trackStartGuardWallAt:100,trackStartGuardMediaAt:0,trackStartGuardLastSafeTime:0,trackStartGuardLastSafeAt:100};
+ const c=vm.createContext({STATE,videoEl:null,videoTimeUpdateHandler:null,trackingRaf:0,lyricsWasVisible:true,pendingReturnToCurrent:false,manualScrollUntil:0,
+  performance:{now:()=>100},window:{addEventListener(){}},requestAnimationFrame:fn=>frames.push(fn),getVideoElement:()=>video,getVideoId:()=> 'song',getPlayerVideoIdFromDom:()=> 'song',timingOffsetSeconds:()=>0,
+  listEl:{children:STATE.lines.map(()=>({classList:{toggle(){}}}))}});
+ for(const name of ['player-bridge','lyrics-storage','tracking'])vm.runInContext(read('src/content/'+name+'.js'),c);
+ c.scrollCurrentLineIntoView=()=>true;c.ensureVideoListener();
+ video.currentTime=75;events.seeked({type:'seeked'});
+ assert.equal(STATE.currentIndex,0);
+});

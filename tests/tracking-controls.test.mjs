@@ -106,3 +106,11 @@ test('lyrics seek resumes immediately instead of retaining manual pause or start
  assert.equal(h.c.STATE.currentWordIndex,-1);assert.equal(h.frames.length,1);
 });
 
+
+test('user data save failures from runtime messaging are shown in Japanese', async () => {
+  const c = vm.createContext({STATE: {contextInvalidated: false}, setStatus() {}, document: {}, chrome: {runtime: {id: 'ext', sendMessage: async () => { throw new Error('Could not establish connection. Receiving end does not exist.'); }}}});
+  vm.runInContext(fs.readFileSync(new URL('../src/content/remote-fetch.js', import.meta.url), 'utf8'), c);
+  await assert.rejects(c.sendUserDataMutation({action: 'entry'}), {message: '保存できませんでした。もう一度お試しください。'});
+  c.chrome.runtime.sendMessage = async () => ({ok: false, error: 'ほかの画面で読み仮名が更新されました。'});
+  await assert.rejects(c.sendUserDataMutation({action: 'entry'}), {message: 'ほかの画面で読み仮名が更新されました。'});
+});

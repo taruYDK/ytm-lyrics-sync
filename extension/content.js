@@ -3978,14 +3978,15 @@ function readingTokensToRomaji(tokens) {
 
   async function sendUserDataMutation(payload) {
     if (!runtimeAvailable()) throw new Error(CONTEXT_RELOAD_MESSAGE);
+    let response;
     try {
-      const response = await chrome.runtime.sendMessage({ type: "YTMLS_USER_DATA", captureUndo: false, ...payload });
-      if (!response?.ok) throw new Error(response?.error || "保存できませんでした。");
-      return response.data;
+      response = await chrome.runtime.sendMessage({ type: "YTMLS_USER_DATA", captureUndo: false, ...payload });
     } catch (error) {
-      runtimeAvailable(error);
-      throw error;
+      // Runtime messaging errors are English; show a Japanese message instead.
+      throw new Error(runtimeAvailable(error) ? "保存できませんでした。もう一度お試しください。" : CONTEXT_RELOAD_MESSAGE);
     }
+    if (!response?.ok) throw new Error(response?.error || "保存できませんでした。");
+    return response.data;
   }
 
   function reportSaveError(error) {
@@ -6799,7 +6800,9 @@ function readingTokensToRomaji(tokens) {
     if (!canTrackCurrentPlayback(media)) return false;
     // A completed seek on the current media can precede the next bridge sample.
     // Use the media's new time for this event only, after the track identity check.
-    const seekTime = seekedMedia && seekedMedia === media && !media.seeking ? media.currentTime : null;
+    // During the track-start guard a seeked event may still carry the previous track's time.
+    const seekTime = seekedMedia && seekedMedia === media && !media.seeking && !STATE.trackStartGuardActive
+      ? media.currentTime : null;
     const safeCurrentTime = Number.isFinite(seekTime) && seekTime >= 0
       ? seekTime
       : getGuardedPlaybackTime(media);
@@ -7129,7 +7132,7 @@ function readingTokensToRomaji(tokens) {
     button.id = 'ytmls-reading-edit'; button.type = 'button'; button.textContent = 'ふりがな編集';
     button.disabled = !canEditLyricsReadings();
     button.title = button.disabled ? '曲と歌詞の読み込みが完了すると編集できます' : '行ごとのふりがなを編集';
-    button.addEventListener('click', () => { const more = lyricsToolsEl.querySelector('#ytmls-more'); if (more) more.open = false; openManualReadingEditor(); });
+    button.addEventListener('click', () => { const more = lyricsToolsEl.querySelector('#ytmls-more'); if (more) closeMoreMenu(more); openManualReadingEditor(); });
     lyricsToolsEl.querySelector('#ytmls-lyrics-menu')?.append(button);
   }
 
@@ -7644,7 +7647,7 @@ function ensureEnhancementControls(){
    toggleTrackTimingPopover(details?.querySelector('summary') || trackTimingButtonEl);
   });timing.id='ytmls-timing-shortcut';
  }
- const mode=playback.querySelector('#ytmls-reading-mode'),modeLabel=STATE.trackingEnabled?'読むモードに切り替え':'追跡モードに切り替え';if(mode.textContent!==modeLabel)mode.textContent=modeLabel;const pressed=String(!STATE.trackingEnabled);if(mode.getAttribute('aria-pressed')!==pressed)mode.setAttribute('aria-pressed',pressed);
+ const mode=playback.querySelector('#ytmls-reading-mode'),modeLabel=STATE.trackingEnabled?'読むモードに切り替え':'追跡モードに切り替え';if(mode.textContent!==modeLabel)mode.textContent=modeLabel;mode.removeAttribute('aria-pressed');
  const available=practiceCurrent(STATE.displayedVideoId)&&STATE.lines.length>0;
  display.querySelectorAll('.ytmls-size-presets button').forEach(b=>{if(!b.dataset.saving)b.disabled=!available||!practiceLocalReady||!practiceSyncReady;});
  playback.querySelector('#ytmls-timing-shortcut').disabled=!STATE.hasSync||!trackTimingButtonEl?.isConnected||trackTimingButtonEl.disabled;
