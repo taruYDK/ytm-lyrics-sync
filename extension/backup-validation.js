@@ -91,7 +91,7 @@ globalThis.YTMLSBackupValidation = (() => {
   }
   function sync(data) {
     requireValue(map(data),'sync');safeTree(data,'sync');
-    for (const key of ['enabled','focusFade','trackingEnabled','autoLyricsOnIdle','readingJapanese','readingEnglish']) if (key in data) requireValue(typeof data[key] === 'boolean',key);
+    for (const key of ['enabled','focusFade','trackingEnabled','autoLyricsOnIdle','readingJapanese','readingEnglish','wordGlow']) if (key in data) requireValue(typeof data[key] === 'boolean',key);
     const ranges={fontSize:[10,100],trackingPosition:[25,65],manualScrollReturnMs:[1000,10000],uiVersion:[0,100000]};
     for (const [key,[min,max]] of Object.entries(ranges)) if (key in data) requireValue(finite(data[key]) && data[key]>=min && data[key]<=max,key);
     if ('backupReminderThreshold' in data) requireValue(Number.isInteger(data.backupReminderThreshold) && data.backupReminderThreshold>=1 && data.backupReminderThreshold<=1000,'backupReminderThreshold');

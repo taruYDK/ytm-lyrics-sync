@@ -32,3 +32,10 @@ test('fullscreen lyric alignment is part of the backup and only accepts left or 
  assert.throws(()=>v.YTMLSBackupValidation.sync({fullscreenAlign:'right'}));
  assert.match(fs.readFileSync(new URL('../extension/backup.js',import.meta.url),'utf8'),/"fullscreenAlign"/);
 });
+
+test('word glow setting is backed up and must be a boolean',()=>{
+ const v=vm.createContext({});vm.runInContext(fs.readFileSync(new URL('../extension/backup-validation.js',import.meta.url),'utf8'),v);
+ assert.doesNotThrow(()=>v.YTMLSBackupValidation.sync({wordGlow:false}));
+ assert.throws(()=>v.YTMLSBackupValidation.sync({wordGlow:'off'}));
+ assert.match(fs.readFileSync(new URL('../extension/backup.js',import.meta.url),'utf8'),/"wordGlow"/);
+});

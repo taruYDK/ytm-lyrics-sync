@@ -7,6 +7,7 @@
     manualScrollReturnMs: 3500,
     trackingEnabled: true, // 歌詞ハイライト + 中央自動スクロール
     wordTrackingStyle: "smooth", // 単語ハイライト: smooth | silky
+    wordGlow: true, // 歌っている単語を光らせる
     focusFade: true,
     autoLyricsOnIdle: true, // 「次のコンテンツ」表示後、無操作なら歌詞タブへ移動
     lines: [],

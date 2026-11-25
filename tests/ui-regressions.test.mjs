@@ -115,3 +115,11 @@ test('CSS: the current word glow outranks the per-word filter reset',()=>{
  assert.match(style,/\.ytmls-line\.ytmls-active \.ytmls-word \{ text-shadow: none !important; filter: none !important; \}|ytmls-full-line\.active \.ytmls-word \{ text-shadow: none !important; filter: none !important; \}/);
  assert.match(style,/\.ytmls-word\.ytmls-word-current \{\s*filter: drop-shadow\([^}]*!important;/);
 });
+
+test('word glow applies only while its setting is on (panel and fullscreen)',()=>{
+ const style=read('style.css'),panel=read('src/content/lyrics-panel.js'),practice=read('src/content/practice.js');
+ assert.match(style,/#ytmls-panel\[data-tracking-mode="auto"\]\[data-word-glow="on"\][^{]*ytmls-word-current/);
+ assert.match(style,/#ytmls-fullscreen\[data-tracking-mode="auto"\]\[data-word-glow="on"\][^{]*ytmls-word-current/);
+ assert.match(panel,/panelEl\.dataset\.wordGlow = STATE\.wordGlow === false \? "off" : "on"/);
+ assert.match(practice,/box\.dataset\.wordGlow=STATE\.wordGlow===false\?'off':'on'/);
+});

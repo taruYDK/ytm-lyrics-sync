@@ -15,6 +15,7 @@
           manualScrollReturnMs: 3500,
           trackingEnabled: true,
           wordTrackingStyle: "smooth",
+          wordGlow: true,
           focusFade: true,
           autoLyricsOnIdle: true,
           providerOrder: DEFAULT_PROVIDER_ORDER,
@@ -34,6 +35,7 @@
             ? String(data.wordTrackingStyle)
             : "smooth";
           STATE.focusFade = data.focusFade !== false;
+          STATE.wordGlow = data.wordGlow !== false;
           STATE.providerOrder = normalizedProviderOrder(data.providerOrder);
           STATE.providerEnabled = normalizedProviderEnabled(data.providerEnabled);
 
@@ -135,6 +137,11 @@
           applySettings();
           const media = getVideoElement();
           if (media && STATE.hasSync && STATE.trackingEnabled) updateHighlight(getAuthoritativePlaybackTime(media) || 0, true);
+        }
+
+        if (changes.wordGlow) {
+          STATE.wordGlow = changes.wordGlow.newValue !== false;
+          applySettings();
         }
 
         if (changes.focusFade) {

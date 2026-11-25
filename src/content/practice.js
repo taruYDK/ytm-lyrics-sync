@@ -306,7 +306,7 @@ function syncPracticeFullscreenTracking() {
  const box=practiceFullscreen;if(!box)return;
  const list=box.querySelector('.ytmls-full-list');
  const tracking=STATE.trackingEnabled!==false&&practiceCurrent(STATE.displayedVideoId);
- box.dataset.wordTracking=tracking?(STATE.wordTrackingStyle||'smooth'):'off';box.dataset.trackingMode=tracking?'auto':'off';
+ box.dataset.wordTracking=tracking?(STATE.wordTrackingStyle||'smooth'):'off';box.dataset.wordGlow=STATE.wordGlow===false?'off':'on';box.dataset.trackingMode=tracking?'auto':'off';
  const index=tracking?STATE.currentIndex:-1,changed=index!==practiceFullIndex;
  box.dataset.focusFade=tracking&&index>=0&&STATE.focusFade!==false?'on':'off';
  if(changed){practiceFullIndex=index;for(let i=0;i<list.children.length;i++){list.children[i].classList.toggle('active',i===index);list.children[i].classList.toggle('ytmls-active',i===index);const distance=index>=0?Math.abs(i-index):999;list.children[i].classList.toggle('ytmls-near',distance===1);list.children[i].classList.toggle('ytmls-middle',distance===2);list.children[i].classList.toggle('ytmls-upcoming',index>=0&&i>index);}box.pendingFollow=true;}

@@ -17,6 +17,7 @@ const SYNC_KEYS = [
   "manualScrollReturnMs",
   "autoLyricsOnIdle",
   "wordTrackingStyle",
+  "wordGlow",
   "providerOrder",
   "providerEnabled",
   "uiVersion",

@@ -125,6 +125,10 @@
 <div class="hint">単語の色が進む滑らかさ</div></div>
       <select id="wordTrackingStyleSelect" aria-label="追跡アニメーション"><option value="smooth">なめらか</option><option value="silky">ぬるぬる</option></select>
     </div>
+    <div class="setting-row">
+      <div class="label-block"><label class="label" for="wordGlowToggle">歌っている単語を光らせる</label><div class="hint">単語ごとに同期する歌詞で、今の単語をふわっと光らせます</div></div>
+      <label class="switch small"><input type="checkbox" id="wordGlowToggle" aria-label="歌っている単語を光らせる" /><span class="slider"></span></label>
+    </div>
     <div class="setting-row range-row">
       <div class="label-block"><label class="label" for="trackingPosition">追跡位置</label><div class="hint">画面のどの高さに歌詞を合わせるか（標準42%）</div><output id="trackingPositionValue" for="trackingPosition">上から42%</output></div>
       <input id="trackingPosition" type="range" min="25" max="65" step="1" value="42" style="width:132px; accent-color:var(--accent)" />

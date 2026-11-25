@@ -1514,8 +1514,8 @@ html.ytmls-lyrics-motion-lightweight ytmusic-player-bar :is(#ytmls-resync-button
 .ytmls-full-artist { margin: 2px 0 0; font-size: 14px; color: rgba(255,255,255,.7); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* Word-synced lyrics: the word being sung glows softly (overrides the per-word filter reset above). */
-html:not(.ytmls-lyrics-motion-lightweight) #ytmls-panel[data-tracking-mode="auto"] .ytmls-line.ytmls-active .ytmls-word.ytmls-word-current,
-html:not(.ytmls-lyrics-motion-lightweight) #ytmls-fullscreen[data-tracking-mode="auto"] .ytmls-full-line.active .ytmls-word.ytmls-word-current {
+html:not(.ytmls-lyrics-motion-lightweight) #ytmls-panel[data-tracking-mode="auto"][data-word-glow="on"] .ytmls-line.ytmls-active .ytmls-word.ytmls-word-current,
+html:not(.ytmls-lyrics-motion-lightweight) #ytmls-fullscreen[data-tracking-mode="auto"][data-word-glow="on"] .ytmls-full-line.active .ytmls-word.ytmls-word-current {
   filter: drop-shadow(0 0 6px rgba(255, 255, 255, .55)) drop-shadow(0 0 14px rgba(255, 255, 255, .25)) !important;
 }
 html:not(.ytmls-lyrics-motion-lightweight) :is(#ytmls-panel .ytmls-line.ytmls-active, #ytmls-fullscreen .ytmls-full-line.active) .ytmls-word { transition: filter 160ms ease, color 90ms linear; }

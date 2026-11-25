@@ -1206,6 +1206,7 @@
       panelEl.dataset.sync = STATE.syncLevel || "none";
       panelEl.dataset.trackingMode = STATE.trackingEnabled ? "auto" : "off";
       panelEl.dataset.wordTracking = STATE.wordTrackingStyle || "smooth";
+      panelEl.dataset.wordGlow = STATE.wordGlow === false ? "off" : "on";
       panelEl.dataset.focusFade = STATE.focusFade ? "on" : "off";
     }
 
