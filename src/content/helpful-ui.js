@@ -3,8 +3,8 @@
     if (STATE.contextInvalidated) return 'ページの再読み込みが必要です';
     if (!STATE.enabled) return '拡張機能はOFFです';
     if (STATE.isSearching) return STATE.hasLyricsResult ? '取得済み・ほかの候補を検索中' + (STATE.source ? ' · ' + STATE.source : '') : '歌詞を検索中…';
-    // The source badge already names the provider; say how the lyrics are synced.
-    if (STATE.hasLyricsResult) return (STATE.hasSync ? `${syncLevelShortLabel(STATE.syncLevel)}ごとに同期${STATE.trackingEnabled ? '' : '・読むモード'}` : '同期時刻のない歌詞') + (STATE.source ? ' · ' + STATE.source : '');
+    // While lyrics play normally the source badge says enough; only exceptions get text.
+    if (STATE.hasLyricsResult) return (STATE.hasSync ? (STATE.trackingEnabled ? '' : '読むモード') : '同期時刻のない歌詞') + (STATE.source ? ' · ' + STATE.source : '');
     return STATE.lastTrackKey ? '同期歌詞が見つかりません' : '曲の読み込み待ち';
   }
   function fitMoreMenu(more, menu) {
@@ -39,8 +39,10 @@
     const badge = bar.querySelector('.ytmls-source-badge');
     const source = STATE.enabled && !STATE.contextInvalidated && STATE.hasLyricsResult ? STATE.source || '' : '';
     badge.hidden = !source;
-    if (badge.textContent !== source) { badge.textContent = source; badge.title = source; }
-    const summary = source ? text.replace(' · ' + source, '') : text;
+    if (badge.textContent !== source) badge.textContent = source;
+    const badgeTitle = source && STATE.hasSync ? `${source}・${syncLevelShortLabel(STATE.syncLevel)}ごとに同期` : source;
+    if (badge.title !== badgeTitle) badge.title = badgeTitle;
+    const summary = (source ? text.replace(' · ' + source, '') : text).replace(/^ · /, '');
     const statusText = bar.querySelector('.ytmls-fetch-status-text');
     if (statusText.textContent !== summary) { statusText.textContent = summary; statusText.title = summary; }
     bar.lastChild.hidden = !(STATE.enabled && STATE.trackingEnabled && STATE.hasSync && isManualScrollPaused());

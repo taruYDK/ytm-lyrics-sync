@@ -1324,7 +1324,7 @@ html.music-glass-hide-scrollbar .ytmls-full-list::-webkit-scrollbar { display:no
 /* A soft outline keeps the white current line readable on bright covers.
    drop-shadow (not text-shadow) works with the clipped word-progress text. */
 #ytmls-panel .ytmls-line.ytmls-active,
-#ytmls-fullscreen .ytmls-full-line.active { filter: drop-shadow(0 1px 2px rgba(0,0,0,.5)) drop-shadow(0 0 10px rgba(0,0,0,.25)); }
+#ytmls-fullscreen .ytmls-full-line.active { filter: brightness(.94) drop-shadow(0 1px 1.5px rgba(0,0,0,.32)); }
 #ytmls-panel .ytmls-line.ytmls-active .ytmls-word { opacity: 1; }
 #ytmls-panel .ytmls-line.ytmls-active .ytmls-word:is(.ytmls-word-sung,.ytmls-word-current) { color: rgb(var(--ytmls-ink)); }
 
