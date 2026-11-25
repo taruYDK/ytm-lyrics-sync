@@ -94,6 +94,7 @@
       }
     }
     for (const [host, canvas] of surfaces) if (!host.isConnected) { surfaceResizeObserver?.unobserve(host); canvas.remove(); surfaces.delete(host); }
+    if (tabsOnly !== true) ensureAurora();
   }
   let tabsFrame = false;
   document.addEventListener('scroll', () => {
@@ -118,6 +119,36 @@
       const url = new URL(value);
       return url.protocol === 'https:' && /(^|\.)(ytimg\.com|googleusercontent\.com|ggpht\.com)$/.test(url.hostname) ? url.href : '';
     } catch { return ''; }
+  }
+  // Three soft colors (top-left, center, bottom-right of the cover) for the drifting haze.
+  function setAuroraPalette(pixels) {
+    const region = (x0, y0, x1, y1) => {
+      let r = 0, g = 0, b = 0, n = 0;
+      for (let y = y0; y < y1; y += 2) for (let x = x0; x < x1; x += 2) {
+        const i = (y * 96 + x) * 4; r += pixels[i]; g += pixels[i+1]; b += pixels[i+2]; n++;
+      }
+      const avg = [r / n, g / n, b / n], mean = (avg[0] + avg[1] + avg[2]) / 3;
+      // Slightly more saturated and a little darker, so the haze tints rather than brightens.
+      return avg.map(v => Math.max(0, Math.min(255, Math.round((mean + (v - mean) * 1.5) * 0.8)))).join(' ');
+    };
+    root.style.setProperty('--mg-aurora-1', region(0, 0, 40, 40));
+    root.style.setProperty('--mg-aurora-2', region(28, 28, 68, 68));
+    root.style.setProperty('--mg-aurora-3', region(56, 56, 96, 96));
+  }
+  // The haze lives in the player page, above its surface bitmap and below the content.
+  let aurora;
+  function ensureAurora() {
+    const page = document.querySelector?.('ytmusic-player-page');
+    if (!themeEnabled() || settings.musicGlassLightweight || !page?.prepend) { aurora?.remove(); aurora = null; return; }
+    if (!aurora) {
+      aurora = document.createElement('div');
+      aurora.className = 'music-glass-aurora';
+      aurora.setAttribute('aria-hidden', 'true');
+    }
+    if (aurora.parentNode !== page) {
+      const surface = surfaces.get(page);
+      if (surface?.after) surface.after(aurora); else page.prepend(aurora);
+    }
   }
   // Mean luminance above the target is reduced with a light black layer (at most 25%).
   function backdropShadeAlpha(pixels) {
@@ -182,6 +213,7 @@
             }
             if (!best) root.style.removeProperty("--ytmls-art-accent");
             if (best) document.documentElement.style.setProperty('--ytmls-art-accent', best.map(n=>Math.min(255,Math.round(n*.55+140))).join(' '));
+            setAuroraPalette(pixels);
             // Bright covers make white lyrics hard to read: darken only those, toward a fixed brightness.
             const shade = backdropShadeAlpha(pixels);
             if (shade > 0) { context.filter = 'none'; context.fillStyle = `rgba(0,0,0,${shade})`; context.fillRect(0, 0, 96, 96); }
@@ -255,6 +287,7 @@
     else update();
     if (!themeEnabled()) { surfaceResizeObserver?.disconnect(); for (const canvas of surfaces.values()) canvas.remove(); surfaces.clear(); }
     else paintSurfaces();
+    ensureAurora();
   }
   chrome.storage.sync?.get({enabled:true}, stored => { extensionEnabled = stored.enabled !== false; apply(); });
   chrome.storage.local.get(defaults, stored => { settings = { ...defaults, ...stored }; apply(); });

@@ -227,6 +227,7 @@ function openPracticeFullscreen() {
  if (!STATE.enabled || !STATE.lines.length || practiceFullscreen) return;
  const box=document.createElement('div');box.id='ytmls-fullscreen';box.setAttribute('role','dialog');box.setAttribute('aria-label','全画面歌詞');box.setAttribute('aria-modal','true');
  const canvas=document.createElement('canvas');canvas.width=96;canvas.height=96;canvas.className='ytmls-full-backdrop';box.append(canvas);
+ const haze=document.createElement('div');haze.className='music-glass-aurora ytmls-full-aurora';haze.setAttribute('aria-hidden','true');box.append(haze);
  const corner=document.createElement('div');corner.className='ytmls-full-corner';box.append(corner);const close=practiceButton(corner,'全画面を閉じる',closePracticeFullscreen);close.className='ytmls-full-close';box.classList.add('ytmls-full-intro');box.closeTimer=setTimeout(()=>{if(practiceFullscreen===box)box.classList.remove('ytmls-full-intro');},3000);
  const toolbar = document.createElement('div');
  toolbar.className = 'ytmls-full-size';
@@ -304,9 +305,26 @@ function syncPracticeFullscreenTracking() {
  if(tracking&&row&&box.pendingFollow&&performance.now()>=(box.manualUntil||0)){
   const rect=list.getBoundingClientRect(),lineRect=row.getBoundingClientRect();
   const top=Math.max(0,list.scrollTop+lineRect.top-rect.top+lineRect.height/2-list.clientHeight*(STATE.trackingPosition||42)/100);
-  const smooth=changed&&!window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  list.scrollTo({top,behavior:smooth?'smooth':'instant'});box.pendingFollow=false;
+  const smooth=changed&&!window.matchMedia('(prefers-reduced-motion: reduce)').matches&&!document.documentElement.classList.contains('ytmls-lyrics-motion-lightweight');
+  cancelAnimationFrame(box.scrollFrame||0);box.scrollFrame=0;
+  if(smooth&&typeof lyricsScrollEase==='function')animateFullscreenScroll(box,list,top);
+  else list.scrollTo({top,behavior:'instant'});
+  box.pendingFollow=false;
  }
+}
+// Same gentle overshoot as the lyrics panel; manual scrolling stops it.
+function animateFullscreenScroll(box,list,target) {
+ const start=list.scrollTop,startedAt=performance.now();
+ const bounce=!document.documentElement.classList.contains('ytmls-extra-motion-disabled');
+ const duration=bounce?Math.min(560,Math.max(400,360+Math.abs(target-start)*.3)):260;
+ const step=now=>{
+  box.scrollFrame=0;
+  if(practiceFullscreen!==box||performance.now()<(box.manualUntil||0))return;
+  const progress=Math.min(1,Math.max(0,(now-startedAt)/duration));
+  list.scrollTo({top:start+(target-start)*lyricsScrollEase(progress,bounce),behavior:'instant'});
+  if(progress<1)box.scrollFrame=requestAnimationFrame(step);
+ };
+ box.scrollFrame=requestAnimationFrame(step);
 }
 function ensurePracticeControls() {
  const menu=lyricsToolsEl?.querySelector('.ytmls-more-menu');if(!menu)return;

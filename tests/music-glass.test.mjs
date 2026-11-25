@@ -132,3 +132,19 @@ test('Bright covers are darkened in the backdrop bitmap; dark covers are left as
  assert.equal(bright.length,1);assert.match(bright[0],/^rgba\(0,0,0,0\.(?:1\d*|2[0-5]?)\)$/);
  assert.deepEqual(shadeFor(40),[]);
 });
+test('cover colors feed the drifting haze, which is added to the player page and removed with the theme',()=>{
+ const vars={};let listener;const images=[];
+ const pixels=new Uint8ClampedArray(96*96*4);for(let i=0;i<pixels.length;i+=4){pixels[i]=200;pixels[i+1]=60;pixels[i+2]=40;}
+ const context={clearRect(){},drawImage(){},getImageData:()=>({data:pixels}),fillRect(){}};
+ const page={children:[],prepend(el){el.parentNode=page;page.children.unshift(el);},getBoundingClientRect:()=>({width:800,height:600}),clientWidth:800,clientHeight:600,offsetLeft:0,offsetTop:0};
+ const make=()=>({style:{},dataset:{},setAttribute(){},remove(){if(this.parentNode===page)page.children.splice(page.children.indexOf(this),1);this.parentNode=null;},getContext:()=>context,after(el){el.parentNode=page;page.children.push(el);}});
+ const document={hidden:false,body:{prepend(el){el.parentNode=this;}},documentElement:{classList:{toggle(){}},style:{setProperty:(k,v)=>{vars[k]=v;},removeProperty(){}}},addEventListener(){},
+  querySelector:s=>s==='ytmusic-player-page'?page:(s.includes('img')?{src:'https://i.ytimg.com/a.jpg'}:null),createElement:make,dispatchEvent(){}};
+ vm.runInNewContext(fs.readFileSync(new URL('../extension/music-glass.js',import.meta.url),'utf8'),{document,Event:class{},Image:class{constructor(){this.naturalWidth=400;this.naturalHeight=400;images.push(this);}},globalThis:{innerWidth:1600,innerHeight:900},
+  chrome:{storage:{local:{get:(d,cb)=>cb(d)},onChanged:{addListener:f=>listener=f}}},setInterval(){},setTimeout,URL});
+ images[0].onload();
+ for(const key of ['--mg-aurora-1','--mg-aurora-2','--mg-aurora-3'])assert.match(vars[key],/^\d+ \d+ \d+$/);
+ assert.ok(page.children.some(el=>el.className==='music-glass-aurora'));
+ listener({musicGlassEnabled:{newValue:false}},'local');
+ assert.ok(!page.children.some(el=>el.className==='music-glass-aurora'));
+});

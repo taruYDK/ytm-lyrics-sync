@@ -24,13 +24,18 @@ test('tracking: configurable focus and original start position',()=>{
   c.scrollCurrentLineIntoView(line,'auto'); assert.equal(scrolls.at(-1).top,0);
 });
 
-test('tracking animation arrives promptly, cancels for manual input and honors reduced motion',()=>{
+test('tracking animation bounces slightly, settles on the line, cancels for manual input and honors reduced motion',()=>{
   const h=tracking();
   h.c.scrollCurrentLineIntoView(h.line);assert.equal(h.scrolls.length,0);
-  h.setNow(175);h.frames.shift()(175);
-  assert(h.scrolls.at(-1).top>240&&h.scrolls.at(-1).top<310);
-  h.setNow(340);h.frames.shift()(340);
+  h.setNow(200);h.frames.shift()(200);
+  assert(h.scrolls.at(-1).top>240);
+  h.setNow(350);h.frames.shift()(350);
+  assert(h.scrolls.at(-1).top>310,'overshoots past the target');
+  h.setNow(700);h.frames.shift()(700);
   assert.equal(h.scrolls.at(-1).top,310);assert.equal(h.scrolls.at(-1).left,0);assert.equal(h.frames.length,0);
+  h.c.document.documentElement.classList.contains=name=>name==='ytmls-extra-motion-disabled';
+  h.c.scrollCurrentLineIntoView(h.line);h.setNow(1000);h.frames.shift()(1000);assert.equal(h.scrolls.at(-1).top,310);
+  h.c.document.documentElement.classList.contains=()=>false;
   h.c.scrollCurrentLineIntoView(h.line);h.c.pauseAutoScrollFromUser();assert.equal(h.frames.length,0);
   h.c.manualScrollUntil=0;h.c.matchMedia=()=>({matches:true});
   h.c.scrollCurrentLineIntoView(h.line);assert.equal(h.frames.length,0);assert.equal(h.scrolls.at(-1).top,310);

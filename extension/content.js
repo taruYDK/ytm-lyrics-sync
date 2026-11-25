@@ -6630,6 +6630,13 @@ function readingTokensToRomaji(tokens) {
     STATE.currentWordIndex = -1;
   }
 
+  // easeOutBack with a gentle overshoot (about 6%) when bouncing; easeOutCubic otherwise.
+  function lyricsScrollEase(progress, bounce) {
+    if (!bounce) return 1 - Math.pow(1 - progress, 3);
+    const c1 = 1.25, c3 = c1 + 1;
+    return 1 + c3 * Math.pow(progress - 1, 3) + c1 * Math.pow(progress - 1, 2);
+  }
+
   let lyricScrollFrame = 0;
   function cancelLyricsFollowScroll() {
     if (lyricScrollFrame) cancelAnimationFrame(lyricScrollFrame);
@@ -6660,7 +6667,10 @@ function readingTokensToRomaji(tokens) {
       scroller.scrollTo({left:0,top:target, behavior:"instant"});
       return true;
     }
-    const duration = Math.min(190, Math.max(110, 95 + Math.abs(target - start) * .10));
+    // With operation motion on, the move overshoots slightly and settles (a small "bounce").
+    const bounce = !document.documentElement.classList.contains("ytmls-extra-motion-disabled");
+    const distance = Math.abs(target - start);
+    const duration = bounce ? Math.min(520, Math.max(380, 340 + distance * .4)) : Math.min(190, Math.max(110, 95 + distance * .10));
     const startedAt = performance.now();
     autoScrollUntil = startedAt + duration + 150;
     function step(now) {
@@ -6668,7 +6678,7 @@ function readingTokensToRomaji(tokens) {
       if (listEl !== scroller || !scroller.isConnected || !lineEl.isConnected ||
           !STATE.enabled || !STATE.trackingEnabled || !STATE.hasSync || isManualScrollPaused()) return;
       const progress = Math.min(1, Math.max(0, (now - startedAt) / duration));
-      const eased = 1 - Math.pow(1 - progress, 3);
+      const eased = lyricsScrollEase(progress, bounce);
       scroller.scrollTo({left:0,top:start + (target - start) * eased, behavior:"instant"});
       autoScrollUntil = now + 150;
       if (progress < 1) lyricScrollFrame = requestAnimationFrame(step);
@@ -7579,6 +7589,7 @@ function openPracticeFullscreen() {
  if (!STATE.enabled || !STATE.lines.length || practiceFullscreen) return;
  const box=document.createElement('div');box.id='ytmls-fullscreen';box.setAttribute('role','dialog');box.setAttribute('aria-label','全画面歌詞');box.setAttribute('aria-modal','true');
  const canvas=document.createElement('canvas');canvas.width=96;canvas.height=96;canvas.className='ytmls-full-backdrop';box.append(canvas);
+ const haze=document.createElement('div');haze.className='music-glass-aurora ytmls-full-aurora';haze.setAttribute('aria-hidden','true');box.append(haze);
  const corner=document.createElement('div');corner.className='ytmls-full-corner';box.append(corner);const close=practiceButton(corner,'全画面を閉じる',closePracticeFullscreen);close.className='ytmls-full-close';box.classList.add('ytmls-full-intro');box.closeTimer=setTimeout(()=>{if(practiceFullscreen===box)box.classList.remove('ytmls-full-intro');},3000);
  const toolbar = document.createElement('div');
  toolbar.className = 'ytmls-full-size';
@@ -7656,9 +7667,26 @@ function syncPracticeFullscreenTracking() {
  if(tracking&&row&&box.pendingFollow&&performance.now()>=(box.manualUntil||0)){
   const rect=list.getBoundingClientRect(),lineRect=row.getBoundingClientRect();
   const top=Math.max(0,list.scrollTop+lineRect.top-rect.top+lineRect.height/2-list.clientHeight*(STATE.trackingPosition||42)/100);
-  const smooth=changed&&!window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  list.scrollTo({top,behavior:smooth?'smooth':'instant'});box.pendingFollow=false;
+  const smooth=changed&&!window.matchMedia('(prefers-reduced-motion: reduce)').matches&&!document.documentElement.classList.contains('ytmls-lyrics-motion-lightweight');
+  cancelAnimationFrame(box.scrollFrame||0);box.scrollFrame=0;
+  if(smooth&&typeof lyricsScrollEase==='function')animateFullscreenScroll(box,list,top);
+  else list.scrollTo({top,behavior:'instant'});
+  box.pendingFollow=false;
  }
+}
+// Same gentle overshoot as the lyrics panel; manual scrolling stops it.
+function animateFullscreenScroll(box,list,target) {
+ const start=list.scrollTop,startedAt=performance.now();
+ const bounce=!document.documentElement.classList.contains('ytmls-extra-motion-disabled');
+ const duration=bounce?Math.min(560,Math.max(400,360+Math.abs(target-start)*.3)):260;
+ const step=now=>{
+  box.scrollFrame=0;
+  if(practiceFullscreen!==box||performance.now()<(box.manualUntil||0))return;
+  const progress=Math.min(1,Math.max(0,(now-startedAt)/duration));
+  list.scrollTo({top:start+(target-start)*lyricsScrollEase(progress,bounce),behavior:'instant'});
+  if(progress<1)box.scrollFrame=requestAnimationFrame(step);
+ };
+ box.scrollFrame=requestAnimationFrame(step);
 }
 function ensurePracticeControls() {
  const menu=lyricsToolsEl?.querySelector('.ytmls-more-menu');if(!menu)return;
