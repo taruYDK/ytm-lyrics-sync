@@ -17,13 +17,18 @@
    .finished.then(() => old.remove(), () => old.remove());
  }
  document.addEventListener('ytmls-glass-artwork-painted', finishCoverTransition);
+ // The player keeps its cover laid out while closed; only animate it when the player page is shown.
+ function playerPageOpen() {
+  const layout=document.querySelector('ytmusic-app-layout');
+  return !layout || layout.hasAttribute('player-page-open') || layout.hasAttribute('player-fullscreened');
+ }
  document.addEventListener('load',event=>{
   const img=event.target;if(!img?.matches?.('ytmusic-player #song-image img'))return;
   const next=img.currentSrc||img.src||'';if(!next||next===lastCover)return;
   const previous=lastCover;lastCover=next;
-  if(!previous||!allowed())return;
+  if(!previous||!allowed()||!playerPageOpen())return;
   const r=img.getBoundingClientRect();if(!r.width||!r.height)return;
-  const old=document.createElement('img');old.src=previous;old.setAttribute('aria-hidden','true');
+  const old=document.createElement('img');old.src=previous;old.className='ytmls-cover-old';old.setAttribute('aria-hidden','true');
   Object.assign(old.style,{position:'fixed',left:r.left+'px',top:r.top+'px',width:r.width+'px',height:r.height+'px',objectFit:'cover',borderRadius:getComputedStyle(img).borderRadius,pointerEvents:'none',zIndex:'98'});
   coverOverlay?.remove();
   clearTimeout(coverTimer);

@@ -16,6 +16,7 @@
 @keyframes ytmls-crossfade-out { from {opacity:1} to {opacity:0} }
 @keyframes ytmls-crossfade-in { from {opacity:0} to {opacity:1} }
 html:has(ytmusic-app-layout:not([player-page-open]):not([player-fullscreened])) .ytmls-crossfade-old { display:none !important; }
+html:has(ytmusic-app-layout:not([player-page-open]):not([player-fullscreened])) .ytmls-cover-old { display:none !important; }
 html.music-glass #ytmls-panel[data-tracking-mode="auto"] .ytmls-active .ytmls-word:not([data-reading-parts="true"]) {
   background-image:linear-gradient(90deg, rgb(var(--ytmls-art-accent, 255 255 255)) 0%, rgb(var(--ytmls-art-accent, 255 255 255)) var(--ytmls-word-progress,0%), rgba(255,255,255,.45) calc(var(--ytmls-word-progress,0%) + .7%), rgba(255,255,255,.45) 100%);
 }
