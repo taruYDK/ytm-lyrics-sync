@@ -1,6 +1,6 @@
 # YT Music 歌詞シンクロ
 
-設定を機能別に整理し、歌詞メニュー、全画面歌詞、ふりがな編集を使いやすくした3.2.0です。
+単語ごとに同期する一部の歌詞で、行の先頭が表示されない問題を修正した3.2.1です。
 
 <div align="center">
 
@@ -8,7 +8,7 @@
 
 **YouTube Musicに、追いかけやすい歌詞と読み仮名を。**
 
-![Version 3.2.0](https://img.shields.io/badge/version-3.2.0-f59e0b?style=flat-square)
+![Version 3.2.1](https://img.shields.io/badge/version-3.2.1-f59e0b?style=flat-square)
 ![Edge / Chrome](https://img.shields.io/badge/browser-Edge%20%2F%20Chrome-3b82f6?style=flat-square)
 ![Manifest V3](https://img.shields.io/badge/extension-Manifest%20V3-8b5cf6?style=flat-square)
 [![MIT License](https://img.shields.io/badge/license-MIT-f59e0b?style=flat-square)](LICENSE)
@@ -115,11 +115,11 @@
 
 設定画面の読み仮名OFFは、保存済みの曲別ON設定より優先されます。共通設定をONへ戻すと、その曲の設定を再び適用します。
 
-## v3.2.0の更新内容
+## v3.2.1の更新内容
 
-設定を「歌詞表示」「自動追跡」「再生バー・演出」「背景」「歌詞取得」「データ管理」の6カテゴリに分けました。「その他」には文字サイズ、読むモード、同期調整などをまとめ、全画面内でも文字サイズを調整できます。
+単語ごとに同期する一部の歌詞で、行の先頭の文字が表示されない問題を修正しました。Spaceキーの再生操作は常に有効です（切り替え設定はv3.2.0で削除）。
 
-[3.2.0の更新内容・更新方法](docs/releases/v3.2.0.md) · [過去の変更履歴](CHANGELOG.md)
+[3.2.1の更新内容・更新方法](docs/releases/v3.2.1.md) · [過去の変更履歴](CHANGELOG.md)
 
 ## 開発・不具合報告
 
