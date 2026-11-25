@@ -128,11 +128,11 @@ function renderProviderList() {
 
   const localName = document.createElement("span");
   localName.className = "provider-name";
-  localName.textContent = "ローカル歌詞 ★最優先";
+  localName.textContent = "ローカル歌詞";
 
   const fixedBadge = document.createElement("span");
   fixedBadge.className = "provider-fixed-badge";
-  fixedBadge.textContent = "固定";
+  fixedBadge.textContent = "常に最優先";
 
   localRow.append(localCheckbox, localRank, localName, fixedBadge);
   providerList.appendChild(localRow);

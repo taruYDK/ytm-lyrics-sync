@@ -60,6 +60,14 @@
   }
 
   // ---------- LRC ----------
+  // [mm:ss], [mm:ss.xx] and the [mm:ss:xx] form some LRC tools write.
+  const LRC_TIME_TAG_SOURCE = String.raw`\[(\d{1,3}):(\d{2}(?:[.:]\d{1,3})?)\]`;
+  const LRC_TIME_TAG_TEST_RE = new RegExp(LRC_TIME_TAG_SOURCE);
+  function lrcTimeTagRe() { return new RegExp(LRC_TIME_TAG_SOURCE, "g"); }
+  function lrcTagSeconds(minutes, seconds) {
+    return Number(minutes) * 60 + Number(String(seconds).replace(":", "."));
+  }
+
   function lrcOffsetSeconds(lrcText) {
     let globalOffset = 0;
     const offsetMatch = (lrcText || "").match(/\[offset:([+-]?\d+(?:\.\d+)?)\]/i);
@@ -75,7 +83,7 @@
   function parseLRC(lrcText, sortLines = true) {
     const lines = [];
     const globalOffset = lrcOffsetSeconds(lrcText);
-    const timeTagRe = /\[(\d{1,3}):(\d{2}(?:\.\d{1,3})?)\]/g;
+    const timeTagRe = lrcTimeTagRe();
 
     (lrcText || "").split(/\r?\n/).forEach((rawLine) => {
       const tags = [...rawLine.matchAll(timeTagRe)];
@@ -88,10 +96,8 @@
         .trim();
 
       tags.forEach((m) => {
-        const minutes = parseInt(m[1], 10);
-        const seconds = parseFloat(m[2]);
         lines.push({
-          time: Math.max(0, minutes * 60 + seconds + globalOffset),
+          time: Math.max(0, lrcTagSeconds(m[1], m[2]) + globalOffset),
           end: null,
           text,
           words: [],
@@ -228,9 +234,9 @@
     let firstTagTime = 0;
     let pendingTagTimes = [];
     for (const raw of rows) {
-      const tags = [...raw.matchAll(/\[(\d{1,3}):(\d{2}(?:\.\d{1,3})?)\]/g)];
+      const tags = [...raw.matchAll(lrcTimeTagRe())];
       if (tags.length) {
-        pendingTagTimes = tags.map(tag => Number(tag[1]) * 60 + Number(tag[2]));
+        pendingTagTimes = tags.map(tag => lrcTagSeconds(tag[1], tag[2]));
         firstTagTime = pendingTagTimes[0];
         pendingLineIndices = Array.from({ length: tags.length }, (_, index) => baseCursor + index);
         baseCursor += tags.length;

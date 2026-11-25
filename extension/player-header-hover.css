@@ -7,6 +7,12 @@ html.music-glass ytmusic-player-page #ytmls-more > summary.ytmls-tool-button {
   opacity:.48;
   transition:opacity .16s ease,background-color .14s ease,color .14s ease;
 }
+/* Extension controls stay readable; the native tabs keep their own subdued look. */
+html.music-glass ytmusic-player-page #ytmls-tools > .ytmls-tool-button,
+html.music-glass #ytmls-helpful > .ytmls-source-badge,
+html.music-glass ytmusic-player-page #ytmls-more > summary.ytmls-tool-button {
+  opacity:.74;
+}
 html.music-glass ytmusic-player-page tp-yt-paper-tab:not([disabled]):not([aria-disabled="true"]):is(:hover,:focus-visible) {
   background-color:rgba(255,255,255,.1) !important;
   color:#fff !important;

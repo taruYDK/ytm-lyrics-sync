@@ -2108,9 +2108,9 @@ function readingTokensToRomaji(tokens) {
     record.addEventListener("click", () => {
       const currentVideoId = String(getAuthoritativeVideoId() || "");
       if (!currentVideoId || currentVideoId !== videoId) {
-        message.textContent = "曲が切り替わったため記録を停止しました。元の曲に戻ってやり直してください。";
+        // Keep the button usable: recording resumes once the original track plays again.
+        message.textContent = "別の曲が再生されているため記録できません。元の曲に戻してから記録してください。";
         message.dataset.error = "true";
-        record.disabled = true;
         return;
       }
       const currentTime = getAuthoritativePlaybackTime(getVideoElement());
@@ -2187,7 +2187,12 @@ function readingTokensToRomaji(tokens) {
       if (authorShortcutTargetsControl(event.target, record)) return;
       const space = event.code === "Space" && !event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey;
       const back = event.key.toLowerCase() === "z" && (event.ctrlKey || event.metaKey) && !event.altKey && !event.shiftKey;
-      if ((!space && !back) || (space ? record : undo).disabled) return;
+      if (!space && !back) return;
+      if ((space ? record : undo).disabled) {
+        // After every line is recorded, Space must not scroll the page or toggle playback.
+        if (space) { event.preventDefault(); event.stopImmediatePropagation(); }
+        return;
+      }
       event.preventDefault(); event.stopImmediatePropagation();
       if (!event.repeat) (space ? record : undo).click();
     }, { capture: true, signal: authorShortcutController.signal });
@@ -2428,11 +2433,12 @@ function readingTokensToRomaji(tokens) {
 
     panelEl = document.createElement("div");
     panelEl.id = "ytmls-panel";
-    panelEl.setAttribute("aria-live", "polite");
     panelEl.dataset.sync = "none";
 
     statusEl = document.createElement("div");
     statusEl.id = "ytmls-status";
+    // Announce status changes only; a live panel would read every lyric line on each render.
+    statusEl.setAttribute("aria-live", "polite");
     statusEl.textContent = STATE.statusText;
     panelEl.appendChild(statusEl);
 
@@ -3737,6 +3743,14 @@ function readingTokensToRomaji(tokens) {
   }
 
   // ---------- LRC ----------
+  // [mm:ss], [mm:ss.xx] and the [mm:ss:xx] form some LRC tools write.
+  const LRC_TIME_TAG_SOURCE = String.raw`\[(\d{1,3}):(\d{2}(?:[.:]\d{1,3})?)\]`;
+  const LRC_TIME_TAG_TEST_RE = new RegExp(LRC_TIME_TAG_SOURCE);
+  function lrcTimeTagRe() { return new RegExp(LRC_TIME_TAG_SOURCE, "g"); }
+  function lrcTagSeconds(minutes, seconds) {
+    return Number(minutes) * 60 + Number(String(seconds).replace(":", "."));
+  }
+
   function lrcOffsetSeconds(lrcText) {
     let globalOffset = 0;
     const offsetMatch = (lrcText || "").match(/\[offset:([+-]?\d+(?:\.\d+)?)\]/i);
@@ -3752,7 +3766,7 @@ function readingTokensToRomaji(tokens) {
   function parseLRC(lrcText, sortLines = true) {
     const lines = [];
     const globalOffset = lrcOffsetSeconds(lrcText);
-    const timeTagRe = /\[(\d{1,3}):(\d{2}(?:\.\d{1,3})?)\]/g;
+    const timeTagRe = lrcTimeTagRe();
 
     (lrcText || "").split(/\r?\n/).forEach((rawLine) => {
       const tags = [...rawLine.matchAll(timeTagRe)];
@@ -3765,10 +3779,8 @@ function readingTokensToRomaji(tokens) {
         .trim();
 
       tags.forEach((m) => {
-        const minutes = parseInt(m[1], 10);
-        const seconds = parseFloat(m[2]);
         lines.push({
-          time: Math.max(0, minutes * 60 + seconds + globalOffset),
+          time: Math.max(0, lrcTagSeconds(m[1], m[2]) + globalOffset),
           end: null,
           text,
           words: [],
@@ -3905,9 +3917,9 @@ function readingTokensToRomaji(tokens) {
     let firstTagTime = 0;
     let pendingTagTimes = [];
     for (const raw of rows) {
-      const tags = [...raw.matchAll(/\[(\d{1,3}):(\d{2}(?:\.\d{1,3})?)\]/g)];
+      const tags = [...raw.matchAll(lrcTimeTagRe())];
       if (tags.length) {
-        pendingTagTimes = tags.map(tag => Number(tag[1]) * 60 + Number(tag[2]));
+        pendingTagTimes = tags.map(tag => lrcTagSeconds(tag[1], tag[2]));
         firstTagTime = pendingTagTimes[0];
         pendingLineIndices = Array.from({ length: tags.length }, (_, index) => baseCursor + index);
         baseCursor += tags.length;
@@ -4338,15 +4350,15 @@ function readingTokensToRomaji(tokens) {
   function parseInlineTimedLrc(lrcText) {
     const base = parseLRC(lrcText, false);
     if (!base.length) return { lines: [], syncLevel: "none" };
-    const rawRows = String(lrcText || "").split(/\r?\n/).filter((x) => /\[\d{1,3}:\d{2}(?:\.\d{1,3})?\]/.test(x));
+    const rawRows = String(lrcText || "").split(/\r?\n/).filter((x) => LRC_TIME_TAG_TEST_RE.test(x));
     const globalOffset = lrcOffsetSeconds(lrcText);
     let bi = 0;
     for (const raw of rawRows) {
       if (!base[bi]) break;
-      const lineTags = [...raw.matchAll(/\[(\d{1,3}):(\d{2}(?:\.\d{1,3})?)\]/g)];
+      const lineTags = [...raw.matchAll(lrcTimeTagRe())];
       if (!lineTags.length) continue; // No corresponding parseLRC row was consumed.
       const expandedCount = lineTags.length;
-      const content = raw.replace(/^\s*(?:\[\d{1,3}:\d{2}(?:\.\d{1,3})?\])+\s*/, "");
+      const content = raw.replace(/^\s*(?:\[\d{1,3}:\d{2}(?:[.:]\d{1,3})?\])+\s*/, "");
       const tagRe = /<(\d{1,3}:\d{2}(?:\.\d+)?)>/g;
       const matches = [...content.matchAll(tagRe)];
       if (matches.length) {
@@ -4354,7 +4366,7 @@ function readingTokensToRomaji(tokens) {
         // Text before the first word tag starts at the row's own timestamp.
         const leading = content.slice(0, matches[0].index);
         const firstWordTime = angleTimeToSeconds(matches[0][1]);
-        const firstLineTime = Number(lineTags[0][1]) * 60 + Number(lineTags[0][2]);
+        const firstLineTime = lrcTagSeconds(lineTags[0][1], lineTags[0][2]);
         if (leading.trim() && firstWordTime != null && Number.isFinite(firstLineTime)) {
           words.push({ text: leading, time: Math.min(firstLineTime, firstWordTime), end: firstWordTime, background: false });
         }
@@ -4372,7 +4384,7 @@ function readingTokensToRomaji(tokens) {
             const line = base[bi + copyIndex];
             if (!line) continue;
             const shift = Number.isFinite(firstLineTime) && Number.isFinite(line.time)
-              ? Number(lineTags[copyIndex][1]) * 60 + Number(lineTags[copyIndex][2]) - firstLineTime + globalOffset
+              ? lrcTagSeconds(lineTags[copyIndex][1], lineTags[copyIndex][2]) - firstLineTime + globalOffset
               : 0;
             line.words = words.map((word) => ({
               ...word,
@@ -5317,6 +5329,12 @@ function readingTokensToRomaji(tokens) {
     const sourceLines = firstPass && Array.isArray(firstPass.lines) ? firstPass.lines : result.lines;
     const kept = [];
     let removed = Number(firstPass && firstPass._translationRowsRemoved) || 0;
+    // Translation and romaji rows share the timestamp of the Japanese row they translate.
+    // English rows with their own timestamp are part of the song and must stay.
+    const japaneseTimes = expected === "ja"
+      ? sourceLines.filter((line) => Number.isFinite(line?.time) && getScriptStats(lineTextForLanguage(line)).kana >= 1).map((line) => line.time)
+      : [];
+    const sharesJapaneseTime = (line) => Number.isFinite(line?.time) && japaneseTimes.some((time) => Math.abs(time - line.time) < 0.05);
 
     for (const line of sourceLines) {
       const text = lineTextForLanguage(line);
@@ -5329,11 +5347,11 @@ function readingTokensToRomaji(tokens) {
       if (expected === "ja") {
         // かなを含む行は、日本語原文中の英単語なども含めて原文として守る。
         if (stats.kana < 1) {
-          if (["zh", "ko", "th", "ar", "he", "ru", "en"].includes(language)) foreign = true;
+          if (["zh", "ko", "th", "ar", "he", "ru"].includes(language)) foreign = true;
           // 明確な別スクリプトは行判定がunknownでも落とす。
           if (stats.hangul || stats.thai || stats.arabic || stats.hebrew || stats.cyrillic) foreign = true;
-          // 英字だけの独立行（Tiger Fire等）は日本語曲では表示しない。
-          if (stats.latin >= 2 && stats.han + stats.kana + stats.hangul === 0) foreign = true;
+          // 英字だけの行は、日本語の行と同じ時刻に並ぶ訳・ローマ字だけを除外する。
+          if (stats.latin >= 2 && stats.han + stats.kana + stats.hangul === 0 && sharesJapaneseTime(line)) foreign = true;
         }
       } else if (language !== "unknown" && language !== expected) {
         foreign = true;
@@ -6548,7 +6566,8 @@ function readingTokensToRomaji(tokens) {
     reevaluateCandidates(true);
 
     STATE.isSearching = false;
-    if (foundAny) {
+    // A candidate the user picked while providers were still running is a result too.
+    if (foundAny || (STATE.manualSelectedCandidateId && STATE.hasLyricsResult)) {
       // 最終的に採用された歌詞を維持。検索完了時に消さない。
       applySettings();
       if (cacheKey) {
@@ -7637,7 +7656,7 @@ function ensureEnhancementControls(){
   for(const [name,size] of [['小',26],['中',32],['大',40]]){const button=practiceButton(sizes,name,()=>{
    const id=practiceVideoId();if(!practiceCurrent(id)||!practiceLocalReady||!practiceSyncReady)return;
    button.dataset.saving='true';button.disabled=true;void queuePracticeSettingsSave(()=>savePracticeEntry(id,{...practiceEntry(id),settings:{...(practiceEntry(id).settings||{}),fontSize:size}})).catch(e=>{button.title='保存できませんでした：'+e.message;}).finally(()=>{delete button.dataset.saving;button.disabled=false;});
-  });button.setAttribute('aria-label','文字サイズ '+name);}
+  });button.setAttribute('aria-label','文字サイズ '+name);button.dataset.size=String(size);}
   display.querySelector('.ytmls-menu-label').after(sizes);
   const mode=practiceButton(playback,'読むモード',()=>{chrome.storage.sync.set({trackingEnabled:!STATE.trackingEnabled},()=>{if(chrome.runtime.lastError)mode.title='設定を保存できませんでした';});});mode.id='ytmls-reading-mode';
   const timing=practiceButton(playback,'同期タイミングを調整',event=>{
@@ -7649,7 +7668,7 @@ function ensureEnhancementControls(){
  }
  const mode=playback.querySelector('#ytmls-reading-mode'),modeLabel=STATE.trackingEnabled?'読むモードに切り替え':'追跡モードに切り替え';if(mode.textContent!==modeLabel)mode.textContent=modeLabel;mode.removeAttribute('aria-pressed');
  const available=practiceCurrent(STATE.displayedVideoId)&&STATE.lines.length>0;
- display.querySelectorAll('.ytmls-size-presets button').forEach(b=>{if(!b.dataset.saving)b.disabled=!available||!practiceLocalReady||!practiceSyncReady;});
+ display.querySelectorAll('.ytmls-size-presets button').forEach(b=>{if(!b.dataset.saving)b.disabled=!available||!practiceLocalReady||!practiceSyncReady;const current=String(Number(b.dataset.size)===Number(STATE.fontSize));if(b.getAttribute('aria-pressed')!==current)b.setAttribute('aria-pressed',current);});
  playback.querySelector('#ytmls-timing-shortcut').disabled=!STATE.hasSync||!trackTimingButtonEl?.isConnected||trackTimingButtonEl.disabled;
  const empty = panelEl.querySelector('#ytmls-empty');
  if (!empty) return;

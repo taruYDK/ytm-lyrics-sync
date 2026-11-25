@@ -1124,11 +1124,18 @@ ytmusic-tab-renderer[page-type="MUSIC_PAGE_TYPE_TRACK_LYRICS"].ytmls-replaced {
 .ytmls-resync-label { display:none; }
 @media (max-width:1100px) {
   ytmusic-player-bar #ytmls-resync-button, ytmusic-player-bar #ytmls-track-offset-button { display:none; }
+  /* Match the plain menu items around them instead of the player-bar pill style. */
   .ytmls-more-menu #ytmls-resync-button, .ytmls-more-menu #ytmls-track-offset-button {
-    width:100%; max-width:none; min-width:0; height:auto; min-height:40px;
-    margin:4px 0 0; padding:10px 12px; border-radius:8px; justify-content:flex-start;
-    font-size:12px; gap:8px;
+    width:100%; max-width:none; min-width:0; height:auto; min-height:0;
+    margin:0; padding:7px 10px; border:0; border-radius:8px; background:transparent;
+    justify-content:flex-start; color:var(--ytmls-text, #fff); font-size:13px; font-weight:700; gap:8px;
   }
+  .ytmls-more-menu #ytmls-resync-button:not(:disabled):is(:hover,:focus-visible),
+  .ytmls-more-menu #ytmls-track-offset-button:not(:disabled):is(:hover,:focus-visible),
+  .ytmls-more-menu #ytmls-track-offset-button[aria-expanded="true"] {
+    background:rgba(var(--ytmls-ink), .11); border:0;
+  }
+  .ytmls-more-menu :is(.ytmls-resync-icon,.ytmls-track-offset-icon) { width:15px; height:15px; flex:0 0 15px; opacity:.8; }
   .ytmls-more-menu .ytmls-resync-label, .ytmls-more-menu #ytmls-track-offset-button .ytmls-track-offset-label { display:inline; }
 }
 
@@ -1335,3 +1342,20 @@ html.music-glass-hide-scrollbar .ytmls-full-list::-webkit-scrollbar { display:no
   border:1px solid currentColor; border-radius:999px; padding:2px 7px; font-size:11px;
 }
 .ytmls-source-badge[hidden] { display:none; }
+
+/* "Small / Medium / Large" show which size is in use. */
+.ytmls-size-presets .ytmls-tool-button[aria-pressed="true"] {
+  border-color: rgba(var(--ytmls-ink), .7);
+  background: rgba(var(--ytmls-ink), .2);
+  color: var(--ytmls-text, #fff);
+}
+
+/* Fullscreen: keep readings centered over their words and the lyrics in a centered column. */
+#ytmls-fullscreen .ytmls-ruby { ruby-position: over; ruby-align: center; }
+#ytmls-fullscreen .ytmls-ruby rt { letter-spacing: .02em; }
+#ytmls-fullscreen > h1,
+#ytmls-fullscreen > .ytmls-full-list {
+  box-sizing: border-box;
+  width: min(100%, 960px);
+  margin-inline: auto;
+}

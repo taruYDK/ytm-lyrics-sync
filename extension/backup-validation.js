@@ -50,7 +50,7 @@ globalThis.YTMLSBackupValidation = (() => {
         if (key === 'ytmlsTrackTimingOffsetsV174') { timing(entry,path); continue; }
         requireValue(map(entry),path);metadata(entry,path);
         if (key === 'ytmlsManualSearchOverridesV190') requireValue(typeof entry.title === 'string' && typeof entry.artist === 'string',path);
-        else if (key === 'ytmlsLocalLyricsV200') requireValue(typeof entry.rawLrc === 'string' && entry.rawLrc.length <= 500000 && /\[\d{1,3}:\d{2}(?:\.\d{1,3})?\]/.test(entry.rawLrc),path+'.rawLrc');
+        else if (key === 'ytmlsLocalLyricsV200') requireValue(typeof entry.rawLrc === 'string' && entry.rawLrc.length <= 500000 && /\[\d{1,3}:\d{2}(?:[.:]\d{1,3})?\]/.test(entry.rawLrc),path+'.rawLrc');
         else if (key === 'ytmlsBookmarksV310') {
           requireValue(Array.isArray(entry.entries) && entry.entries.length <= 500, path+'.entries');
           for (const bookmark of entry.entries) requireValue(map(bookmark) && finite(bookmark.time) && bookmark.time >= 0 && bookmark.time <= 86400 && typeof bookmark.text === 'string' && bookmark.text.length <= 4000, path+'.entries');

@@ -291,7 +291,8 @@
     reevaluateCandidates(true);
 
     STATE.isSearching = false;
-    if (foundAny) {
+    // A candidate the user picked while providers were still running is a result too.
+    if (foundAny || (STATE.manualSelectedCandidateId && STATE.hasLyricsResult)) {
       // 最終的に採用された歌詞を維持。検索完了時に消さない。
       applySettings();
       if (cacheKey) {

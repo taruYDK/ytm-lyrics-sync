@@ -20,3 +20,15 @@ test('rich LRC: malformed word times cannot produce NaN', () => {
   assert.equal(result.syncLevel, 'line');
   assert.deepEqual(result.lines[0].words, []);
 });
+
+test('LRC with [mm:ss:xx] timestamps is parsed and accepted as local lyrics', () => {
+  const read = file => fs.readFileSync(new URL('../' + file, import.meta.url), 'utf8');
+  const c = vm.createContext({});
+  vm.runInContext(read('src/content/lyrics-parser.js') + read('src/content/providers.js'), c);
+  const text = '[00:14:32]最初の歌詞\n[01:02:05]次の歌詞';
+  assert.deepEqual(Array.from(c.parseLRC(text), l => [l.time, l.text]), [[14.32, '最初の歌詞'], [62.05, '次の歌詞']]);
+  assert.deepEqual(Array.from(c.parseInlineTimedLrc('[00:10:50]<00:10.50>A <00:11.00>B').lines, l => [l.time, l.text]), [[10.5, 'A B']]);
+  const v = vm.createContext({});
+  vm.runInContext(read('extension/backup-validation.js'), v);
+  assert.doesNotThrow(() => v.YTMLSBackupValidation.local({ytmlsLocalLyricsV200: {song: {rawLrc: text}}}));
+});

@@ -379,6 +379,12 @@
     const sourceLines = firstPass && Array.isArray(firstPass.lines) ? firstPass.lines : result.lines;
     const kept = [];
     let removed = Number(firstPass && firstPass._translationRowsRemoved) || 0;
+    // Translation and romaji rows share the timestamp of the Japanese row they translate.
+    // English rows with their own timestamp are part of the song and must stay.
+    const japaneseTimes = expected === "ja"
+      ? sourceLines.filter((line) => Number.isFinite(line?.time) && getScriptStats(lineTextForLanguage(line)).kana >= 1).map((line) => line.time)
+      : [];
+    const sharesJapaneseTime = (line) => Number.isFinite(line?.time) && japaneseTimes.some((time) => Math.abs(time - line.time) < 0.05);
 
     for (const line of sourceLines) {
       const text = lineTextForLanguage(line);
@@ -391,11 +397,11 @@
       if (expected === "ja") {
         // かなを含む行は、日本語原文中の英単語なども含めて原文として守る。
         if (stats.kana < 1) {
-          if (["zh", "ko", "th", "ar", "he", "ru", "en"].includes(language)) foreign = true;
+          if (["zh", "ko", "th", "ar", "he", "ru"].includes(language)) foreign = true;
           // 明確な別スクリプトは行判定がunknownでも落とす。
           if (stats.hangul || stats.thai || stats.arabic || stats.hebrew || stats.cyrillic) foreign = true;
-          // 英字だけの独立行（Tiger Fire等）は日本語曲では表示しない。
-          if (stats.latin >= 2 && stats.han + stats.kana + stats.hangul === 0) foreign = true;
+          // 英字だけの行は、日本語の行と同じ時刻に並ぶ訳・ローマ字だけを除外する。
+          if (stats.latin >= 2 && stats.han + stats.kana + stats.hangul === 0 && sharesJapaneseTime(line)) foreign = true;
         }
       } else if (language !== "unknown" && language !== expected) {
         foreign = true;

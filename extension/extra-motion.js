@@ -44,4 +44,6 @@
  const hostObserver=new MutationObserver(watchLabel);
  function attachHost(){const bar=document.querySelector('ytmusic-player-bar');if(!bar)return;hostObserver.disconnect();hostObserver.observe(bar,{childList:true,subtree:true});watchLabel();}
  document.addEventListener('yt-navigate-finish',attachHost);attachHost();
+ // In narrow windows the label moves into the lyrics menu, outside the observed player bar.
+ setInterval(()=>{if(!document.hidden)watchLabel();},1000);
 })();

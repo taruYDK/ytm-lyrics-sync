@@ -678,9 +678,9 @@
     record.addEventListener("click", () => {
       const currentVideoId = String(getAuthoritativeVideoId() || "");
       if (!currentVideoId || currentVideoId !== videoId) {
-        message.textContent = "曲が切り替わったため記録を停止しました。元の曲に戻ってやり直してください。";
+        // Keep the button usable: recording resumes once the original track plays again.
+        message.textContent = "別の曲が再生されているため記録できません。元の曲に戻してから記録してください。";
         message.dataset.error = "true";
-        record.disabled = true;
         return;
       }
       const currentTime = getAuthoritativePlaybackTime(getVideoElement());
@@ -757,7 +757,12 @@
       if (authorShortcutTargetsControl(event.target, record)) return;
       const space = event.code === "Space" && !event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey;
       const back = event.key.toLowerCase() === "z" && (event.ctrlKey || event.metaKey) && !event.altKey && !event.shiftKey;
-      if ((!space && !back) || (space ? record : undo).disabled) return;
+      if (!space && !back) return;
+      if ((space ? record : undo).disabled) {
+        // After every line is recorded, Space must not scroll the page or toggle playback.
+        if (space) { event.preventDefault(); event.stopImmediatePropagation(); }
+        return;
+      }
       event.preventDefault(); event.stopImmediatePropagation();
       if (!event.repeat) (space ? record : undo).click();
     }, { capture: true, signal: authorShortcutController.signal });
@@ -998,11 +1003,12 @@
 
     panelEl = document.createElement("div");
     panelEl.id = "ytmls-panel";
-    panelEl.setAttribute("aria-live", "polite");
     panelEl.dataset.sync = "none";
 
     statusEl = document.createElement("div");
     statusEl.id = "ytmls-status";
+    // Announce status changes only; a live panel would read every lyric line on each render.
+    statusEl.setAttribute("aria-live", "polite");
     statusEl.textContent = STATE.statusText;
     panelEl.appendChild(statusEl);
 

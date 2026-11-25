@@ -132,3 +132,12 @@ test('editing only font size preserves the masked per-track reading preference',
  assert.equal(h.c.STATE.readingJapanese,true);
  assert.equal(h.run('practiceData.one.settings.readingEnglish'),undefined);
 });
+
+test('Japanese songs keep their own English lines and drop only same-time translations',()=>{
+ const c=vm.createContext({});vm.runInContext(read('src/content/language-filter.js'),c);
+ const lines=[['静かな街に朝が来る',1],['Shizuka na machi ni asa ga kuru',1],['Hello my morning sky',5],['窓辺の光を数えてる',9],['I love you',13],['Mado no hikari',9.02]]
+  .map(([text,time])=>({time,end:null,text,words:[]}));
+ c.input={syncLevel:'line',lines};
+ const result=vm.runInContext("sanitizeCandidateForTrackLanguage(input,'ja')",c);
+ assert.deepEqual(Array.from(result.lines,x=>x.text),['静かな街に朝が来る','Hello my morning sky','窓辺の光を数えてる','I love you']);
+});

@@ -92,15 +92,15 @@
   function parseInlineTimedLrc(lrcText) {
     const base = parseLRC(lrcText, false);
     if (!base.length) return { lines: [], syncLevel: "none" };
-    const rawRows = String(lrcText || "").split(/\r?\n/).filter((x) => /\[\d{1,3}:\d{2}(?:\.\d{1,3})?\]/.test(x));
+    const rawRows = String(lrcText || "").split(/\r?\n/).filter((x) => LRC_TIME_TAG_TEST_RE.test(x));
     const globalOffset = lrcOffsetSeconds(lrcText);
     let bi = 0;
     for (const raw of rawRows) {
       if (!base[bi]) break;
-      const lineTags = [...raw.matchAll(/\[(\d{1,3}):(\d{2}(?:\.\d{1,3})?)\]/g)];
+      const lineTags = [...raw.matchAll(lrcTimeTagRe())];
       if (!lineTags.length) continue; // No corresponding parseLRC row was consumed.
       const expandedCount = lineTags.length;
-      const content = raw.replace(/^\s*(?:\[\d{1,3}:\d{2}(?:\.\d{1,3})?\])+\s*/, "");
+      const content = raw.replace(/^\s*(?:\[\d{1,3}:\d{2}(?:[.:]\d{1,3})?\])+\s*/, "");
       const tagRe = /<(\d{1,3}:\d{2}(?:\.\d+)?)>/g;
       const matches = [...content.matchAll(tagRe)];
       if (matches.length) {
@@ -108,7 +108,7 @@
         // Text before the first word tag starts at the row's own timestamp.
         const leading = content.slice(0, matches[0].index);
         const firstWordTime = angleTimeToSeconds(matches[0][1]);
-        const firstLineTime = Number(lineTags[0][1]) * 60 + Number(lineTags[0][2]);
+        const firstLineTime = lrcTagSeconds(lineTags[0][1], lineTags[0][2]);
         if (leading.trim() && firstWordTime != null && Number.isFinite(firstLineTime)) {
           words.push({ text: leading, time: Math.min(firstLineTime, firstWordTime), end: firstWordTime, background: false });
         }
@@ -126,7 +126,7 @@
             const line = base[bi + copyIndex];
             if (!line) continue;
             const shift = Number.isFinite(firstLineTime) && Number.isFinite(line.time)
-              ? Number(lineTags[copyIndex][1]) * 60 + Number(lineTags[copyIndex][2]) - firstLineTime + globalOffset
+              ? lrcTagSeconds(lineTags[copyIndex][1], lineTags[copyIndex][2]) - firstLineTime + globalOffset
               : 0;
             line.words = words.map((word) => ({
               ...word,

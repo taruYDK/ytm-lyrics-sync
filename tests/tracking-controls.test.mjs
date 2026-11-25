@@ -114,3 +114,25 @@ test('user data save failures from runtime messaging are shown in Japanese', asy
   c.chrome.runtime.sendMessage = async () => ({ok: false, error: 'ほかの画面で読み仮名が更新されました。'});
   await assert.rejects(c.sendUserDataMutation({action: 'entry'}), {message: 'ほかの画面で読み仮名が更新されました。'});
 });
+
+test('a candidate chosen during the search is not reported as missing when the search ends', async () => {
+  let statuses = [];
+  const STATE = {manualSearchOverridesLoaded:true, pinnedLyricsLoaded:true, localLyricsLoaded:true, trackCandidateKey:'', trackCandidateSince:0,
+    lastTrackKey:null, searchGeneration:0, lyricCandidates:[], providerEnabled:{youtubeMusic:true, betterLyrics:false, lrclib:false, unison:false, binilyrics:false, karalyr:false},
+    lyricsCache:new Map(), videoIdChangedAt:0, observedVideoId:'', manualSelectedCandidateId:'', hasLyricsResult:false};
+  let now = 0;
+  const c = vm.createContext({STATE, performance:{now:()=>now}, setTimeout, clearTimeout,
+    getVideoElement:()=>null, getFreshPlayerSnapshot:()=>({videoId:'song', playerState:1}), getVideoId:()=> 'song', getPlayerVideoIdFromDom:()=> 'song',
+    getTrackInfo:()=>({videoId:'song', title:'曲', artist:'歌手'}), effectiveSearchInfo:i=>i, titlesLikelySame:()=>false,
+    openLyricsTabForTrack(){}, getAuthoritativeVideoId:()=> 'song', updateLyricsToolsUi(){}, localLyricsResult:()=>null, getPinnedLyricsEntry:()=>null,
+    lyricsCacheKey:()=> '', clearLyricsForNewTrack(){ STATE.isSearching = true; }, getTrackDuration:async()=>200, inferTrackLanguage:()=> 'ja',
+    waitForNativeLyrics:async()=>null, detectLyricsLanguageFromText:()=> 'unknown', sanitizeCandidateForTrackLanguage:()=>null, lyricsLanguageFit:()=>-1,
+    candidateRecommendationScore:()=>0, resultQuality:()=>1, lyricCandidateIdentity:r=>r.id, upsertLyricsCandidate(){},
+    applyLyricsResult(){ STATE.hasLyricsResult = true; return true; }, rememberLyricsInCache(){}, applySettings(){}, ensureLyricsMount(){}, renderLines(){},
+    setStatus:text=>statuses.push(text),
+    fetchFromYouTubeMusic:async()=>{ STATE.manualSelectedCandidateId = 'picked'; STATE.hasLyricsResult = true; return null; }});
+  vm.runInContext(source('track-search.js'), c);
+  await c.checkTrackChange(); now = 1000; await c.checkTrackChange();
+  assert.equal(STATE.hasLyricsResult, true);
+  assert.ok(!statuses.some(text => /見つかりませんでした/.test(text)), statuses.join(' / '));
+});

@@ -84,3 +84,9 @@ test('timing popover anchors to the visible menu summary when the compact button
  c.dismissTrackTimingPopover();
  assert.equal(popover.hidden,true);assert.equal(summary.focused,true);
 });
+
+test('a11y: only the status line is a live region, not the whole lyrics panel',()=>{
+ const source=read('src/content/lyrics-panel.js');
+ assert.doesNotMatch(source,/panelEl\.setAttribute\("aria-live"/);
+ assert.match(source,/statusEl\.setAttribute\("aria-live", "polite"\)/);
+});
