@@ -6383,6 +6383,7 @@ function readingTokensToRomaji(tokens) {
     // 曲変更検知経路に関係なく、検索開始が確定した時点でLyricsタブを優先する。
     // endedイベントを取りこぼした場合でも「次のコンテンツ」のままにならない。
     openLyricsTabForTrack(info.videoId || getAuthoritativeVideoId());
+    if (typeof warmJapaneseReadings === "function") warmJapaneseReadings();
     if (info.videoId) STATE.stableTrackVideoId = info.videoId;
     STATE.stableTrackTitle = info.title || STATE.stableTrackTitle;
     const myGeneration = ++STATE.searchGeneration;
@@ -7095,6 +7096,17 @@ function readingTokensToRomaji(tokens) {
   // Reading annotations are display-only. Never write ruby text into STATE.lines.
   let lyricsReadingGeneration = 0;
   const lyricsReadingCache = new Map();
+
+  // Loading the Japanese dictionary takes about a second the first time (and again after it
+  // idles out). Start it while lyrics are still being searched so readings appear with them.
+  let readingWarmupAt = -Infinity;
+  function warmJapaneseReadings() {
+    if (STATE.readingJapanese === false || STATE.contextInvalidated) return;
+    const now = performance.now();
+    if (now - readingWarmupAt < 60000) return;
+    readingWarmupAt = now;
+    try { void chrome.runtime.sendMessage({type:'YTMLS_JAPANESE_TOKENS',text:'歌詞'}).catch(() => {}); } catch (_) {}
+  }
 
   function getJapaneseReadingTokenizer() {
     return Promise.resolve({tokenize:async text=>{

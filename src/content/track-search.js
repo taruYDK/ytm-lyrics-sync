@@ -67,6 +67,7 @@
     // 曲変更検知経路に関係なく、検索開始が確定した時点でLyricsタブを優先する。
     // endedイベントを取りこぼした場合でも「次のコンテンツ」のままにならない。
     openLyricsTabForTrack(info.videoId || getAuthoritativeVideoId());
+    if (typeof warmJapaneseReadings === "function") warmJapaneseReadings();
     if (info.videoId) STATE.stableTrackVideoId = info.videoId;
     STATE.stableTrackTitle = info.title || STATE.stableTrackTitle;
     const myGeneration = ++STATE.searchGeneration;

@@ -196,3 +196,14 @@ test('English readings use long "o" and familiar spellings for frequent lyric wo
   const dictionary = JSON.parse(fs.readFileSync(new URL('../extension/vendor/readings/english.json', import.meta.url), 'utf8'));
   assert.deepEqual(['ok', 'wow', 'dash', 'happy', 'open'].map(word => dictionary[word]), ['オーケー', 'ワオ', 'ダッシュ', 'ハッピー', 'オープン']);
 });
+
+test('the Japanese dictionary is warmed up at most once a minute and only when readings are on', () => {
+  const sent = [];let now = 0;
+  const c = vm.createContext({STATE: {readingJapanese: true}, performance: {now: () => now},
+    chrome: {runtime: {sendMessage: message => { sent.push(message); return Promise.resolve({ok: true}); }}}});
+  vm.runInContext(fs.readFileSync(new URL('../src/content/readings.js', import.meta.url), 'utf8'), c);
+  c.warmJapaneseReadings(); c.warmJapaneseReadings();
+  assert.equal(sent.length, 1); assert.equal(sent[0].type, 'YTMLS_JAPANESE_TOKENS');
+  now = 61000; c.warmJapaneseReadings(); assert.equal(sent.length, 2);
+  now = 200000; c.STATE.readingJapanese = false; c.warmJapaneseReadings(); assert.equal(sent.length, 2);
+});
