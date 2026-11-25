@@ -1364,8 +1364,9 @@ html.music-glass-hide-scrollbar .ytmls-full-list::-webkit-scrollbar { display:no
 /* Fullscreen: keep readings centered over their words and the lyrics in a centered column. */
 #ytmls-fullscreen .ytmls-ruby { ruby-position: over; ruby-align: center; }
 #ytmls-fullscreen .ytmls-ruby rt { letter-spacing: .02em; }
-#ytmls-fullscreen > h1,
-#ytmls-fullscreen > .ytmls-full-list {
+/* "中央" keeps the lyrics in a centered column; "左" uses the full width from the left edge. */
+#ytmls-fullscreen[data-align="center"] > h1,
+#ytmls-fullscreen[data-align="center"] > .ytmls-full-list {
   box-sizing: border-box;
   width: min(100%, 960px);
   margin-inline: auto;
@@ -1374,8 +1375,8 @@ html.music-glass-hide-scrollbar .ytmls-full-list::-webkit-scrollbar { display:no
 /* Fullscreen: lyrics fade out at the top and bottom instead of running under the title. */
 #ytmls-fullscreen > h1 { margin-bottom: 8px; }
 #ytmls-fullscreen > .ytmls-full-list {
-  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 14%, #000 86%, transparent 100%);
-  mask-image: linear-gradient(to bottom, transparent 0, #000 14%, #000 86%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, transparent 5%, #000 18%, #000 86%, transparent 100%);
+  mask-image: linear-gradient(to bottom, transparent 0, transparent 5%, #000 18%, #000 86%, transparent 100%);
 }
 #ytmls-fullscreen[data-align="center"] > h1,
 #ytmls-fullscreen[data-align="center"] .ytmls-full-line { text-align: center; }
