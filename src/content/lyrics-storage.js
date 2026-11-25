@@ -436,6 +436,7 @@
     STATE.activeCandidateId = "";
     STATE.manualSelectedCandidateId = "";
     STATE.isCollectingCandidates = false;
+    STATE.candidateSearchKey = "";
     STATE.lyricsAppliedAt = 0;
     STATE.displayedVideoId = "";
     STATE.currentIndex = -1;

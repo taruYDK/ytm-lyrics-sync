@@ -141,3 +141,21 @@ test('Japanese songs keep their own English lines and drop only same-time transl
  const result=vm.runInContext("sanitizeCandidateForTrackLanguage(input,'ja')",c);
  assert.deepEqual(Array.from(result.lines,x=>x.text),['静かな街に朝が来る','Hello my morning sky','窓辺の光を数えてる','I love you']);
 });
+
+test('Japanese songs also drop translations of kanji-only lines and slightly shifted ones',()=>{
+ const c=vm.createContext({});vm.runInContext(read('src/content/language-filter.js'),c);
+ const lines=[['運命',10],['unmei',10],['Destiny',10],['静かな夜',20],['Shizuka na yoru',20.2],['Hello my morning sky',25]]
+  .map(([text,time])=>({time,end:null,text,words:[]}));
+ c.input={syncLevel:'line',lines};
+ const result=vm.runInContext("sanitizeCandidateForTrackLanguage(input,'ja')",c);
+ assert.deepEqual(Array.from(result.lines,x=>x.text),['運命','静かな夜','Hello my morning sky']);
+});
+
+test('fullscreen header follows the cover on every refresh and a picked alignment wins over the stored one',()=>{
+ const text=read('src/content/practice.js');
+ const refresh=text.slice(text.indexOf('function refreshPracticeFullscreen'),text.indexOf('function syncPracticeFullscreenTracking'));
+ assert.match(refresh,/paintPracticeBackground\(box\);updatePracticeFullscreenHeader\(box\);/);
+ assert.equal((refresh.match(/updatePracticeFullscreenHeader/g)||[]).length,1,'not only when the lyrics change');
+ assert.match(text,/const chooseAlign = value => \{\n  box\.alignChosen = true;/);
+ assert.match(text,/practiceFullscreen === box && !box\.alignChosen\) setAlign\(/);
+});

@@ -379,12 +379,17 @@
     const sourceLines = firstPass && Array.isArray(firstPass.lines) ? firstPass.lines : result.lines;
     const kept = [];
     let removed = Number(firstPass && firstPass._translationRowsRemoved) || 0;
-    // Translation and romaji rows share the timestamp of the Japanese row they translate.
+    // Translation and romaji rows share the timestamp of the Japanese row they translate
+    // (some sources shift them slightly). A kanji-only row such as 「運命」 counts as Japanese too.
     // English rows with their own timestamp are part of the song and must stay.
     const japaneseTimes = expected === "ja"
-      ? sourceLines.filter((line) => Number.isFinite(line?.time) && getScriptStats(lineTextForLanguage(line)).kana >= 1).map((line) => line.time)
+      ? sourceLines.filter((line) => {
+        if (!Number.isFinite(line?.time)) return false;
+        const stats = getScriptStats(lineTextForLanguage(line));
+        return stats.kana + stats.han >= 1;
+      }).map((line) => line.time)
       : [];
-    const sharesJapaneseTime = (line) => Number.isFinite(line?.time) && japaneseTimes.some((time) => Math.abs(time - line.time) < 0.05);
+    const sharesJapaneseTime = (line) => Number.isFinite(line?.time) && japaneseTimes.some((time) => Math.abs(time - line.time) < 0.3);
 
     for (const line of sourceLines) {
       const text = lineTextForLanguage(line);

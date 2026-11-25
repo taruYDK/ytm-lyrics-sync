@@ -21,6 +21,7 @@
   const LABELS = {
     found: '歌詞あり', notfound: '応答あり・見つからず', offline: '接続できません', error: 'エラー',
     testing: '確認中…', nosong: '曲を再生するとテストできます', notab: 'YouTube Musicを開いてください',
+    reload: 'YouTube Musicのページを再読み込みしてください',
   };
 
   // Classifies one background fetch result.
@@ -38,15 +39,24 @@
     return {...classify(response, probe), ms: Math.round(performance.now() - started)};
   }
 
+  // Asks the YouTube Music tab that is playing (or in front) first, then the others.
   async function runYouTubeMusicProbe() {
     let tabs = [];
     try { tabs = await chrome.tabs.query({url: 'https://music.youtube.com/*'}); } catch (_) {}
     if (!tabs.length) return {state: 'notab'};
+    const rank = tab => (tab.audible ? 4 : 0) + (tab.active ? 2 : 0);
+    tabs = [...tabs].sort((a, b) => rank(b) - rank(a) || (b.lastAccessed || 0) - (a.lastAccessed || 0));
     const started = performance.now();
-    try {
-      const result = await chrome.tabs.sendMessage(tabs[0].id, {type: 'YTMLS_TEST_YTM'});
-      return {...(result || {state: 'notab'}), ms: Math.round(performance.now() - started), currentSong: true};
-    } catch (_) { return {state: 'notab'}; }
+    let fallback = null;
+    for (const tab of tabs) {
+      let result = null;
+      try { result = await chrome.tabs.sendMessage(tab.id, {type: 'YTMLS_TEST_YTM'}); } catch (_) { continue; }
+      if (!result) continue;
+      if (result.state !== 'nosong') return {...result, ms: Math.round(performance.now() - started), currentSong: true};
+      fallback = fallback || result;
+    }
+    // The tab is open but its content script does not answer (e.g. the extension was reloaded).
+    return fallback || {state: 'reload'};
   }
 
   function render(list, rows) {

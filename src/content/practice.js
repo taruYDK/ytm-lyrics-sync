@@ -259,6 +259,7 @@ function openPracticeFullscreen() {
   alignCenter.setAttribute('aria-pressed', String(value === 'center'));
  };
  const chooseAlign = value => {
+  box.alignChosen = true;
   setAlign(value);
   box.pendingFollow = true; syncPracticeFullscreenTracking();
   try { chrome.storage.sync.set({fullscreenAlign:value}, () => { void chrome.runtime.lastError; }); } catch (_) {}
@@ -268,7 +269,7 @@ function openPracticeFullscreen() {
  alignLeft.setAttribute('aria-label', '歌詞を左寄せで表示');
  alignCenter.setAttribute('aria-label', '歌詞を中央寄せで表示');
  setAlign('left');
- try { chrome.storage.sync.get({fullscreenAlign:'left'}, data => { if (!chrome.runtime.lastError && practiceFullscreen === box) setAlign(data.fullscreenAlign === 'center' ? 'center' : 'left'); }); } catch (_) {}
+ try { chrome.storage.sync.get({fullscreenAlign:'left'}, data => { if (!chrome.runtime.lastError && practiceFullscreen === box && !box.alignChosen) setAlign(data.fullscreenAlign === 'center' ? 'center' : 'left'); }); } catch (_) {}
  // Header: small cover, title and artist (kept in step with the song in refreshPracticeFullscreen).
  const head=document.createElement('header');head.className='ytmls-full-head';
  const cover=document.createElement('img');cover.className='ytmls-full-cover';cover.alt='';cover.decoding='async';
@@ -288,18 +289,21 @@ function openPracticeFullscreen() {
  if(box.requestFullscreen)void box.requestFullscreen().then(()=>{box.dataset.native='true';}).catch(()=>{});
 }
 function updatePracticeFullscreenHeader(box) {
- box.querySelector('.ytmls-full-head h1').textContent=STATE.lastDisplayedTitle||'歌詞';
- const artist=box.querySelector('.ytmls-full-artist');artist.textContent=STATE.lastDisplayedArtist||'';artist.hidden=!artist.textContent;
+ // Runs on every refresh: YouTube Music often swaps the cover after the new lyrics are shown.
+ const heading=box.querySelector('.ytmls-full-head h1'),titleText=STATE.lastDisplayedTitle||'歌詞';
+ if(heading.textContent!==titleText)heading.textContent=titleText;
+ const artist=box.querySelector('.ytmls-full-artist'),artistText=STATE.lastDisplayedArtist||'';
+ if(artist.textContent!==artistText)artist.textContent=artistText;artist.hidden=!artistText;
  const image=document.querySelector('ytmusic-player-bar .thumbnail-image-wrapper img,ytmusic-player-bar img.image,ytmusic-player #song-image img');
  const src=image?.currentSrc||image?.src||'';const cover=box.querySelector('.ytmls-full-cover');
  if(cover.getAttribute('src')!==src){if(src)cover.src=src;else cover.removeAttribute('src');}
- cover.hidden=!src;
+ if(cover.hidden!==!src)cover.hidden=!src;
 }
 function refreshPracticeFullscreen() {
  const box=practiceFullscreen;if(!box || box.inert)return;if(!STATE.enabled){closePracticeFullscreen(false);return;}
- paintPracticeBackground(box);
+ paintPracticeBackground(box);updatePracticeFullscreenHeader(box);
  const sig=[STATE.displayedVideoId,STATE.activeCandidateId,practiceExtrasGeneration,STATE.lines.length].join(':');const list=box.querySelector('.ytmls-full-list');
- if(sig!==practiceFullSignature){practiceFullSignature=sig;practiceFullIndex=-1;updatePracticeFullscreenHeader(box);const restoreFocus=list.contains(document.activeElement);list.replaceChildren();if(restoreFocus)box.focus({preventScroll:true});const renderedId=STATE.displayedVideoId,renderedLines=STATE.lines;for(let i=0;i<STATE.lines.length;i++){const b=document.createElement('button');b.className='ytmls-full-line ytmls-line';b.append(...[...(listEl?.children[i]?.childNodes||[])].map(x=>x.cloneNode(true)));if(!b.childNodes.length)b.textContent=STATE.lines[i].text;b.addEventListener('keydown',e=>handlePracticeLineKey(e,renderedId,renderedLines,b));b.addEventListener('click',()=>{if(practiceCurrent(renderedId,renderedLines)){box.manualUntil=0;box.pendingFollow=true;practiceSeek(i);}});list.append(b);}}
+ if(sig!==practiceFullSignature){practiceFullSignature=sig;practiceFullIndex=-1;const restoreFocus=list.contains(document.activeElement);list.replaceChildren();if(restoreFocus)box.focus({preventScroll:true});const renderedId=STATE.displayedVideoId,renderedLines=STATE.lines;for(let i=0;i<STATE.lines.length;i++){const b=document.createElement('button');b.className='ytmls-full-line ytmls-line';b.append(...[...(listEl?.children[i]?.childNodes||[])].map(x=>x.cloneNode(true)));if(!b.childNodes.length)b.textContent=STATE.lines[i].text;b.addEventListener('keydown',e=>handlePracticeLineKey(e,renderedId,renderedLines,b));b.addEventListener('click',()=>{if(practiceCurrent(renderedId,renderedLines)){box.manualUntil=0;box.pendingFollow=true;practiceSeek(i);}});list.append(b);}}
  syncPracticeFullscreenTracking();
 }
 function syncPracticeFullscreenTracking() {

@@ -144,7 +144,7 @@ test('a candidate chosen during the search is not reported as missing when the s
 
 test('opening the candidate list collects other providers without switching the shown lyrics', async () => {
   const lines = text => [{time: 1, text}];
-  const STATE = {lastTrackKey: 'k', searchGeneration: 3, isSearching: false, candidateSearchKey: '', activeSearchInfo: {videoId: 'v', title: 't', artist: 'a'},
+  const STATE = {lastTrackKey: 'v::t::a', searchGeneration: 3, isSearching: false, candidateSearchKey: '', candidateCollectToken: 0, lastTrackInfo: {videoId: 'v', title: 't', artist: 'a'},
     providerEnabled: {youtubeMusic: false, betterLyrics: false, lrclib: true, unison: true, binilyrics: false, karalyr: false},
     lyricCandidates: [{id: 'cached', result: {_providerKey: 'lrclib', lines: lines('A'), syncLevel: 'line'}}]};
   let applied = 0, calls = 0, refreshes = 0;
@@ -162,4 +162,52 @@ test('opening the candidate list collects other providers without switching the 
   assert.deepEqual(STATE.lyricCandidates.map(x => x.id), ['cached', 'unison:B']);
   assert.equal(applied, 0); assert.equal(STATE.isCollectingCandidates, false); assert.ok(refreshes >= 2);
   await c.collectMoreCandidates(); assert.equal(calls, 3, 'searches once per song');
+});
+
+function collector(overrides = {}) {
+  const STATE = {lastTrackKey: 'v::t::a', searchGeneration: 3, isSearching: false, candidateSearchKey: '', candidateCollectToken: 0,
+    lastTrackInfo: {videoId: 'v', title: 't', artist: 'a'}, activeSearchInfo: {videoId: 'v2', title: 'next', artist: 'b'},
+    providerEnabled: {youtubeMusic: false, betterLyrics: false, lrclib: false, unison: true, binilyrics: false, karalyr: false},
+    lyricCandidates: [], ...overrides};
+  const queried = []; let release;
+  const gate = new Promise(resolve => { release = resolve; });
+  const c = vm.createContext({STATE,
+    getTrackDuration: async () => 200, inferTrackLanguage: () => 'ja', sanitizeCandidateForTrackLanguage: r => r,
+    candidateRecommendationScore: () => 50, lyricsTextForLanguage: r => r.lines.map(l => l.text).join('\n'),
+    lyricCandidateIdentity: r => r._providerKey + ':' + r.lines[0].text,
+    upsertLyricsCandidate: r => STATE.lyricCandidates.push({id: r._candidateId, result: r}),
+    refreshCandidatePane() {}, applyLyricsResult() {},
+    fetchFromUnison: async info => { queried.push(info.title); await gate; return {lines: [{time: 1, text: 'B'}], syncLevel: 'line'}; }});
+  vm.runInContext(source('track-search.js'), c);
+  return {c, STATE, queried, release};
+}
+
+test('candidate collection searches the song the list belongs to, not the next one still settling', async () => {
+  const h = collector();
+  const run = h.c.collectMoreCandidates(); h.release(); await run;
+  assert.deepEqual(h.queried, ['t']);
+  const mismatch = collector({lastTrackInfo: {videoId: 'v2', title: 'next', artist: 'b'}});
+  await mismatch.c.collectMoreCandidates();
+  assert.deepEqual(mismatch.queried, [], 'info that does not match the key is not searched');
+  assert.equal(mismatch.STATE.isCollectingCandidates, undefined);
+});
+
+test('an abandoned candidate collection clears its note and lets the list retry', async () => {
+  const h = collector();
+  const run = h.c.collectMoreCandidates();
+  assert.equal(h.STATE.isCollectingCandidates, true);
+  h.STATE.searchGeneration++; // e.g. local lyrics were saved while providers were running
+  h.release(); await run;
+  assert.equal(h.STATE.isCollectingCandidates, false);
+  assert.equal(h.STATE.candidateSearchKey, '');
+  assert.deepEqual(h.STATE.lyricCandidates, [], 'results from the abandoned run are dropped');
+});
+
+test('a new search for a song resets its candidate collection so returning to it fills the list again', () => {
+  const text = source('track-search.js'); const storage = source('lyrics-storage.js');
+  const start = text.slice(text.indexOf('STATE.lastTrackKey = key;'), text.indexOf('const oldNativeSignature'));
+  assert.match(start, /STATE\.lastTrackInfo = info;/);
+  assert.match(start, /STATE\.candidateSearchKey = "";/);
+  const clear = storage.slice(storage.indexOf('function clearLyricsForNewTrack'), storage.indexOf('STATE.isSearching = true;', storage.indexOf('function clearLyricsForNewTrack')));
+  assert.match(clear, /STATE\.candidateSearchKey = "";/);
 });

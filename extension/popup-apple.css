@@ -134,7 +134,7 @@ input[type=range]:disabled { opacity:.5; cursor:wait; }
 .provider-test-row::before { content:""; position:absolute; top:0; left:14px; right:0; height:1px; background:var(--separator); }
 .provider-test-row::after { content:""; position:absolute; left:14px; top:50%; width:8px; height:8px; margin-top:-4px; border-radius:50%; background:var(--sub); }
 .provider-test-row[data-state="found"]::after { background:#30d158; }
-.provider-test-row[data-state="notfound"]::after { background:#ffd60a; }
+.provider-test-row[data-state="notfound"]::after, .provider-test-row[data-state="reload"]::after { background:#ffd60a; }
 .provider-test-row[data-state="offline"]::after, .provider-test-row[data-state="error"]::after { background:#ff453a; }
 .provider-test-row[data-state="testing"]::after { animation:provider-test-pulse 1s ease-in-out infinite alternate; }
 @keyframes provider-test-pulse { from { opacity:.3; } to { opacity:1; } }

@@ -64,6 +64,7 @@
     if (now - STATE.trackCandidateSince < 450) return;
 
     STATE.lastTrackKey = key;
+    STATE.lastTrackInfo = info;
     // 曲変更検知経路に関係なく、検索開始が確定した時点でLyricsタブを優先する。
     // endedイベントを取りこぼした場合でも「次のコンテンツ」のままにならない。
     openLyricsTabForTrack(info.videoId || getAuthoritativeVideoId());
@@ -72,6 +73,8 @@
     STATE.stableTrackTitle = info.title || STATE.stableTrackTitle;
     const myGeneration = ++STATE.searchGeneration;
     STATE.lyricCandidates = [];
+    STATE.candidateSearchKey = "";
+    STATE.isCollectingCandidates = false;
     STATE.activeCandidateId = "";
     STATE.manualSelectedCandidateId = "";
     updateLyricsToolsUi();
@@ -324,13 +327,18 @@
   // on screen are never switched automatically.
   async function collectMoreCandidates() {
     const key = STATE.lastTrackKey;
-    const info = STATE.activeSearchInfo || STATE.activeBaseInfo;
+    // Use the info the current key was built from: activeSearchInfo already points at the next
+    // song while the track change is still settling.
+    const info = STATE.lastTrackInfo;
     const generation = STATE.searchGeneration;
     if (!key || !info || STATE.isSearching || STATE.candidateSearchKey === key) return;
+    if (`${info.videoId || ""}::${info.title}::${info.artist}` !== key) return;
     STATE.candidateSearchKey = key;
     STATE.isCollectingCandidates = true;
+    const token = ++STATE.candidateCollectToken;
     refreshCandidatePane();
     const current = () => key === STATE.lastTrackKey && generation === STATE.searchGeneration;
+    let finished = false;
     const expected = inferTrackLanguage(info);
     const sameText = (a, b) => a._providerKey === b._providerKey &&
       lyricsTextForLanguage(a).slice(0, 120) === lyricsTextForLanguage(b).slice(0, 120);
@@ -350,9 +358,14 @@
         upsertLyricsCandidate(candidate);
         refreshCandidatePane();
       }));
+      finished = current();
     } finally {
-      if (current()) {
+      // A newer collection owns the flag; otherwise always clear it, even when a new search
+      // (saved local lyrics, manual search) replaced this one on the same track.
+      if (token === STATE.candidateCollectToken) {
         STATE.isCollectingCandidates = false;
+        // An abandoned run did not search every provider, so let the next opening retry.
+        if (!finished && STATE.candidateSearchKey === key) STATE.candidateSearchKey = "";
         refreshCandidatePane();
       }
     }

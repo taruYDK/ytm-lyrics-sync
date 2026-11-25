@@ -1441,8 +1441,8 @@ html #ytmls-fullscreen .ytmls-full-line:not(.active):hover { filter: none !impor
 #ytmls-track-offset-popover .ytmls-track-offset-range::-webkit-slider-runnable-track {
   height: 4px; border-radius: 999px;
   background: linear-gradient(to right,
-    rgba(var(--ytmls-ink), .18) var(--from, 50%), var(--mg-accent-strong, #ff4f6d) var(--from, 50%),
-    var(--mg-accent-strong, #ff4f6d) var(--to, 50%), rgba(var(--ytmls-ink), .18) var(--to, 50%));
+    rgba(var(--ytmls-ink), .18) var(--from, 50%), var(--mg-accent, #ff4f6d) var(--from, 50%),
+    var(--mg-accent, #ff4f6d) var(--to, 50%), rgba(var(--ytmls-ink), .18) var(--to, 50%));
 }
 #ytmls-track-offset-popover .ytmls-track-offset-range::-webkit-slider-thumb {
   -webkit-appearance: none; appearance: none; width: 20px; height: 20px; margin-top: -8px; border-radius: 50%;

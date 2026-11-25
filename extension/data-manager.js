@@ -109,7 +109,8 @@ function renderSavedTracks() {
     main.append(title, artist, tags);
     const side = document.createElement("span");
     side.className = "track-side";
-    if (track.updatedAt) {
+    // A restored backup may hold a time outside the Date range; toISOString would throw.
+    if (track.updatedAt && Number.isFinite(new Date(track.updatedAt).getTime())) {
       const date = document.createElement("time");
       date.className = "track-date";
       date.dateTime = new Date(track.updatedAt).toISOString();

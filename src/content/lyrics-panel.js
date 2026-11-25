@@ -258,11 +258,29 @@
   // Re-render the open candidate list in place (renderCandidatePane toggles when called directly).
   function refreshCandidatePane() {
     updateLyricsToolsUi();
+    candidateRefreshPending = false;
     if (!lyricsToolsPaneEl || lyricsToolsPaneEl.hidden || lyricsToolsPaneMode !== "candidates" || candidateSaveBusy) return;
+    if (candidatePointerDown) {
+      candidateRefreshPending = true;
+      return;
+    }
+    // Keep keyboard focus on the same control of the same candidate across the rebuild.
+    const focused = document.activeElement;
+    const focusedRow = focused && lyricsToolsPaneEl.contains(focused) ? focused.closest(".ytmls-candidate-row") : null;
+    const focusedClass = focused && lyricsToolsPaneEl.contains(focused)
+      ? ["ytmls-candidate-select", "ytmls-candidate-pin", "ytmls-tools-close"].find((name) => focused.classList.contains(name))
+      : "";
+    const focusedId = focusedRow ? focusedRow.dataset.candidateId : "";
     const scrollTop = lyricsToolsPaneEl.scrollTop;
     lyricsToolsPaneMode = "";
     renderCandidatePane();
     lyricsToolsPaneEl.scrollTop = scrollTop;
+    if (focusedClass) {
+      const rows = Array.from(lyricsToolsPaneEl.querySelectorAll(".ytmls-candidate-row"));
+      const scope = focusedId ? rows.find((row) => row.dataset.candidateId === focusedId) : lyricsToolsPaneEl;
+      const target = scope && scope.querySelector(`.${focusedClass}`);
+      if (target) target.focus({ preventScroll: true });
+    }
   }
 
   function renderManualSearchPane() {
@@ -1132,6 +1150,15 @@
     lyricsToolsPaneEl = document.createElement("div");
     lyricsToolsPaneEl.id = "ytmls-tools-pane";
     lyricsToolsPaneEl.hidden = true;
+    // Rebuilding the candidate list under a press would swallow the click: wait until it ends.
+    lyricsToolsPaneEl.addEventListener("pointerdown", () => { candidatePointerDown = true; });
+    const endCandidatePress = () => {
+      if (!candidatePointerDown) return;
+      candidatePointerDown = false;
+      if (candidateRefreshPending) setTimeout(refreshCandidatePane, 0);
+    };
+    window.addEventListener("pointerup", endCandidatePress, true);
+    window.addEventListener("pointercancel", endCandidatePress, true);
     panelEl.appendChild(lyricsToolsPaneEl);
 
     listEl = document.createElement("div");
@@ -1257,7 +1284,8 @@
   function setStatus(text) {
     if (STATE.contextInvalidated) text = CONTEXT_RELOAD_MESSAGE;
     // すでに歌詞を表示できている間は、裏検索の進捗表示で見出しを上書きしない。
-    if (STATE.hasLyricsResult && STATE.isSearching &&
+    // 歌詞候補を開いたときの裏の候補集めでも同じ。
+    if (STATE.hasLyricsResult && (STATE.isSearching || STATE.isCollectingCandidates) &&
         /(探し中|検索中|確認中|準備中|探索中)/.test(String(text || ""))) {
       return;
     }

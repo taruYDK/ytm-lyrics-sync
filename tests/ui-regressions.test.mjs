@@ -123,3 +123,41 @@ test('word glow applies only while its setting is on (panel and fullscreen)',()=
  assert.match(panel,/panelEl\.dataset\.wordGlow = STATE\.wordGlow === false \? "off" : "on"/);
  assert.match(practice,/box\.dataset\.wordGlow=STATE\.wordGlow===false\?'off':'on'/);
 });
+
+const extractFunction=(text,name)=>{const start=text.indexOf(`function ${name}(`);let depth=0,i=text.indexOf('{',start);for(;i<text.length;i++){if(text[i]==='{')depth++;else if(text[i]==='}'&&--depth===0)break;}return text.slice(start,i+1);};
+
+test('candidate collection never leaves provider progress in the panel header',()=>{
+ const statusEl={textContent:'LRCLIB'};
+ const c=vm.createContext({STATE:{hasLyricsResult:true,isSearching:false,isCollectingCandidates:true,statusText:'LRCLIB'},statusEl,updatePlayerBarHealth(){},updateDiagnosticsSummary(){}});
+ vm.runInContext(extractFunction(read('src/content/lyrics-panel.js'),'setStatus'),c);
+ c.setStatus('Better Lyricsで音節同期を探し中… 1/6');
+ assert.equal(statusEl.textContent,'LRCLIB');
+ c.STATE.isCollectingCandidates=false;c.setStatus('Better Lyricsで音節同期を探し中… 1/6');
+ assert.equal(statusEl.textContent,'Better Lyricsで音節同期を探し中… 1/6');
+});
+
+test('refreshing the candidate list keeps focus on the same candidate and waits for a press to end',()=>{
+ const make=(id,cls)=>{const el={id,cls,classList:{contains:n=>n===cls},closest:()=>row,focus(){c.document.activeElement=el;}};const row={dataset:{candidateId:id},querySelector:s=>s==='.'+cls?el:null};el.row=row;return el;};
+ let rows=[],renders=0;
+ const pane={hidden:false,scrollTop:40,contains:el=>rows.includes(el),querySelectorAll:()=>rows.map(e=>e.row)};
+ const c=vm.createContext({lyricsToolsPaneEl:pane,lyricsToolsPaneMode:'candidates',candidateSaveBusy:false,candidatePointerDown:false,candidateRefreshPending:false,
+  document:{activeElement:null},updateLyricsToolsUi(){},
+  renderCandidatePane(){renders++;rows=['a','b'].map(id=>make(id,'ytmls-candidate-pin'));pane.scrollTop=0;c.lyricsToolsPaneMode='candidates';}});
+ vm.runInContext(extractFunction(read('src/content/lyrics-panel.js'),'refreshCandidatePane'),c);
+ c.renderCandidatePane();pane.scrollTop=40;const old=rows[1];c.document.activeElement=old;
+ c.refreshCandidatePane();
+ assert.notEqual(c.document.activeElement,old);
+ assert.equal(c.document.activeElement.row.dataset.candidateId,'b');
+ assert.equal(c.document.activeElement.cls,'ytmls-candidate-pin');
+ assert.equal(pane.scrollTop,40);
+ vm.runInContext('candidatePointerDown=true',c);const before=renders;c.refreshCandidatePane();
+ assert.equal(renders,before,'no rebuild under a press');assert.equal(vm.runInContext('candidateRefreshPending',c),true);
+ const panel=read('src/content/lyrics-panel.js');
+ assert.match(panel,/addEventListener\("pointerdown", \(\) => \{ candidatePointerDown = true; \}\)/);
+ assert.match(panel,/if \(candidateRefreshPending\) setTimeout\(refreshCandidatePane, 0\);/);
+});
+
+test('saved-tracks list skips a date outside the Date range instead of failing',()=>{
+ assert.match(read('data-manager.js'),/track\.updatedAt && Number\.isFinite\(new Date\(track\.updatedAt\)\.getTime\(\)\)/);
+ assert.doesNotMatch(read('style.css'),/--mg-accent-strong/);
+});

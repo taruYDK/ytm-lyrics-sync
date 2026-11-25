@@ -33,3 +33,27 @@ test('provider test classifies answers, missing lyrics, outages and HTTP errors'
   assert.equal(states.Karalyr[0], 'found');
   assert.equal(button.disabled, false);
 });
+
+function ytmProbe(tabs, answers) {
+  let handler, rendered = []; const asked = [];
+  const el = () => ({textContent: '', dataset: {}, className: '', append(...c) { this.children = c; }});
+  const chrome = {
+    runtime: {sendMessage: async () => ({ok: false, status: 0})},
+    tabs: {query: async () => tabs, sendMessage: async id => { asked.push(id); const a = answers[id]; if (a instanceof Error) throw a; return a; }},
+  };
+  vm.runInNewContext(fs.readFileSync(new URL('../extension/provider-check.js', import.meta.url), 'utf8'),
+    {chrome, performance: {now: () => 0}, URL, document: {getElementById: id => ({providerTestButton: {addEventListener: (t, fn) => { handler = fn; }}, providerTestResults: {replaceChildren: (...rows) => { rendered = rows; }}})[id], createElement: el}});
+  return {asked, run: async () => { await handler(); return [rendered[0].dataset.state, rendered[0].children[1].textContent]; }};
+}
+
+test('YouTube Music check asks the playing tab first and tells apart a tab that does not answer', async () => {
+  const playing = ytmProbe([{id: 1, active: false}, {id: 2, audible: true}], {1: {state: 'nosong'}, 2: {state: 'found'}});
+  assert.equal((await playing.run())[0], 'found');
+  assert.deepEqual(playing.asked, [2]);
+  const idleFirst = ytmProbe([{id: 1}, {id: 2}], {1: {state: 'nosong'}, 2: {state: 'notfound'}});
+  assert.equal((await idleFirst.run())[0], 'notfound', 'keeps asking after a tab with no song');
+  const orphaned = ytmProbe([{id: 1}], {1: new Error('Receiving end does not exist')});
+  assert.deepEqual(await orphaned.run(), ['reload', 'YouTube Musicのページを再読み込みしてください']);
+  const noSong = ytmProbe([{id: 1}], {1: {state: 'nosong'}});
+  assert.equal((await noSong.run())[0], 'nosong');
+});
