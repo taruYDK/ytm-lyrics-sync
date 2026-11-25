@@ -1344,7 +1344,9 @@ html.music-glass-hide-scrollbar .ytmls-full-list::-webkit-scrollbar { display:no
 }
 #ytmls-panel .ytmls-line.ytmls-upcoming .ytmls-word { color: inherit; opacity: 1; }
 
-.ytmls-full-size { position:absolute; z-index:2; top:18px; left:18px; display:flex; gap:6px; }
+.ytmls-full-size { position:absolute; z-index:2; top:18px; left:18px; display:flex; gap:14px; }
+.ytmls-full-group { display:flex; gap:6px; }
+.ytmls-full-group button[aria-pressed="true"] { border-color:rgba(255,255,255,.7); background:rgba(255,255,255,.2); }
 .ytmls-full-size button { min-width:44px; min-height:36px; }
 .ytmls-source-badge {
   flex:0 1 auto; min-width:0; max-width:min(14em, 80%); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
@@ -1368,3 +1370,12 @@ html.music-glass-hide-scrollbar .ytmls-full-list::-webkit-scrollbar { display:no
   width: min(100%, 960px);
   margin-inline: auto;
 }
+
+/* Fullscreen: lyrics fade out at the top and bottom instead of running under the title. */
+#ytmls-fullscreen > h1 { margin-bottom: 8px; }
+#ytmls-fullscreen > .ytmls-full-list {
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 14%, #000 86%, transparent 100%);
+  mask-image: linear-gradient(to bottom, transparent 0, #000 14%, #000 86%, transparent 100%);
+}
+#ytmls-fullscreen[data-align="center"] > h1,
+#ytmls-fullscreen[data-align="center"] .ytmls-full-line { text-align: center; }

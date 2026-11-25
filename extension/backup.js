@@ -21,6 +21,7 @@ const SYNC_KEYS = [
   "providerEnabled",
   "uiVersion",
   "backupReminderThreshold",
+  "fullscreenAlign",
 ];
 const LOCAL_KEYS = [
   "ytmlsTrackTimingOffsetsV174",

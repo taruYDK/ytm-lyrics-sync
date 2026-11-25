@@ -228,11 +228,18 @@ function openPracticeFullscreen() {
  const box=document.createElement('div');box.id='ytmls-fullscreen';box.setAttribute('role','dialog');box.setAttribute('aria-label','全画面歌詞');box.setAttribute('aria-modal','true');
  const canvas=document.createElement('canvas');canvas.width=96;canvas.height=96;canvas.className='ytmls-full-backdrop';box.append(canvas);
  const corner=document.createElement('div');corner.className='ytmls-full-corner';box.append(corner);const close=practiceButton(corner,'全画面を閉じる',closePracticeFullscreen);close.className='ytmls-full-close';box.classList.add('ytmls-full-intro');box.closeTimer=setTimeout(()=>{if(practiceFullscreen===box)box.classList.remove('ytmls-full-intro');},3000);
+ const toolbar = document.createElement('div');
+ toolbar.className = 'ytmls-full-size';
  const sizeControls = document.createElement('div');
- sizeControls.className = 'ytmls-full-size';
+ sizeControls.className = 'ytmls-full-group';
  sizeControls.setAttribute('role', 'group');
  sizeControls.setAttribute('aria-label', '歌詞の文字サイズ');
- box.append(sizeControls);
+ const alignControls = document.createElement('div');
+ alignControls.className = 'ytmls-full-group';
+ alignControls.setAttribute('role', 'group');
+ alignControls.setAttribute('aria-label', '歌詞の位置');
+ toolbar.append(sizeControls, alignControls);
+ box.append(toolbar);
  let scale = 100;
  const resize = delta => {
   scale = Math.min(150, Math.max(70, scale + delta));
@@ -244,6 +251,23 @@ function openPracticeFullscreen() {
  const larger = practiceButton(sizeControls, 'A+', () => resize(10));
  smaller.setAttribute('aria-label', '歌詞の文字を小さくする');
  larger.setAttribute('aria-label', '歌詞の文字を大きくする');
+ // Left or centered lyrics; the choice is shared across tabs and kept in backups.
+ const setAlign = value => {
+  box.dataset.align = value;
+  alignLeft.setAttribute('aria-pressed', String(value === 'left'));
+  alignCenter.setAttribute('aria-pressed', String(value === 'center'));
+ };
+ const chooseAlign = value => {
+  setAlign(value);
+  box.pendingFollow = true; syncPracticeFullscreenTracking();
+  try { chrome.storage.sync.set({fullscreenAlign:value}, () => { void chrome.runtime.lastError; }); } catch (_) {}
+ };
+ const alignLeft = practiceButton(alignControls, '左', () => chooseAlign('left'));
+ const alignCenter = practiceButton(alignControls, '中央', () => chooseAlign('center'));
+ alignLeft.setAttribute('aria-label', '歌詞を左寄せで表示');
+ alignCenter.setAttribute('aria-label', '歌詞を中央寄せで表示');
+ setAlign('left');
+ try { chrome.storage.sync.get({fullscreenAlign:'left'}, data => { if (!chrome.runtime.lastError && practiceFullscreen === box) setAlign(data.fullscreenAlign === 'center' ? 'center' : 'left'); }); } catch (_) {}
  const title=document.createElement('h1');title.textContent=STATE.lastDisplayedTitle||'歌詞';box.append(title);const list=document.createElement('div');list.className='ytmls-full-list';box.append(list);
  box.returnFocus=document.activeElement;document.body.append(box);practiceFullscreen=box;trackingDisplayResumedAt=performance.now();document.addEventListener('keydown',handlePracticeFullscreenSpace,true);document.addEventListener('keyup',handlePracticeFullscreenSpace,true);practiceFullSignature='';practiceFullIndex=-1;refreshPracticeFullscreen();box.tabIndex=-1;box.focus();
  box.resizeObserver=new ResizeObserver(()=>{if(practiceFullscreen===box){box.pendingFollow=true;syncPracticeFullscreenTracking();}});box.resizeObserver.observe(list);

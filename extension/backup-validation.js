@@ -96,6 +96,7 @@ globalThis.YTMLSBackupValidation = (() => {
     for (const [key,[min,max]] of Object.entries(ranges)) if (key in data) requireValue(finite(data[key]) && data[key]>=min && data[key]<=max,key);
     if ('backupReminderThreshold' in data) requireValue(Number.isInteger(data.backupReminderThreshold) && data.backupReminderThreshold>=1 && data.backupReminderThreshold<=1000,'backupReminderThreshold');
     if ('wordTrackingStyle' in data) requireValue(['smooth','silky'].includes(data.wordTrackingStyle),'wordTrackingStyle');
+    if ('fullscreenAlign' in data) requireValue(['left','center'].includes(data.fullscreenAlign),'fullscreenAlign');
     const providers=['youtubeMusic','betterLyrics','lrclib','unison','binilyrics','karalyr'];
     if ('providerOrder' in data) requireValue(Array.isArray(data.providerOrder) && data.providerOrder.every(key=>providers.includes(key)),'providerOrder');
     if ('providerEnabled' in data) requireValue(map(data.providerEnabled) && Object.entries(data.providerEnabled).every(([key,value])=>providers.includes(key) && typeof value==='boolean'),'providerEnabled');
