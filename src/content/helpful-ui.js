@@ -46,7 +46,10 @@
     const summary = (source ? text.replace(' · ' + source, '') : text).replace(/^ · /, '');
     const statusText = bar.querySelector('.ytmls-fetch-status-text');
     if (statusText.textContent !== summary) { statusText.textContent = summary; statusText.title = summary; }
-    bar.lastChild.hidden = !(STATE.enabled && STATE.trackingEnabled && STATE.hasSync && isManualScrollPaused());
+    const browsing = Boolean(STATE.trackingEnabled && isManualScrollPaused());
+    // Reading by manual scroll: other lines are shown unblurred.
+    if (panelEl.dataset.browsing !== String(browsing)) panelEl.dataset.browsing = String(browsing);
+    bar.lastChild.hidden = !(STATE.enabled && STATE.trackingEnabled && STATE.hasSync && browsing);
     const more = lyricsToolsEl.querySelector('#ytmls-more');
     const menu = more?.querySelector('.ytmls-more-menu');
     if (menu) fitMoreMenu(more, menu);

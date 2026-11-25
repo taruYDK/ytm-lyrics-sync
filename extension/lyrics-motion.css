@@ -3,11 +3,7 @@
     transform-origin: left center;
     transition: transform 220ms ease, opacity 220ms ease, filter 220ms ease, color 220ms ease;
   }
-  html:not(.ytmls-lyrics-motion-lightweight) #ytmls-panel[data-sync]:not([data-sync="none"]) .ytmls-line.ytmls-active {
-    transform: scale(1.025);
-    filter: none;
-  }
-  html:not(.ytmls-lyrics-motion-lightweight) #ytmls-panel[data-sync]:not([data-sync="none"]) .ytmls-line.ytmls-far { filter: blur(.5px); }
+  /* Current-line scale, shadow and the blur of other lines live in style.css. */
 }
 @media (prefers-reduced-motion: no-preference) {
   html:not(.ytmls-lyrics-motion-lightweight) .ytmls-crossfade-old { animation:ytmls-crossfade-out 220ms ease both; }
@@ -22,4 +18,4 @@ html.music-glass #ytmls-panel[data-tracking-mode="auto"] .ytmls-active .ytmls-wo
 }
 
 /* Reserve enough space for the active line scale. */
-@media (min-width:1101px) { #ytmls-panel > #ytmls-list { padding-right: calc(32px + 2.5%); } }
+@media (min-width:1101px) { #ytmls-panel > #ytmls-list { padding-right: calc(32px + 4%); } }

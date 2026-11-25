@@ -1423,3 +1423,27 @@ html.ytmls-lyrics-motion-lightweight :is(.ytmls-more-menu, #ytmls-tools-pane, #y
   background: var(--ytmls-bg); -webkit-backdrop-filter: none; backdrop-filter: none;
 }
 html.ytmls-lyrics-motion-lightweight :is(.ytmls-full-size button, .ytmls-full-close) { -webkit-backdrop-filter: none; backdrop-filter: none; background: #221e29; }
+
+/* Other lines are softly blurred, more with distance, while lyrics follow playback.
+   Tied to "現在行フォーカス"; cleared while reading by manual scroll, on hover, and in lightweight mode. */
+html:not(.ytmls-lyrics-motion-lightweight) #ytmls-panel[data-focus-fade="on"][data-tracking-mode="auto"]:not([data-sync="none"]):not([data-browsing="true"]) .ytmls-line:not(.ytmls-active) { filter: blur(1.8px); }
+html:not(.ytmls-lyrics-motion-lightweight) #ytmls-panel[data-focus-fade="on"][data-tracking-mode="auto"]:not([data-sync="none"]):not([data-browsing="true"]) .ytmls-line.ytmls-middle:not(.ytmls-active) { filter: blur(1.2px); }
+html:not(.ytmls-lyrics-motion-lightweight) #ytmls-panel[data-focus-fade="on"][data-tracking-mode="auto"]:not([data-sync="none"]):not([data-browsing="true"]) .ytmls-line.ytmls-near:not(.ytmls-active) { filter: blur(.7px); }
+html:not(.ytmls-lyrics-motion-lightweight) #ytmls-fullscreen[data-focus-fade="on"][data-tracking-mode="auto"]:not([data-browsing="true"]) .ytmls-full-line:not(.active) { filter: blur(2.6px); }
+html:not(.ytmls-lyrics-motion-lightweight) #ytmls-fullscreen[data-focus-fade="on"][data-tracking-mode="auto"]:not([data-browsing="true"]) .ytmls-full-line.ytmls-middle:not(.active) { filter: blur(1.7px); }
+html:not(.ytmls-lyrics-motion-lightweight) #ytmls-fullscreen[data-focus-fade="on"][data-tracking-mode="auto"]:not([data-browsing="true"]) .ytmls-full-line.ytmls-near:not(.active) { filter: blur(1px); }
+html #ytmls-panel .ytmls-line:not(.ytmls-active):hover,
+html #ytmls-fullscreen .ytmls-full-line:not(.active):hover { filter: none !important; }
+#ytmls-fullscreen .ytmls-full-line { transition: transform 180ms ease, filter 260ms ease, opacity 220ms ease; }
+
+/* Fullscreen: large, heavy, tightly set lyrics (A-/A+ still scale them). */
+#ytmls-fullscreen .ytmls-full-line {
+  font-size: calc(clamp(34px, 5.2vw, 88px) * var(--ytmls-full-font-scale, 1));
+  font-weight: 800;
+  line-height: 1.42;
+  letter-spacing: -.012em;
+  padding-top: 12px;
+  padding-bottom: 12px;
+}
+#ytmls-fullscreen[data-align="center"] > .ytmls-full-list { max-width: min(100%, 1280px); }
+#ytmls-fullscreen[data-align="center"] > h1 { width: min(100%, 1280px); }

@@ -101,3 +101,10 @@ test('an empty lyrics result still cancels the previous song reading refresh',()
  c.renderLines();
  assert.equal(children.length,1);assert.equal(refreshes,1);
 });
+
+test('CSS: one place controls the current-line filter and the blur of other lines',()=>{
+ const motion=read('lyrics-motion.css'),style=read('style.css');
+ assert.doesNotMatch(motion,/ytmls-active\s*\{[^}]*filter:\s*none/);
+ assert.match(style,/:not\(\[data-browsing="true"\]\) \.ytmls-line:not\(\.ytmls-active\) \{ filter: blur\(/);
+ assert.match(style,/#ytmls-fullscreen\[data-focus-fade="on"\]\[data-tracking-mode="auto"\]:not\(\[data-browsing="true"\]\) \.ytmls-full-line:not\(\.active\) \{ filter: blur\(/);
+});
