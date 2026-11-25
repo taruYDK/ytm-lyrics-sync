@@ -141,3 +141,25 @@ test('a candidate chosen during the search is not reported as missing when the s
   assert.equal(STATE.hasLyricsResult, true);
   assert.ok(!statuses.some(text => /見つかりませんでした/.test(text)), statuses.join(' / '));
 });
+
+test('opening the candidate list collects other providers without switching the shown lyrics', async () => {
+  const lines = text => [{time: 1, text}];
+  const STATE = {lastTrackKey: 'k', searchGeneration: 3, isSearching: false, candidateSearchKey: '', activeSearchInfo: {videoId: 'v', title: 't', artist: 'a'},
+    providerEnabled: {youtubeMusic: false, betterLyrics: false, lrclib: true, unison: true, binilyrics: false, karalyr: false},
+    lyricCandidates: [{id: 'cached', result: {_providerKey: 'lrclib', lines: lines('A'), syncLevel: 'line'}}]};
+  let applied = 0, calls = 0, refreshes = 0;
+  const c = vm.createContext({STATE,
+    getTrackDuration: async () => 200, inferTrackLanguage: () => 'ja', sanitizeCandidateForTrackLanguage: r => r,
+    candidateRecommendationScore: () => 50, lyricsTextForLanguage: r => r.lines.map(l => l.text).join('\n'),
+    lyricCandidateIdentity: r => r._providerKey + ':' + r.lines[0].text,
+    upsertLyricsCandidate: r => STATE.lyricCandidates.push({id: r._candidateId, result: r}),
+    refreshCandidatePane: () => { refreshes++; }, applyLyricsResult: () => { applied++; },
+    fetchFromLrclib: async () => { calls++; return {lines: lines('A'), syncLevel: 'line'}; },
+    fetchFromLrclibQuick: async () => { calls++; return {lines: lines('A'), syncLevel: 'line'}; },
+    fetchFromUnison: async () => { calls++; return {lines: lines('B'), syncLevel: 'word'}; }});
+  vm.runInContext(source('track-search.js'), c);
+  await c.collectMoreCandidates();
+  assert.deepEqual(STATE.lyricCandidates.map(x => x.id), ['cached', 'unison:B']);
+  assert.equal(applied, 0); assert.equal(STATE.isCollectingCandidates, false); assert.ok(refreshes >= 2);
+  await c.collectMoreCandidates(); assert.equal(calls, 3, 'searches once per song');
+});

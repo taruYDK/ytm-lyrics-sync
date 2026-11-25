@@ -105,6 +105,8 @@
       karalyr: true,
     },
     lyricCandidates: [],
+    candidateSearchKey: "", // track whose providers have all been searched for candidates
+    isCollectingCandidates: false,
     activeCandidateId: "",
     manualSelectedCandidateId: "",
     activeBaseInfo: null,

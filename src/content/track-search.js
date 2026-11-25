@@ -246,19 +246,7 @@
       }
     }, 1400);
 
-    const providerTasks = [
-      { key: "youtubeMusic", run: () => fetchFromYouTubeMusic(info, duration, key) },
-      { key: "betterLyrics", run: () => fetchFromBetterLyricsV2(info, duration, key) },
-      { key: "betterLyrics", run: () => fetchFromBetterLyricsJson(info, duration, key) },
-      { key: "betterLyrics", run: () => fetchFromBetterLyrics(info, duration, key) },
-      { key: "betterLyrics", run: () => fetchFromBoiduProvider(info, duration, key, "qq") },
-      { key: "betterLyrics", run: () => fetchFromBoiduProvider(info, duration, key, "kugou") },
-      { key: "lrclib", run: () => fetchFromLrclib(info, duration, key) },
-      { key: "lrclib", run: () => fetchFromLrclibQuick(info, duration, key) },
-      { key: "unison", run: () => fetchFromUnison(info, duration, key) },
-      { key: "binilyrics", run: () => fetchFromBiniLyrics(info, duration, key) },
-      { key: "karalyr", run: () => fetchFromKaralyr(info, duration, key) },
-    ].filter((provider) => STATE.providerEnabled[provider.key] !== false);
+    const providerTasks = providerTasksFor(info, duration, key);
 
     // 全ソースを並列検索。1件返るたび、その場で表示/アップグレードする。
     const tasks = providerTasks.map(async (provider) => {
@@ -288,6 +276,7 @@
     await Promise.allSettled(tasks);
     clearTimeout(ambiguousGateTimer);
     if (key !== STATE.lastTrackKey || myGeneration !== STATE.searchGeneration) return;
+    STATE.candidateSearchKey = key;
     reevaluateCandidates(true);
 
     STATE.isSearching = false;
@@ -311,4 +300,59 @@
     ensureLyricsMount();
     renderLines();
     applySettings();
+  }
+
+  function providerTasksFor(info, duration, key) {
+    return [
+      { key: "youtubeMusic", run: () => fetchFromYouTubeMusic(info, duration, key) },
+      { key: "betterLyrics", run: () => fetchFromBetterLyricsV2(info, duration, key) },
+      { key: "betterLyrics", run: () => fetchFromBetterLyricsJson(info, duration, key) },
+      { key: "betterLyrics", run: () => fetchFromBetterLyrics(info, duration, key) },
+      { key: "betterLyrics", run: () => fetchFromBoiduProvider(info, duration, key, "qq") },
+      { key: "betterLyrics", run: () => fetchFromBoiduProvider(info, duration, key, "kugou") },
+      { key: "lrclib", run: () => fetchFromLrclib(info, duration, key) },
+      { key: "lrclib", run: () => fetchFromLrclibQuick(info, duration, key) },
+      { key: "unison", run: () => fetchFromUnison(info, duration, key) },
+      { key: "binilyrics", run: () => fetchFromBiniLyrics(info, duration, key) },
+      { key: "karalyr", run: () => fetchFromKaralyr(info, duration, key) },
+    ].filter((provider) => STATE.providerEnabled[provider.key] !== false);
+  }
+
+  // Saved, pinned and cached lyrics are shown without a provider search, so the candidate
+  // list starts with one entry. Opening the list fills it in the background; the lyrics
+  // on screen are never switched automatically.
+  async function collectMoreCandidates() {
+    const key = STATE.lastTrackKey;
+    const info = STATE.activeSearchInfo || STATE.activeBaseInfo;
+    const generation = STATE.searchGeneration;
+    if (!key || !info || STATE.isSearching || STATE.candidateSearchKey === key) return;
+    STATE.candidateSearchKey = key;
+    STATE.isCollectingCandidates = true;
+    refreshCandidatePane();
+    const current = () => key === STATE.lastTrackKey && generation === STATE.searchGeneration;
+    const expected = inferTrackLanguage(info);
+    const sameText = (a, b) => a._providerKey === b._providerKey &&
+      lyricsTextForLanguage(a).slice(0, 120) === lyricsTextForLanguage(b).slice(0, 120);
+    try {
+      const duration = await getTrackDuration(key);
+      if (!current()) return;
+      await Promise.allSettled(providerTasksFor(info, duration, key).map(async (provider) => {
+        let result = null;
+        try { result = await provider.run(); } catch (_) { result = null; }
+        if (!current() || !result || !Array.isArray(result.lines) || !result.lines.length) return;
+        if (String(result.syncLevel || "none") === "none" || !result.lines.some((line) => line && line.time != null)) return;
+        result._providerKey = provider.key;
+        result._candidateId = lyricCandidateIdentity(result);
+        const candidate = sanitizeCandidateForTrackLanguage(result, expected) || result;
+        if (STATE.lyricCandidates.some((item) => item.id === candidate._candidateId || sameText(item.result, candidate))) return;
+        candidate._recommendationScore = candidateRecommendationScore(candidate, info, expected);
+        upsertLyricsCandidate(candidate);
+        refreshCandidatePane();
+      }));
+    } finally {
+      if (current()) {
+        STATE.isCollectingCandidates = false;
+        refreshCandidatePane();
+      }
+    }
   }

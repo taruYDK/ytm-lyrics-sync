@@ -150,6 +150,13 @@
     recommendationNote.className = "ytmls-recommendation-note";
     recommendationNote.textContent = "おすすめ度は、同期精度・言語一致・提供元の優先順位・歌詞行数から自動計算した目安です。";
     lyricsToolsPaneEl.appendChild(recommendationNote);
+    if (STATE.isCollectingCandidates) {
+      const collecting = document.createElement("div");
+      collecting.className = "ytmls-recommendation-note ytmls-candidate-collecting";
+      collecting.setAttribute("role", "status");
+      collecting.textContent = "ほかの提供元の候補を探しています…";
+      lyricsToolsPaneEl.appendChild(collecting);
+    }
 
     const pinMessage = document.createElement("div");
     pinMessage.className = "ytmls-local-message";
@@ -245,6 +252,17 @@
     close.textContent = "閉じる";
     close.addEventListener("click", closeLyricsToolsPane);
     lyricsToolsPaneEl.appendChild(close);
+    if (typeof collectMoreCandidates === "function") void collectMoreCandidates();
+  }
+
+  // Re-render the open candidate list in place (renderCandidatePane toggles when called directly).
+  function refreshCandidatePane() {
+    updateLyricsToolsUi();
+    if (!lyricsToolsPaneEl || lyricsToolsPaneEl.hidden || lyricsToolsPaneMode !== "candidates" || candidateSaveBusy) return;
+    const scrollTop = lyricsToolsPaneEl.scrollTop;
+    lyricsToolsPaneMode = "";
+    renderCandidatePane();
+    lyricsToolsPaneEl.scrollTop = scrollTop;
   }
 
   function renderManualSearchPane() {
