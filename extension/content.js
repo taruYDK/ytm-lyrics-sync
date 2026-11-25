@@ -3451,6 +3451,8 @@ function readingTokensToRomaji(tokens) {
         empty.appendChild(sub);
         listEl.appendChild(empty);
       }
+      // Cancels a reading refresh still running for the previous song and clears its status.
+      void refreshLyricsReadings();
       return;
     }
 

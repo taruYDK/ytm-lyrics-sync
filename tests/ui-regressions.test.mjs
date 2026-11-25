@@ -90,3 +90,14 @@ test('a11y: only the status line is a live region, not the whole lyrics panel',(
  assert.doesNotMatch(source,/panelEl\.setAttribute\("aria-live"/);
  assert.match(source,/statusEl\.setAttribute\("aria-live", "polite"\)/);
 });
+
+test('an empty lyrics result still cancels the previous song reading refresh',()=>{
+ let refreshes=0;const children=[];
+ const el=()=>({className:'',id:'',textContent:'',children:[],appendChild(child){this.children.push(child);},setAttribute(){}});
+ const listEl={innerHTML:'',classList:{remove(){},add(){}},appendChild:c=>children.push(c),querySelector:()=>null,getBoundingClientRect:()=>({width:0,height:0}),style:{removeProperty(){}}};
+ const c=vm.createContext({STATE:{lines:[],isSearching:false,hasSync:false,statusText:'見つかりませんでした'},listEl,document:{createElement:el,documentElement:{classList:{contains:()=>false}}},matchMedia:()=>({matches:false}),
+  resetLyricsScrollPosition(){},refreshLyricsReadings:()=>{refreshes++;}});
+ vm.runInContext(read('src/content/timing-offset.js'),c);
+ c.renderLines();
+ assert.equal(children.length,1);assert.equal(refreshes,1);
+});
