@@ -1180,7 +1180,6 @@ html.music-glass-hide-scrollbar #ytmls-more > .ytmls-more-menu::-webkit-scrollba
 .ytmls-rich-line { flex-wrap:wrap; }
 .ytmls-rich-line > .ytmls-extra { flex-basis:100%; }
 #ytmls-fullscreen { position:fixed; inset:0; z-index:2147483640; isolation:isolate; background:#221e29; color:white; --ytmls-ink:255,255,255; --ytmls-text:#fff; display:flex; flex-direction:column; padding:24px max(24px,8vw); box-sizing:border-box; font-family:"Roboto","YouTube Sans","Noto Sans JP",sans-serif; }
-#ytmls-fullscreen h1 { font-size:18px; font-weight:500; opacity:.85; margin-top:40px; }
 .ytmls-full-backdrop { position:absolute; inset:0; width:100%; height:100%; opacity:.65; filter:blur(12px); z-index:-1; pointer-events:none; }
 .ytmls-full-close { position:absolute; z-index:1; top:18px; right:18px; padding:10px 14px; border:1px solid #ffffff40; border-radius:10px; background:#221e29; color:white; cursor:pointer; }
 .ytmls-full-list { flex:1; min-height:0; overflow:auto; padding:20vh 0; overscroll-behavior:contain; }
@@ -1356,17 +1355,17 @@ html.music-glass-hide-scrollbar .ytmls-full-list::-webkit-scrollbar { display:no
 #ytmls-fullscreen .ytmls-ruby { ruby-position: over; ruby-align: center; }
 #ytmls-fullscreen .ytmls-ruby rt { letter-spacing: .02em; }
 /* "中央" places a left-aligned lyrics column in the middle; "左" uses the full width from the left edge. */
-#ytmls-fullscreen[data-align="center"] > h1,
+#ytmls-fullscreen[data-align="center"] > .ytmls-full-head,
 #ytmls-fullscreen[data-align="center"] > .ytmls-full-list {
   box-sizing: border-box;
   margin-inline: auto;
 }
 /* The column is as wide as the song's longest line, so the block sits in the middle. */
 #ytmls-fullscreen[data-align="center"] > .ytmls-full-list { width: fit-content; max-width: min(100%, 1280px); }
-#ytmls-fullscreen[data-align="center"] > h1 { width: min(100%, 1280px); text-align: center; }
+#ytmls-fullscreen[data-align="center"] > .ytmls-full-head { width: min(100%, 1280px); justify-content: center; }
 
 /* Fullscreen: lyrics fade out at the top and bottom instead of running under the title. */
-#ytmls-fullscreen > h1 { margin-bottom: 8px; }
+#ytmls-fullscreen > .ytmls-full-head { margin-bottom: 8px; }
 #ytmls-fullscreen > .ytmls-full-list {
   -webkit-mask-image: linear-gradient(to bottom, transparent 0, transparent 5%, #000 18%, #000 86%, transparent 100%);
   mask-image: linear-gradient(to bottom, transparent 0, transparent 5%, #000 18%, #000 86%, transparent 100%);
@@ -1434,3 +1433,89 @@ html #ytmls-fullscreen .ytmls-full-line:not(.active):hover { filter: none !impor
   padding-top: 12px;
   padding-bottom: 12px;
 }
+
+/* Timing popover: thin track filled from 0 toward the offset, white round knob, glass buttons. */
+#ytmls-track-offset-popover .ytmls-track-offset-range {
+  -webkit-appearance: none; appearance: none; height: 24px; background: transparent; cursor: pointer;
+}
+#ytmls-track-offset-popover .ytmls-track-offset-range::-webkit-slider-runnable-track {
+  height: 4px; border-radius: 999px;
+  background: linear-gradient(to right,
+    rgba(var(--ytmls-ink), .18) var(--from, 50%), var(--mg-accent-strong, #ff4f6d) var(--from, 50%),
+    var(--mg-accent-strong, #ff4f6d) var(--to, 50%), rgba(var(--ytmls-ink), .18) var(--to, 50%));
+}
+#ytmls-track-offset-popover .ytmls-track-offset-range::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none; width: 20px; height: 20px; margin-top: -8px; border-radius: 50%;
+  background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,.4), 0 0 0 .5px rgba(0,0,0,.12); transition: transform .12s ease;
+}
+#ytmls-track-offset-popover .ytmls-track-offset-range:active::-webkit-slider-thumb { transform: scale(1.08); }
+#ytmls-track-offset-popover :is(.ytmls-track-offset-quick button, .ytmls-track-offset-add, .ytmls-track-offset-reset-all, .ytmls-track-offset-close, .ytmls-track-offset-delete) {
+  border: 1px solid rgba(var(--ytmls-ink), .16); border-radius: 999px;
+  background: rgba(var(--ytmls-ink), .08); color: var(--ytmls-text);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.12);
+}
+#ytmls-track-offset-popover :is(.ytmls-track-offset-quick button, .ytmls-track-offset-add, .ytmls-track-offset-reset-all, .ytmls-track-offset-close, .ytmls-track-offset-delete):hover:not(:disabled) {
+  background: rgba(var(--ytmls-ink), .16);
+}
+#ytmls-track-offset-popover .ytmls-track-offset-group {
+  padding: 10px 12px; border-radius: 12px; background: rgba(var(--ytmls-ink), .06); border: 1px solid rgba(var(--ytmls-ink), .08);
+}
+
+/* Lyrics tool panes: larger headings, pill buttons, soft fields, candidates as one grouped list. */
+#ytmls-tools-pane .ytmls-tools-heading { font-size: 16px; font-weight: 700; letter-spacing: -.01em; margin-bottom: 8px; }
+#ytmls-tools-pane :is(.ytmls-tools-primary, .ytmls-tools-secondary, .ytmls-tools-close, .ytmls-tool-button) {
+  min-height: 34px; padding: 7px 14px; border-radius: 999px; font-size: 12.5px; font-weight: 650;
+  border: 1px solid rgba(var(--ytmls-ink), .14); background: rgba(var(--ytmls-ink), .08); color: var(--ytmls-text);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.1);
+}
+#ytmls-tools-pane :is(.ytmls-tools-secondary, .ytmls-tools-close, .ytmls-tool-button):hover:not(:disabled) { background: rgba(var(--ytmls-ink), .16); }
+#ytmls-tools-pane .ytmls-tools-primary { border-color: transparent; background: #ff4f6d; color: #fff; }
+#ytmls-tools-pane .ytmls-tools-primary:hover:not(:disabled) { background: #ff6680; }
+#ytmls-tools-pane :is(input[type="text"], input[type="number"], input:not([type]), textarea, select) {
+  border: 1px solid transparent; border-radius: 10px; background: rgba(var(--ytmls-ink), .08); color: var(--ytmls-text);
+}
+#ytmls-tools-pane :is(input[type="text"], input[type="number"], input:not([type]), textarea, select):focus {
+  border-color: transparent; outline: 2px solid rgba(255, 79, 109, .75); outline-offset: 0;
+}
+#ytmls-tools-pane .ytmls-candidate-row {
+  margin-top: 0; padding: 6px; gap: 6px; background: rgba(var(--ytmls-ink), .06); position: relative;
+}
+#ytmls-tools-pane .ytmls-candidate-row:not(.ytmls-candidate-row + .ytmls-candidate-row) { margin-top: 6px; border-radius: 14px 14px 0 0; }
+#ytmls-tools-pane .ytmls-candidate-row:not(:has(+ .ytmls-candidate-row)) { border-radius: 0 0 14px 14px; }
+#ytmls-tools-pane .ytmls-candidate-row:not(.ytmls-candidate-row + .ytmls-candidate-row):not(:has(+ .ytmls-candidate-row)) { border-radius: 14px; }
+#ytmls-tools-pane .ytmls-candidate-row + .ytmls-candidate-row::before {
+  content: ""; position: absolute; top: 0; left: 14px; right: 14px; height: 1px; background: rgba(var(--ytmls-ink), .1);
+}
+#ytmls-tools-pane .ytmls-candidate-item { border: 0; border-radius: 10px; background: transparent; }
+#ytmls-tools-pane .ytmls-candidate-item:hover { background: rgba(var(--ytmls-ink), .08); }
+#ytmls-tools-pane .ytmls-candidate-item[data-active="true"] { background: rgba(255, 79, 109, .16); }
+#ytmls-tools-pane .ytmls-candidate-pin { align-self: center; min-height: 32px; padding: 6px 12px; border-radius: 999px; }
+
+/* Player bar: frosted-glass pill buttons (the narrow-window menu keeps plain menu items). */
+ytmusic-player-bar :is(#ytmls-resync-button, #ytmls-track-offset-button) {
+  border: 1px solid rgba(var(--ytmls-ink), .18);
+  background: rgba(var(--ytmls-ink), .08);
+  -webkit-backdrop-filter: blur(14px) saturate(160%);
+  backdrop-filter: blur(14px) saturate(160%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .2), 0 4px 12px rgba(0, 0, 0, .22);
+}
+ytmusic-player-bar :is(#ytmls-resync-button, #ytmls-track-offset-button):hover:not(:disabled),
+ytmusic-player-bar #ytmls-track-offset-button[aria-expanded="true"] {
+  background: rgba(var(--ytmls-ink), .16); border-color: rgba(var(--ytmls-ink), .28);
+}
+html.ytmls-lyrics-motion-lightweight ytmusic-player-bar :is(#ytmls-resync-button, #ytmls-track-offset-button) { -webkit-backdrop-filter: none; backdrop-filter: none; }
+
+/* Fullscreen header: cover, title and artist. */
+#ytmls-fullscreen > .ytmls-full-head { display: flex; align-items: center; gap: 14px; margin-top: 44px; min-width: 0; }
+.ytmls-full-cover { flex: 0 0 auto; width: 56px; height: 56px; border-radius: 8px; object-fit: cover; box-shadow: 0 6px 18px rgba(0,0,0,.35); }
+.ytmls-full-cover[hidden], .ytmls-full-artist[hidden] { display: none; }
+.ytmls-full-meta { min-width: 0; }
+#ytmls-fullscreen .ytmls-full-head h1 { margin: 0; font-size: 18px; font-weight: 700; opacity: 1; letter-spacing: -.01em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ytmls-full-artist { margin: 2px 0 0; font-size: 14px; color: rgba(255,255,255,.7); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Word-synced lyrics: the word being sung glows softly (overrides the per-word filter reset above). */
+html:not(.ytmls-lyrics-motion-lightweight) #ytmls-panel[data-tracking-mode="auto"] .ytmls-line.ytmls-active .ytmls-word.ytmls-word-current,
+html:not(.ytmls-lyrics-motion-lightweight) #ytmls-fullscreen[data-tracking-mode="auto"] .ytmls-full-line.active .ytmls-word.ytmls-word-current {
+  filter: drop-shadow(0 0 6px rgba(255, 255, 255, .55)) drop-shadow(0 0 14px rgba(255, 255, 255, .25)) !important;
+}
+html:not(.ytmls-lyrics-motion-lightweight) :is(#ytmls-panel .ytmls-line.ytmls-active, #ytmls-fullscreen .ytmls-full-line.active) .ytmls-word { transition: filter 160ms ease, color 90ms linear; }

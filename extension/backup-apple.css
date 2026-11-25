@@ -1,0 +1,34 @@
+/* Backup page in the same system-settings style as the popup. */
+:root {
+  --bg:#1c1c1e; --card:#2c2c2e; --control:#3a3a3c; --border:rgba(255,255,255,.08);
+  --text:#f5f5f7; --sub:#98989d; --accent:#ff4f6d; --danger:#ff6b81; --separator:rgba(255,255,255,.09);
+}
+@media (prefers-color-scheme:light) {
+  :root { --bg:#f2f2f7; --card:#fff; --control:#e5e5ea; --border:rgba(0,0,0,.06); --text:#1c1c1e; --sub:#6c6c70; --accent:#e0244a; --danger:#d70f3c; --separator:rgba(60,60,67,.14); }
+}
+body { font-family: system-ui, "Segoe UI Variable Text", "Segoe UI", "Hiragino Sans", "Noto Sans JP", sans-serif; background:var(--bg); color:var(--text); -webkit-font-smoothing:antialiased; }
+h1 { font-size:26px; font-weight:700; letter-spacing:-.015em; }
+h2 { font-size:15px; font-weight:650; }
+.lead, p { color:var(--sub); }
+.card { border:0; border-radius:14px; background:var(--card); box-shadow:0 0 0 1px var(--border); padding:18px 20px; }
+.card.danger { box-shadow:0 0 0 1px color-mix(in srgb, var(--danger) 45%, transparent); }
+button { min-width:0; padding:9px 18px; border:0; border-radius:999px; background:var(--control); color:var(--text); font-weight:600; box-shadow:0 .5px 1px rgba(0,0,0,.2); }
+button:hover { filter:none; background:color-mix(in srgb, var(--text) 12%, var(--control)); }
+button.primary { background:var(--accent); color:#fff; }
+button.primary:hover { background:color-mix(in srgb, #fff 12%, var(--accent)); }
+button.danger { background:transparent; color:var(--danger); box-shadow:inset 0 0 0 1px var(--danger); }
+button.danger:not(:disabled):hover { background:color-mix(in srgb, var(--danger) 12%, transparent); }
+#trackFilter { border:0; border-radius:10px; background:var(--control); padding:9px 12px; }
+#trackView { border:0; border-radius:10px; background:var(--control); }
+.list-head { border-color:var(--separator); background:color-mix(in srgb, var(--text) 3%, transparent); }
+#savedTracks { border-color:var(--separator); }
+.saved-track { border-bottom-color:var(--separator); }
+.track-open { border:0; background:var(--control); }
+.note { border-radius:12px; background:var(--card); box-shadow:0 0 0 1px var(--border); }
+#trackView { --chevrons:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 16' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M3 6l3-3 3 3M3 10l3 3 3-3'/></svg>"); }
+@supports (appearance:base-select) {
+  #trackView::picker-icon { content:""; width:10px; height:14px; background:var(--sub); -webkit-mask:var(--chevrons) center/contain no-repeat; mask:var(--chevrons) center/contain no-repeat; transform:none !important; }
+}
+@supports not (appearance:base-select) {
+  #trackView { -webkit-appearance:none; appearance:none; padding-right:28px; background-image:var(--chevrons); background-repeat:no-repeat; background-position:right 12px center; background-size:10px 14px; }
+}

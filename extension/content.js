@@ -3047,8 +3047,16 @@ function readingTokensToRomaji(tokens) {
     return `${minutes}:${String(remainder).padStart(2, '0')} から`;
   }
 
+  // The track is filled from 0 (the middle) toward the current offset.
+  function paintTrackTimingRange(range) {
+    const percent = (clampTrackOffsetMs(range.value) + TRACK_TIMING_OFFSET_LIMIT_MS) / (TRACK_TIMING_OFFSET_LIMIT_MS * 2) * 100;
+    range.style.setProperty('--from', `${Math.min(50, percent)}%`);
+    range.style.setProperty('--to', `${Math.max(50, percent)}%`);
+  }
+
   function bindTrackTimingRange(range, group, point, videoId) {
     range.addEventListener('input', () => {
+      paintTrackTimingRange(range);
       if (getTrackOffsetVideoId(false) !== videoId) return;
       group.querySelector('.ytmls-track-offset-value').textContent = formatOffsetMs(range.value);
       setCurrentTrackTimingPointOffset(point.position, range.value, false, false);
@@ -3103,6 +3111,7 @@ function readingTokensToRomaji(tokens) {
       group.querySelector('.ytmls-track-offset-value').textContent = formatOffsetMs(point.offsetMs);
       const range = group.querySelector('.ytmls-track-offset-range');
       range.value = String(point.offsetMs);
+      paintTrackTimingRange(range);
       range.setAttribute('aria-label', `${formatTrackPosition(point.position, duration)}の歌詞タイミング補正`);
       bindTrackTimingRange(range, group, point, videoId);
       for (const button of group.querySelectorAll('[data-delta]')) {
@@ -7634,7 +7643,12 @@ function openPracticeFullscreen() {
  alignCenter.setAttribute('aria-label', '歌詞を中央寄せで表示');
  setAlign('left');
  try { chrome.storage.sync.get({fullscreenAlign:'left'}, data => { if (!chrome.runtime.lastError && practiceFullscreen === box) setAlign(data.fullscreenAlign === 'center' ? 'center' : 'left'); }); } catch (_) {}
- const title=document.createElement('h1');title.textContent=STATE.lastDisplayedTitle||'歌詞';box.append(title);const list=document.createElement('div');list.className='ytmls-full-list';box.append(list);
+ // Header: small cover, title and artist (kept in step with the song in refreshPracticeFullscreen).
+ const head=document.createElement('header');head.className='ytmls-full-head';
+ const cover=document.createElement('img');cover.className='ytmls-full-cover';cover.alt='';cover.decoding='async';
+ const meta=document.createElement('div');meta.className='ytmls-full-meta';
+ const title=document.createElement('h1');const artist=document.createElement('p');artist.className='ytmls-full-artist';
+ meta.append(title,artist);head.append(cover,meta);box.append(head);updatePracticeFullscreenHeader(box);const list=document.createElement('div');list.className='ytmls-full-list';box.append(list);
  box.returnFocus=document.activeElement;document.body.append(box);practiceFullscreen=box;trackingDisplayResumedAt=performance.now();document.addEventListener('keydown',handlePracticeFullscreenSpace,true);document.addEventListener('keyup',handlePracticeFullscreenSpace,true);practiceFullSignature='';practiceFullIndex=-1;refreshPracticeFullscreen();box.tabIndex=-1;box.focus();
  box.resizeObserver=new ResizeObserver(()=>{if(practiceFullscreen===box){box.pendingFollow=true;syncPracticeFullscreenTracking();}});box.resizeObserver.observe(list);
  const pause=()=>{box.manualUntil=performance.now()+(STATE.manualScrollReturnMs||3500);box.pendingFollow=true;box.dataset.browsing='true';};list.addEventListener('wheel',pause,{passive:true});list.addEventListener('touchmove',pause,{passive:true});list.addEventListener('keydown',e=>{if(['ArrowUp','ArrowDown','PageUp','PageDown','Home','End'].includes(e.key))pause();});
@@ -7647,11 +7661,19 @@ function openPracticeFullscreen() {
  }
  if(box.requestFullscreen)void box.requestFullscreen().then(()=>{box.dataset.native='true';}).catch(()=>{});
 }
+function updatePracticeFullscreenHeader(box) {
+ box.querySelector('.ytmls-full-head h1').textContent=STATE.lastDisplayedTitle||'歌詞';
+ const artist=box.querySelector('.ytmls-full-artist');artist.textContent=STATE.lastDisplayedArtist||'';artist.hidden=!artist.textContent;
+ const image=document.querySelector('ytmusic-player-bar .thumbnail-image-wrapper img,ytmusic-player-bar img.image,ytmusic-player #song-image img');
+ const src=image?.currentSrc||image?.src||'';const cover=box.querySelector('.ytmls-full-cover');
+ if(cover.getAttribute('src')!==src){if(src)cover.src=src;else cover.removeAttribute('src');}
+ cover.hidden=!src;
+}
 function refreshPracticeFullscreen() {
  const box=practiceFullscreen;if(!box || box.inert)return;if(!STATE.enabled){closePracticeFullscreen(false);return;}
  paintPracticeBackground(box);
  const sig=[STATE.displayedVideoId,STATE.activeCandidateId,practiceExtrasGeneration,STATE.lines.length].join(':');const list=box.querySelector('.ytmls-full-list');
- if(sig!==practiceFullSignature){practiceFullSignature=sig;practiceFullIndex=-1;box.querySelector('h1').textContent=STATE.lastDisplayedTitle||'歌詞';const restoreFocus=list.contains(document.activeElement);list.replaceChildren();if(restoreFocus)box.focus({preventScroll:true});const renderedId=STATE.displayedVideoId,renderedLines=STATE.lines;for(let i=0;i<STATE.lines.length;i++){const b=document.createElement('button');b.className='ytmls-full-line ytmls-line';b.append(...[...(listEl?.children[i]?.childNodes||[])].map(x=>x.cloneNode(true)));if(!b.childNodes.length)b.textContent=STATE.lines[i].text;b.addEventListener('keydown',e=>handlePracticeLineKey(e,renderedId,renderedLines,b));b.addEventListener('click',()=>{if(practiceCurrent(renderedId,renderedLines)){box.manualUntil=0;box.pendingFollow=true;practiceSeek(i);}});list.append(b);}}
+ if(sig!==practiceFullSignature){practiceFullSignature=sig;practiceFullIndex=-1;updatePracticeFullscreenHeader(box);const restoreFocus=list.contains(document.activeElement);list.replaceChildren();if(restoreFocus)box.focus({preventScroll:true});const renderedId=STATE.displayedVideoId,renderedLines=STATE.lines;for(let i=0;i<STATE.lines.length;i++){const b=document.createElement('button');b.className='ytmls-full-line ytmls-line';b.append(...[...(listEl?.children[i]?.childNodes||[])].map(x=>x.cloneNode(true)));if(!b.childNodes.length)b.textContent=STATE.lines[i].text;b.addEventListener('keydown',e=>handlePracticeLineKey(e,renderedId,renderedLines,b));b.addEventListener('click',()=>{if(practiceCurrent(renderedId,renderedLines)){box.manualUntil=0;box.pendingFollow=true;practiceSeek(i);}});list.append(b);}}
  syncPracticeFullscreenTracking();
 }
 function syncPracticeFullscreenTracking() {

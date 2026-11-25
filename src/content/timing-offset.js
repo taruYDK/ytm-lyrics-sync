@@ -207,8 +207,16 @@
     return `${minutes}:${String(remainder).padStart(2, '0')} から`;
   }
 
+  // The track is filled from 0 (the middle) toward the current offset.
+  function paintTrackTimingRange(range) {
+    const percent = (clampTrackOffsetMs(range.value) + TRACK_TIMING_OFFSET_LIMIT_MS) / (TRACK_TIMING_OFFSET_LIMIT_MS * 2) * 100;
+    range.style.setProperty('--from', `${Math.min(50, percent)}%`);
+    range.style.setProperty('--to', `${Math.max(50, percent)}%`);
+  }
+
   function bindTrackTimingRange(range, group, point, videoId) {
     range.addEventListener('input', () => {
+      paintTrackTimingRange(range);
       if (getTrackOffsetVideoId(false) !== videoId) return;
       group.querySelector('.ytmls-track-offset-value').textContent = formatOffsetMs(range.value);
       setCurrentTrackTimingPointOffset(point.position, range.value, false, false);
@@ -263,6 +271,7 @@
       group.querySelector('.ytmls-track-offset-value').textContent = formatOffsetMs(point.offsetMs);
       const range = group.querySelector('.ytmls-track-offset-range');
       range.value = String(point.offsetMs);
+      paintTrackTimingRange(range);
       range.setAttribute('aria-label', `${formatTrackPosition(point.position, duration)}の歌詞タイミング補正`);
       bindTrackTimingRange(range, group, point, videoId);
       for (const button of group.querySelectorAll('[data-delta]')) {

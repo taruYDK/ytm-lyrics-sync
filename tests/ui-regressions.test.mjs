@@ -15,9 +15,10 @@ function timing(){
  return {c,writes:()=>writes,setId:value=>id=value};
 }
 test('offset slider: repeated input previews without saves, change commits once and rejects old track',()=>{
- const h=timing(),handlers={},range={value:'0',addEventListener:(name,fn)=>handlers[name]=fn};
+ const h=timing(),handlers={},fills={},range={value:'0',style:{setProperty:(k,v)=>fills[k]=v},addEventListener:(name,fn)=>handlers[name]=fn};
  h.c.bindTrackTimingRange(range,{querySelector:()=>({})},{position:0},'song');
  for(let i=1;i<=40;i++){range.value=String(i*100);handlers.input();}
+ assert.equal(fills['--from'],'50%');assert.equal(fills['--to'],'60%');
  assert.equal(h.writes(),0);assert.equal(h.c.getTrackTimingPoints('song')[0].offsetMs,4000);
  assert.equal(h.c.STATE.trackTimingOffsets.song,undefined);
  handlers.change();assert.equal(h.writes(),1);assert.equal(h.c.STATE.trackTimingOffsets.song.offsetMs,4000);
@@ -107,4 +108,10 @@ test('CSS: one place controls the current-line filter and the blur of other line
  assert.doesNotMatch(motion,/ytmls-active\s*\{[^}]*filter:\s*none/);
  assert.match(style,/:not\(\[data-browsing="true"\]\) \.ytmls-line:not\(\.ytmls-active\) \{ filter: blur\(/);
  assert.match(style,/#ytmls-fullscreen\[data-focus-fade="on"\]\[data-tracking-mode="auto"\]:not\(\[data-browsing="true"\]\) \.ytmls-full-line:not\(\.active\) \{ filter: blur\(/);
+});
+
+test('CSS: the current word glow outranks the per-word filter reset',()=>{
+ const style=read('style.css');
+ assert.match(style,/\.ytmls-line\.ytmls-active \.ytmls-word \{ text-shadow: none !important; filter: none !important; \}|ytmls-full-line\.active \.ytmls-word \{ text-shadow: none !important; filter: none !important; \}/);
+ assert.match(style,/\.ytmls-word\.ytmls-word-current \{\s*filter: drop-shadow\([^}]*!important;/);
 });
