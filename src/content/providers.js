@@ -105,6 +105,13 @@
       const matches = [...content.matchAll(tagRe)];
       if (matches.length) {
         const words = [];
+        // Text before the first word tag starts at the row's own timestamp.
+        const leading = content.slice(0, matches[0].index);
+        const firstWordTime = angleTimeToSeconds(matches[0][1]);
+        const firstLineTime = Number(lineTags[0][1]) * 60 + Number(lineTags[0][2]);
+        if (leading.trim() && firstWordTime != null && Number.isFinite(firstLineTime)) {
+          words.push({ text: leading, time: Math.min(firstLineTime, firstWordTime), end: firstWordTime, background: false });
+        }
         for (let i = 0; i < matches.length; i++) {
           const start = angleTimeToSeconds(matches[i][1]);
           const next = matches[i + 1];
@@ -115,7 +122,6 @@
           }
         }
         if (words.length) {
-          const firstLineTime = Number(lineTags[0][1]) * 60 + Number(lineTags[0][2]);
           for (let copyIndex = 0; copyIndex < expandedCount; copyIndex++) {
             const line = base[bi + copyIndex];
             if (!line) continue;
