@@ -8,7 +8,15 @@
 
 ## リリースZIP
 
-リリースZIPはソースのコミットに含めません。利用者がGitHub Releasesへ別途添付します。バージョンは `extension/manifest.json` と `package.json` に合わせてください（現在は `2.6.5`）。
+リリースZIPはソースのコミットに含めません。利用者がGitHub Releasesへ別途添付します。バージョンは `extension/manifest.json`（`version` と `version_name`）、`package.json`、README のバッジをそろえてください。
 
 `extension/manifest.json` の `key` は拡張機能IDと保存領域を維持するため変更しないでください。本体のMITライセンスと `extension/vendor/` 内の第三者ライセンスを維持してください。
 
+
+## リリースノート
+
+各バージョンのリリースノートは `docs/releases/v<バージョン>.md` に置き、README の「更新内容」からリンクします。全体の変更履歴は `CHANGELOG.md` にまとめます。
+
+## 自動チェック
+
+`main` へのpushとPull Requestでは、GitHub Actions（`.github/workflows/check.yml`）が `npm run check` を実行します。

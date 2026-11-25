@@ -78,3 +78,12 @@ test('inline LRC preserves spacing and the final word without a closing timestam
   assert.equal(lines[1].words[0].text, 'Bye');
   assert.equal(lines[1].words[0].end, null);
 });
+
+test('inline LRC keeps text before the first word tag', () => {
+  const c = vm.createContext({});
+  vm.runInContext(read('src/content/lyrics-parser.js') + read('src/content/providers.js'), c);
+  const {lines} = c.parseInlineTimedLrc('[offset:1000]\n[00:10.00][01:10.00]Hello <00:12.00>world\n[00:20.00]Next');
+  assert.deepEqual(Array.from(lines, l => [l.time, l.text]), [[9, 'Hello world'], [19, 'Next'], [69, 'Hello world']]);
+  assert.deepEqual(Array.from(lines[0].words, w => [w.text, w.time]), [['Hello ', 9], ['world', 11]]);
+  assert.deepEqual(Array.from(lines[2].words, w => [w.text, w.time]), [['Hello ', 69], ['world', 71]]);
+});
