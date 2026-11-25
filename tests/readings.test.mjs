@@ -189,3 +189,10 @@ test('ruby tracking: each base and reading receives a sequential interval, inclu
  assert.deepEqual(expressions.map(s=>Math.round(progress(s,100))),[100,100,100]);
  assert.equal(word.children[1].className,'ytmls-reading-plain');
 });
+
+test('English readings use long "o" and familiar spellings for frequent lyric words', () => {
+  assert.equal(englishPhonesToKana('G OW1'), 'ゴー');
+  assert.equal(englishPhonesToKana('S N OW1'), 'スノー');
+  const dictionary = JSON.parse(fs.readFileSync(new URL('../extension/vendor/readings/english.json', import.meta.url), 'utf8'));
+  assert.deepEqual(['ok', 'wow', 'dash', 'happy', 'open'].map(word => dictionary[word]), ['オーケー', 'ワオ', 'ダッシュ', 'ハッピー', 'オープン']);
+});

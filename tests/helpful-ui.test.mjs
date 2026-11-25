@@ -18,10 +18,11 @@ test('More menu uses available panel height instead of clipping at 480px', () =>
 });
 
 test('helpful UI status distinguishes searching, source, unavailable and disabled',()=>{
- const STATE={enabled:true,lastTrackKey:'song',isSearching:true};const c=vm.createContext({STATE});
+ const STATE={enabled:true,lastTrackKey:'song',isSearching:true};const c=vm.createContext({STATE,syncLevelShortLabel:level=>({line:'行',word:'単語'})[level]});
  vm.runInContext(fs.readFileSync(new URL('../src/content/helpful-ui.js',import.meta.url),'utf8'),c);
  assert.equal(c.helpfulStatus(),'歌詞を検索中…');STATE.isSearching=false;assert.equal(c.helpfulStatus(),'同期歌詞が見つかりません');
- STATE.hasLyricsResult=true;STATE.hasSync=true;STATE.source='YouTube Music';assert.match(c.helpfulStatus(),/取得済み · YouTube Music/);
+ STATE.hasLyricsResult=true;STATE.hasSync=true;STATE.syncLevel='line';STATE.trackingEnabled=true;STATE.source='YouTube Music';assert.equal(c.helpfulStatus(),'行ごとに同期 · YouTube Music');
+ STATE.trackingEnabled=false;assert.equal(c.helpfulStatus(),'行ごとに同期・読むモード · YouTube Music');STATE.trackingEnabled=true;
  STATE.enabled=false;assert.equal(c.helpfulStatus(),'拡張機能はOFFです');
 });
 

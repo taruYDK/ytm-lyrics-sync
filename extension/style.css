@@ -1350,7 +1350,7 @@ html.music-glass-hide-scrollbar .ytmls-full-list::-webkit-scrollbar { display:no
 .ytmls-full-size button { min-width:44px; min-height:36px; }
 .ytmls-source-badge {
   flex:0 1 auto; min-width:0; max-width:min(14em, 80%); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
-  border:1px solid currentColor; border-radius:999px; padding:2px 7px; font-size:11px;
+  border:1px solid currentColor; border-radius:999px; padding:3px 9px; font-size:12px; font-weight:600;
 }
 .ytmls-source-badge[hidden] { display:none; }
 
@@ -1379,4 +1379,18 @@ html.music-glass-hide-scrollbar .ytmls-full-list::-webkit-scrollbar { display:no
 #ytmls-fullscreen > .ytmls-full-list {
   -webkit-mask-image: linear-gradient(to bottom, transparent 0, transparent 5%, #000 18%, #000 86%, transparent 100%);
   mask-image: linear-gradient(to bottom, transparent 0, transparent 5%, #000 18%, #000 86%, transparent 100%);
+}
+
+/* Readings of other lines stay legible: the row opacity already dims them. */
+#ytmls-list .ytmls-ruby rt { color: rgba(var(--ytmls-ink), .8); }
+
+/* The current line is slightly larger; transform keeps the layout and scroll positions stable. */
+#ytmls-panel .ytmls-line,
+#ytmls-fullscreen .ytmls-full-line { transform-origin: 0 50%; transition: transform 180ms ease; }
+#ytmls-panel .ytmls-line[dir="rtl"] { transform-origin: 100% 50%; }
+#ytmls-panel .ytmls-line.ytmls-active,
+#ytmls-fullscreen .ytmls-full-line.active { transform: scale(1.04); }
+html.ytmls-lyrics-motion-lightweight :is(#ytmls-panel .ytmls-line, #ytmls-fullscreen .ytmls-full-line) { transition: none; }
+@media (prefers-reduced-motion: reduce) {
+  #ytmls-panel .ytmls-line, #ytmls-fullscreen .ytmls-full-line { transition: none; }
 }

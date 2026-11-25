@@ -1,7 +1,7 @@
 // English readings are Japanese approximations of dictionary phonemes, not IPA.
 export function englishPhonesToKana(phonemes) {
   const phones = String(phonemes || '').trim().split(/\s+/).map(p => p.replace(/[012]$/, ''));
-  const vowels = {AA:['a',''],AE:['a',''],AH:['a',''],AO:['o',''],AW:['a','ウ'],AY:['a','イ'],EH:['e',''],ER:['a','ー'],EY:['e','イ'],IH:['i',''],IY:['i','ー'],OW:['o','ウ'],OY:['o','イ'],UH:['u',''],UW:['u','ー']};
+  const vowels = {AA:['a',''],AE:['a',''],AH:['a',''],AO:['o',''],AW:['a','ウ'],AY:['a','イ'],EH:['e',''],ER:['a','ー'],EY:['e','イ'],IH:['i',''],IY:['i','ー'],OW:['o','ー'],OY:['o','イ'],UH:['u',''],UW:['u','ー']};
   const rows = {
     '':['ア','イ','ウ','エ','オ'],B:['バ','ビ','ブ','ベ','ボ'],CH:['チャ','チ','チュ','チェ','チョ'],D:['ダ','ディ','ドゥ','デ','ド'],
     DH:['ザ','ジ','ズ','ゼ','ゾ'],F:['ファ','フィ','フ','フェ','フォ'],G:['ガ','ギ','グ','ゲ','ゴ'],HH:['ハ','ヒ','フ','ヘ','ホ'],

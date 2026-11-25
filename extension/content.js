@@ -7283,7 +7283,8 @@ function readingTokensToRomaji(tokens) {
     if (STATE.contextInvalidated) return 'ページの再読み込みが必要です';
     if (!STATE.enabled) return '拡張機能はOFFです';
     if (STATE.isSearching) return STATE.hasLyricsResult ? '取得済み・ほかの候補を検索中' + (STATE.source ? ' · ' + STATE.source : '') : '歌詞を検索中…';
-    if (STATE.hasLyricsResult) return (STATE.hasSync ? '同期歌詞を取得済み' : '同期時刻のない歌詞') + (STATE.source ? ' · ' + STATE.source : '');
+    // The source badge already names the provider; say how the lyrics are synced.
+    if (STATE.hasLyricsResult) return (STATE.hasSync ? `${syncLevelShortLabel(STATE.syncLevel)}ごとに同期${STATE.trackingEnabled ? '' : '・読むモード'}` : '同期時刻のない歌詞') + (STATE.source ? ' · ' + STATE.source : '');
     return STATE.lastTrackKey ? '同期歌詞が見つかりません' : '曲の読み込み待ち';
   }
   function fitMoreMenu(more, menu) {
