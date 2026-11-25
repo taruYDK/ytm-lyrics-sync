@@ -98,7 +98,7 @@ function setBusy(busy) {
   document.getElementById("refreshTracks").disabled = busy;
   document.getElementById("trackFilter").disabled = busy;
   document.querySelectorAll("#savedTracks input").forEach(input => { input.disabled = busy; });
-  document.getElementById("selectAllTracks").disabled = busy || !visibleTrackIds.length;
+  document.getElementById("selectAllTracks").disabled = busy;
 }
 
 exportButton.addEventListener("click", async () => {
