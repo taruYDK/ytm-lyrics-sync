@@ -49,6 +49,7 @@
       attributeFilter: ["page-type", "aria-selected", "selected", "aria-hidden"],
     });
     bindAutoLyricsIdleInteractionWatch();
+    bindProviderTestListener();
     loadSettings();
     initPracticeStorage();
     loadTrackTimingOffsets();

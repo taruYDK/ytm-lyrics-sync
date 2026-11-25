@@ -191,6 +191,10 @@
     <div class="hint" style="margin-bottom:9px;">ローカル歌詞は常に最優先です。その下の5つの取得元は、有効・無効と優先順位を変更できます。</div>
     <div id="providerList" class="provider-list"></div>
     <div id="providerNote" class="provider-note"></div>
+    <div class="provider-test">
+      <div class="provider-test-head"><div><div class="label">提供元をテスト</div><div class="hint">各提供元に、どの歌詞サイトにもある曲（Shape of You / Ed Sheeran）を問い合わせます。</div></div><button type="button" id="providerTestButton" class="data-button">テスト</button></div>
+      <ul id="providerTestResults" class="provider-test-results" aria-live="polite"></ul>
+    </div>
     <details class="help-details"><summary>歌詞の取得について</summary><div class="info">追跡できる同期歌詞だけを使用します。歌詞タブ上部の「歌詞候補」でおすすめ度を見ながら歌詞を選択でき、「手動検索」で曲名と歌手を修正できます。</div></details>
   </section>
 </div><section class="section" id="settings-data" aria-label="データ保護">
@@ -212,6 +216,7 @@
 <script src="music-glass-quick.js"></script>
 <script src="music-glass-popup-details.js"></script>
 <script src="popup-navigation.js"></script>
+<script src="provider-check.js"></script>
 <script src="player-bar-toggle-popup.js"></script>
 <script src="depth-animation-popup.js"></script>
 <script src="extra-motion-popup.js"></script>

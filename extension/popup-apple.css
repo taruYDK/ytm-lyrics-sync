@@ -123,3 +123,20 @@ input[type=range]:disabled { opacity:.5; cursor:wait; }
     background-image:var(--chevrons); background-repeat:no-repeat; background-position:right 10px center; background-size:10px 14px;
   }
 }
+
+/* Provider test */
+.provider-test { margin-top:14px; border-radius:12px; background:var(--group); box-shadow:0 0 0 1px var(--border); overflow:hidden; }
+.provider-test-head { display:flex; align-items:center; justify-content:space-between; gap:14px; padding:11px 14px; }
+.provider-test-head .data-button { width:auto; min-height:32px; padding:6px 16px; margin:0; flex:0 0 auto; }
+.provider-test-results { list-style:none; margin:0; padding:0; }
+.provider-test-results:empty { display:none; }
+.provider-test-row { position:relative; display:flex; align-items:center; justify-content:space-between; gap:12px; padding:9px 14px 9px 30px; font-size:12.5px; }
+.provider-test-row::before { content:""; position:absolute; top:0; left:14px; right:0; height:1px; background:var(--separator); }
+.provider-test-row::after { content:""; position:absolute; left:14px; top:50%; width:8px; height:8px; margin-top:-4px; border-radius:50%; background:var(--sub); }
+.provider-test-row[data-state="found"]::after { background:#30d158; }
+.provider-test-row[data-state="notfound"]::after { background:#ffd60a; }
+.provider-test-row[data-state="offline"]::after, .provider-test-row[data-state="error"]::after { background:#ff453a; }
+.provider-test-row[data-state="testing"]::after { animation:provider-test-pulse 1s ease-in-out infinite alternate; }
+@keyframes provider-test-pulse { from { opacity:.3; } to { opacity:1; } }
+.provider-test-name { font-weight:600; }
+.provider-test-status { color:var(--sub); text-align:right; }
