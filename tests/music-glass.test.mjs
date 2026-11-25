@@ -129,6 +129,6 @@ test('Bright covers are darkened in the backdrop bitmap; dark covers are left as
   return fills;
  };
  const bright=shadeFor(230);
- assert.equal(bright.length,1);assert.match(bright[0],/^rgba\(0,0,0,0\.(?:[1-4]\d*|45)\)$/);
+ assert.equal(bright.length,1);assert.match(bright[0],/^rgba\(0,0,0,0\.(?:1\d*|2[0-5]?)\)$/);
  assert.deepEqual(shadeFor(40),[]);
 });
