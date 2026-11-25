@@ -1,6 +1,6 @@
 # YT Music 歌詞シンクロ
 
-設定を機能別に整理し、歌詞メニュー、全画面歌詞、ふりがな編集を使いやすくした3.2.0です。
+3.2.1は、3.2.0で一部の歌詞の行頭が表示されなかった不具合を修正した版です。
 
 <div align="center">
 
@@ -8,7 +8,7 @@
 
 **YouTube Musicに、追いかけやすい歌詞と読み仮名を。**
 
-![Version 3.2.0](https://img.shields.io/badge/version-3.2.0-f59e0b?style=flat-square)
+![Version 3.2.1](https://img.shields.io/badge/version-3.2.1-f59e0b?style=flat-square)
 ![Edge / Chrome](https://img.shields.io/badge/browser-Edge%20%2F%20Chrome-3b82f6?style=flat-square)
 ![Manifest V3](https://img.shields.io/badge/extension-Manifest%20V3-8b5cf6?style=flat-square)
 [![MIT License](https://img.shields.io/badge/license-MIT-f59e0b?style=flat-square)](LICENSE)
@@ -114,6 +114,12 @@
 再生バーの角丸・開閉位置調整は「再生バー・演出 → 再生バーの変更」で切り替えます。初期値はONで、Music GlassがONのときに適用されます。
 
 設定画面の読み仮名OFFは、保存済みの曲別ON設定より優先されます。共通設定をONへ戻すと、その曲の設定を再び適用します。
+
+## v3.2.1の更新内容
+
+単語ごとのタイミングが1つだけ付いた歌詞の行で、行頭の文字が表示されなかった不具合を修正しました。Spaceキーの再生操作は常に有効になりました。
+
+[3.2.1の更新内容・更新方法](docs/releases/v3.2.1.md)
 
 ## v3.2.0の更新内容
 
