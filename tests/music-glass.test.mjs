@@ -118,3 +118,17 @@ test('artwork requests CORS and retries without it; old accent clears on disable
   assert.equal(contexts[0].type,'2d');assert.equal(contexts[0].options.willReadFrequently,true);assert.equal(images[0].crossOrigin,'anonymous');images[0].onerror();assert.equal(images.length,2);assert.equal(images[1].crossOrigin,undefined);images[1].onload();assert.ok(removed.includes('--ytmls-art-accent'));props['--ytmls-art-accent']='old';changed({musicGlassArtwork:{newValue:false}},'local');assert.equal(props['--ytmls-art-accent'],undefined);
 });
 
+test('Bright covers are darkened in the backdrop bitmap; dark covers are left as they are',()=>{
+ const shadeFor=value=>{
+  const fills=[];const images=[];
+  const pixels=new Uint8ClampedArray(96*96*4).fill(value);
+  const context={clearRect(){},drawImage(){},getImageData:()=>({data:pixels}),fillRect(){fills.push(this.fillStyle);}};
+  const document={hidden:false,body:{prepend(el){el.parentNode=this;}},documentElement:{classList:{toggle(){}},style:{setProperty(){},removeProperty(){}}},addEventListener(){},querySelector(){return {src:'https://i.ytimg.com/a.jpg'};},createElement(){return {setAttribute(){},remove(){},dataset:{},getContext:()=>context};},dispatchEvent(){}};
+  vm.runInNewContext(fs.readFileSync(new URL('../extension/music-glass.js',import.meta.url),'utf8'),{document,Event:class{},Image:class{constructor(){this.naturalWidth=400;this.naturalHeight=400;images.push(this);}},chrome:{storage:{local:{get:(d,cb)=>cb(d)},onChanged:{addListener(){}}}},setInterval(){},setTimeout,URL});
+  images[0].onload();
+  return fills;
+ };
+ const bright=shadeFor(230);
+ assert.equal(bright.length,1);assert.match(bright[0],/^rgba\(0,0,0,0\.(?:[1-4]\d*|45)\)$/);
+ assert.deepEqual(shadeFor(40),[]);
+});

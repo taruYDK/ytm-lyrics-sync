@@ -1321,6 +1321,10 @@ html.music-glass-hide-scrollbar .ytmls-full-list::-webkit-scrollbar { display:no
 #ytmls-panel .ytmls-line.ytmls-active { color: rgb(var(--ytmls-ink)); }
 #ytmls-panel .ytmls-line.ytmls-active,
 #ytmls-fullscreen .ytmls-full-line.active { text-shadow: none; filter: none; }
+/* A soft outline keeps the white current line readable on bright covers.
+   drop-shadow (not text-shadow) works with the clipped word-progress text. */
+#ytmls-panel .ytmls-line.ytmls-active,
+#ytmls-fullscreen .ytmls-full-line.active { filter: drop-shadow(0 1px 2px rgba(0,0,0,.5)) drop-shadow(0 0 10px rgba(0,0,0,.25)); }
 #ytmls-panel .ytmls-line.ytmls-active .ytmls-word { opacity: 1; }
 #ytmls-panel .ytmls-line.ytmls-active .ytmls-word:is(.ytmls-word-sung,.ytmls-word-current) { color: rgb(var(--ytmls-ink)); }
 
@@ -1331,7 +1335,12 @@ html.music-glass-hide-scrollbar .ytmls-full-list::-webkit-scrollbar { display:no
 /* Future rows remain visible, using the faint treatment of distant lyrics. */
 #ytmls-panel .ytmls-line.ytmls-upcoming,
 #ytmls-fullscreen .ytmls-full-line.ytmls-upcoming {
-  opacity: .18 !important;
+  opacity: .3 !important;
+}
+/* The next line is read ahead while singing; it stays below sung lines (.45-.60). */
+#ytmls-panel .ytmls-line.ytmls-upcoming.ytmls-near,
+#ytmls-fullscreen .ytmls-full-line.ytmls-upcoming.ytmls-near {
+  opacity: .5 !important;
 }
 #ytmls-panel .ytmls-line.ytmls-upcoming .ytmls-word { color: inherit; opacity: 1; }
 

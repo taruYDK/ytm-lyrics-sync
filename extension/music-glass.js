@@ -119,6 +119,14 @@
       return url.protocol === 'https:' && /(^|\.)(ytimg\.com|googleusercontent\.com|ggpht\.com)$/.test(url.hostname) ? url.href : '';
     } catch { return ''; }
   }
+  // Mean luminance above the target is reduced with a black layer (at most 45%).
+  function backdropShadeAlpha(pixels) {
+    let sum = 0, count = 0;
+    for (let i = 0; i < pixels.length; i += 16) { sum += (0.2126*pixels[i] + 0.7152*pixels[i+1] + 0.0722*pixels[i+2]) / 255; count++; }
+    const luma = count ? sum / count : 0;
+    const target = 0.3;
+    return luma > target ? Math.min(0.45, 1 - target / luma) : 0;
+  }
   function update() {
     if (document.hidden) return;
     watchArtwork();
@@ -174,6 +182,9 @@
             }
             if (!best) root.style.removeProperty("--ytmls-art-accent");
             if (best) document.documentElement.style.setProperty('--ytmls-art-accent', best.map(n=>Math.min(255,Math.round(n*.55+140))).join(' '));
+            // Bright covers make white lyrics hard to read: darken only those, toward a fixed brightness.
+            const shade = backdropShadeAlpha(pixels);
+            if (shade > 0) { context.filter = 'none'; context.fillStyle = `rgba(0,0,0,${shade})`; context.fillRect(0, 0, 96, 96); }
           } catch (_) { document.documentElement.style.removeProperty('--ytmls-art-accent'); }
           artworkReady = true;
           artworkRevision++;
