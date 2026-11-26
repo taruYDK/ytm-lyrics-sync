@@ -8,7 +8,20 @@ function ensureEnhancementControls(){
   const sizes=document.createElement('div');sizes.className='ytmls-size-presets';sizes.setAttribute('aria-label','歌詞の文字サイズ');
   for(const [name,size] of [['小',26],['中',32],['大',40]]){const button=practiceButton(sizes,name,()=>{
    const id=practiceVideoId();if(!practiceCurrent(id)||!practiceLocalReady||!practiceSyncReady)return;
-   button.dataset.saving='true';button.disabled=true;void queuePracticeSettingsSave(()=>savePracticeEntry(id,{...practiceEntry(id),settings:{...(practiceEntry(id).settings||{}),fontSize:size}})).catch(e=>{button.title='保存できませんでした：'+e.message;}).finally(()=>{delete button.dataset.saving;button.disabled=false;});
+   // Shown at once (the lyrics and the chosen button); the save follows in order. The button
+   // stays usable while saving, so a quick change of mind is never ignored.
+   practicePendingSettings[id]={...(practicePendingSettings[id]||{}),fontSize:size};
+   applyPracticePrefs();
+   for(const other of sizes.querySelectorAll(':scope > button'))other.setAttribute('aria-pressed',String(other===button));
+   button.dataset.saving='true';
+   void queuePracticeSettingsSave(()=>savePracticeEntry(id,{...practiceEntry(id),settings:{...(practiceEntry(id).settings||{}),fontSize:size}}))
+    .then(()=>{button.title='';})
+    .catch(e=>{button.title='保存できませんでした：'+e.message;})
+    .finally(()=>{
+     delete button.dataset.saving;
+     // The last choice wins: drop the pending value once its own save is done (or failed).
+     if(practicePendingSettings[id]?.fontSize===size){delete practicePendingSettings[id];applyPracticePrefs();}
+    });
   });button.setAttribute('aria-label','文字サイズ '+name);button.dataset.size=String(size);}
   display.querySelector('.ytmls-menu-label').after(sizes);
   if(typeof attachGlassSegment==='function')attachGlassSegment(sizes);

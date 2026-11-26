@@ -4,13 +4,13 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 const source = fs.readFileSync(new URL('../src/content/glass-segment.js', import.meta.url), 'utf8');
 
-function segment({motion = true} = {}) {
+function segment({motion = true, refuse = false} = {}) {
   const listeners = {}, timers = [], frames = []; let now = 0;
   const clicks = [];
   const classSet = () => { const s = new Set(); return {add: c => s.add(c), toggle: (c, on) => on ? s.add(c) : s.delete(c), contains: c => s.has(c)}; };
   const buttons = ['小', '中', '大'].map((label, i) => {
     const b = {label, offsetLeft: 3 + i * 60, offsetWidth: 60, disabled: false, attrs: {'aria-pressed': String(i === 1)}, classList: classSet(),
-      getAttribute: k => b.attrs[k], closest: () => b, click() { clicks.push(label); for (const x of buttons) x.attrs['aria-pressed'] = String(x === b); }};
+      getAttribute: k => b.attrs[k], closest: () => b, click() { clicks.push(label); if (refuse) return; for (const x of buttons) x.attrs['aria-pressed'] = String(x === b); }};
     return b;
   });
   const group = {dataset: {}, classList: classSet(), children: [], prepend(el) { this.thumb = el; },
@@ -189,4 +189,14 @@ test('while dragging the bead stays right behind a moving finger and never overs
   const after = [];
   for (let i = 0; i < 30; i++) { h.step(); after.push(h.translate()); }
   assert.ok(Math.max(...after) <= x - 30 + .5, 'no overshoot past the finger');
+});
+
+test('a choice that is not taken (the song is still loading) sends the bead back to the size in use', () => {
+  const h = segment({refuse: true});
+  h.fire('pointerdown', {clientX: 93});
+  h.fire('pointermove', {clientX: 150});
+  h.fire('pointerup', {clientX: 150});
+  assert.deepEqual(h.clicks, ['大'], 'it was tried');
+  h.settle();
+  assert.equal(h.translate(), 63, 'back on Medium, which is still the size in use');
 });

@@ -159,3 +159,15 @@ test('fullscreen header follows the cover on every refresh and a picked alignmen
  assert.match(text,/const chooseAlign = value => \{\n  box\.alignChosen = true;/);
  assert.match(text,/practiceFullscreen === box && !box\.alignChosen\) setAlign\(/);
 });
+
+test('a size chosen in the menu shows at once and is not undone before its save finishes', () => {
+  const source = read('src/content/enhancements.js');
+  assert.match(source, /practicePendingSettings\[id\]=\{\.\.\.\(practicePendingSettings\[id\]\|\|\{\}\),fontSize:size\};\s*applyPracticePrefs\(\);/);
+  assert.doesNotMatch(source, /button\.disabled=true/, 'the button stays usable while saving');
+  assert.match(source, /if\(practicePendingSettings\[id\]\?\.fontSize===size\)\{delete practicePendingSettings\[id\];applyPracticePrefs\(\);\}/);
+  const h = harness();
+  h.run("practiceLocalReady=true;practiceSyncReady=true;practiceData.one={settings:{fontSize:26}};practicePendingSettings.one={fontSize:40};applyPracticePrefs()");
+  assert.equal(h.c.STATE.fontSize, 40, 'the pending choice wins over the saved one');
+  h.run("delete practicePendingSettings.one;applyPracticePrefs()");
+  assert.equal(h.c.STATE.fontSize, 26);
+});

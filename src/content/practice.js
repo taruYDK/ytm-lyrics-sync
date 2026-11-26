@@ -8,8 +8,11 @@ let practiceFullscreen = null, practiceFullSignature = '', practiceFullIndex = -
 const practiceRomajiCache = new Map();
 function practiceVideoId() { return String(getAuthoritativeVideoId() || ''); }
 function practiceEntry(id=practiceVideoId()) { return practiceData[id] || {}; }
+// Settings chosen but not saved yet (shown at once; the save follows).
+const practicePendingSettings={};
 function practicePrefs() {
- const prefs={...practiceGlobal,...(practiceEntry().settings||{})};
+ const id=practiceVideoId();
+ const prefs={...practiceGlobal,...(practiceEntry(id).settings||{}),...(practicePendingSettings[id]||{})};
  // Global OFF suppresses readings without discarding the per-track preference.
  for(const key of ['readingJapanese','readingEnglish'])prefs[key]=practiceGlobal[key]!==false&&prefs[key]!==false;
  return prefs;

@@ -259,6 +259,9 @@ function attachGlassSegment(group) {
    const s = slot(target);
    moveTo(s.x, s.w);
    if (commit && !target.disabled && target.getAttribute('aria-pressed') !== 'true') target.click();
+   // Not taken (e.g. the song is still loading): go back to the size actually in use, so the
+   // bead never shows a size the lyrics do not have.
+   if (target.getAttribute('aria-pressed') !== 'true') sync();
   }
   swallowNextClick();
  }
