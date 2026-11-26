@@ -24,10 +24,11 @@ function segment({motion = true} = {}) {
   });
   vm.runInContext(source, c);
   const api = c.attachGlassSegment(group);
-  const settle = () => { for (let i = 0; i < 400 && frames.length; i++) { now += 16; frames.shift()(now); } };
+  const settle = (ms = 16) => { for (let i = 0; i < 400 && frames.length; i++) { now += ms; frames.shift()(now); } };
   const fire = (type, extra = {}) => { const e = {pointerId: 1, button: 0, target: extra.target || buttons[1], isTrusted: true, preventDefault() { e.prevented = true; }, stopPropagation() { e.stopped = true; }, ...extra}; listeners[type](e); return e; };
   const step = () => { if (frames.length) { now += 16; frames.shift()(now); } };
-  return {api, group, buttons, clicks, timers, settle, step, fire, translate: () => Number(/translateX\(([-\d.]+)px\)/.exec(api.thumb.style.transform)[1])};
+  const step32 = () => { if (frames.length) { now += 32; frames.shift()(now); } };
+  return {api, group, buttons, clicks, timers, settle, step, step32, fire, translate: () => Number(/translateX\(([-\d.]+)px\)/.exec(api.thumb.style.transform)[1])};
 }
 
 test('glass bead starts on the chosen size', () => {
@@ -37,14 +38,12 @@ test('glass bead starts on the chosen size', () => {
   assert.ok(h.group.classList.contains('ytmls-glass-segment'));
 });
 
-test('pressing and sliding moves the bead with the pointer at once and picks the nearest size on release', () => {
+test('pressing lifts the bead at once; sliding moves it centered under the pointer and release picks the size there', () => {
   const h = segment();
   h.fire('pointerdown', {clientX: 93});
   assert.equal(h.group.captured, 1, 'the pointer is captured right away');
-  assert.equal(h.group.dataset.dragging, undefined, 'no drag before it moves');
-  assert.equal(h.timers.filter(Boolean).length, 0, 'no hold timer: holding still never picks a size');
-  h.fire('pointermove', {clientX: 97});
-  assert.equal(h.group.dataset.dragging, 'true', 'a 4px slide starts the drag');
+  assert.equal(h.group.dataset.dragging, 'true', 'pressing lifts it at once, before any move (like iOS)');
+  assert.equal(h.timers.filter(Boolean).length, 0, 'no hold timer');
   h.fire('pointermove', {clientX: 140});
   h.fire('pointermove', {clientX: 160});
   h.settle();
@@ -111,7 +110,9 @@ test('a fast move into an end bounces off the wall inside the track', () => {
   for (let i = 0; i < 160; i++) { h.step(); xs.push(h.translate()); squash.push(h.api.state.sq); }
   assert.ok(Math.max(...xs) <= 123, 'never past the wall');
   assert.ok(Math.max(...squash) > .02, 'squashes on impact');
-  assert.ok(xs.some((x, i) => i > 0 && x < xs[i - 1] && xs[i - 1] === 123), 'rebounds from the wall');
+  // The bounce can happen between two frames, so look for: close to the wall, then back off it.
+  const hit = xs.findIndex(x => x >= 121.5);
+  assert.ok(hit >= 0 && xs.slice(hit).some(x => x < xs[hit] - 1), 'rebounds from the wall');
   assert.equal(xs.at(-1), 123);
 });
 
@@ -124,7 +125,8 @@ test('settling into an end bounces back from the wall (springy)', () => {
   // Step the animation and record where the bead goes.
   for (let i = 0; i < 120; i++) { h.step(); positions.push(h.translate()); }
   assert.ok(Math.min(...positions) >= 3, 'stays inside the track');
-  assert.ok(positions.some((x, i) => i > 0 && x > positions[i - 1] && positions[i - 1] === 3), 'bounces off the left wall');
+  const hit = positions.findIndex(x => x <= 4.5);
+  assert.ok(hit >= 0 && positions.slice(hit).some(x => x > positions[hit] + 1), 'bounces off the left wall');
   assert.equal(positions.at(-1), 3, 'and comes to rest on it');
 });
 
@@ -137,4 +139,23 @@ test('settling between the walls overshoots a little before resting', () => {
   for (let i = 0; i < 160; i++) { h.step(); xs.push(h.translate()); }
   assert.ok(Math.max(...xs) > 63 + 1, 'passes Medium once');
   assert.equal(xs.at(-1), 63);
+});
+
+test('the bead goes under the finger: release picks the size under the pointer, wherever the bead was grabbed', () => {
+  const h = segment();
+  // Grab Medium near its left edge and slide so the finger is over Large.
+  h.fire('pointerdown', {clientX: 66});
+  h.fire('pointermove', {clientX: 150});
+  h.settle();
+  assert.ok(Math.abs(h.translate() + 30 - 150) < 2, 'centered under the pointer');
+  h.fire('pointerup', {clientX: 150});
+  assert.deepEqual(h.clicks, ['大']);
+});
+
+test('holding still on slow frames: the bead stays under the finger (no drift or shake)', () => {
+  const h = segment();
+  h.fire('pointerdown', {clientX: 93});
+  const positions = [];
+  for (let i = 0; i < 40; i++) { h.step32(); positions.push(h.translate()); }
+  for (const x of positions.slice(5)) assert.ok(Math.abs(x - 63) < 1, `stays at 63 (${x})`);
 });

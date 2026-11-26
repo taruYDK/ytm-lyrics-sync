@@ -1,9 +1,9 @@
 // Glass segmented control (Small / Medium / Large): a glass bead marks the chosen button.
-// Press anywhere and slide to move it: it follows the pointer on a spring,
+// Pressing lifts it at once (like iOS): it becomes a clear lens and goes under the finger. Slide
+// to move it: it follows the pointer on a spring,
 // stretches with its speed and magnifies the label under it. It never leaves the track: pulled
 // past an end it squashes against the wall, and it bounces off the walls inside the track.
 // A short tap still works as a normal button.
-const GLASS_SEGMENT_DRAG_PX = 3;
 
 // Rubber band past the ends: moves less and less the further it is pulled (at most `limit`).
 function glassSegmentRubber(over, limit) {
@@ -89,26 +89,31 @@ function attachGlassSegment(group) {
   if (side !== 'center') sx = Math.min(1, sx);
   thumb.style.width = `${Math.max(0, state.w)}px`;
   thumb.style.transformOrigin = side === 'center' ? 'center' : `${side} center`;
-  thumb.style.transform = `translateX(${state.x}px) scale(${sx.toFixed(4)}, ${sy.toFixed(4)})`;
+  thumb.style.transform = `translateX(${Number(state.x.toFixed(3))}px) scale(${sx.toFixed(4)}, ${sy.toFixed(4)})`;
   placeLens(sx, sy);
  }
  function step(now) {
   state.frame = 0;
-  const dt = Math.min(.032, Math.max(.001, (now - (state.last || now)) / 1000 || .016));
+  const dt = Math.min(.05, Math.max(.001, (now - (state.last || now)) / 1000 || .016));
   state.last = now;
   // Close behind the pointer while dragging; springy (overshoots and wobbles) when settling.
+  // Integrated in small fixed steps: a stiff spring over a long frame (the lens is heavy, frames
+  // can take 30 ms or more) would otherwise blow up and make the bead drift or shake.
   const stiffness = state.dragging ? 2000 : 420, damping = state.dragging ? 64 : 17;
-  state.vx += ((state.tx - state.x) * stiffness - state.vx * damping) * dt;
-  state.vw += ((state.tw - state.w) * stiffness - state.vw * damping) * dt;
-  // The squash springs back on its own, so a release from the wall wobbles too.
-  state.vsq += ((state.squash - state.sq) * 700 - state.vsq * 16) * dt;
-  state.x += state.vx * dt; state.w += state.vw * dt; state.sq += state.vsq * dt;
-  // Walls: the bead stays inside the track and bounces off, squashing with the hit.
   const {min, max} = bounds();
-  if (max >= min && (state.x < min || state.x > max)) {
-   state.x = state.x < min ? min : max;
-   if (glassSegmentMotion()) state.vsq += Math.min(14, Math.abs(state.vx) / 90);
-   state.vx = -state.vx * .35;
+  for (let left = dt; left > 1e-6; left -= .004) {
+   const h = Math.min(.004, left);
+   state.vx += ((state.tx - state.x) * stiffness - state.vx * damping) * h;
+   state.vw += ((state.tw - state.w) * stiffness - state.vw * damping) * h;
+   // The squash springs back on its own, so a release from the wall wobbles too.
+   state.vsq += ((state.squash - state.sq) * 700 - state.vsq * 16) * h;
+   state.x += state.vx * h; state.w += state.vw * h; state.sq += state.vsq * h;
+   // Walls: the bead stays inside the track and bounces off, squashing with the hit.
+   if (max >= min && (state.x < min || state.x > max)) {
+    state.x = state.x < min ? min : max;
+    if (glassSegmentMotion()) state.vsq += Math.min(14, Math.abs(state.vx) / 90);
+    state.vx = -state.vx * .35;
+   }
   }
   if (state.sq < 0) { state.sq = 0; state.vsq = Math.abs(state.vsq) * .3; }
   const resting = Math.abs(state.tx - state.x) < .3 && Math.abs(state.vx) < 8 && Math.abs(state.tw - state.w) < .3 && Math.abs(state.vw) < 8 &&
@@ -153,9 +158,10 @@ function attachGlassSegment(group) {
  }
 
  // ---------- Press and drag ----------
- // The pointer is captured as soon as it goes down, so every move reaches the control (even off
- // it). A slide of a few pixels starts the drag at once; releasing without sliding is a tap,
- // handled here too (with the pointer captured the browser would not click the button).
+ // Like iOS: pressing lifts the bead at once (it turns into the lens, even before moving) and it
+ // stays centered under the pointer; releasing picks the size under the pointer. A quick tap is
+ // the same lift and release. The pointer is captured on press so every move reaches the control,
+ // and the browser's own click is swallowed (the release has already chosen).
  let press = null, suppressClick = false;
  function swallowNextClick() {
   suppressClick = true;
@@ -169,9 +175,8 @@ function attachGlassSegment(group) {
   thumb.hidden = false;
   const current = pressed() || press.button;
   if (current) { const s = slot(current); state.tw = s.w; if (!state.placed) moveTo(s.x, s.w, false); }
-  // Keep the spot that was grabbed under the pointer; pressing elsewhere centers the bead there.
-  const rect = group.getBoundingClientRect(), local = press.startX - rect.left;
-  state.grab = local >= state.x && local <= state.x + state.w ? local - state.x : state.tw / 2;
+  // Centered under the pointer, so the size chosen on release is the one under the finger.
+  state.grab = state.tw / 2;
   follow(press.lastX);
  }
  function follow(clientX) {
@@ -217,25 +222,18 @@ function attachGlassSegment(group) {
   if (event.button !== 0 || buttons().every(button => button.disabled)) return;
   press = {id: event.pointerId, startX: event.clientX, lastX: event.clientX, button: event.target.closest?.('button') || buttonAt(event.clientX)};
   try { group.setPointerCapture(event.pointerId); } catch (_) {}
+  beginDrag();
  });
  group.addEventListener('pointermove', event => {
-  if (!press || event.pointerId !== press.id) return;
+  if (!press || event.pointerId !== press.id || !state.dragging) return;
   press.lastX = event.clientX;
-  if (state.dragging) { event.preventDefault(); follow(event.clientX); return; }
-  if (Math.abs(event.clientX - press.startX) > GLASS_SEGMENT_DRAG_PX) beginDrag();
+  event.preventDefault();
+  follow(event.clientX);
  });
  group.addEventListener('pointerup', event => {
   if (!press || event.pointerId !== press.id) return;
-  if (state.dragging) { endDrag(true); return; }
-  // A tap: choose the button it was released on.
-  const tapped = buttonAt(event.clientX) || press.button;
-  press = null;
-  swallowNextClick();
-  if (tapped && !tapped.disabled) {
-   const s = slot(tapped);
-   if (s.w) moveTo(s.x, s.w);
-   if (tapped.getAttribute('aria-pressed') !== 'true') tapped.click();
-  }
+  follow(event.clientX);
+  endDrag(true);
  });
  group.addEventListener('pointercancel', () => endDrag(false));
  group.addEventListener('lostpointercapture', () => { if (state.dragging) endDrag(true); else press = null; });
