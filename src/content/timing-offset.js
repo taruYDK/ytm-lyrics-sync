@@ -303,8 +303,13 @@
     return null;
   }
 
+  // Open and not already shrinking back into its button.
+  function trackTimingPopoverOpen() {
+    return Boolean(trackTimingPopoverEl && !trackTimingPopoverEl.hidden && trackTimingPopoverEl.dataset.morphing !== 'closing');
+  }
+
   function positionTrackTimingPopover() {
-    if (!trackTimingPopoverEl || trackTimingPopoverEl.hidden) return;
+    if (!trackTimingPopoverOpen()) return;
     const rect = visibleTrackTimingAnchor()?.rect;
     const width = trackTimingPopoverEl.offsetWidth || 330;
     const height = trackTimingPopoverEl.offsetHeight || 230;
@@ -322,7 +327,7 @@
   function toggleTrackTimingPopover(anchor = trackTimingButtonEl) {
     if (!trackTimingButtonEl?.isConnected || trackTimingButtonEl.disabled) return;
     ensureTrackTimingPopover();
-    if (!trackTimingPopoverEl.hidden && trackTimingPopoverEl.dataset.morphing !== 'closing') { closeTrackTimingPopover(); return; }
+    if (trackTimingPopoverOpen()) { closeTrackTimingPopover(); return; }
     trackTimingAnchor = anchor;
     trackTimingPopoverEl.hidden = false;
     // Not shown until it is placed, so the first frame is not drawn at the old spot.
@@ -373,7 +378,7 @@
       const duration = getAuthoritativeDuration(media);
       trackTimingAddPointEl.disabled = !enabled || !Number.isFinite(time) || !Number.isFinite(duration) || duration <= 0;
     }
-    if (renderPoints && trackTimingPopoverEl && !trackTimingPopoverEl.hidden) renderTrackTimingPoints();
+    if (renderPoints && trackTimingPopoverOpen()) renderTrackTimingPoints();
     if (trackTimingTotalEl) {
       trackTimingTotalEl.textContent = `現在位置の補正: ${formatOffsetMs(currentMs)} ・ 途中のポイント ${customPointCount}個 ・ この曲だけに保存`;
     }
@@ -381,6 +386,7 @@
   }
 
   function closeTrackTimingPopover() {
+    if (trackTimingPopoverEl?.dataset.morphing === 'closing') return;
     if (trackTimingPreview?.videoId === getTrackOffsetVideoId(false)) saveCurrentTrackTimingPoints(trackTimingPreview.points, false);
     const popover = trackTimingPopoverEl, anchor = visibleTrackTimingAnchor()?.target;
     if (trackTimingButtonEl) trackTimingButtonEl.setAttribute('aria-expanded', 'false');
@@ -389,7 +395,8 @@
     // Shrink back into the button, then hide (a reopen during the shrink cancels the hide).
     if (typeof glassMorph === 'function' && glassMorphAllowed(popover) && anchor) {
       popover.style.pointerEvents = 'none';
-      glassMorph(popover, anchor, {closing: true, onDone: () => { popover.hidden = true; popover.style.removeProperty('pointer-events'); }});
+      const settle = () => popover.style.removeProperty('pointer-events');
+      glassMorph(popover, anchor, {closing: true, onCancel: settle, onDone: () => { popover.hidden = true; settle(); }});
     } else {
       popover.hidden = true;
     }
@@ -402,7 +409,7 @@
   }
 
   function updateOffsetPreview() {
-    if (!trackTimingPopoverEl || trackTimingPopoverEl.hidden) return;
+    if (!trackTimingPopoverOpen()) return;
     let preview = trackTimingPopoverEl.querySelector('.ytmls-offset-preview');
     if (!preview) {
       preview = document.createElement('div');
@@ -531,7 +538,7 @@
     renderTrackTimingPoints();
 
     document.addEventListener('click', (event) => {
-      if (!trackTimingPopoverEl || trackTimingPopoverEl.hidden) return;
+      if (!trackTimingPopoverOpen()) return;
       if (trackTimingPopoverEl.contains(event.target) || (trackTimingButtonEl && trackTimingButtonEl.contains(event.target))) return;
       closeTrackTimingPopover();
     });

@@ -260,6 +260,7 @@
     updateLyricsToolsUi();
     candidateRefreshPending = false;
     if (!lyricsToolsPaneEl || lyricsToolsPaneEl.hidden || lyricsToolsPaneMode !== "candidates" || candidateSaveBusy) return;
+    if (lyricsToolsPaneEl.dataset.morphing === "closing") return;
     if (candidatePointerDown) {
       candidateRefreshPending = true;
       return;
@@ -1031,7 +1032,8 @@
     if (more.dataset.closing==='true') return;
     more.dataset.closing='true';menu.style.pointerEvents='none';
     // Shrink back into the "その他" button.
-    glassMorph(menu, summary, {closing: true, onDone: () => {more.open=false;delete more.dataset.closing;menu.style.removeProperty('pointer-events');}});
+    const settle=()=>{delete more.dataset.closing;menu.style.removeProperty('pointer-events');};
+    glassMorph(menu, summary, {closing: true, onDone: () => {more.open=false;settle();}, onCancel: settle});
   }
 
   function createPanel() {
@@ -1175,8 +1177,9 @@
       const lifted = { position: "absolute", top: `${pane.offsetTop}px`, left: `${pane.offsetLeft}px`, width: `${pane.offsetWidth}px`, height: `${pane.offsetHeight}px`, margin: "0", zIndex: "31" };
       if (pane.offsetParent) Object.assign(pane.style, lifted);
       pane.style.pointerEvents = "none";
-      glassMorph(pane, anchor, { closing: true, onDone: () => {
-        for (const key of ["position", "top", "left", "width", "height", "margin", "z-index", "pointer-events"]) pane.style.removeProperty(key);
+      const unlift = () => { for (const key of ["position", "top", "left", "width", "height", "margin", "z-index", "pointer-events"]) pane.style.removeProperty(key); };
+      glassMorph(pane, anchor, { closing: true, onCancel: unlift, onDone: () => {
+        unlift();
         // Another pane opened meanwhile: keep it.
         if (lyricsToolsPaneMode === mode) closeLyricsToolsPane();
       } });
@@ -1190,9 +1193,20 @@
       const button = event.target.closest?.("#ytmls-tools > .ytmls-tool-button[aria-pressed='true']");
       if (button && closeToolPaneByHand()) { event.stopImmediatePropagation(); event.preventDefault(); }
     }, true);
+    // Escape closes the pane, but not while a Japanese conversion is open or a field is in use
+    // (Escape there belongs to the IME or the field, and closing would drop unsaved text).
     lyricsToolsPaneEl.addEventListener("keydown", event => {
-      if (event.key === "Escape" && closeToolPaneByHand()) { event.stopPropagation(); (toolPaneAnchor?.isConnected ? toolPaneAnchor : candidateButtonEl)?.focus(); }
+      if (event.key !== "Escape" || event.isComposing || event.keyCode === 229) return;
+      if (event.target.closest?.("input, textarea, select, [contenteditable='true']")) return;
+      if (lyricsToolsPaneEl.hidden || candidateSaveBusy) return;
+      event.stopPropagation();
+      if (!closeToolPaneByHand() && lyricsToolsPaneEl.dataset.morphing !== "closing") closeLyricsToolsPane();
+      (toolPaneAnchor?.isConnected ? toolPaneAnchor : candidateButtonEl)?.focus();
     });
+    // Another pane replacing the contents during a hand close takes over: stop the shrink.
+    if (typeof MutationObserver === "function") new MutationObserver(() => {
+      if (lyricsToolsPaneEl.dataset.morphing === "closing" && typeof stopGlassMorph === "function") stopGlassMorph(lyricsToolsPaneEl);
+    }).observe(lyricsToolsPaneEl, { childList: true });
     if (typeof MutationObserver === "function") new MutationObserver(() => {
       if (lyricsToolsPaneEl.hidden) { lyricsToolsPaneEl.wasShown = false; return; }
       if (lyricsToolsPaneEl.wasShown) return;

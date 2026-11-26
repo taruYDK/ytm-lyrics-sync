@@ -75,7 +75,7 @@ test('timing popover anchors to the visible menu summary when the compact button
  const bounds={left:700,top:320,bottom:350,width:90,height:30};
  const summary={isConnected:true,getBoundingClientRect:()=>bounds,focus(){this.focused=true;}};
  const compactButton={isConnected:true,getBoundingClientRect:()=>({left:0,top:0,bottom:0,width:0,height:0}),setAttribute(){}};
- const popover={hidden:true,offsetHeight:200,offsetWidth:320,style:{removeProperty(k){delete this[k];}},querySelector:()=>null};
+ const popover={hidden:true,offsetHeight:200,offsetWidth:320,dataset:{},style:{removeProperty(k){delete this[k];}},querySelector:()=>null};
  const c=vm.createContext({document:{querySelector:()=>summary},window:{innerWidth:900,innerHeight:620},
   trackTimingPopoverEl:popover,trackTimingButtonEl:compactButton,trackTimingPreview:null,requestAnimationFrame:fn=>fn()});
  vm.runInContext(read('src/content/timing-offset.js'),c);
@@ -139,7 +139,7 @@ test('candidate collection never leaves provider progress in the panel header',(
 test('refreshing the candidate list keeps focus on the same candidate and waits for a press to end',()=>{
  const make=(id,cls)=>{const el={id,cls,classList:{contains:n=>n===cls},closest:()=>row,focus(){c.document.activeElement=el;}};const row={dataset:{candidateId:id},querySelector:s=>s==='.'+cls?el:null};el.row=row;return el;};
  let rows=[],renders=0;
- const pane={hidden:false,scrollTop:40,contains:el=>rows.includes(el),querySelectorAll:()=>rows.map(e=>e.row)};
+ const pane={hidden:false,dataset:{},scrollTop:40,contains:el=>rows.includes(el),querySelectorAll:()=>rows.map(e=>e.row)};
  const c=vm.createContext({lyricsToolsPaneEl:pane,lyricsToolsPaneMode:'candidates',candidateSaveBusy:false,candidatePointerDown:false,candidateRefreshPending:false,
   document:{activeElement:null},updateLyricsToolsUi(){},
   renderCandidatePane(){renders++;rows=['a','b'].map(id=>make(id,'ytmls-candidate-pin'));pane.scrollTop=0;c.lyricsToolsPaneMode='candidates';}});

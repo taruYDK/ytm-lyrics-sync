@@ -26,7 +26,7 @@
   const NS = 'http://www.w3.org/2000/svg';
   function el(tag, attrs, children = []) {
     const node = document.createElementNS(NS, tag);
-    for (const [key, value] of Object.entries(attrs)) node.setAttribute(key, String(value));
+    for (const [key, value] of Object.entries(attrs)) if (value !== undefined) node.setAttribute(key, String(value));
     node.append(...children);
     return node;
   }

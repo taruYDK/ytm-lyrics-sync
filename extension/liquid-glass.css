@@ -249,6 +249,7 @@ html.ytmls-lyrics-motion-lightweight :is(#ytmls-more > .ytmls-more-menu, #ytmls-
   #ytmls-tools > .ytmls-tool-button, #ytmls-more > summary.ytmls-tool-button, #ytmls-helpful > .ytmls-source-badge,
   ytmusic-player-bar :is(#ytmls-resync-button, #ytmls-track-offset-button), #ytmls-fullscreen :is(.ytmls-full-size button, .ytmls-full-close)) {
   --lg-fill: var(--lg-fill-solid);
+  --lg-fill-pill: var(--lg-fill-solid);
   -webkit-backdrop-filter: none !important; backdrop-filter: none !important;
 }
 html.ytmls-lyrics-motion-lightweight :is(#ytmls-tools > .ytmls-tool-button, #ytmls-more > summary.ytmls-tool-button, ytmusic-player-bar :is(#ytmls-resync-button, #ytmls-track-offset-button), #ytmls-fullscreen :is(.ytmls-full-size button, .ytmls-full-close)) { transform: none !important; filter: none !important; }
@@ -257,6 +258,7 @@ html.ytmls-lyrics-motion-lightweight :is(#ytmls-tools > .ytmls-tool-button, #ytm
     #ytmls-tools > .ytmls-tool-button, #ytmls-more > summary.ytmls-tool-button, #ytmls-helpful > .ytmls-source-badge,
     ytmusic-player-bar :is(#ytmls-resync-button, #ytmls-track-offset-button), #ytmls-fullscreen :is(.ytmls-full-size button, .ytmls-full-close)) {
     --lg-fill: var(--lg-fill-solid);
+    --lg-fill-pill: var(--lg-fill-solid);
     -webkit-backdrop-filter: none !important; backdrop-filter: none !important;
   }
 }

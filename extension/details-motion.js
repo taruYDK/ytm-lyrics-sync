@@ -19,9 +19,10 @@
 
   // Height of the section with only its summary showing.
   function closedHeight(details, summary) {
-    const style = getComputedStyle(details);
+    const style = getComputedStyle(details), own = getComputedStyle(summary);
     const edges = ['paddingTop', 'paddingBottom', 'borderTopWidth', 'borderBottomWidth'].reduce((sum, key) => sum + (parseFloat(style[key]) || 0), 0);
-    return summary.getBoundingClientRect().height + edges;
+    const margins = (parseFloat(own.marginTop) || 0) + (parseFloat(own.marginBottom) || 0);
+    return summary.getBoundingClientRect().height + edges + margins;
   }
 
   function toggle(details, summary) {
@@ -30,8 +31,10 @@
     // A click during the motion reverses it from where it is.
     const opening = running ? !details.ytmlsOpening : !details.open;
     running?.cancel();
-    // Drop the contents' previous fade (a close that is reversed must not leave them hidden).
-    for (const child of details.children) child.getAnimations?.().forEach(animation => animation.cancel());
+    // Drop this script's previous content fades (a close that is reversed must not leave them
+    // hidden); animations from elsewhere on the children are left alone.
+    for (const fade of details.ytmlsFades || []) fade.cancel();
+    details.ytmlsFades = [];
     details.ytmlsOpening = opening;
     if (opening) { details.open = true; delete details.dataset.closing; } else details.dataset.closing = 'true';
     details.style.height = '';
@@ -46,9 +49,9 @@
     });
     for (const child of details.children) {
       if (child === summary) continue;
-      child.animate(opening ? [{opacity: 0, transform: 'translateY(-4px)'}, {opacity: 1, transform: 'none'}] : [{opacity: 1}, {opacity: 0}], {
+      details.ytmlsFades.push(child.animate(opening ? [{opacity: 0, transform: 'translateY(-4px)'}, {opacity: 1, transform: 'none'}] : [{opacity: 1}, {opacity: 0}], {
         duration: opening ? duration : duration * .6, easing: 'ease-out', fill: opening ? 'none' : 'forwards',
-      });
+      }));
     }
     details.ytmlsFold = fold;
     const finish = () => {
@@ -57,7 +60,8 @@
       if (!opening) details.open = false;
       delete details.dataset.closing;
       details.style.removeProperty('overflow');
-      for (const child of details.children) child.getAnimations?.().forEach(animation => { if (animation !== fold) animation.cancel(); });
+      for (const fade of details.ytmlsFades) fade.cancel();
+      details.ytmlsFades = [];
     };
     fold.finished.then(finish, () => {});
   }

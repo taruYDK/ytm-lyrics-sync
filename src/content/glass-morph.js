@@ -48,14 +48,29 @@ function glassMorphStart(surface, anchor) {
  };
 }
 
-function glassMorph(el, anchorEl, {closing = false, onDone} = {}) {
+// Stops a running morph on el: its animation and its own content fades (never other
+// animations, such as CSS ones on the children), and runs its onCancel cleanup.
+function stopGlassMorph(el) {
+ const run = el?.glassMorphRun;
+ if (!run) return false;
+ el.glassMorphRun = null;
+ el.glassMorph = null;
+ delete el.dataset.morphing;
+ run.animation.cancel();
+ for (const fade of run.fades) fade.cancel();
+ if (run.onCancel) run.onCancel();
+ return true;
+}
+
+// onDone runs when the morph completes (or at once without motion); onCancel runs instead
+// when another morph or stopGlassMorph interrupts it, so callers can undo their temporary state.
+function glassMorph(el, anchorEl, {closing = false, onDone, onCancel} = {}) {
  const done = () => { if (onDone) onDone(); };
- if (!el || !anchorEl?.isConnected || !glassMorphAllowed(el)) { done(); return null; }
+ if (!el || !anchorEl?.isConnected || !glassMorphAllowed(el)) { stopGlassMorph(el); done(); return null; }
+ // Stop the previous morph before measuring: its transform would shift the rectangle.
+ stopGlassMorph(el);
  const surface = el.getBoundingClientRect(), anchor = anchorEl.getBoundingClientRect();
  if (!surface.width || !surface.height || !anchor.width || !anchor.height) { done(); return null; }
- el.glassMorph?.cancel();
- // A reopen during a close must not leave the contents faded out.
- for (const child of el.children) child.getAnimations?.().forEach(a => a.cancel());
  const start = glassMorphStart(surface, anchor);
  const radius = parseFloat(getComputedStyle(el).borderTopLeftRadius) || 22;
  const room = GLASS_MORPH_SHADOW_ROOM;
@@ -72,20 +87,23 @@ function glassMorph(el, anchorEl, {closing = false, onDone} = {}) {
   easing: closing ? 'cubic-bezier(.25, .8, .25, 1)' : glassMorphEasing(),
  });
  // Contents fade in once the glass has room, and out first when it shrinks back.
+ const fades = [];
  for (const child of el.children) {
-  child.animate(closing ? [{opacity: 1}, {opacity: 0}] : [{opacity: 0}, {opacity: 0, offset: .25}, {opacity: 1}], {
+  fades.push(child.animate(closing ? [{opacity: 1}, {opacity: 0}] : [{opacity: 0}, {opacity: 0, offset: .25}, {opacity: 1}], {
    duration: closing ? GLASS_MORPH_CLOSE_MS * .4 : GLASS_MORPH_OPEN_MS * .7, easing: 'ease-out', fill: closing ? 'forwards' : 'none',
-  });
+  }));
  }
+ const run = {animation, fades, onCancel};
+ el.glassMorphRun = run;
  el.glassMorph = animation;
  el.dataset.morphing = closing ? 'closing' : 'opening';
- const finish = () => {
-  if (el.glassMorph !== animation) return;
+ animation.finished.then(() => {
+  if (el.glassMorphRun !== run) return;
+  el.glassMorphRun = null;
   el.glassMorph = null;
   delete el.dataset.morphing;
-  if (closing) for (const child of el.children) child.getAnimations?.().forEach(a => a.cancel());
+  if (closing) for (const fade of fades) fade.cancel();
   done();
- };
- animation.finished.then(finish, finish);
+ }, () => {});
  return animation;
 }

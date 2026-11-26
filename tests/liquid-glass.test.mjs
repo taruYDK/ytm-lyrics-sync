@@ -48,7 +48,7 @@ test('Liquid Glass styles load last and fall back to solid surfaces', () => {
   const lensRules = [...css.replace(/\/\*[\s\S]*?\*\//g, '').matchAll(/([^{}]+)\{([^{}]*)\}/g)].filter(([, , body]) => body.includes('url(#ytmls-lg-lens'));
   assert.ok(lensRules.length >= 2);
   for (const [, selector] of lensRules) assert.match(selector.trim(), /^html\.ytmls-lg-lens /, 'lens only after the filters exist');
-  assert.match(css, /html\.ytmls-lyrics-motion-lightweight :is\([^{]+\{\s*--lg-fill: var\(--lg-fill-solid\);\s*-webkit-backdrop-filter: none !important; backdrop-filter: none !important;/);
+  assert.match(css, /html\.ytmls-lyrics-motion-lightweight :is\([^{]+\{\s*--lg-fill: var\(--lg-fill-solid\);\s*--lg-fill-pill: var\(--lg-fill-solid\);\s*-webkit-backdrop-filter: none !important; backdrop-filter: none !important;/);
   assert.match(css, /@media \(prefers-reduced-transparency: reduce\)/);
   assert.match(css, /@media \(prefers-reduced-motion: reduce\)/);
   assert.doesNotMatch(css, /#ytmls-reading-edit/, 'that id is the menu button, not a surface');

@@ -20,12 +20,13 @@ function page({protocol = 'chrome-extension:', reduced = false, lightweight = fa
     animate: (k, o) => anim(details, k, o)};
   summary.parentElement = details;
   summary.closest = () => summary;
-  const context = {location: {protocol}, matchMedia: () => ({matches: reduced}), getComputedStyle: () => ({paddingTop: '0', paddingBottom: '0', borderTopWidth: '1px', borderBottomWidth: '1px'}),
+  const context = {location: {protocol}, matchMedia: () => ({matches: reduced}), getComputedStyle: el => el === summary ? {marginTop: '0', marginBottom: '0'} : {paddingTop: '0', paddingBottom: '0', borderTopWidth: '1px', borderBottomWidth: '1px'},
     document: {documentElement: {classList: {contains: c => lightweight && c === 'ytmls-lyrics-motion-lightweight'}}, addEventListener: (type, fn) => { click = fn; }}};
   context.globalThis = context;
   vm.runInNewContext(source, context);
+  const foreign = anim(body, {}, {}); animations.length = 0; // e.g. a CSS animation already running
   const press = () => { const e = {target: summary, prevented: false, preventDefault() { this.prevented = true; }}; click(e); return e; };
-  return {details, body, animations, press};
+  return {details, body, animations, press, foreign};
 }
 
 test('a section grows open from its summary and its contents fade in', async () => {
@@ -59,6 +60,7 @@ test('a click during the motion reverses it and the contents are not left hidden
   h.press(); // reverse
   assert.equal(h.animations[0].cancelled, true);
   assert.equal(closingFade.cancelled, true, 'the closing fade is dropped');
+  assert.equal(h.foreign.cancelled, undefined, 'animations from elsewhere on the contents are left alone');
   assert.equal(h.details.open, true);
   assert.equal(h.details.dataset.closing, undefined);
 });
