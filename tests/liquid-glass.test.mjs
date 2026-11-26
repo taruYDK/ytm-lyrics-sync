@@ -111,3 +111,14 @@ test('the resting bead is the same clear glass as the pills and the drop', () =>
   assert.doesNotMatch(bead, /--lg-rim\) border-box|0 3px 10px rgb\(0 0 0 \/ \.3\)/, 'no thick rim, no dark shadow');
   assert.match(bead, /\.ytmls-seg-thumb::before \{[^}]*background: var\(--lg-glint\);[^}]*mask:/, 'the two rim glints');
 });
+
+test('candidate list: a drawn pin (filled when pinned), a check on the chosen one, a dot for the recommendation', () => {
+  const css = read('liquid-glass.css');
+  assert.match(css, /\.ytmls-candidate-pin::before \{[^}]*mask:/);
+  assert.match(css, /\.ytmls-candidate-pin\[data-pinned="true"\]::before/);
+  assert.match(css, /\.ytmls-candidate-item\[data-active="true"\] \.ytmls-candidate-label::before \{[^}]*mask:/);
+  assert.match(css, /\.ytmls-recommendation-badge\[data-level="high"\]::before \{ background: #30d158;/);
+  const panel = fs.readFileSync(new URL('../src/content/lyrics-panel.js', import.meta.url), 'utf8');
+  assert.doesNotMatch(panel, /📌/, 'no emoji pin');
+  assert.match(panel, /pinButton\.dataset\.pinned = String\(isPinned\);/);
+});

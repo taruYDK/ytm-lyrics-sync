@@ -214,7 +214,9 @@
       pinButton.type = "button";
       pinButton.className = "ytmls-candidate-pin";
       const isPinned = Boolean(pinned && pinned.candidateId === candidate.id);
-      pinButton.textContent = isPinned ? "📌 固定済み（解除）" : "📌 この歌詞を固定";
+      // A drawn pin (CSS) instead of the emoji; filled while this candidate is pinned.
+      pinButton.textContent = isPinned ? "固定済み（解除）" : "この歌詞を固定";
+      pinButton.dataset.pinned = String(isPinned);
       pinButton.setAttribute("aria-label", isPinned ? `${result._source || "この歌詞"}の固定を解除` : `${result._source || "この歌詞"}をこの曲で固定`);
       pinButton.addEventListener("click", async () => {
         if (!videoId || candidateSaveBusy) return;
