@@ -1,6 +1,6 @@
 // Screenshots of the extension on a stand-in YouTube Music page (no network needed).
 // Usage: node scripts/preview/preview.mjs [outDir] [scene...]
-// Scenes: panel, menu, drag, wall, tap, candidates, readings, timing, fullscreen, popup, backup, light
+// Scenes: panel, menu, morph, drag, wall, tap, candidates, readings, timing, fullscreen, popup, backup, light
 // PREVIEW_EVAL='<js>' runs in the page before the scenes and prints the result.
 import {createRequire} from 'node:module';
 let chromium;
@@ -156,6 +156,25 @@ if (want('tap')) {
     bead: document.querySelector('.ytmls-seg-thumb')?.style.transform,
     target: document.querySelector('.ytmls-size-presets button[aria-pressed="true"]')?.offsetLeft}))));
   await tab.click('#ytmls-more summary');
+}
+if (want('morph')) {
+  // Frames of the menu growing out of "その他", the timing popover out of its button, and shrinking back.
+  const frames = async (name, clip, open) => {
+    await tab.evaluate(() => { window.__t0 = performance.now(); });
+    await open();
+    for (const t of [30, 90, 160, 260, 600]) {
+      await tab.waitForFunction(ms => performance.now() - window.__t0 >= ms, t);
+      await shot(tab, `${name}-${t}`, clip);
+    }
+  };
+  const menuClip = {x: 1060, y: 120, width: 330, height: 600};
+  await frames('morph-menu-open', menuClip, () => tab.click('#ytmls-more summary'));
+  await frames('morph-menu-close', menuClip, () => tab.click('#ytmls-more summary'));
+  await tab.waitForTimeout(400);
+  await frames('morph-timing-open', {x: 260, y: 260, width: 400, height: 640}, () => tab.evaluate(() => document.querySelector('#ytmls-track-offset-button')?.click()));
+  await tab.keyboard.press('Escape'); await tab.waitForTimeout(400);
+  await frames('morph-pane-open', {x: 840, y: 120, width: 560, height: 360}, () => tab.evaluate(() => [...document.querySelectorAll('#ytmls-tools .ytmls-tool-button')].find(b => b.textContent.includes('候補'))?.click()));
+  await tab.evaluate(() => [...document.querySelectorAll('#ytmls-tools-pane button')].find(b => b.textContent.trim() === '閉じる')?.click());
 }
 if (want('candidates')) {
   await tab.evaluate(() => [...document.querySelectorAll('#ytmls-tools .ytmls-tool-button')].find(b => b.textContent.includes('候補'))?.click());

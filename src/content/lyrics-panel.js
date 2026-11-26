@@ -1026,12 +1026,12 @@
   function closeMoreMenu(more) {
     if (!more?.open) return;
     const menu=more.querySelector('.ytmls-more-menu');
-    const motion=!document.documentElement.classList.contains('ytmls-extra-motion-disabled') && !document.documentElement.classList.contains('ytmls-lyrics-motion-lightweight') && !(typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches);
-    if (!motion || !menu?.animate) { more.open=false; return; }
+    const summary=more.querySelector(':scope > summary');
+    if (!menu || typeof glassMorph !== 'function' || !glassMorphAllowed(menu)) { more.open=false; return; }
     if (more.dataset.closing==='true') return;
     more.dataset.closing='true';menu.style.pointerEvents='none';
-    const animation=menu.animate([{opacity:1,transform:'none'},{opacity:0,transform:'translateY(-5px) scale(.98)'}],{duration:140,easing:'ease-in'});
-    animation.finished.catch(()=>{}).finally(()=>{more.open=false;delete more.dataset.closing;menu.style.removeProperty('pointer-events');});
+    // Shrink back into the "その他" button.
+    glassMorph(menu, summary, {closing: true, onDone: () => {more.open=false;delete more.dataset.closing;menu.style.removeProperty('pointer-events');}});
   }
 
   function createPanel() {
@@ -1146,10 +1146,28 @@
       if (more.open) fitMoreMenu(more, menu);
       else diagnosticDetails.open = false;
     });
+    // Grow out of the button as soon as it opens (a mutation runs before the next paint).
+    if (typeof MutationObserver === "function") new MutationObserver(() => {
+      if (!more.open || more.dataset.closing === "true") return;
+      fitMoreMenu(more, menu);
+      if (typeof glassMorph === "function") glassMorph(menu, moreToggle);
+    }).observe(more, { attributes: true, attributeFilter: ["open"] });
 
     lyricsToolsPaneEl = document.createElement("div");
     lyricsToolsPaneEl.id = "ytmls-tools-pane";
     lyricsToolsPaneEl.hidden = true;
+    // Tool panes grow out of the button that opened them (a menu item counts as "その他").
+    let toolPaneAnchor = null;
+    lyricsToolsEl.addEventListener("click", event => {
+      const button = event.target.closest?.("button, summary");
+      if (button) toolPaneAnchor = button.closest(".ytmls-more-menu") ? moreToggle : button;
+    }, true);
+    if (typeof MutationObserver === "function") new MutationObserver(() => {
+      if (lyricsToolsPaneEl.hidden) { lyricsToolsPaneEl.wasShown = false; return; }
+      if (lyricsToolsPaneEl.wasShown) return;
+      lyricsToolsPaneEl.wasShown = true;
+      if (typeof glassMorph === "function") glassMorph(lyricsToolsPaneEl, toolPaneAnchor?.isConnected ? toolPaneAnchor : candidateButtonEl);
+    }).observe(lyricsToolsPaneEl, { attributes: true, attributeFilter: ["hidden"] });
     // Rebuilding the candidate list under a press would swallow the click: wait until it ends.
     lyricsToolsPaneEl.addEventListener("pointerdown", () => { candidatePointerDown = true; });
     const endCandidatePress = () => {

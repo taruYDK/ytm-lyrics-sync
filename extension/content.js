@@ -2470,12 +2470,12 @@ function readingTokensToRomaji(tokens) {
   function closeMoreMenu(more) {
     if (!more?.open) return;
     const menu=more.querySelector('.ytmls-more-menu');
-    const motion=!document.documentElement.classList.contains('ytmls-extra-motion-disabled') && !document.documentElement.classList.contains('ytmls-lyrics-motion-lightweight') && !(typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches);
-    if (!motion || !menu?.animate) { more.open=false; return; }
+    const summary=more.querySelector(':scope > summary');
+    if (!menu || typeof glassMorph !== 'function' || !glassMorphAllowed(menu)) { more.open=false; return; }
     if (more.dataset.closing==='true') return;
     more.dataset.closing='true';menu.style.pointerEvents='none';
-    const animation=menu.animate([{opacity:1,transform:'none'},{opacity:0,transform:'translateY(-5px) scale(.98)'}],{duration:140,easing:'ease-in'});
-    animation.finished.catch(()=>{}).finally(()=>{more.open=false;delete more.dataset.closing;menu.style.removeProperty('pointer-events');});
+    // Shrink back into the "その他" button.
+    glassMorph(menu, summary, {closing: true, onDone: () => {more.open=false;delete more.dataset.closing;menu.style.removeProperty('pointer-events');}});
   }
 
   function createPanel() {
@@ -2590,10 +2590,28 @@ function readingTokensToRomaji(tokens) {
       if (more.open) fitMoreMenu(more, menu);
       else diagnosticDetails.open = false;
     });
+    // Grow out of the button as soon as it opens (a mutation runs before the next paint).
+    if (typeof MutationObserver === "function") new MutationObserver(() => {
+      if (!more.open || more.dataset.closing === "true") return;
+      fitMoreMenu(more, menu);
+      if (typeof glassMorph === "function") glassMorph(menu, moreToggle);
+    }).observe(more, { attributes: true, attributeFilter: ["open"] });
 
     lyricsToolsPaneEl = document.createElement("div");
     lyricsToolsPaneEl.id = "ytmls-tools-pane";
     lyricsToolsPaneEl.hidden = true;
+    // Tool panes grow out of the button that opened them (a menu item counts as "その他").
+    let toolPaneAnchor = null;
+    lyricsToolsEl.addEventListener("click", event => {
+      const button = event.target.closest?.("button, summary");
+      if (button) toolPaneAnchor = button.closest(".ytmls-more-menu") ? moreToggle : button;
+    }, true);
+    if (typeof MutationObserver === "function") new MutationObserver(() => {
+      if (lyricsToolsPaneEl.hidden) { lyricsToolsPaneEl.wasShown = false; return; }
+      if (lyricsToolsPaneEl.wasShown) return;
+      lyricsToolsPaneEl.wasShown = true;
+      if (typeof glassMorph === "function") glassMorph(lyricsToolsPaneEl, toolPaneAnchor?.isConnected ? toolPaneAnchor : candidateButtonEl);
+    }).observe(lyricsToolsPaneEl, { attributes: true, attributeFilter: ["hidden"] });
     // Rebuilding the candidate list under a press would swallow the click: wait until it ends.
     lyricsToolsPaneEl.addEventListener("pointerdown", () => { candidatePointerDown = true; });
     const endCandidatePress = () => {
@@ -3223,14 +3241,19 @@ function readingTokensToRomaji(tokens) {
   function toggleTrackTimingPopover(anchor = trackTimingButtonEl) {
     if (!trackTimingButtonEl?.isConnected || trackTimingButtonEl.disabled) return;
     ensureTrackTimingPopover();
-    if (!trackTimingPopoverEl.hidden) { closeTrackTimingPopover(); return; }
+    if (!trackTimingPopoverEl.hidden && trackTimingPopoverEl.dataset.morphing !== 'closing') { closeTrackTimingPopover(); return; }
     trackTimingAnchor = anchor;
     trackTimingPopoverEl.hidden = false;
+    // Not shown until it is placed, so the first frame is not drawn at the old spot.
+    trackTimingPopoverEl.style.visibility = 'hidden';
     trackTimingButtonEl.setAttribute('aria-expanded', 'true');
     updateTrackTimingControl();
     requestAnimationFrame(() => {
+      trackTimingPopoverEl.style.removeProperty('visibility');
       if (trackTimingPopoverEl.hidden) return;
       positionTrackTimingPopover();
+      // Grow out of the button that opened it.
+      if (typeof glassMorph === 'function') glassMorph(trackTimingPopoverEl, visibleTrackTimingAnchor()?.target);
       trackTimingPopoverEl.querySelector('.ytmls-track-offset-close')?.focus();
     });
   }
@@ -3278,9 +3301,17 @@ function readingTokensToRomaji(tokens) {
 
   function closeTrackTimingPopover() {
     if (trackTimingPreview?.videoId === getTrackOffsetVideoId(false)) saveCurrentTrackTimingPoints(trackTimingPreview.points, false);
-    if (trackTimingPopoverEl) trackTimingPopoverEl.hidden = true;
+    const popover = trackTimingPopoverEl, anchor = visibleTrackTimingAnchor()?.target;
     if (trackTimingButtonEl) trackTimingButtonEl.setAttribute('aria-expanded', 'false');
     trackTimingAnchor = null;
+    if (!popover || popover.hidden) return;
+    // Shrink back into the button, then hide (a reopen during the shrink cancels the hide).
+    if (typeof glassMorph === 'function' && glassMorphAllowed(popover) && anchor) {
+      popover.style.pointerEvents = 'none';
+      glassMorph(popover, anchor, {closing: true, onDone: () => { popover.hidden = true; popover.style.removeProperty('pointer-events'); }});
+    } else {
+      popover.hidden = true;
+    }
   }
 
   function dismissTrackTimingPopover() {
@@ -8102,6 +8133,90 @@ function attachGlassSegment(group) {
  sync(false);
  group.glassSegment = {sync, state, thumb};
  return group.glassSegment;
+}
+
+// Feature: glass-morph.js
+// Glass surfaces grow out of the button that opens them and shrink back into it when closed,
+// like Liquid Glass: the window starts as the button's capsule, then stretches to full size on
+// a spring while its contents fade in. Used by the "その他" menu, the timing popover and the
+// lyrics tool pane. Without motion (lightweight mode, reduced motion) they open as before.
+const GLASS_MORPH_OPEN_MS = 460;
+const GLASS_MORPH_CLOSE_MS = 220;
+let glassMorphSpringEasing = null;
+
+// A soft spring (about 10% overshoot) as a CSS linear() curve; cubic-bezier where unsupported.
+function glassMorphEasing() {
+ if (glassMorphSpringEasing) return glassMorphSpringEasing;
+ const points = [];
+ const stiffness = 170, damping = 17, steps = 40;
+ let x = 0, v = 0;
+ const dt = 1 / 60;
+ const frames = Math.round(GLASS_MORPH_OPEN_MS / 1000 / dt);
+ for (let i = 0; i <= frames; i++) {
+  if (i % Math.max(1, Math.round(frames / steps)) === 0 || i === frames) points.push(i === frames ? 1 : Number(x.toFixed(4)));
+  v += ((1 - x) * stiffness - v * damping) * dt;
+  x += v * dt;
+ }
+ const curve = `linear(${points.join(', ')})`;
+ let supported = false;
+ try { supported = typeof CSS !== 'undefined' && CSS.supports('animation-timing-function', curve); } catch (_) {}
+ glassMorphSpringEasing = supported ? curve : 'cubic-bezier(.34, 1.4, .64, 1)';
+ return glassMorphSpringEasing;
+}
+
+function glassMorphAllowed(el) {
+ return Boolean(el?.animate) && (typeof playerFeedbackEnabled !== 'function' || playerFeedbackEnabled());
+}
+
+// The button's rectangle expressed on the surface: where on the surface the capsule starts
+// (the side nearest the button), and how far the surface must shift to sit on the button.
+function glassMorphStart(surface, anchor) {
+ const w = surface.width, h = surface.height;
+ const aw = Math.min(anchor.width, w), ah = Math.min(anchor.height, h);
+ const cx = Math.max(0, Math.min(w - aw, anchor.left - surface.left));
+ let cy;
+ if (anchor.top + anchor.height / 2 <= surface.top) cy = 0;
+ else if (anchor.top + anchor.height / 2 >= surface.bottom) cy = h - ah;
+ else cy = Math.max(0, Math.min(h - ah, anchor.top - surface.top));
+ return {
+  inset: `inset(${cy}px ${w - cx - aw}px ${h - cy - ah}px ${cx}px round ${ah / 2}px)`,
+  dx: anchor.left - (surface.left + cx), dy: anchor.top - (surface.top + cy),
+ };
+}
+
+function glassMorph(el, anchorEl, {closing = false, onDone} = {}) {
+ const done = () => { if (onDone) onDone(); };
+ if (!el || !anchorEl?.isConnected || !glassMorphAllowed(el)) { done(); return null; }
+ const surface = el.getBoundingClientRect(), anchor = anchorEl.getBoundingClientRect();
+ if (!surface.width || !surface.height || !anchor.width || !anchor.height) { done(); return null; }
+ el.glassMorph?.cancel();
+ // A reopen during a close must not leave the contents faded out.
+ for (const child of el.children) child.getAnimations?.().forEach(a => a.cancel());
+ const start = glassMorphStart(surface, anchor);
+ const radius = getComputedStyle(el).borderTopLeftRadius || '22px';
+ const capsule = {clipPath: start.inset, transform: `translate(${start.dx}px, ${start.dy}px)`};
+ const open = {clipPath: `inset(0px 0px 0px 0px round ${radius})`, transform: 'translate(0px, 0px)'};
+ const animation = el.animate(closing ? [open, capsule] : [capsule, open], {
+  duration: closing ? GLASS_MORPH_CLOSE_MS : GLASS_MORPH_OPEN_MS,
+  easing: closing ? 'cubic-bezier(.4, 0, .9, .6)' : glassMorphEasing(),
+ });
+ // Contents fade in once the glass has room, and out first when it shrinks back.
+ for (const child of el.children) {
+  child.animate(closing ? [{opacity: 1}, {opacity: 0}] : [{opacity: 0}, {opacity: 0, offset: .25}, {opacity: 1}], {
+   duration: closing ? GLASS_MORPH_CLOSE_MS * .6 : GLASS_MORPH_OPEN_MS * .7, easing: 'ease-out', fill: closing ? 'forwards' : 'none',
+  });
+ }
+ el.glassMorph = animation;
+ el.dataset.morphing = closing ? 'closing' : 'opening';
+ const finish = () => {
+  if (el.glassMorph !== animation) return;
+  el.glassMorph = null;
+  delete el.dataset.morphing;
+  if (closing) for (const child of el.children) child.getAnimations?.().forEach(a => a.cancel());
+  done();
+ };
+ animation.finished.then(finish, finish);
+ return animation;
 }
 
 // Feature: enhancements.js

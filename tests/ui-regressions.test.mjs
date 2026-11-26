@@ -75,13 +75,13 @@ test('timing popover anchors to the visible menu summary when the compact button
  const bounds={left:700,top:320,bottom:350,width:90,height:30};
  const summary={isConnected:true,getBoundingClientRect:()=>bounds,focus(){this.focused=true;}};
  const compactButton={isConnected:true,getBoundingClientRect:()=>({left:0,top:0,bottom:0,width:0,height:0}),setAttribute(){}};
- const popover={hidden:true,offsetHeight:200,offsetWidth:320,style:{},querySelector:()=>null};
+ const popover={hidden:true,offsetHeight:200,offsetWidth:320,style:{removeProperty(k){delete this[k];}},querySelector:()=>null};
  const c=vm.createContext({document:{querySelector:()=>summary},window:{innerWidth:900,innerHeight:620},
   trackTimingPopoverEl:popover,trackTimingButtonEl:compactButton,trackTimingPreview:null,requestAnimationFrame:fn=>fn()});
  vm.runInContext(read('src/content/timing-offset.js'),c);
  c.ensureTrackTimingPopover=()=>{};c.updateTrackTimingControl=()=>{};c.getTrackOffsetVideoId=()=> 'song';
  c.toggleTrackTimingPopover(summary);
- assert.equal(popover.hidden,false);assert.deepEqual(popover.style,{left:'568px',top:'108px'});
+ assert.equal(popover.hidden,false);assert.equal(popover.style.left,'568px');assert.equal(popover.style.top,'108px');assert.equal(popover.style.visibility,undefined,'shown once placed');
  c.dismissTrackTimingPopover();
  assert.equal(popover.hidden,true);assert.equal(summary.focused,true);
 });

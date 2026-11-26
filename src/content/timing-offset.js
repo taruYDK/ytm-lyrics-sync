@@ -322,14 +322,19 @@
   function toggleTrackTimingPopover(anchor = trackTimingButtonEl) {
     if (!trackTimingButtonEl?.isConnected || trackTimingButtonEl.disabled) return;
     ensureTrackTimingPopover();
-    if (!trackTimingPopoverEl.hidden) { closeTrackTimingPopover(); return; }
+    if (!trackTimingPopoverEl.hidden && trackTimingPopoverEl.dataset.morphing !== 'closing') { closeTrackTimingPopover(); return; }
     trackTimingAnchor = anchor;
     trackTimingPopoverEl.hidden = false;
+    // Not shown until it is placed, so the first frame is not drawn at the old spot.
+    trackTimingPopoverEl.style.visibility = 'hidden';
     trackTimingButtonEl.setAttribute('aria-expanded', 'true');
     updateTrackTimingControl();
     requestAnimationFrame(() => {
+      trackTimingPopoverEl.style.removeProperty('visibility');
       if (trackTimingPopoverEl.hidden) return;
       positionTrackTimingPopover();
+      // Grow out of the button that opened it.
+      if (typeof glassMorph === 'function') glassMorph(trackTimingPopoverEl, visibleTrackTimingAnchor()?.target);
       trackTimingPopoverEl.querySelector('.ytmls-track-offset-close')?.focus();
     });
   }
@@ -377,9 +382,17 @@
 
   function closeTrackTimingPopover() {
     if (trackTimingPreview?.videoId === getTrackOffsetVideoId(false)) saveCurrentTrackTimingPoints(trackTimingPreview.points, false);
-    if (trackTimingPopoverEl) trackTimingPopoverEl.hidden = true;
+    const popover = trackTimingPopoverEl, anchor = visibleTrackTimingAnchor()?.target;
     if (trackTimingButtonEl) trackTimingButtonEl.setAttribute('aria-expanded', 'false');
     trackTimingAnchor = null;
+    if (!popover || popover.hidden) return;
+    // Shrink back into the button, then hide (a reopen during the shrink cancels the hide).
+    if (typeof glassMorph === 'function' && glassMorphAllowed(popover) && anchor) {
+      popover.style.pointerEvents = 'none';
+      glassMorph(popover, anchor, {closing: true, onDone: () => { popover.hidden = true; popover.style.removeProperty('pointer-events'); }});
+    } else {
+      popover.hidden = true;
+    }
   }
 
   function dismissTrackTimingPopover() {

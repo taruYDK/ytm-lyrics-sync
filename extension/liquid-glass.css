@@ -51,8 +51,6 @@ html.ytmls-lg-lens :is(#ytmls-more > .ytmls-more-menu, #ytmls-panel #ytmls-tools
   backdrop-filter: url(#ytmls-lg-lens) var(--lg-backdrop);
 }
 #ytmls-more > .ytmls-more-menu { padding: 8px; transform-origin: top right; }
-html:not(.ytmls-lyrics-motion-lightweight) #ytmls-more[open] > .ytmls-more-menu { animation: lg-pop .32s var(--lg-spring); }
-@keyframes lg-pop { from { opacity: 0; transform: scale(.94) translateY(-4px); } }
 
 /* Menu rows: rounded highlight capsules inside the glass. */
 #ytmls-more .ytmls-menu-group > .ytmls-tool-button,
@@ -235,7 +233,6 @@ html.ytmls-lyrics-motion-lightweight #ytmls-more .ytmls-glass-segment > .ytmls-t
 /* ---------- Fallbacks ---------- */
 @media (prefers-reduced-motion: reduce) {
   :is(#ytmls-tools > .ytmls-tool-button, #ytmls-more > summary.ytmls-tool-button, ytmusic-player-bar :is(#ytmls-resync-button, #ytmls-track-offset-button), #ytmls-fullscreen :is(.ytmls-full-size button, .ytmls-full-close)) { transition: none !important; transform: none !important; }
-  #ytmls-more[open] > .ytmls-more-menu { animation: none !important; }
 }
 /* Lightweight mode and "reduce transparency": solid fills keep the rim but drop blur and lens. */
 html.ytmls-lyrics-motion-lightweight :is(#ytmls-more > .ytmls-more-menu, #ytmls-panel #ytmls-tools-pane, #ytmls-track-offset-popover, #ytmls-reload-notice,
