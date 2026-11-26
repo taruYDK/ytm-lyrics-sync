@@ -15,13 +15,17 @@ function ensureEnhancementControls(){
    for(const other of sizes.querySelectorAll(':scope > button'))other.setAttribute('aria-pressed',String(other===button));
    button.dataset.saving='true';
    void queuePracticeSettingsSave(()=>savePracticeEntry(id,{...practiceEntry(id),settings:{...(practiceEntry(id).settings||{}),fontSize:size}}))
-    .then(()=>{button.title='';})
-    .catch(e=>{button.title='保存できませんでした：'+e.message;})
-    .finally(()=>{
-     delete button.dataset.saving;
-     // The last choice wins: drop the pending value once its own save is done (or failed).
+    .then(()=>{
+     button.title='';
+     // The last choice wins: drop the pending value once its own save is done.
      if(practicePendingSettings[id]?.fontSize===size){delete practicePendingSettings[id];applyPracticePrefs();}
-    });
+    })
+    .catch(e=>{
+     // Keep the chosen size on screen for now (it stays pending) and say why it was not kept.
+     button.title='保存できませんでした：'+e.message;
+     if(typeof reportSaveError==='function')reportSaveError(e);
+    })
+    .finally(()=>{delete button.dataset.saving;});
   });button.setAttribute('aria-label','文字サイズ '+name);button.dataset.size=String(size);}
   display.querySelector('.ytmls-menu-label').after(sizes);
   if(typeof attachGlassSegment==='function')attachGlassSegment(sizes);

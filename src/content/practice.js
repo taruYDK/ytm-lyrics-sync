@@ -18,9 +18,26 @@ function practicePrefs() {
  return prefs;
 }
 function practiceCurrent(id,lines=STATE.lines) { return Boolean(id && id===practiceVideoId() && id===STATE.displayedVideoId && lines===STATE.lines && STATE.enabled); }
+// Only the fields this version uses, in the shape the storage check accepts. Entries saved by older
+// versions can hold other fields; writing them back made the whole save fail for that song.
+const PRACTICE_SETTING_TYPES={fontSize:'number',readingJapanese:'boolean',readingEnglish:'boolean',showTranslation:'boolean',showRomaji:'boolean'};
+function cleanPracticeEntry(entry) {
+ const settings={};
+ for(const [key,value] of Object.entries((entry&&typeof entry.settings==='object'&&entry.settings)||{})){
+  const type=PRACTICE_SETTING_TYPES[key];
+  if(type==='number'&&Number.isFinite(value)&&value>=10&&value<=100)settings[key]=value;
+  else if(type==='boolean'&&typeof value==='boolean')settings[key]=value;
+ }
+ return {
+  title:String((entry&&entry.title)||STATE.lastDisplayedTitle||''),
+  artist:String((entry&&entry.artist)||STATE.lastDisplayedArtist||''),
+  settings,
+  updatedAt:Date.now(),
+ };
+}
 async function savePracticeEntry(id,entry) {
  if(!id)throw Error('曲を読み込んでください');
- const data=await sendUserDataMutation({action:'entry',key:PRACTICE_KEY,videoId:id,entry:{title:STATE.lastDisplayedTitle||'',artist:STATE.lastDisplayedArtist||'',...entry,updatedAt:Date.now()}});
+ const data=await sendUserDataMutation({action:'entry',key:PRACTICE_KEY,videoId:id,entry:cleanPracticeEntry(entry)});
  practiceData=data[PRACTICE_KEY]||practiceData;
  if(id===practiceVideoId()) { applyPracticePrefs();void refreshPracticeExtras(); }
 }

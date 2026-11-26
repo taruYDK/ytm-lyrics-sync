@@ -165,9 +165,25 @@ test('a size chosen in the menu shows at once and is not undone before its save 
   assert.match(source, /practicePendingSettings\[id\]=\{\.\.\.\(practicePendingSettings\[id\]\|\|\{\}\),fontSize:size\};\s*applyPracticePrefs\(\);/);
   assert.doesNotMatch(source, /button\.disabled=true/, 'the button stays usable while saving');
   assert.match(source, /if\(practicePendingSettings\[id\]\?\.fontSize===size\)\{delete practicePendingSettings\[id\];applyPracticePrefs\(\);\}/);
+  assert.match(source, /reportSaveError\(e\)/, 'a failed save says why, and the chosen size stays on screen');
   const h = harness();
   h.run("practiceLocalReady=true;practiceSyncReady=true;practiceData.one={settings:{fontSize:26}};practicePendingSettings.one={fontSize:40};applyPracticePrefs()");
   assert.equal(h.c.STATE.fontSize, 40, 'the pending choice wins over the saved one');
   h.run("delete practicePendingSettings.one;applyPracticePrefs()");
   assert.equal(h.c.STATE.fontSize, 26);
+});
+
+test('saving a track display entry keeps only the fields in use, so an old entry cannot block the save', async () => {
+  const sent = [];
+  const h = harness();
+  h.c.sendUserDataMutation = async message => { sent.push(message); return {}; };
+  h.run("practiceLocalReady=true;practiceSyncReady=true");
+  await h.c.savePracticeEntry('other', {title: 't', settings: {fontSize: 40, readingJapanese: false, fontScale: 1.2, showRomaji: 'yes'}, translations: 'old', legacy: 1});
+  const entry = sent[0].entry;
+  assert.deepEqual(Object.keys(entry).sort(), ['artist', 'settings', 'title', 'updatedAt']);
+  assert.deepEqual({...entry.settings}, {fontSize: 40, readingJapanese: false});
+  const validation = read('extension/backup-validation.js');
+  const v = {};
+  vm.runInNewContext(validation, v);
+  assert.doesNotThrow(() => v.YTMLSBackupValidation.local({ytmlsTrackDisplayV280: {other: JSON.parse(JSON.stringify(entry))}}), 'passes the storage check');
 });

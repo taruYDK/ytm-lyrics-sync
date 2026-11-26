@@ -2,6 +2,7 @@
 // Usage: node scripts/preview/preview.mjs [outDir] [scene...]
 // Scenes: panel, menu, morph, fold, drag, wall, tap, candidates, readings, timing, fullscreen, popup, backup, light
 // PREVIEW_EVAL='<js>' runs in the page before the scenes and prints the result.
+// PREVIEW_SEED='<json>' adds entries to chrome.storage.local before the page opens.
 import {createRequire} from 'node:module';
 let chromium;
 try { ({chromium} = createRequire(import.meta.url)('playwright')); } catch (_) {
@@ -89,9 +90,9 @@ await context.route(url => !/^(https:\/\/(music\.youtube\.com|i\.ytimg\.com)|chr
 
 let worker = context.serviceWorkers()[0] || await context.waitForEvent('serviceworker');
 const extId = new URL(worker.url()).host;
-await worker.evaluate(async ({id, lrc}) => {
-  await chrome.storage.local.set({ytmlsLocalLyricsV200: {[id]: {rawLrc: lrc, title: '夜明けのうた', artist: 'Preview Artist', updatedAt: Date.now()}}});
-}, {id: VIDEO_ID, lrc: LRC});
+await worker.evaluate(async ({id, lrc, seed}) => {
+  await chrome.storage.local.set({ytmlsLocalLyricsV200: {[id]: {rawLrc: lrc, title: '夜明けのうた', artist: 'Preview Artist', updatedAt: Date.now()}}, ...seed});
+}, {id: VIDEO_ID, lrc: LRC, seed: JSON.parse(process.env.PREVIEW_SEED || '{}')});
 
 const shots = [];
 async function open() {
