@@ -52,7 +52,7 @@ test('Liquid Glass styles load last and fall back to solid surfaces', () => {
   assert.ok(last.js.includes('liquid-glass.js'));
   const css = read('liquid-glass.css');
   const lensRules = [...css.replace(/\/\*[\s\S]*?\*\//g, '').matchAll(/([^{}]+)\{([^{}]*)\}/g)].filter(([, , body]) => body.includes('url(#ytmls-lg-lens'));
-  assert.ok(lensRules.length >= 2);
+  assert.ok(lensRules.length >= 1, "the drag drop keeps its lens");
   for (const [, selector] of lensRules) assert.match(selector.trim(), /^html\.ytmls-lg-lens /, 'lens only after the filters exist');
   assert.match(css, /html\.ytmls-lyrics-motion-lightweight :is\([^{]+\{\s*--lg-fill: var\(--lg-fill-solid\);\s*--lg-fill-pill: var\(--lg-fill-solid\);\s*--lg-pill-fill: linear-gradient\(var\(--lg-fill-solid\), var\(--lg-fill-solid\)\);\s*-webkit-backdrop-filter: none !important; backdrop-filter: none !important;/);
   assert.match(css, /@media \(prefers-reduced-transparency: reduce\)/);
@@ -76,7 +76,8 @@ test('header pills: one thin rim, a drawn chevron that turns over, and the count
   assert.match(css, /background: var\(--lg-pill-fill\) padding-box !important;/, 'clear fill only');
   assert.match(css, /::before \{\s*content: ""; position: absolute; inset: -1px; padding: 1px;[^}]*background: var\(--lg-pill-rim\);[^}]*mask:/, 'the rim is a masked ring, so glints never show through');
   assert.match(css, /--lg-pill-rim: var\(--lg-glint\);/);
-  assert.match(css, /--lg-glint: conic-gradient\(/, 'two glints: top-left and bottom-right');
+  assert.match(css, /--lg-glint: linear-gradient\(rgb\(255 255 255 \/ \.16\), rgb\(255 255 255 \/ \.16\)\);/, 'an even, faint rim (no bright top-left glint)');
+  assert.doesNotMatch(css, /url\(#ytmls-lg-lens-pill\)/, 'no lens on the pills');
   assert.match(css, /#ytmls-more > summary \.ytmls-more-chevron \{[^}]*mask:/);
   assert.match(css, /#ytmls-more\[open\]:not\(\[data-closing="true"\]\) > summary \.ytmls-more-chevron \{ transform: rotate\(180deg\); \}/);
   assert.match(css, /#ytmls-tools \.ytmls-count \{/);
