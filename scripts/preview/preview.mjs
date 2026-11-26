@@ -98,6 +98,10 @@ function page(light) {
  p.getVideoData = () => ({video_id: '${VIDEO_ID}', title: '夜明けのうた', author: 'Preview Artist'});
  p.getCurrentTime = () => (performance.now() - start) / 1000;
  p.getDuration = () => 200; p.getPlayerState = () => 1; p.getPlaybackRate = () => 1;
+ // Tabs select on click or tap, like YouTube Music's paper-tabs.
+ for (const t of document.querySelectorAll('tp-yt-paper-tab')) for (const type of ['click', 'tap']) t.addEventListener(type, () => {
+  for (const o of document.querySelectorAll('tp-yt-paper-tab')) o.setAttribute('aria-selected', String(o === t));
+ });
  navigator.mediaSession.metadata = new MediaMetadata({title: '夜明けのうた', artist: 'Preview Artist'});
 </script></body></html>`;
 }

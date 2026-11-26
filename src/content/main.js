@@ -6,6 +6,7 @@
     ensureLyricsMount();
     ensureVideoListener();
     ensurePlayerBarTimingControl();
+    if (typeof ensureYtmTabGlassSegment === "function") ensureYtmTabGlassSegment();
     maintainLyricsAutoOpen();
 
     if (STATE.enabled) {

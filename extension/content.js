@@ -8131,16 +8131,27 @@ function glassSegmentMotion() {
  return typeof playerFeedbackEnabled !== 'function' || playerFeedbackEnabled();
 }
 
-function attachGlassSegment(group) {
+// opts (all optional) let it run on controls that are not buttons, such as YouTube Music's tabs:
+// items() lists the choices, isSelected / isDisabled read them, activate picks one, watch names the
+// attributes that change when the choice changes, settleMs waits for a page that selects later, and
+// enabled() can switch the whole behavior off.
+function attachGlassSegment(group, opts = {}) {
  if (!group || group.glassSegment) return group?.glassSegment;
+ const isSelected = opts.isSelected || (item => item.getAttribute('aria-pressed') === 'true');
+ const isDisabled = opts.isDisabled || (item => Boolean(item.disabled));
+ const activate = opts.activate || (item => item.click());
+ const enabled = opts.enabled || (() => true);
+ const settleMs = opts.settleMs || 0;
  const thumb = document.createElement('span');
  thumb.className = 'ytmls-seg-thumb';
  thumb.setAttribute('aria-hidden', 'true');
  group.prepend(thumb);
  group.classList.add('ytmls-glass-segment');
 
- const buttons = () => [...group.querySelectorAll(':scope > button')];
- const pressed = () => buttons().find(button => button.getAttribute('aria-pressed') === 'true');
+ const buttons = opts.items || (() => [...group.querySelectorAll(':scope > button')]);
+ const pressed = () => buttons().find(isSelected);
+ // The choice an event happened on (its target may be a label inside it).
+ const itemOf = node => buttons().find(item => item === node || item.contains?.(node)) || null;
  // Layout is measured once when a drag starts and reused for every frame: reading positions right
  // after writing styles would make the browser lay out the (large) page again on each frame.
  let layout = null;
@@ -8386,10 +8397,11 @@ function attachGlassSegment(group) {
   if (target) {
    const s = slot(target);
    moveTo(s.x, s.w);
-   if (commit && !target.disabled && target.getAttribute('aria-pressed') !== 'true') target.click();
+   if (commit && !isDisabled(target) && !isSelected(target)) activate(target);
    // Not taken (e.g. the song is still loading): go back to the size actually in use, so the
    // bead never shows a size the lyrics do not have.
-   if (target.getAttribute('aria-pressed') !== 'true') sync();
+   const check = () => { if (!isSelected(target)) sync(); };
+   if (settleMs) setTimeout(check, settleMs); else check();
   }
   swallowNextClick();
  }
@@ -8425,8 +8437,8 @@ function attachGlassSegment(group) {
   glassLensReport.lastEnd = `${how} ${from}->${to}`;
  }
  group.addEventListener('pointerdown', event => {
-  if (event.button !== 0 || buttons().every(button => button.disabled)) return;
-  press = {id: event.pointerId, type: event.pointerType || 'pointer', startX: event.clientX, lastX: event.clientX, button: event.target.closest?.('button') || buttonAt(event.clientX)};
+  if (event.button !== 0 || !enabled() || buttons().every(isDisabled)) return;
+  press = {id: event.pointerId, type: event.pointerType || 'pointer', startX: event.clientX, lastX: event.clientX, button: itemOf(event.target) || buttonAt(event.clientX)};
   try { group.setPointerCapture(event.pointerId); } catch (_) {}
   startWatching();
   beginDrag();
@@ -8439,9 +8451,14 @@ function attachGlassSegment(group) {
  // Pointer clicks were handled above; keyboard clicks (Enter, Space) still move the bead.
  group.addEventListener('click', event => {
   if (event.isTrusted && suppressClick) { event.stopPropagation(); event.preventDefault(); return; }
-  const button = event.target.closest?.('button');
-  if (button && !button.disabled && !state.dragging) { const s = slot(button); if (s.w) moveTo(s.x, s.w); }
+  const button = itemOf(event.target);
+  if (button && !isDisabled(button) && !state.dragging) { const s = slot(button); if (s.w) moveTo(s.x, s.w); }
  }, true);
+ // The page's own press handling (YouTube Music selects a tab on its own tap) must not also act on
+ // a press this control is handling: the release already chose.
+ for (const type of ['mousedown', 'mouseup', 'touchstart', 'touchend']) {
+  group.addEventListener(type, event => { if ((press || state.dragging || suppressClick) && event.isTrusted) event.stopPropagation(); }, true);
+ }
  group.addEventListener('contextmenu', event => { if (press || state.dragging) event.preventDefault(); });
 
  // A scroll or resize during a drag moves the control: measure it again.
@@ -8453,12 +8470,55 @@ function attachGlassSegment(group) {
 
  // Follow the saved size (it changes after storage writes and in other tabs) and the layout.
  if (typeof MutationObserver === 'function') {
-  new MutationObserver(() => sync()).observe(group, {subtree: true, attributes: true, attributeFilter: ['aria-pressed']});
+  // This control's own marker class (the label under the drop) is not a change of choice.
+  const own = value => String(value || '').split(/\s+/).filter(name => name && name !== 'ytmls-seg-under').sort().join(' ');
+  new MutationObserver(records => {
+   if (records.every(r => r.attributeName === 'class' && own(r.oldValue) === own(r.target.getAttribute('class')))) return;
+   sync();
+  }).observe(group, {subtree: true, attributes: true, attributeOldValue: true, attributeFilter: opts.watch || ['aria-pressed']});
  }
  if (typeof ResizeObserver === 'function') new ResizeObserver(() => sync(false)).observe(group);
  sync(false);
  group.glassSegment = {sync, state, thumb};
  return group.glassSegment;
+}
+
+// ---------- YouTube Music's player-page tabs (次のコンテンツ / 歌詞 / コメント / 関連) ----------
+// The same draggable glass bead as the size control, on the tabs restyled as a segmented control
+// (liquid-glass.css). Only while the theme is on (html.music-glass); otherwise the tabs are untouched.
+function ytmTabSelected(tab) {
+ return tab.getAttribute('aria-selected') === 'true' || tab.classList.contains('iron-selected');
+}
+function ytmTabDisabled(tab) {
+ return tab.hasAttribute('disabled') || tab.getAttribute('aria-disabled') === 'true';
+}
+// YouTube Music selects a tab on a click (its tap gesture); a plain tap event is the fallback.
+function activateYtmTab(tab) {
+ try { tab.click(); } catch (_) {}
+ if (!ytmTabSelected(tab)) {
+  try { tab.dispatchEvent(new CustomEvent('tap', {bubbles: true, cancelable: true, composed: true})); } catch (_) {}
+ }
+}
+function ensureYtmTabGlassSegment() {
+ const root = document.documentElement;
+ if (!root?.classList.contains('music-glass')) return null;
+ const tabs = document.querySelector('ytmusic-player-page tp-yt-paper-tabs');
+ if (!tabs) return null;
+ // The tabs sit in #tabsContent inside paper-tabs (the bead must share their offset parent).
+ const first = tabs.querySelector('tp-yt-paper-tab');
+ const group = first?.parentElement;
+ if (!group || group.glassSegment) return group?.glassSegment || null;
+ tabs.classList.add('ytmls-tabs-glass');
+ group.classList.add('ytmls-tabs-segment');
+ return attachGlassSegment(group, {
+  items: () => [...group.children].filter(el => el.localName === 'tp-yt-paper-tab'),
+  isSelected: ytmTabSelected,
+  isDisabled: ytmTabDisabled,
+  activate: activateYtmTab,
+  watch: ['aria-selected', 'class'],
+  settleMs: 300,
+  enabled: () => document.documentElement.classList.contains('music-glass'),
+ });
 }
 
 // Feature: glass-morph.js
@@ -8629,6 +8689,7 @@ function ensureEnhancementControls(){
     ensureLyricsMount();
     ensureVideoListener();
     ensurePlayerBarTimingControl();
+    if (typeof ensureYtmTabGlassSegment === "function") ensureYtmTabGlassSegment();
     maintainLyricsAutoOpen();
 
     if (STATE.enabled) {

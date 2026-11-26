@@ -612,3 +612,27 @@ html.music-glass ytmusic-player #song-image img {
   border-radius: 14px !important;
   box-shadow: 0 22px 56px rgb(0 0 0 / .34), 0 6px 16px rgb(0 0 0 / .18) !important;
 }
+
+/* The tabs' glass bead can be dragged like the size control (glass-segment.js, .ytmls-tabs-glass).
+   The bead is drawn by .ytmls-seg-thumb under the labels, so the chosen tab itself goes clear. */
+html.music-glass .ytmls-tabs-segment {
+  position: relative; isolation: isolate; touch-action: none; user-select: none; -webkit-user-select: none;
+}
+html.music-glass .ytmls-tabs-segment[data-dragging="true"] { cursor: grabbing; }
+html.music-glass .ytmls-tabs-segment > tp-yt-paper-tab { position: relative; z-index: 1; -webkit-user-drag: none; touch-action: none; }
+html.music-glass ytmusic-player-page tp-yt-paper-tabs.ytmls-tabs-glass tp-yt-paper-tab:is([aria-selected="true"], .iron-selected) {
+  background: transparent !important; box-shadow: none !important;
+}
+html.music-glass .ytmls-tabs-segment > .ytmls-seg-thumb {
+  top: 0; bottom: 0;
+  background: rgb(255 255 255 / .14) padding-box;
+  box-shadow: inset 0 -6px 10px -9px rgb(255 255 255 / .3), 0 3px 10px rgb(0 0 0 / .18);
+}
+/* While dragged: the other labels dim, the one under the bead brightens and grows a little. */
+html.music-glass ytmusic-player-page .ytmls-tabs-segment[data-dragging="true"] > tp-yt-paper-tab { color: rgb(255 255 255 / .5) !important; }
+html.music-glass ytmusic-player-page .ytmls-tabs-segment[data-dragging="true"] > tp-yt-paper-tab.ytmls-seg-under { color: #fff !important; }
+html.music-glass .ytmls-tabs-segment > tp-yt-paper-tab :is(.tab-content, [style-target="tab-content"]) { transition: transform .34s var(--lg-spring); }
+html.music-glass .ytmls-tabs-segment[data-dragging="true"] > tp-yt-paper-tab.ytmls-seg-under :is(.tab-content, [style-target="tab-content"]) { transform: scale(1.08); }
+html.music-glass .ytmls-tabs-segment[data-lens="true"] > .ytmls-seg-thumb { opacity: 0; transition: opacity .12s ease; }
+/* Theme turned off: the tabs are YouTube Music's own again. */
+html:not(.music-glass) tp-yt-paper-tabs .ytmls-seg-thumb { display: none !important; }

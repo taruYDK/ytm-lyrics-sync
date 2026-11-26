@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 const source = fs.readFileSync(new URL('../src/content/glass-segment.js', import.meta.url), 'utf8');
 
-function segment({motion = true, refuse = false, lensOn = false} = {}) {
+function segment({motion = true, refuse = false, lensOn = false, opts} = {}) {
   const listeners = {}, timers = [], frames = []; let now = 0;
   const clicks = [];
   const classSet = () => { const s = new Set(); return {add: c => s.add(c), toggle: (c, on) => on ? s.add(c) : s.delete(c), contains: c => s.has(c)}; };
@@ -32,7 +32,7 @@ function segment({motion = true, refuse = false, lensOn = false} = {}) {
     requestAnimationFrame: fn => { frames.push(fn); return frames.length; }, cancelAnimationFrame() { frames.length = 0; },
   });
   vm.runInContext(source, c);
-  const api = c.attachGlassSegment(group);
+  const api = c.attachGlassSegment(group, opts);
   const settle = (ms = 16) => { for (let i = 0; i < 400 && frames.length; i++) { now += ms; frames.shift()(now); } };
   // Moves, releases and cancels reach the window during a drag (as in the page, in the capture phase).
   const fire = (type, extra = {}) => {
@@ -253,4 +253,40 @@ test('release: the drop glides to the chosen size, shrinks into the bead with a 
   assert.ok(Math.abs(heights.at(-1) - 32) < .5, 'ends exactly the size of the bead');
   assert.equal(drop.out, 'ytmls-seg-lens-out', 'then cross-fades into the bead');
   assert.equal(h.group.dataset.lens, undefined);
+});
+
+test('options let the bead run on other controls (YouTube Music tabs): own choices, activation and late selection', () => {
+  const activated = [];
+  const h = segment({refuse: true, opts: {
+    isDisabled: b => b.label === '小',
+    activate: b => activated.push(b.label),
+    settleMs: 300,
+    enabled: () => true,
+  }});
+  h.settle();
+  // While a press is handled, the page's own mouse handling does not see it (it would pick a tab too).
+  h.fire('pointerdown', {clientX: 93});
+  assert.ok(h.fire('mousedown').stopped, 'the page does not also act on the press');
+  h.fire('pointermove', {clientX: 160});
+  h.fire('pointerup', {clientX: 160});
+  assert.deepEqual(activated, ['大'], 'activate picks it, not a click');
+  assert.deepEqual(h.clicks, []);
+  h.settle();
+  assert.equal(h.translate(), 123, 'waits for a page that selects later instead of jumping back at once');
+  for (const fn of h.timers.splice(0)) fn?.();
+  h.settle();
+  assert.equal(h.translate(), 63, 'not taken after the wait: back to the choice in use');
+  // A disabled choice is never activated.
+  h.fire('pointerdown', {clientX: 33, target: h.buttons[0]});
+  h.fire('pointerup', {clientX: 33, target: h.group});
+  assert.deepEqual(activated, ['大']);
+  for (const fn of h.timers.splice(0)) fn?.();
+  assert.equal(h.fire('mousedown').stopped, undefined, 'outside a press the page handles the mouse as usual');
+});
+
+test('switched off (theme off), a press does nothing', () => {
+  const h = segment({opts: {enabled: () => false}});
+  h.fire('pointerdown', {clientX: 160});
+  assert.equal(h.group.dataset.dragging, undefined);
+  assert.equal(h.group.captured, undefined);
 });
