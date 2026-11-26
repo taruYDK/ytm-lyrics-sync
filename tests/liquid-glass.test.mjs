@@ -67,7 +67,10 @@ test('settings and backup pages use the shared glass and keep switches readable'
 
 test('header pills: one thin rim, a drawn chevron that turns over, and the count as a badge', () => {
   const css = read('liquid-glass.css');
-  assert.match(css, /background: var\(--lg-pill-fill\) padding-box, var\(--lg-pill-rim\) border-box !important;/);
+  assert.match(css, /background: var\(--lg-pill-fill\) padding-box !important;/, 'clear fill only');
+  assert.match(css, /::before \{\s*content: ""; position: absolute; inset: -1px; padding: 1px;[^}]*background: var\(--lg-pill-rim\);[^}]*mask:/, 'the rim is a masked ring, so glints never show through');
+  assert.match(css, /--lg-pill-rim: var\(--lg-glint\);/);
+  assert.match(css, /--lg-glint: conic-gradient\(/, 'two glints: top-left and bottom-right');
   assert.match(css, /#ytmls-more > summary\.ytmls-tool-button::after \{\s*content: "" !important;[^}]*mask:/);
   assert.match(css, /#ytmls-more\[open\]:not\(\[data-closing="true"\]\) > summary\.ytmls-tool-button::after \{ transform: rotate\(180deg\); \}/);
   assert.match(css, /#ytmls-tools \.ytmls-count \{/);
