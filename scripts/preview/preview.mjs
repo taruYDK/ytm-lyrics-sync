@@ -160,22 +160,43 @@ if (want('tap')) {
 if (want('morph')) {
   // Frames of the menu growing out of "その他", the timing popover out of its button, and shrinking back.
   const frames = async (name, clip, open) => {
-    // Animations run 4x slower here so the frames are evenly spaced; names keep real time.
+    // Animations started during the scene run 4x slower so the frames are evenly spaced (names keep real time).
+    // Every animation that starts during the scene runs 4x slower, so the frames are evenly spaced
+    // (names keep real time). The extension runs in its own world, so watch document.getAnimations().
+    await tab.evaluate(() => {
+      const seen = new WeakSet(document.getAnimations());
+      window.__ytmlsSlow = true; window.__t0 = performance.now();
+      const loop = () => {
+        if (!window.__ytmlsSlow) return;
+        for (const a of document.getAnimations()) if (!seen.has(a)) { seen.add(a); a.playbackRate = .25; }
+        requestAnimationFrame(loop);
+      };
+      loop();
+    });
     await open();
-    await tab.evaluate(() => { for (const a of document.getAnimations()) a.playbackRate = .25; window.__t0 = performance.now(); });
     for (const t of [30, 90, 160, 260, 600]) {
-      await tab.waitForFunction(ms => performance.now() - window.__t0 >= ms * 4, t);
+      await tab.waitForFunction(ms => performance.now() - window.__t0 >= ms * 4, t, {polling: 16});
       await shot(tab, `${name}-${t}`, clip);
+      if (process.env.PREVIEW_DEBUG) console.log(name, t, await tab.evaluate(() => JSON.stringify({pane: document.getElementById('ytmls-tools-pane')?.hidden, full: !!document.getElementById('ytmls-fullscreen'), anims: document.getAnimations().map(a => a.effect?.target?.id || a.effect?.target?.className).slice(0, 4)})));
     }
+    await tab.evaluate(() => { window.__ytmlsSlow = false; for (const a of document.getAnimations()) if (a.playbackRate !== 1) a.playbackRate = 1; });
   };
   const menuClip = {x: 1060, y: 120, width: 330, height: 600};
+  await frames('morph-pane-open', {x: 840, y: 120, width: 560, height: 360}, () => tab.evaluate(() => [...document.querySelectorAll('#ytmls-tools .ytmls-tool-button')].find(b => b.textContent.includes('候補'))?.click()));
+  await tab.waitForTimeout(300);
+  await frames('morph-pane-close', {x: 840, y: 120, width: 560, height: 360}, () => tab.evaluate(() => [...document.querySelectorAll('#ytmls-tools-pane button')].find(b => b.textContent.trim() === '閉じる')?.click()));
+  await tab.waitForTimeout(300);
   await frames('morph-menu-open', menuClip, () => tab.click('#ytmls-more summary'));
   await frames('morph-menu-close', menuClip, () => tab.click('#ytmls-more summary'));
   await tab.waitForTimeout(400);
   await frames('morph-timing-open', {x: 260, y: 260, width: 400, height: 640}, () => tab.evaluate(() => document.querySelector('#ytmls-track-offset-button')?.click()));
   await tab.keyboard.press('Escape'); await tab.waitForTimeout(400);
-  await frames('morph-pane-open', {x: 840, y: 120, width: 560, height: 360}, () => tab.evaluate(() => [...document.querySelectorAll('#ytmls-tools .ytmls-tool-button')].find(b => b.textContent.includes('候補'))?.click()));
-  await tab.evaluate(() => [...document.querySelectorAll('#ytmls-tools-pane button')].find(b => b.textContent.trim() === '閉じる')?.click());
+  await tab.waitForTimeout(300);
+  const whole = {x: 0, y: 0, width: 1440, height: 900};
+  await tab.click('#ytmls-more summary'); await tab.waitForTimeout(600);
+  await frames('morph-full-open', whole, () => tab.evaluate(() => [...document.querySelectorAll('#ytmls-practice-controls button')].find(b => b.textContent.includes('全画面'))?.click()));
+  await tab.waitForTimeout(600);
+  await frames('morph-full-close', whole, () => tab.evaluate(() => document.querySelector('.ytmls-full-close')?.click()));
 }
 if (want('candidates')) {
   await tab.evaluate(() => [...document.querySelectorAll('#ytmls-tools .ytmls-tool-button')].find(b => b.textContent.includes('候補'))?.click());
@@ -185,7 +206,14 @@ if (want('candidates')) {
 if (want('readings')) {
   await tab.evaluate(() => document.getElementById('ytmls-reading-edit')?.click());
   await tab.waitForTimeout(500); await shot(tab, 'readings');
-  await tab.evaluate(() => [...document.querySelectorAll('#ytmls-tools-pane button')].find(b => b.textContent.trim() === '閉じる')?.click());
+  await tab.waitForTimeout(300);
+  await frames('morph-pane-close', {x: 840, y: 120, width: 560, height: 360}, () => tab.evaluate(() => [...document.querySelectorAll('#ytmls-tools-pane button')].find(b => b.textContent.trim() === '閉じる')?.click()));
+  await tab.waitForTimeout(300);
+  const whole = {x: 0, y: 0, width: 1440, height: 900};
+  await tab.click('#ytmls-more summary'); await tab.waitForTimeout(600);
+  await frames('morph-full-open', whole, () => tab.evaluate(() => [...document.querySelectorAll('#ytmls-practice-controls button')].find(b => b.textContent.includes('全画面'))?.click()));
+  await tab.waitForTimeout(600);
+  await frames('morph-full-close', whole, () => tab.evaluate(() => document.querySelector('.ytmls-full-close')?.click()));
 }
 if (want('timing')) {
   await tab.evaluate(() => document.querySelector('#ytmls-track-offset-button')?.click());

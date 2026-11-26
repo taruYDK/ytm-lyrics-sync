@@ -2606,6 +2606,37 @@ function readingTokensToRomaji(tokens) {
       const button = event.target.closest?.("button, summary");
       if (button) toolPaneAnchor = button.closest(".ytmls-more-menu") ? moreToggle : button;
     }, true);
+    // Closing by hand ("閉じる", the same button again, Escape) shrinks back into that button.
+    // Switching to another pane or closing for other reasons stays instant.
+    const closeToolPaneByHand = () => {
+      if (lyricsToolsPaneEl.hidden || lyricsToolsPaneEl.dataset.morphing === "closing" || candidateSaveBusy) return false;
+      const anchor = toolPaneAnchor?.isConnected && toolPaneAnchor.getClientRects().length ? toolPaneAnchor : candidateButtonEl;
+      if (typeof glassMorph !== "function" || !glassMorphAllowed(lyricsToolsPaneEl)) return false;
+      const mode = lyricsToolsPaneMode;
+      // Lift the pane out of the layout where it is, so the lyrics move back at once and the
+      // glass shrinks over them (instead of leaving a gap that closes with a jump at the end).
+      const pane = lyricsToolsPaneEl;
+      const lifted = { position: "absolute", top: `${pane.offsetTop}px`, left: `${pane.offsetLeft}px`, width: `${pane.offsetWidth}px`, height: `${pane.offsetHeight}px`, margin: "0", zIndex: "31" };
+      if (pane.offsetParent) Object.assign(pane.style, lifted);
+      pane.style.pointerEvents = "none";
+      glassMorph(pane, anchor, { closing: true, onDone: () => {
+        for (const key of ["position", "top", "left", "width", "height", "margin", "z-index", "pointer-events"]) pane.style.removeProperty(key);
+        // Another pane opened meanwhile: keep it.
+        if (lyricsToolsPaneMode === mode) closeLyricsToolsPane();
+      } });
+      return true;
+    };
+    lyricsToolsPaneEl.addEventListener("click", event => {
+      if (!event.target.closest?.(".ytmls-tools-close")) return;
+      if (closeToolPaneByHand()) { event.stopImmediatePropagation(); event.preventDefault(); }
+    }, true);
+    lyricsToolsEl.addEventListener("click", event => {
+      const button = event.target.closest?.("#ytmls-tools > .ytmls-tool-button[aria-pressed='true']");
+      if (button && closeToolPaneByHand()) { event.stopImmediatePropagation(); event.preventDefault(); }
+    }, true);
+    lyricsToolsPaneEl.addEventListener("keydown", event => {
+      if (event.key === "Escape" && closeToolPaneByHand()) { event.stopPropagation(); (toolPaneAnchor?.isConnected ? toolPaneAnchor : candidateButtonEl)?.focus(); }
+    });
     if (typeof MutationObserver === "function") new MutationObserver(() => {
       if (lyricsToolsPaneEl.hidden) { lyricsToolsPaneEl.wasShown = false; return; }
       if (lyricsToolsPaneEl.wasShown) return;
@@ -7785,6 +7816,17 @@ function closePracticeFullscreen(animate = true) {
  };
  if (animate === false || !playerFeedbackEnabled()) { finish(); return; }
  box.backgroundMotion?.cancel();
+ // Shrink back into the button it was opened from (after leaving browser fullscreen, so the
+ // button is where it will be on the page again).
+ const opener = box.openedFrom;
+ if (opener?.isConnected && typeof glassMorph === 'function') {
+  const leaving = document.fullscreenElement === box ? document.exitFullscreen().catch(() => {}) : Promise.resolve();
+  void leaving.then(() => new Promise(resolve => requestAnimationFrame(resolve))).then(() => {
+   if (!opener.isConnected || !opener.getClientRects().length) { finish(); return; }
+   glassMorph(box, opener, {closing: true, onDone: finish});
+  });
+  return;
+ }
  const canvas = box.querySelector('canvas');
  const blur = getComputedStyle(canvas).filter;
  canvas.animate([{filter:blur},{filter:'blur(0px)'}], {duration:220,easing:'ease-in',fill:'forwards'});
@@ -7864,7 +7906,12 @@ function openPracticeFullscreen() {
     [{filter:'blur(0px)',opacity:0},{filter:'blur(12px)',opacity:.65}],
     {duration:240,easing:'ease-out'});
  }
- if(box.requestFullscreen)void box.requestFullscreen().then(()=>{box.dataset.native='true';}).catch(()=>{});
+ // Grow out of the "その他" button it was opened from, then go browser-fullscreen: in browser
+ // fullscreen the page behind is hidden, so the button would grow over black.
+ const goFullscreen=()=>{if(practiceFullscreen===box&&!box.inert&&box.requestFullscreen)void box.requestFullscreen().then(()=>{box.dataset.native='true';}).catch(()=>{});};
+ const opener=document.querySelector('#ytmls-more > summary');
+ const morph=opener?.getClientRects().length&&typeof glassMorph==='function'?glassMorph(box,opener):null;
+ if(morph){box.openedFrom=opener;morph.finished.then(goFullscreen,()=>{});}else goFullscreen();
 }
 function updatePracticeFullscreenHeader(box) {
  // Runs on every refresh: YouTube Music often swaps the cover after the new lyrics are shown.

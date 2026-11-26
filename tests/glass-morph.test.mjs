@@ -76,3 +76,29 @@ test('without motion it opens and closes at once; old browsers get a cubic-bezie
   const old = morph({linear: false});
   assert.match(old.c.glassMorphEasing(), /^cubic-bezier/);
 });
+
+const read = name => fs.readFileSync(new URL('../src/content/' + name, import.meta.url), 'utf8');
+
+test('tool panes close by hand into their button, lifted over the lyrics; switching panes stays instant', () => {
+  const panel = read('lyrics-panel.js');
+  const close = panel.slice(panel.indexOf('const closeToolPaneByHand'), panel.indexOf('lyricsToolsPaneEl.addEventListener("click"'));
+  assert.match(close, /position: "absolute", top: `\$\{pane\.offsetTop\}px`/, 'out of the layout while it shrinks');
+  assert.match(close, /closing: true/);
+  assert.match(close, /if \(lyricsToolsPaneMode === mode\) closeLyricsToolsPane\(\);/, 'a pane opened meanwhile is kept');
+  assert.match(panel, /event\.target\.closest\?\.\("\.ytmls-tools-close"\)/, '閉じる buttons');
+  assert.match(panel, /#ytmls-tools > \.ytmls-tool-button\[aria-pressed='true'\]/, 'the same button again');
+  assert.match(panel, /event\.key === "Escape" && closeToolPaneByHand\(\)/, 'Escape');
+});
+
+test('fullscreen lyrics grow out of その他 before going browser-fullscreen, and shrink back after leaving it', () => {
+  const practice = read('practice.js');
+  assert.match(practice, /morph\.finished\.then\(goFullscreen/, 'browser fullscreen hides the page, so it waits for the morph');
+  assert.match(practice, /else goFullscreen\(\);/, 'without motion it goes fullscreen at once');
+  const close = practice.slice(practice.indexOf('function closePracticeFullscreen'), practice.indexOf('function paintPracticeBackground'));
+  assert.match(close, /document\.exitFullscreen\(\)[\s\S]*glassMorph\(box, opener, \{closing: true, onDone: finish\}\)/);
+});
+
+test('the older fade-in animations do not run on top of the morph', () => {
+  const css = fs.readFileSync(new URL('../extension/liquid-glass.css', import.meta.url), 'utf8');
+  assert.match(css, /#ytmls-panel #ytmls-tools-pane:not\(\[hidden\]\), #ytmls-track-offset-popover:not\(\[hidden\]\), html #ytmls-more\[open\] > \.ytmls-more-menu \{ animation: none !important; \}/);
+});

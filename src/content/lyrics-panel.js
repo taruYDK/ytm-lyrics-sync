@@ -1162,6 +1162,37 @@
       const button = event.target.closest?.("button, summary");
       if (button) toolPaneAnchor = button.closest(".ytmls-more-menu") ? moreToggle : button;
     }, true);
+    // Closing by hand ("閉じる", the same button again, Escape) shrinks back into that button.
+    // Switching to another pane or closing for other reasons stays instant.
+    const closeToolPaneByHand = () => {
+      if (lyricsToolsPaneEl.hidden || lyricsToolsPaneEl.dataset.morphing === "closing" || candidateSaveBusy) return false;
+      const anchor = toolPaneAnchor?.isConnected && toolPaneAnchor.getClientRects().length ? toolPaneAnchor : candidateButtonEl;
+      if (typeof glassMorph !== "function" || !glassMorphAllowed(lyricsToolsPaneEl)) return false;
+      const mode = lyricsToolsPaneMode;
+      // Lift the pane out of the layout where it is, so the lyrics move back at once and the
+      // glass shrinks over them (instead of leaving a gap that closes with a jump at the end).
+      const pane = lyricsToolsPaneEl;
+      const lifted = { position: "absolute", top: `${pane.offsetTop}px`, left: `${pane.offsetLeft}px`, width: `${pane.offsetWidth}px`, height: `${pane.offsetHeight}px`, margin: "0", zIndex: "31" };
+      if (pane.offsetParent) Object.assign(pane.style, lifted);
+      pane.style.pointerEvents = "none";
+      glassMorph(pane, anchor, { closing: true, onDone: () => {
+        for (const key of ["position", "top", "left", "width", "height", "margin", "z-index", "pointer-events"]) pane.style.removeProperty(key);
+        // Another pane opened meanwhile: keep it.
+        if (lyricsToolsPaneMode === mode) closeLyricsToolsPane();
+      } });
+      return true;
+    };
+    lyricsToolsPaneEl.addEventListener("click", event => {
+      if (!event.target.closest?.(".ytmls-tools-close")) return;
+      if (closeToolPaneByHand()) { event.stopImmediatePropagation(); event.preventDefault(); }
+    }, true);
+    lyricsToolsEl.addEventListener("click", event => {
+      const button = event.target.closest?.("#ytmls-tools > .ytmls-tool-button[aria-pressed='true']");
+      if (button && closeToolPaneByHand()) { event.stopImmediatePropagation(); event.preventDefault(); }
+    }, true);
+    lyricsToolsPaneEl.addEventListener("keydown", event => {
+      if (event.key === "Escape" && closeToolPaneByHand()) { event.stopPropagation(); (toolPaneAnchor?.isConnected ? toolPaneAnchor : candidateButtonEl)?.focus(); }
+    });
     if (typeof MutationObserver === "function") new MutationObserver(() => {
       if (lyricsToolsPaneEl.hidden) { lyricsToolsPaneEl.wasShown = false; return; }
       if (lyricsToolsPaneEl.wasShown) return;

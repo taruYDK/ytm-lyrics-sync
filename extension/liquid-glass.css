@@ -52,6 +52,9 @@ html.ytmls-lg-lens :is(#ytmls-more > .ytmls-more-menu, #ytmls-panel #ytmls-tools
 }
 #ytmls-more > .ytmls-more-menu { padding: 8px; transform-origin: top right; }
 
+/* They grow out of their button instead (glass-morph.js), so the older fade/scale-in animations are off. */
+#ytmls-panel #ytmls-tools-pane:not([hidden]), #ytmls-track-offset-popover:not([hidden]), html #ytmls-more[open] > .ytmls-more-menu { animation: none !important; }
+
 /* Menu rows: rounded highlight capsules inside the glass. */
 #ytmls-more .ytmls-menu-group > .ytmls-tool-button,
 #ytmls-more .ytmls-diagnostic-details > summary { border-radius: 12px; padding: 8px 12px; transition: background-color .16s ease; }

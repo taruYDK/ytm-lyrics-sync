@@ -207,6 +207,17 @@ function closePracticeFullscreen(animate = true) {
  };
  if (animate === false || !playerFeedbackEnabled()) { finish(); return; }
  box.backgroundMotion?.cancel();
+ // Shrink back into the button it was opened from (after leaving browser fullscreen, so the
+ // button is where it will be on the page again).
+ const opener = box.openedFrom;
+ if (opener?.isConnected && typeof glassMorph === 'function') {
+  const leaving = document.fullscreenElement === box ? document.exitFullscreen().catch(() => {}) : Promise.resolve();
+  void leaving.then(() => new Promise(resolve => requestAnimationFrame(resolve))).then(() => {
+   if (!opener.isConnected || !opener.getClientRects().length) { finish(); return; }
+   glassMorph(box, opener, {closing: true, onDone: finish});
+  });
+  return;
+ }
  const canvas = box.querySelector('canvas');
  const blur = getComputedStyle(canvas).filter;
  canvas.animate([{filter:blur},{filter:'blur(0px)'}], {duration:220,easing:'ease-in',fill:'forwards'});
@@ -286,7 +297,12 @@ function openPracticeFullscreen() {
     [{filter:'blur(0px)',opacity:0},{filter:'blur(12px)',opacity:.65}],
     {duration:240,easing:'ease-out'});
  }
- if(box.requestFullscreen)void box.requestFullscreen().then(()=>{box.dataset.native='true';}).catch(()=>{});
+ // Grow out of the "その他" button it was opened from, then go browser-fullscreen: in browser
+ // fullscreen the page behind is hidden, so the button would grow over black.
+ const goFullscreen=()=>{if(practiceFullscreen===box&&!box.inert&&box.requestFullscreen)void box.requestFullscreen().then(()=>{box.dataset.native='true';}).catch(()=>{});};
+ const opener=document.querySelector('#ytmls-more > summary');
+ const morph=opener?.getClientRects().length&&typeof glassMorph==='function'?glassMorph(box,opener):null;
+ if(morph){box.openedFrom=opener;morph.finished.then(goFullscreen,()=>{});}else goFullscreen();
 }
 function updatePracticeFullscreenHeader(box) {
  // Runs on every refresh: YouTube Music often swaps the cover after the new lyrics are shown.
