@@ -165,3 +165,5 @@ v3.2.1 より前からある部分も含めて全体を確認し、見つかっ�
 - 「その他」メニューの「同期タイミングを調整」は削除した（下のバーの「歌詞 0.0秒」と重複のため）。幅 1100px 以下ではバーのボタン2つがメニューに移り、メニューの行と同じ見た目になる。
 - YouTube Music 自体の部品（`liquid-glass.css` の末尾、`html.music-glass` のときだけ）：再生画面のタブは iPhone 風の切り替え（下線を消し、選択中はガラスの粒）、再生位置のバーは白く細く（ポインターを乗せると 6px）、検索欄はガラス、左メニューの選択中の項目はガラスの粒、歌詞の出典（`.ytmls-source-badge`）は小さな文字、ジャケット画像は角丸 14px と影。実機の YouTube Music の DOM（`#progressContainer`、`#selectionBar`、`#song-image img` など）は仮ページで似せて確認しただけなので、実機で崩れたら要調整。ジャケットの影は、親要素が `overflow: hidden` だと切れる可能性がある。
 - 再生画面のタブも「小・中・大」と同じガラスの粒でスライドできる（`glass-segment.js` の `ensureYtmTabGlassSegment`、`main.js` の tick から呼ぶ）。`attachGlassSegment(group, opts)` は `items`／`isSelected`／`isDisabled`／`activate`／`watch`／`settleMs`／`enabled` で、ボタン以外にも使えるようにした。タブは `click()`（選ばれなければ `tap` イベント）で切り替える。押している間は YouTube Music 自身の mousedown／mouseup を止める（離した位置と押した位置の両方が選ばれないように）。テーマを切ると何もしない。
+- Mac のミュージック風レイアウト（ユーザーの依頼で段階的に作成中。順番：1 左メニュー → 2 右の歌詞欄 → 3 下の再生バー → 4 全画面歌詞ビュー → 5 上のバー）。
+  - 1（済）：左メニュー（`ytmusic-mini-guide-renderer`／`ytmusic-guide-renderer`）を、列の中で端から離した角丸のガラスの板にした。列の幅は変えない。暗さは塗りで出し、`clip-path` で角丸に切り抜く（backdrop-filter が角丸で切れず四角く見えたため。外側の影はなし）。開いた状態の広いメニューは仮ページに無く未確認。

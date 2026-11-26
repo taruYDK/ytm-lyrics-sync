@@ -636,3 +636,44 @@ html.music-glass .ytmls-tabs-segment[data-dragging="true"] > tp-yt-paper-tab.ytm
 html.music-glass .ytmls-tabs-segment[data-lens="true"] > .ytmls-seg-thumb { opacity: 0; transition: opacity .12s ease; }
 /* Theme turned off: the tabs are YouTube Music's own again. */
 html:not(.music-glass) tp-yt-paper-tabs .ytmls-seg-thumb { display: none !important; }
+
+/* ==========================================================================
+   Mac Music-style layout (step 1): the side menu as a floating glass sidebar.
+   The menu stays in YouTube Music's own column (same width, nothing moves); only its contents
+   sit on a rounded glass panel inset from the edges, like the sidebar in Music on macOS.
+   ========================================================================== */
+html.music-glass :is(ytmusic-mini-guide-renderer, ytmusic-guide-renderer) {
+  --ytmls-sidebar-inset: 8px;
+  box-sizing: border-box !important;
+  margin: var(--ytmls-sidebar-inset) !important;
+  border-radius: 22px !important;
+  /* Darkened by its fill, not by the backdrop filter: Chrome may not clip a backdrop filter to the
+     rounded corners here, and a darkening filter then showed as a square behind the panel. */
+  background: linear-gradient(rgb(255 255 255 / .05), rgb(255 255 255 / .05)), rgb(18 16 22 / .2) !important;
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / .12), inset 0 0 18px rgb(255 255 255 / .05), inset 0 -10px 16px -14px rgb(255 255 255 / .25) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(140%); backdrop-filter: blur(24px) saturate(140%);
+  /* Clipped to its rounded shape, so the blur never shows past the corners as a square. */
+  clip-path: inset(0 round 22px);
+}
+/* The narrow menu (icons with labels): a slim column of glass around the entries. */
+html.music-glass ytmusic-mini-guide-renderer {
+  --ytmls-sidebar-inset: 6px;
+  width: auto !important; max-height: calc(100% - 12px);
+  padding: 6px 2px !important;
+}
+html.music-glass ytmusic-mini-guide-renderer :is(ytmusic-guide-entry-renderer, ytmusic-mini-guide-entry-renderer) { margin-inline: auto; }
+/* The full menu: a panel that runs down the column, its list scrolling inside. */
+html.music-glass ytmusic-guide-renderer {
+  height: calc(100% - 16px) !important;
+  padding: 8px 6px !important;
+}
+html.music-glass ytmusic-guide-renderer :is(ytmusic-guide-entry-renderer, ytmusic-mini-guide-entry-renderer) { margin-inline: 2px; }
+/* Section dividers inside the panel: hairlines instead of YouTube Music's full-width rules. */
+html.music-glass ytmusic-guide-renderer ytmusic-guide-section-renderer + ytmusic-guide-section-renderer { border-top: 1px solid rgb(255 255 255 / .08) !important; }
+/* Lightweight mode and reduced transparency: a solid panel. */
+html.ytmls-lyrics-motion-lightweight.music-glass :is(ytmusic-mini-guide-renderer, ytmusic-guide-renderer) {
+  -webkit-backdrop-filter: none; backdrop-filter: none; background: rgb(40 38 46 / .92) !important;
+}
+@media (prefers-reduced-transparency: reduce) {
+  html.music-glass :is(ytmusic-mini-guide-renderer, ytmusic-guide-renderer) { -webkit-backdrop-filter: none; backdrop-filter: none; background: rgb(40 38 46) !important; }
+}
