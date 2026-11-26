@@ -62,9 +62,8 @@
   -webkit-backdrop-filter: var(--lg-backdrop);
   backdrop-filter: var(--lg-backdrop);
 }
-html.ytmls-lg-lens :is(#ytmls-more > .ytmls-more-menu, #ytmls-panel #ytmls-tools-pane, #ytmls-track-offset-popover) {
-  backdrop-filter: url(#ytmls-lg-lens) var(--lg-backdrop);
-}
+/* No lens on surfaces with text: Chrome can draw an element with an SVG backdrop filter at a lower
+   resolution, which blurred their labels on high-DPI screens. They keep the plain blur. */
 /* ---------- その他 menu, like an iPhone menu ----------
    Big rounded glass with the same two rim glints as the buttons (a ring on the menu itself; the
    body inside scrolls), regular-weight rows with line icons, quiet section titles and thin dividers. */
@@ -157,13 +156,23 @@ ytmusic-player-bar :is(#ytmls-resync-button, #ytmls-track-offset-button),
   text-shadow: var(--lg-pill-text-shadow);
   font-weight: 600 !important;
   letter-spacing: .01em;
-  -webkit-backdrop-filter: var(--lg-backdrop-pill);
-  backdrop-filter: var(--lg-backdrop-pill);
+  /* The blur and lens sit on a layer behind the label (::after), so the label stays sharp. */
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  isolation: isolate;
   color: rgb(var(--lg-ink) / .9) !important;
   opacity: 1 !important;
   transition: transform .34s var(--lg-spring), box-shadow .2s ease, color .16s ease, filter .2s ease !important;
 }
-html.ytmls-lg-lens :is(#ytmls-tools > .ytmls-tool-button, #ytmls-more > summary.ytmls-tool-button, ytmusic-player-bar :is(#ytmls-resync-button, #ytmls-track-offset-button), #ytmls-fullscreen :is(.ytmls-full-size button, .ytmls-full-close)) {
+/* The glass behind a pill's label: its own layer, so an SVG lens (which Chrome may draw at a lower
+   resolution) never takes the label's sharpness with it. */
+:is(#ytmls-tools > .ytmls-tool-button, #ytmls-more > summary.ytmls-tool-button, #ytmls-helpful > .ytmls-source-badge,
+  ytmusic-player-bar :is(#ytmls-resync-button, #ytmls-track-offset-button), #ytmls-fullscreen :is(.ytmls-full-size button, .ytmls-full-close))::after {
+  content: "" !important; position: absolute; inset: -1px; margin: 0 !important; opacity: 1 !important;
+  border-radius: inherit; z-index: -1; pointer-events: none; background: none; transform: none;
+  -webkit-backdrop-filter: var(--lg-backdrop-pill); backdrop-filter: var(--lg-backdrop-pill);
+}
+html.ytmls-lg-lens :is(#ytmls-tools > .ytmls-tool-button, #ytmls-more > summary.ytmls-tool-button, ytmusic-player-bar :is(#ytmls-resync-button, #ytmls-track-offset-button), #ytmls-fullscreen :is(.ytmls-full-size button, .ytmls-full-close))::after {
   backdrop-filter: url(#ytmls-lg-lens-pill) var(--lg-backdrop-pill);
 }
 /* The badge is a label, not a button: lighter and without the swell. */
@@ -186,14 +195,14 @@ ytmusic-player-bar :is(#ytmls-resync-button, #ytmls-track-offset-button), #ytmls
   min-height: 30px; padding: 0 13px !important; font-size: 12.5px !important; line-height: 1 !important;
 }
 /* その他: a drawn chevron instead of a text glyph; it turns over when the menu is open. */
-#ytmls-more > summary.ytmls-tool-button::after {
-  content: "" !important; flex: 0 0 auto; width: 9px; height: 9px; margin: 1px 0 0 !important; opacity: .75 !important;
+#ytmls-more > summary .ytmls-more-chevron {
+  display: inline-block; flex: 0 0 auto; width: 9px; height: 9px; margin: 1px 0 0; opacity: .75;
   background: currentColor;
   -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Cpath d='M1.5 3.5 5 7l3.5-3.5' fill='none' stroke='black' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat;
   mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Cpath d='M1.5 3.5 5 7l3.5-3.5' fill='none' stroke='black' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat;
   transition: transform .34s var(--lg-spring);
 }
-#ytmls-more[open]:not([data-closing="true"]) > summary.ytmls-tool-button::after { transform: rotate(180deg); }
+#ytmls-more[open]:not([data-closing="true"]) > summary .ytmls-more-chevron { transform: rotate(180deg); }
 /* The candidate count as a small badge. */
 #ytmls-tools .ytmls-count {
   display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 5px; box-sizing: border-box;
@@ -207,7 +216,7 @@ ytmusic-player-bar :is(#ytmls-resync-button, #ytmls-track-offset-button), #ytmls
 :is(#ytmls-tools > .ytmls-tool-button, #ytmls-more > summary.ytmls-tool-button, ytmusic-player-bar :is(#ytmls-resync-button, #ytmls-track-offset-button), #ytmls-fullscreen :is(.ytmls-full-size button, .ytmls-full-close)):not(:disabled):is(:hover, :focus-visible) {
   transform: scale(1.05);
   color: rgb(var(--lg-ink)) !important;
-  filter: brightness(1.1);
+  background: linear-gradient(rgb(255 255 255 / .1), rgb(255 255 255 / .1)) padding-box !important;
   box-shadow: var(--lg-pill-shadow), inset 0 0 14px rgb(255 255 255 / .1) !important;
 }
 :is(#ytmls-tools > .ytmls-tool-button, #ytmls-more > summary.ytmls-tool-button, ytmusic-player-bar :is(#ytmls-resync-button, #ytmls-track-offset-button), #ytmls-fullscreen :is(.ytmls-full-size button, .ytmls-full-close)):not(:disabled):active {
@@ -461,3 +470,11 @@ details[data-closing="true"] > summary { list-style-type: disclosure-closed; }
 #ytmls-panel #ytmls-tools-pane .ytmls-recommendation-badge[data-level="high"]::before { background: #30d158; color: rgb(48 209 88 / .6); }
 #ytmls-panel #ytmls-tools-pane .ytmls-recommendation-badge[data-level="medium"]::before { background: #ffd60a; color: rgb(255 214 10 / .5); }
 #ytmls-panel #ytmls-tools-pane .ytmls-recommendation-badge[data-level="low"]::before { background: #8e8e93; color: transparent; }
+
+/* Lightweight mode and reduced transparency: the glass layer behind pill labels goes too. */
+html.ytmls-lyrics-motion-lightweight :is(#ytmls-tools > .ytmls-tool-button, #ytmls-more > summary.ytmls-tool-button, #ytmls-helpful > .ytmls-source-badge,
+  ytmusic-player-bar :is(#ytmls-resync-button, #ytmls-track-offset-button), #ytmls-fullscreen :is(.ytmls-full-size button, .ytmls-full-close))::after { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
+@media (prefers-reduced-transparency: reduce) {
+  :is(#ytmls-tools > .ytmls-tool-button, #ytmls-more > summary.ytmls-tool-button, #ytmls-helpful > .ytmls-source-badge,
+  ytmusic-player-bar :is(#ytmls-resync-button, #ytmls-track-offset-button), #ytmls-fullscreen :is(.ytmls-full-size button, .ytmls-full-close))::after { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
+}

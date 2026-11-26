@@ -1106,6 +1106,11 @@
     const moreToggle = document.createElement("summary");
     moreToggle.className = "ytmls-tool-button";
     moreToggle.textContent = "その他";
+    // The chevron is its own element (the summary's ::after holds the glass behind the label).
+    const moreChevron = document.createElement("span");
+    moreChevron.className = "ytmls-more-chevron";
+    moreChevron.setAttribute("aria-hidden", "true");
+    moreToggle.append(moreChevron);
     moreToggle.addEventListener('click',event=>{
       if(!more.open)return;
       event.preventDefault();

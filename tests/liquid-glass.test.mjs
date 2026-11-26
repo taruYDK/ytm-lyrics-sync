@@ -77,8 +77,8 @@ test('header pills: one thin rim, a drawn chevron that turns over, and the count
   assert.match(css, /::before \{\s*content: ""; position: absolute; inset: -1px; padding: 1px;[^}]*background: var\(--lg-pill-rim\);[^}]*mask:/, 'the rim is a masked ring, so glints never show through');
   assert.match(css, /--lg-pill-rim: var\(--lg-glint\);/);
   assert.match(css, /--lg-glint: conic-gradient\(/, 'two glints: top-left and bottom-right');
-  assert.match(css, /#ytmls-more > summary\.ytmls-tool-button::after \{\s*content: "" !important;[^}]*mask:/);
-  assert.match(css, /#ytmls-more\[open\]:not\(\[data-closing="true"\]\) > summary\.ytmls-tool-button::after \{ transform: rotate\(180deg\); \}/);
+  assert.match(css, /#ytmls-more > summary \.ytmls-more-chevron \{[^}]*mask:/);
+  assert.match(css, /#ytmls-more\[open\]:not\(\[data-closing="true"\]\) > summary \.ytmls-more-chevron \{ transform: rotate\(180deg\); \}/);
   assert.match(css, /#ytmls-tools \.ytmls-count \{/);
   const panel = fs.readFileSync(new URL('../src/content/lyrics-panel.js', import.meta.url), 'utf8');
   assert.match(panel, /candidateButtonEl\.replaceChildren\("歌詞候補 ", badge\);/);
@@ -121,4 +121,16 @@ test('candidate list: a drawn pin (filled when pinned), a check on the chosen on
   const panel = fs.readFileSync(new URL('../src/content/lyrics-panel.js', import.meta.url), 'utf8');
   assert.doesNotMatch(panel, /📌/, 'no emoji pin');
   assert.match(panel, /pinButton\.dataset\.pinned = String\(isPinned\);/);
+});
+
+test('labels stay sharp: no SVG lens on an element that has text; pills carry it on a layer behind', () => {
+  const css = read('liquid-glass.css').replace(/\/\*[\s\S]*?\*\//g, '');
+  const rules = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].filter(([, , body]) => /backdrop-filter: url\(/.test(body));
+  for (const [, selector] of rules) {
+    const sel = selector.trim();
+    assert.ok(/::after$/.test(sel) || sel.endsWith('.ytmls-seg-lens'), `the lens is only on a layer without text: ${sel.slice(0, 90)}`);
+  }
+  assert.match(css, /backdrop-filter: none !important;\s*isolation: isolate;/, 'pills themselves have no backdrop filter');
+  const panel = fs.readFileSync(new URL('../src/content/lyrics-panel.js', import.meta.url), 'utf8');
+  assert.match(panel, /moreChevron\.className = "ytmls-more-chevron";/);
 });
