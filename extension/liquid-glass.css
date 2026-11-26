@@ -299,6 +299,30 @@ html #ytmls-more .ytmls-glass-segment > .ytmls-tool-button.ytmls-tool-button { t
 html #ytmls-more .ytmls-glass-segment[data-dragging="true"] > .ytmls-tool-button.ytmls-tool-button { color: rgb(var(--lg-ink) / .6) !important; }
 html #ytmls-more .ytmls-glass-segment[data-dragging="true"] > .ytmls-tool-button.ytmls-seg-under { color: rgb(var(--lg-ink)) !important; transform: scale(1.22); }
 html.ytmls-lyrics-motion-lightweight #ytmls-more .ytmls-glass-segment > .ytmls-tool-button.ytmls-seg-under { transform: none; }
+/* The drop shown above the page while the bead is dragged (glass-segment.js): clear glass that
+   magnifies what is under it and splits colors at its rim. The bead and the label scaling step
+   aside meanwhile, so the drop bends the real labels. */
+.ytmls-seg-lens {
+  position: fixed; z-index: 2147483600; pointer-events: none; box-sizing: border-box; border-radius: 999px;
+  background: rgb(255 255 255 / .03);
+  -webkit-backdrop-filter: saturate(125%) brightness(1.1);
+  backdrop-filter: saturate(125%) brightness(1.1);
+  box-shadow: inset 0 -10px 14px -12px rgb(255 255 255 / .45), inset 0 0 18px rgb(255 255 255 / .08), 0 10px 28px rgb(0 0 0 / .22);
+  animation: ytmls-seg-lens-in .26s cubic-bezier(.34, 1.56, .64, 1) both;
+}
+.ytmls-seg-lens::before {
+  content: ""; position: absolute; inset: 0; padding: 1.5px; border-radius: inherit;
+  background: conic-gradient(from 0deg, rgb(255 255 255 / .2) 0deg, rgb(255 255 255 / .1) 55deg, rgb(255 255 255 / .7) 115deg, rgb(255 255 255 / .1) 165deg,
+    rgb(255 255 255 / .08) 205deg, rgb(255 255 255 / .12) 245deg, rgb(255 255 255 / .95) 298deg, rgb(255 255 255 / .2) 345deg, rgb(255 255 255 / .2) 360deg);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+}
+html.ytmls-lg-lens .ytmls-seg-lens { backdrop-filter: url(#ytmls-lg-lens-drop) saturate(125%) brightness(1.1); }
+.ytmls-seg-lens.ytmls-seg-lens-out { animation: ytmls-seg-lens-out .22s cubic-bezier(.3, .7, .25, 1) both; }
+@keyframes ytmls-seg-lens-in { from { opacity: 0; transform: scale(.72, .62); } }
+@keyframes ytmls-seg-lens-out { to { opacity: 0; transform: scale(.72, .62); } }
+#ytmls-more .ytmls-glass-segment[data-lens="true"] > .ytmls-seg-thumb { opacity: 0; transition: opacity .12s ease; }
+html #ytmls-more .ytmls-glass-segment[data-lens="true"] > .ytmls-tool-button.ytmls-seg-under { transform: none; }
 :root[data-ytmls-theme="light"] #ytmls-more .ytmls-size-presets .ytmls-tool-button.ytmls-tool-button[aria-pressed="true"] { background: linear-gradient(#fff, #fff) padding-box, var(--lg-rim) border-box !important; }
 /* Primary action: tinted glass in the accent color. */
 #ytmls-tools-pane :is(.ytmls-tools-primary, .ytmls-reading-primary) {

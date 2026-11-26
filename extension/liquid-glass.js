@@ -10,7 +10,8 @@
   // Displacement map: red bends horizontally and green vertically. A full-range gradient
   // gives every edge its inward direction (corners included); a blurred mid-grey rounded
   // rectangle on top leaves the middle untouched, so the bend grows smoothly toward the rim.
-  function lensMap(inset, radius, softness) {
+  // hold < 1 lets part of the ramp through in the middle too: the whole lens magnifies a little.
+  function lensMap(inset, radius, softness, hold = 1) {
     const size = 100 - inset * 2;
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" preserveAspectRatio="none">` +
       `<defs><linearGradient id="x"><stop offset="0" stop-color="#f00"/><stop offset="1" stop-color="#000"/></linearGradient>` +
@@ -19,7 +20,7 @@
       `<rect width="100" height="100" fill="#000"/>` +
       `<rect width="100" height="100" fill="url(#x)"/>` +
       `<rect width="100" height="100" fill="url(#y)" style="mix-blend-mode:screen"/>` +
-      `<rect x="${inset}" y="${inset}" width="${size}" height="${size}" rx="${radius}" fill="#808000" filter="url(#b)"/></svg>`;
+      `<rect x="${inset}" y="${inset}" width="${size}" height="${size}" rx="${radius}" fill="#808000" fill-opacity="${hold}" filter="url(#b)"/></svg>`;
     return 'data:image/svg+xml,' + encodeURIComponent(svg);
   }
 
@@ -56,6 +57,9 @@
       lensFilter('ytmls-lg-lens', lensMap(9, 14, 4), 0.07),
       // Buttons: the whole capsule acts as a lens, with a faint color fringe.
       lensFilter('ytmls-lg-lens-pill', lensMap(22, 30, 9), 0.34, 0.08),
+      // The drag drop (glass-segment.js): a thick lens that magnifies what is under it and
+      // splits the colors at its rim, like the iOS tab-bar selection while it is dragged.
+      lensFilter('ytmls-lg-lens-drop', lensMap(14, 30, 9, .6), 0.2, 0.3),
     ]);
     svg.style.cssText = 'position:fixed;width:0;height:0;overflow:hidden;pointer-events:none';
     document.documentElement.append(svg);

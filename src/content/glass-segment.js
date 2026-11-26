@@ -30,6 +30,45 @@ function attachGlassSegment(group) {
  // Spring state: position and width follow their targets; velocity drives the stretch.
  const state = {x: 0, w: 0, vx: 0, vw: 0, tx: 0, tw: 0, frame: 0, last: 0, placed: false, dragging: false, grab: 0, squash: 0, sq: 0, vsq: 0};
 
+ // ---------- The drop: a real lens while dragging ----------
+ // Inside the glass menu a backdrop filter would only see the menu itself, so while dragging a
+ // clear drop is shown above the page (fixed, at the bead's place) and bends everything under it:
+ // the labels, the track and the menu glass, with colors split at its rim like the iOS tab bar.
+ let lens = null;
+ const lensAllowed = () => glassSegmentMotion() && Boolean(document.documentElement?.classList?.contains('ytmls-lg-lens')) &&
+  typeof group.getBoundingClientRect === 'function' && Boolean(document.body);
+ function placeLens(sx = 1, sy = 1) {
+  if (!lens) return;
+  const rect = group.getBoundingClientRect(), track = Math.max(0, group.offsetHeight - 6);
+  const {min, max} = bounds();
+  // Bigger than the bead (it lifts), but never wider past the track's ends.
+  const room = (max + state.w) - min;
+  const width = Math.min(room + 8, state.w * 1.14 * sx), height = track * 1.6 * sy;
+  let left = rect.left + state.x + state.w / 2 - width / 2;
+  left = Math.max(rect.left + min - 4, Math.min(rect.left + max + state.w + 4 - width, left));
+  lens.style.left = `${left.toFixed(1)}px`;
+  lens.style.top = `${(rect.top + group.offsetHeight / 2 - height / 2).toFixed(1)}px`;
+  lens.style.width = `${width.toFixed(1)}px`;
+  lens.style.height = `${height.toFixed(1)}px`;
+ }
+ function showLens() {
+  if (lens || !lensAllowed()) return;
+  lens = document.createElement('div');
+  lens.className = 'ytmls-seg-lens';
+  lens.setAttribute('aria-hidden', 'true');
+  document.body.append(lens);
+  group.dataset.lens = 'true';
+  placeLens();
+ }
+ function hideLens() {
+  if (!lens) return;
+  const leaving = lens;
+  lens = null;
+  delete group.dataset.lens;
+  leaving.classList.add('ytmls-seg-lens-out');
+  setTimeout(() => leaving.remove(), 240);
+ }
+
  // The bead's travel inside the track for its current width.
  function bounds(width = state.w) {
   const list = buttons(), first = list[0], last = list.at(-1);
@@ -51,6 +90,7 @@ function attachGlassSegment(group) {
   thumb.style.width = `${Math.max(0, state.w)}px`;
   thumb.style.transformOrigin = side === 'center' ? 'center' : `${side} center`;
   thumb.style.transform = `translateX(${state.x}px) scale(${sx.toFixed(4)}, ${sy.toFixed(4)})`;
+  placeLens(sx, sy);
  }
  function step(now) {
   state.frame = 0;
@@ -119,6 +159,7 @@ function attachGlassSegment(group) {
   clearTimeout(press.timer);
   state.dragging = true;
   group.dataset.dragging = 'true';
+  showLens();
   thumb.hidden = false;
   try { group.setPointerCapture(press.id); } catch (_) {}
   const current = pressed() || press.button;
@@ -151,6 +192,7 @@ function attachGlassSegment(group) {
   if (!wasDragging) return;
   state.dragging = false;
   state.squash = 0;
+  hideLens();
   delete group.dataset.dragging;
   markUnder(null);
   const target = nearest(state.tx + state.w / 2);

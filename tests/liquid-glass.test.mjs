@@ -19,14 +19,15 @@ test('Liquid Glass installs the lens filters once and puts them back when the pa
   const h = lensHarness(true);
   const svg = h.byId['ytmls-lg-filters'];
   assert.ok(svg);
-  assert.deepEqual(svg.children.map(f => f.id), ['ytmls-lg-lens', 'ytmls-lg-lens-pill']);
+  assert.deepEqual(svg.children.map(f => f.id), ['ytmls-lg-lens', 'ytmls-lg-lens-pill', 'ytmls-lg-lens-drop']);
   for (const filter of svg.children) {
     assert.equal(filter.attrs.primitiveUnits, 'objectBoundingBox');
     assert.equal(filter.children[0].tag, 'feImage');
     assert.match(filter.children[0].attrs.href, /^data:image\/svg\+xml,/);
     assert.ok(filter.children.some(c => c.tag === 'feDisplacementMap'));
   }
-  const [surface, pill] = svg.children;
+  const [surface, pill, drop] = svg.children;
+  assert.equal(drop.children.filter(c => c.tag === 'feDisplacementMap').length, 3, 'the drag drop splits colors at its rim');
   assert.equal(surface.children.length, 2, 'menus bend once: cheap over large areas');
   assert.equal(pill.children.filter(c => c.tag === 'feDisplacementMap').length, 3, 'buttons get a faint color fringe');
   const map = decodeURIComponent(surface.children[0].attrs.href);
