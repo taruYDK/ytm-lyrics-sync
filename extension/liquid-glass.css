@@ -645,8 +645,10 @@ html:not(.music-glass) tp-yt-paper-tabs .ytmls-seg-thumb { display: none !import
    type with the id #mini-guide-renderer, so everything here is scoped to #guide-renderer by id.
    ========================================================================== */
 /* The glass panel: a layer behind the list, inset from the column's edges (nothing in the layout moves). */
-html.music-glass ytmusic-guide-renderer#guide-renderer #sections { position: relative; isolation: isolate; }
-html.music-glass ytmusic-guide-renderer#guide-renderer #sections::before {
+/* Both menus get the same panel (the narrow one, #mini-guide-renderer, slimmer), so switching with ≡
+   keeps the same look. */
+html.music-glass ytmusic-guide-renderer:is(#guide-renderer, #mini-guide-renderer) #sections { position: relative; isolation: isolate; }
+html.music-glass ytmusic-guide-renderer:is(#guide-renderer, #mini-guide-renderer) #sections::before {
   content: ""; position: absolute; inset: 2px 8px 6px; z-index: -1; pointer-events: none; border-radius: 18px;
   background: linear-gradient(rgb(255 255 255 / .05), rgb(255 255 255 / .05)), rgb(18 16 22 / .2);
   box-shadow: inset 0 0 0 1px rgb(255 255 255 / .12), inset 0 0 18px rgb(255 255 255 / .05), inset 0 -10px 16px -14px rgb(255 255 255 / .25);
@@ -689,8 +691,23 @@ html.music-glass ytmusic-guide-renderer#guide-renderer ytmusic-guide-entry-rende
 /* The chosen row: a soft rounded highlight (the glass bead is for the narrow menu). */
 html.music-glass ytmusic-guide-renderer#guide-renderer ytmusic-guide-entry-renderer[active] { background: rgb(255 255 255 / .13) !important; }
 html.music-glass ytmusic-guide-renderer#guide-renderer ytmusic-guide-entry-renderer[active] :is(.title-group, .title-group *) { color: #fff !important; font-weight: 600 !important; }
+/* The narrow menu: the same panel, inset less (the column is narrow); the same chosen-row highlight,
+   accent icons and white labels as the wide menu, instead of the glass bead and pink label. */
+html.music-glass ytmusic-guide-renderer#mini-guide-renderer #sections::before { inset: 2px 4px 6px; }
+html.music-glass ytmusic-guide-renderer#mini-guide-renderer ytmusic-guide-entry-renderer {
+  border-radius: 12px !important; box-shadow: none !important; background: transparent !important;
+  -webkit-backdrop-filter: none !important; backdrop-filter: none !important; transition: background-color .14s ease;
+}
+html.music-glass ytmusic-guide-renderer#mini-guide-renderer ytmusic-guide-entry-renderer tp-yt-paper-item { background: transparent !important; }
+html.music-glass ytmusic-guide-renderer#mini-guide-renderer ytmusic-guide-entry-renderer:not([active]):hover { background: rgb(255 255 255 / .07) !important; }
+html.music-glass ytmusic-guide-renderer#mini-guide-renderer ytmusic-guide-entry-renderer[active] { background: rgb(255 255 255 / .13) !important; }
+html.music-glass ytmusic-guide-renderer#mini-guide-renderer ytmusic-guide-entry-renderer yt-icon.guide-icon {
+  color: var(--lg-accent) !important; fill: var(--lg-accent) !important; --iron-icon-fill-color: var(--lg-accent);
+}
+html.music-glass ytmusic-guide-renderer#mini-guide-renderer ytmusic-guide-entry-renderer :is(.title-group, .title-group *) { color: rgb(255 255 255 / .9) !important; }
+html.music-glass ytmusic-guide-renderer#mini-guide-renderer ytmusic-guide-entry-renderer[active] :is(.title-group, .title-group *) { color: #fff !important; font-weight: 600 !important; }
 /* Lightweight mode and reduced transparency: a solid panel. */
-html.ytmls-lyrics-motion-lightweight.music-glass ytmusic-guide-renderer#guide-renderer #sections::before { -webkit-backdrop-filter: none; backdrop-filter: none; background: rgb(40 38 46 / .92); }
+html.ytmls-lyrics-motion-lightweight.music-glass ytmusic-guide-renderer:is(#guide-renderer, #mini-guide-renderer) #sections::before { -webkit-backdrop-filter: none; backdrop-filter: none; background: rgb(40 38 46 / .92); }
 @media (prefers-reduced-transparency: reduce) {
-  html.music-glass ytmusic-guide-renderer#guide-renderer #sections::before { -webkit-backdrop-filter: none; backdrop-filter: none; background: rgb(40 38 46); }
+  html.music-glass ytmusic-guide-renderer:is(#guide-renderer, #mini-guide-renderer) #sections::before { -webkit-backdrop-filter: none; backdrop-filter: none; background: rgb(40 38 46); }
 }

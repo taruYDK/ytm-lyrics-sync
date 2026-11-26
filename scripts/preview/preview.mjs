@@ -48,7 +48,9 @@ const FULL_GUIDE = `<tp-yt-app-drawer id="guide" slot="guide" opened persistent>
 <ytmusic-guide-section-renderer><div id="items" class="scroller">${entry('ホーム', '', true)}${entry('探索')}${entry('ライブラリ')}</div></ytmusic-guide-section-renderer>
 <ytmusic-guide-section-renderer><div id="items" class="scroller">${entry('高評価', '自動プレイリスト')}${entry('ドライブ用', 'あなた')}${entry('作業用 BGM', 'あなた')}${entry('アニソン', 'あなた')}</div></ytmusic-guide-section-renderer>
 </div></ytmusic-guide-renderer></div></div></div></tp-yt-app-drawer>`;
-const MINI_GUIDE = `<div id="mini-col"><ytmusic-mini-guide-renderer><ytmusic-mini-guide-entry-renderer active><tp-yt-paper-item>⌂<br>ホーム</tp-yt-paper-item></ytmusic-mini-guide-entry-renderer><ytmusic-mini-guide-entry-renderer><tp-yt-paper-item>◎<br>探索</tp-yt-paper-item></ytmusic-mini-guide-entry-renderer><ytmusic-mini-guide-entry-renderer><tp-yt-paper-item>▢<br>ライブラリ</tp-yt-paper-item></ytmusic-mini-guide-entry-renderer></ytmusic-mini-guide-renderer></div>`;
+const miniEntry = (icon, title, active) => `<ytmusic-guide-entry-renderer${active ? ' active' : ''}><tp-yt-paper-item class="mini">${ICON}<div class="title-column"><div class="title-group"><yt-formatted-string class="title">${title}</yt-formatted-string></div></div></tp-yt-paper-item></ytmusic-guide-entry-renderer>`;
+// The narrow side menu: the same element type as the wide one, with the id #mini-guide-renderer.
+const MINI_GUIDE = `<div id="mini-col"><ytmusic-guide-renderer id="mini-guide-renderer"><div id="sections"><ytmusic-guide-section-renderer><div id="items" class="scroller">${miniEntry('', 'ホーム', true)}${miniEntry('', '探索')}${miniEntry('', 'ライブラリ')}</div></ytmusic-guide-section-renderer></div></ytmusic-guide-renderer></div>`;
 const FULL = process.env.PREVIEW_GUIDE === 'full';
 
 function page(light) {
@@ -79,7 +81,9 @@ function page(light) {
  ytmusic-search-box .search-box{height:100%;box-sizing:border-box;border:1px solid #ffffff26;border-radius:8px;background:#ffffff1a;display:flex;align-items:center;padding:0 14px}
  ytmusic-search-box input{flex:1;background:none;border:0;color:#fff;font-size:15px;outline:none}
  #mini-col{position:fixed;left:0;top:64px;bottom:0;width:72px;z-index:3}
- ytmusic-mini-guide-renderer{display:flex;flex-direction:column;gap:6px;height:100%}
+ #mini-guide-renderer{display:block;height:calc(100% - 96px)} #mini-guide-renderer #sections{height:100%} #mini-guide-renderer #items{padding:6px 8px}
+ #mini-guide-renderer tp-yt-paper-item{display:flex;flex-direction:column;align-items:center;gap:2px;height:auto;padding:10px 0}
+ #mini-guide-renderer yt-icon{width:24px;height:24px;display:inline-flex;color:#fff}
  ytmusic-mini-guide-entry-renderer{display:block;width:56px;margin:0 8px}
  tp-yt-paper-item{display:block;text-align:center;font-size:10px;padding:8px 0;border-radius:8px;line-height:1.6}
  ytmusic-mini-guide-entry-renderer[active] tp-yt-paper-item{background:#ffffff1f}
