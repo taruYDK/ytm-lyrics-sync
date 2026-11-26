@@ -1,6 +1,6 @@
 // Screenshots of the extension on a stand-in YouTube Music page (no network needed).
 // Usage: node scripts/preview/preview.mjs [outDir] [scene...]
-// Scenes: panel, menu, drag, candidates, readings, timing, fullscreen, popup, backup, light
+// Scenes: panel, menu, drag, wall, tap, candidates, readings, timing, fullscreen, popup, backup, light
 // PREVIEW_EVAL='<js>' runs in the page before the scenes and prints the result.
 import {createRequire} from 'node:module';
 let chromium;
@@ -129,6 +129,32 @@ if (want('drag')) {
   await tab.mouse.up(); await tab.waitForTimeout(700);
   await shot(tab, 'drag-released', {x: mid.x - 140, y: mid.y - 30, width: 340, height: 90});
   console.log('pressed after drag:', await tab.evaluate(() => document.querySelector('.ytmls-size-presets button[aria-pressed="true"]')?.textContent));
+  await tab.click('#ytmls-more summary');
+}
+if (want('wall')) {
+  // Quick slide (no hold) from Medium past the right end: rubber band and squash, then the bounce back.
+  await tab.click('#ytmls-more summary'); await tab.waitForTimeout(400);
+  const mid = await tab.locator('.ytmls-size-presets button', {hasText: '中'}).boundingBox();
+  const y = mid.y + mid.height / 2, x0 = mid.x + mid.width / 2;
+  const clip = {x: mid.x - 140, y: mid.y - 30, width: 380, height: 90};
+  await tab.mouse.move(x0, y); await tab.mouse.down();
+  for (let i = 1; i <= 12; i++) { await tab.mouse.move(x0 + i * 22, y); await tab.waitForTimeout(16); }
+  await tab.waitForTimeout(250); await shot(tab, 'wall-pulled', clip);
+  await tab.mouse.up();
+  for (const t of [60, 140, 600]) { await tab.waitForTimeout(t); await shot(tab, `wall-release-${t}`, clip); }
+  console.log('pressed after wall:', await tab.evaluate(() => document.querySelector('.ytmls-size-presets button[aria-pressed="true"]')?.textContent));
+  await tab.click('#ytmls-more summary');
+}
+if (want('tap')) {
+  // A light tap (quick press, no movement) selects a size and slides the bead there.
+  await tab.click('#ytmls-more summary'); await tab.waitForTimeout(400);
+  const small = await tab.locator('.ytmls-size-presets button', {hasText: '小'}).boundingBox();
+  await tab.mouse.click(small.x + small.width / 2, small.y + small.height / 2, {delay: 40});
+  await tab.waitForTimeout(800);
+  console.log('after tap:', JSON.stringify(await tab.evaluate(() => ({
+    pressed: document.querySelector('.ytmls-size-presets button[aria-pressed="true"]')?.textContent,
+    bead: document.querySelector('.ytmls-seg-thumb')?.style.transform,
+    target: document.querySelector('.ytmls-size-presets button[aria-pressed="true"]')?.offsetLeft}))));
   await tab.click('#ytmls-more summary');
 }
 if (want('candidates')) {
