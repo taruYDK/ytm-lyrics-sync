@@ -78,3 +78,12 @@ test('header pills: one thin rim, a drawn chevron that turns over, and the count
   assert.match(panel, /candidateButtonEl\.replaceChildren\("歌詞候補 ", badge\);/);
   assert.match(panel, /setAttribute\("aria-label", `歌詞候補 \$\{count\}件`\)/);
 });
+
+test('the その他 button is a header pill, not a chip inside the menu (same glass as 歌詞候補)', () => {
+  const css = read('liquid-glass.css');
+  // The chip rules for controls inside the menu match .ytmls-tool-button; the summary is excluded.
+  const chip = '.ytmls-tool-button:not(.ytmls-menu-group > .ytmls-tool-button):not(.ytmls-reading-primary):not(.ytmls-size-presets > *)';
+  assert.equal(css.split(chip).length - 1, css.split(chip + ':not(summary)').length - 1);
+  assert.equal(css.split(chip + ':not(summary)').length - 1, 2);
+  assert.ok(css.includes('.ytmls-tools-close, .ytmls-tool-button:not(summary), .ytmls-candidate-pin,'));
+});

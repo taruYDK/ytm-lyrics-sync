@@ -169,7 +169,7 @@ ytmusic-player-bar #ytmls-track-offset-button[aria-expanded="true"],
 
 /* ---------- Controls inside glass surfaces: clear chips, no second blur ---------- */
 :is(#ytmls-more, #ytmls-tools-pane, #ytmls-track-offset-popover) :is(
-  .ytmls-tools-secondary, .ytmls-tools-close, .ytmls-tool-button:not(.ytmls-menu-group > .ytmls-tool-button):not(.ytmls-reading-primary):not(.ytmls-size-presets > *), .ytmls-candidate-pin, button:not([class]),
+  .ytmls-tools-secondary, .ytmls-tools-close, .ytmls-tool-button:not(.ytmls-menu-group > .ytmls-tool-button):not(.ytmls-reading-primary):not(.ytmls-size-presets > *):not(summary), .ytmls-candidate-pin, button:not([class]),
   .ytmls-track-offset-quick button, .ytmls-track-offset-add, .ytmls-track-offset-reset-all, .ytmls-track-offset-delete) {
   border: 1px solid transparent !important;
   border-radius: 999px !important;
@@ -180,12 +180,12 @@ ytmusic-player-bar #ytmls-track-offset-button[aria-expanded="true"],
   transition: transform .3s var(--lg-spring), background-color .16s ease, filter .16s ease !important;
 }
 :is(#ytmls-more, #ytmls-tools-pane, #ytmls-track-offset-popover) :is(
-  .ytmls-tools-secondary, .ytmls-tools-close, .ytmls-tool-button:not(.ytmls-menu-group > .ytmls-tool-button):not(.ytmls-reading-primary):not(.ytmls-size-presets > *), .ytmls-candidate-pin, button:not([class]),
+  .ytmls-tools-secondary, .ytmls-tools-close, .ytmls-tool-button:not(.ytmls-menu-group > .ytmls-tool-button):not(.ytmls-reading-primary):not(.ytmls-size-presets > *):not(summary), .ytmls-candidate-pin, button:not([class]),
   .ytmls-track-offset-quick button, .ytmls-track-offset-add, .ytmls-track-offset-reset-all, .ytmls-track-offset-delete):not(:disabled):hover {
   filter: brightness(1.25); transform: scale(1.03);
 }
 :is(#ytmls-more, #ytmls-tools-pane, #ytmls-track-offset-popover) :is(
-  .ytmls-tools-secondary, .ytmls-tools-close, .ytmls-tool-button, .ytmls-candidate-pin,
+  .ytmls-tools-secondary, .ytmls-tools-close, .ytmls-tool-button:not(summary), .ytmls-candidate-pin,
   .ytmls-track-offset-quick button, .ytmls-track-offset-add, .ytmls-track-offset-reset-all, .ytmls-track-offset-delete):not(:disabled):active {
   transform: scale(.96); transition-duration: .1s !important;
 }
