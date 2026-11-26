@@ -303,7 +303,7 @@ html.ytmls-lyrics-motion-lightweight #ytmls-more .ytmls-glass-segment > .ytmls-t
    magnifies what is under it and splits colors at its rim. The bead and the label scaling step
    aside meanwhile, so the drop bends the real labels. */
 .ytmls-seg-lens {
-  position: fixed; z-index: 2147483600; pointer-events: none; box-sizing: border-box; border-radius: 999px;
+  position: fixed; left: 0; top: 0; z-index: 2147483600; pointer-events: none; box-sizing: border-box; border-radius: 999px;
   background: rgb(255 255 255 / .03);
   -webkit-backdrop-filter: saturate(125%) brightness(1.1);
   backdrop-filter: saturate(125%) brightness(1.1);

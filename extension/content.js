@@ -8114,9 +8114,23 @@ function attachGlassSegment(group) {
 
  const buttons = () => [...group.querySelectorAll(':scope > button')];
  const pressed = () => buttons().find(button => button.getAttribute('aria-pressed') === 'true');
- const slot = button => ({x: button.offsetLeft, w: button.offsetWidth});
- // Spring state: position and width follow their targets; velocity drives the stretch.
- const state = {x: 0, w: 0, vx: 0, vw: 0, tx: 0, tw: 0, frame: 0, last: 0, placed: false, dragging: false, grab: 0, squash: 0, sq: 0, vsq: 0};
+ // Layout is measured once when a drag starts and reused for every frame: reading positions right
+ // after writing styles would make the browser lay out the (large) page again on each frame.
+ let layout = null;
+ function measure() {
+  const list = buttons(), rect = group.getBoundingClientRect();
+  layout = {left: rect.left, top: rect.top, height: group.offsetHeight, list, slots: list.map(button => ({x: button.offsetLeft, w: button.offsetWidth}))};
+  return layout;
+ }
+ const slot = button => {
+  const index = layout ? layout.list.indexOf(button) : -1;
+  return index >= 0 ? layout.slots[index] : {x: button.offsetLeft, w: button.offsetWidth};
+ };
+ const groupRect = () => layout || group.getBoundingClientRect();
+ const groupHeight = () => layout ? layout.height : group.offsetHeight;
+ // Spring state: position and width follow their targets; a smoothed velocity drives the stretch.
+ const state = {x: 0, w: 0, vx: 0, vw: 0, vs: 0, tx: 0, tw: 0, frame: 0, last: 0, placed: false, dragging: false, grab: 0, squash: 0, sq: 0, vsq: 0};
+ let drawnWidth = -1, lensSize = '';
 
  // ---------- The drop: a real lens while dragging ----------
  // Inside the glass menu a backdrop filter would only see the menu itself, so while dragging a
@@ -8130,7 +8144,7 @@ function attachGlassSegment(group) {
  // wall like the bead, instead of shrinking toward its own middle and leaving the wall).
  function placeLens(sx = 1, sy = 1, side = 'center') {
   if (!lens) return;
-  const rect = group.getBoundingClientRect(), track = Math.max(0, group.offsetHeight - 6);
+  const rect = groupRect(), track = Math.max(0, groupHeight() - 6);
   const {min, max} = bounds();
   const trackLeft = rect.left + min, trackRight = rect.left + max + state.w;
   const drawn = state.w * sx;
@@ -8141,10 +8155,10 @@ function attachGlassSegment(group) {
   else if (side === 'right') left = rect.left + state.x + state.w - width;
   else left = rect.left + state.x + state.w / 2 - width / 2;
   left = Math.max(trackLeft, Math.min(trackRight - width, left));
-  lens.style.left = `${left.toFixed(1)}px`;
-  lens.style.top = `${(rect.top + group.offsetHeight / 2 - height / 2).toFixed(1)}px`;
-  lens.style.width = `${width.toFixed(1)}px`;
-  lens.style.height = `${height.toFixed(1)}px`;
+  // Moved with the translate property (no layout); resized only when the size really changes.
+  lens.style.translate = `${left.toFixed(1)}px ${(rect.top + groupHeight() / 2 - height / 2).toFixed(1)}px`;
+  const size = `${width.toFixed(1)}|${height.toFixed(1)}`;
+  if (size !== lensSize) { lensSize = size; lens.style.width = `${width.toFixed(1)}px`; lens.style.height = `${height.toFixed(1)}px`; }
  }
  function showLens() {
   const kind = press?.type || 'unknown';
@@ -8153,6 +8167,7 @@ function attachGlassSegment(group) {
   lens = document.createElement('div');
   lens.className = 'ytmls-seg-lens';
   lens.setAttribute('aria-hidden', 'true');
+  lensSize = '';
   // On the root, not in <body>: a transform or filter on the page's body would move or clip it.
   document.documentElement.append(lens);
   group.dataset.lens = 'true';
@@ -8183,7 +8198,7 @@ function attachGlassSegment(group) {
  }
  function paint() {
   const motion = glassSegmentMotion();
-  const speed = Math.min(1, Math.abs(state.vx) / 2400);
+  const speed = Math.min(1, Math.abs(state.vs) / 2400);
   const stretch = motion ? speed * .22 : 0;
   // Squash against a wall: narrower and a little taller, pressed to the wall it touches.
   const squash = motion ? Math.max(0, Math.min(.35, state.sq)) : 0;
@@ -8193,7 +8208,8 @@ function attachGlassSegment(group) {
   const sy = Math.min(1.1, (1 - stretch * .4) * (1 + squash * .3));
   // Touching a wall it grows only away from it, so it never pokes out of the track.
   if (side !== 'center') sx = Math.min(1, sx);
-  thumb.style.width = `${Math.max(0, state.w)}px`;
+  const width = Math.max(0, Math.round(state.w * 4) / 4);
+  if (width !== drawnWidth) { drawnWidth = width; thumb.style.width = `${width}px`; }
   thumb.style.transformOrigin = side === 'center' ? 'center' : `${side} center`;
   thumb.style.transform = `translateX(${Number(state.x.toFixed(3))}px) scale(${sx.toFixed(4)}, ${sy.toFixed(4)})`;
   placeLens(sx, sy, side);
@@ -8205,7 +8221,8 @@ function attachGlassSegment(group) {
   // Close behind the pointer while dragging; springy (overshoots and wobbles) when settling.
   // Integrated in small fixed steps: a stiff spring over a long frame (the lens is heavy, frames
   // can take 30 ms or more) would otherwise blow up and make the bead drift or shake.
-  const stiffness = state.dragging ? 2000 : 420, damping = state.dragging ? 64 : 17;
+  // Dragging: critically damped (right behind the finger, no overshoot, no wobble).
+  const stiffness = state.dragging ? 6000 : 420, damping = state.dragging ? 155 : 17;
   const {min, max} = bounds();
   for (let left = dt; left > 1e-6; left -= .004) {
    const h = Math.min(.004, left);
@@ -8222,10 +8239,13 @@ function attachGlassSegment(group) {
    }
   }
   if (state.sq < 0) { state.sq = 0; state.vsq = Math.abs(state.vsq) * .3; }
+  // The stretch follows a smoothed speed, so uneven pointer events do not make it flicker.
+  state.vs += (state.vx - state.vs) * Math.min(1, dt * 14);
   const resting = Math.abs(state.tx - state.x) < .3 && Math.abs(state.vx) < 8 && Math.abs(state.tw - state.w) < .3 && Math.abs(state.vw) < 8 &&
    Math.abs(state.squash - state.sq) < .004 && Math.abs(state.vsq) < .05;
   if (resting && !state.dragging) {
-   state.x = state.tx; state.w = state.tw; state.vx = state.vw = 0; state.sq = state.squash; state.vsq = 0; state.last = 0;
+   state.x = state.tx; state.w = state.tw; state.vx = state.vw = state.vs = 0; state.sq = state.squash; state.vsq = 0; state.last = 0;
+   layout = null; // measured again for the next drag
   } else {
    state.frame = requestAnimationFrame(step);
   }
@@ -8244,6 +8264,7 @@ function attachGlassSegment(group) {
  }
  function sync(animate = true) {
   if (state.dragging) return;
+  layout = null;
   const button = pressed();
   thumb.hidden = !button;
   if (!button) return;
@@ -8275,6 +8296,7 @@ function attachGlassSegment(group) {
  }
  function beginDrag() {
   if (!press || state.dragging) return;
+  measure();
   state.dragging = true;
   group.dataset.dragging = 'true';
   showLens();
@@ -8286,7 +8308,7 @@ function attachGlassSegment(group) {
   follow(press.lastX);
  }
  function follow(clientX) {
-  const rect = group.getBoundingClientRect();
+  const rect = groupRect();
   const first = buttons()[0], last = buttons().at(-1);
   if (!first || !last) return;
   const min = slot(first).x, max = slot(last).x + slot(last).w - state.tw;
@@ -8320,8 +8342,7 @@ function attachGlassSegment(group) {
  }
  // The button under a point (with the pointer captured, events report the group as their target).
  function buttonAt(clientX) {
-  const rect = group.getBoundingClientRect();
-  const x = clientX - rect.left;
+  const x = clientX - groupRect().left;
   return buttons().find(button => { const s = slot(button); return x >= s.x && x < s.x + s.w; }) || null;
  }
  group.addEventListener('pointerdown', event => {
@@ -8350,6 +8371,13 @@ function attachGlassSegment(group) {
   if (button && !button.disabled && !state.dragging) { const s = slot(button); if (s.w) moveTo(s.x, s.w); }
  }, true);
  group.addEventListener('contextmenu', event => { if (press || state.dragging) event.preventDefault(); });
+
+ // A scroll or resize during a drag moves the control: measure it again.
+ const remeasure = () => { if (state.dragging) measure(); };
+ if (typeof window !== 'undefined' && window.addEventListener) {
+  window.addEventListener('scroll', remeasure, {capture: true, passive: true});
+  window.addEventListener('resize', remeasure, {passive: true});
+ }
 
  // Follow the saved size (it changes after storage writes and in other tabs) and the layout.
  if (typeof MutationObserver === 'function') {

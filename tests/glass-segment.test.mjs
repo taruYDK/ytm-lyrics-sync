@@ -176,3 +176,17 @@ test('at a wall the drop squashes against the wall like the bead, and the bead s
   const css = fs.readFileSync(new URL('../extension/liquid-glass.css', import.meta.url), 'utf8');
   assert.match(css, /\[data-lens="true"\] > \.ytmls-seg-thumb \{ opacity: 0;/);
 });
+
+test('while dragging the bead stays right behind a moving finger and never overshoots it', () => {
+  const h = segment();
+  h.fire('pointerdown', {clientX: 33, target: h.buttons[0]});
+  const lags = [];
+  let x = 33;
+  for (let i = 0; i < 12; i++) { x += 8; h.fire('pointermove', {clientX: x}); h.step(); lags.push(x - 30 - h.translate()); }
+  // 8px per 16ms frame is 500px/s: the bead trails by only a few pixels and never runs ahead.
+  for (const lag of lags.slice(4)) assert.ok(lag >= 0 && lag < 14, `lag ${lag.toFixed(1)}px`);
+  // Stop: it settles under the finger without passing it.
+  const after = [];
+  for (let i = 0; i < 30; i++) { h.step(); after.push(h.translate()); }
+  assert.ok(Math.max(...after) <= x - 30 + .5, 'no overshoot past the finger');
+});
