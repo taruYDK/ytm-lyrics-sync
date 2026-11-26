@@ -135,3 +135,20 @@ test('labels stay sharp: no SVG lens on an element that has text; pills carry it
   const panel = fs.readFileSync(new URL('../src/content/lyrics-panel.js', import.meta.url), 'utf8');
   assert.match(panel, /moreChevron\.className = "ytmls-more-chevron";/);
 });
+
+test('YouTube Music controls get the glass look only while the theme is on', () => {
+  const css = fs.readFileSync(new URL('../extension/liquid-glass.css', import.meta.url), 'utf8');
+  for (const selector of [
+    'html.music-glass ytmusic-player-page tp-yt-paper-tabs #selectionBar { display: none !important; }',
+    'html.music-glass ytmusic-player-bar #progress-bar #progressContainer',
+    'html.music-glass ytmusic-search-box {',
+    'html.music-glass :is(ytmusic-guide-entry-renderer, ytmusic-mini-guide-entry-renderer)[active] {',
+    'html.music-glass ytmusic-player #song-image img {',
+  ]) assert.ok(css.includes(selector), selector);
+  // The seek bar is white, not the accent pink.
+  assert.match(css, /html\.music-glass ytmusic-player-bar \{\s*--paper-slider-active-color: rgb\(255 255 255/);
+  // The tabs are dimmed by color: an opacity on them would fade the chosen glass bead too.
+  assert.match(css, /tp-yt-paper-tabs tp-yt-paper-tab \{[^}]*opacity: 1 !important;/);
+  // The lyrics source is a caption: no ring or glass layer.
+  assert.match(css, /#ytmls-helpful > \.ytmls-source-badge::after \{ display: none !important; \}/);
+});

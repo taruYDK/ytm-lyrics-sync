@@ -517,3 +517,98 @@ html.ytmls-lyrics-motion-lightweight :is(#ytmls-tools > .ytmls-tool-button, #ytm
 /* The status dot sits on the clock icon's corner instead of taking its own column. */
 #ytmls-more #ytmls-playback-menu #ytmls-track-offset-button { position: relative; }
 #ytmls-more #ytmls-playback-menu #ytmls-track-offset-button .ytmls-track-health { position: absolute; left: 24px; top: 9px; margin: 0 !important; }
+
+/* ==========================================================================
+   YouTube Music's own controls, restyled to sit with the glass above (only while the
+   extension's theme is on, html.music-glass).
+   ========================================================================== */
+
+/* ---------- Player-page tabs (次のコンテンツ / 歌詞 / コメント / 関連): an iPhone segmented control ----------
+   A recessed capsule; the chosen tab is a clear glass bead instead of an underline. */
+html.music-glass ytmusic-player-page tp-yt-paper-tabs {
+  --paper-tabs-selection-bar-color: transparent;
+  height: 38px !important; margin: 8px 0 6px !important; padding: 3px !important; box-sizing: border-box;
+  border: 0 !important; border-radius: 999px !important;
+  background: rgb(0 0 0 / .18) !important;
+  box-shadow: inset 0 1px 2px rgb(0 0 0 / .22), inset 0 0 0 .5px rgb(255 255 255 / .07) !important;
+}
+html.music-glass ytmusic-player-page tp-yt-paper-tabs #selectionBar { display: none !important; }
+html.music-glass ytmusic-player-page tp-yt-paper-tabs tp-yt-paper-tab {
+  display: inline-flex !important; align-items: center !important; justify-content: center !important;
+  height: 100% !important; min-height: 0 !important; padding: 0 10px !important; box-sizing: border-box;
+  border: 0 !important; border-radius: 999px !important; background: transparent;
+  /* Dimmed by color, not opacity (player-header-hover.css), so the chosen bead stays clear glass. */
+  opacity: 1 !important; color: rgb(255 255 255 / .62) !important; font-size: 13px !important;
+  transition: background-color .28s ease, box-shadow .28s ease, color .2s ease !important;
+}
+html.music-glass ytmusic-player-page tp-yt-paper-tabs tp-yt-paper-tab:not([aria-disabled="true"]):not([disabled]):hover { color: rgb(255 255 255 / .86) !important; background: rgb(255 255 255 / .05); }
+html.music-glass ytmusic-player-page tp-yt-paper-tabs tp-yt-paper-tab:is([aria-selected="true"], .iron-selected) {
+  color: #fff !important;
+  background: rgb(255 255 255 / .14) !important;
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / .14), inset 0 -6px 10px -9px rgb(255 255 255 / .3), 0 3px 10px rgb(0 0 0 / .18) !important;
+}
+html.music-glass ytmusic-player-page tp-yt-paper-tabs tp-yt-paper-tab :is(.tab-content, .tab-content *) { border: 0 !important; }
+html.music-glass ytmusic-player-page tp-yt-paper-tabs tp-yt-paper-tab :is(.tab-content, [style-target="tab-content"]) { opacity: 1 !important; }
+html.music-glass ytmusic-player-page tp-yt-paper-tabs tp-yt-paper-tab:is([disabled], [aria-disabled="true"]) { color: rgb(255 255 255 / .28) !important; }
+/* The ripple would spill out of the rounded tab as a square. */
+html.music-glass ytmusic-player-page tp-yt-paper-tabs tp-yt-paper-tab :is(paper-ripple, tp-yt-paper-ripple, yt-interaction) { border-radius: 999px; overflow: hidden; }
+
+/* ---------- Seek bar: a thin white line like Apple Music, a little thicker under the pointer ---------- */
+html.music-glass ytmusic-player-bar {
+  --paper-slider-active-color: rgb(255 255 255 / .92);
+  --paper-slider-knob-color: #fff;
+  --paper-slider-knob-start-color: #fff;
+  --paper-slider-knob-start-border-color: transparent;
+  --paper-slider-pin-color: #fff;
+  --paper-slider-secondary-color: rgb(255 255 255 / .3);
+  --paper-slider-container-color: rgb(255 255 255 / .16);
+}
+html.music-glass ytmusic-player-bar #progress-bar #progressContainer {
+  height: 3px !important; border-radius: 999px !important; overflow: hidden;
+  transition: height .22s cubic-bezier(.3, .7, .25, 1) !important;
+}
+html.music-glass ytmusic-player-bar #progress-bar:is(:hover, [dragging], .dragging) #progressContainer { height: 6px !important; }
+html.music-glass ytmusic-player-bar #progress-bar #sliderKnobInner {
+  background-color: #fff !important; border-color: transparent !important;
+  box-shadow: 0 1px 4px rgb(0 0 0 / .35), 0 0 0 .5px rgb(0 0 0 / .08);
+}
+
+/* ---------- Search field: clear glass ---------- */
+html.music-glass ytmusic-search-box {
+  border-radius: 14px !important;
+  background: rgb(255 255 255 / .08) !important;
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / .14), inset 0 -8px 12px -12px rgb(255 255 255 / .3), 0 4px 16px rgb(0 0 0 / .12) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(160%); backdrop-filter: blur(20px) saturate(160%);
+  transition: background-color .2s ease, box-shadow .2s ease;
+}
+html.music-glass ytmusic-search-box:is(:hover, :focus-within) { background: rgb(255 255 255 / .12) !important; }
+html.music-glass ytmusic-search-box[opened] { background: rgb(36 36 40 / .72) !important; }
+/* The field's own box inside goes clear, so there is one glass, not a box in a box. */
+html.music-glass ytmusic-search-box :is(.search-box, #input-box, .search-container) {
+  background: transparent !important; border-color: transparent !important; box-shadow: none !important;
+}
+
+/* ---------- Side menu: the chosen entry (ホーム etc.) is a clear glass bead ---------- */
+html.music-glass :is(ytmusic-guide-entry-renderer, ytmusic-mini-guide-entry-renderer)[active] {
+  border-radius: 14px !important;
+  background: rgb(255 255 255 / .12) !important;
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / .14), inset 0 -6px 10px -9px rgb(255 255 255 / .3), 0 4px 14px rgb(0 0 0 / .16);
+  -webkit-backdrop-filter: blur(12px) saturate(150%); backdrop-filter: blur(12px) saturate(150%);
+}
+html.music-glass :is(ytmusic-guide-entry-renderer, ytmusic-mini-guide-entry-renderer)[active] :is(tp-yt-paper-item, a, #item, .item) { background: transparent !important; }
+html.music-glass :is(ytmusic-guide-entry-renderer, ytmusic-mini-guide-entry-renderer):not([active]):hover { border-radius: 14px !important; background: rgb(255 255 255 / .06) !important; }
+
+/* ---------- Where the lyrics came from: a quiet caption, not a button ---------- */
+html #ytmls-helpful > .ytmls-source-badge {
+  border: 0 !important; background: none !important; box-shadow: none !important; isolation: auto;
+  padding: 0 2px !important; font-size: 11.5px !important; font-weight: 500 !important; letter-spacing: .02em;
+  color: rgb(var(--lg-ink) / .5) !important; text-shadow: none !important; opacity: 1 !important;
+}
+html #ytmls-helpful > .ytmls-source-badge::before,
+html #ytmls-helpful > .ytmls-source-badge::after { display: none !important; }
+
+/* ---------- Artwork: softer corners and a soft shadow, so it floats a little like on Apple Music ---------- */
+html.music-glass ytmusic-player #song-image img {
+  border-radius: 14px !important;
+  box-shadow: 0 22px 56px rgb(0 0 0 / .34), 0 6px 16px rgb(0 0 0 / .18) !important;
+}

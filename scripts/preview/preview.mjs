@@ -46,7 +46,7 @@ function page(light) {
  html,body{margin:0;height:100%;background:#030303;color:#fff;font-family:Roboto,Arial,sans-serif;overflow:hidden}
  ytmusic-app{display:block;height:100%}
  ytmusic-nav-bar{position:fixed;top:0;left:0;right:0;height:64px;display:flex;align-items:center;padding:0 24px;background:#030303;z-index:3}
- ytmusic-player-page{position:fixed;top:64px;left:0;right:0;bottom:72px;display:flex;gap:48px;padding:24px 48px;box-sizing:border-box}
+ ytmusic-player-page{position:fixed;top:64px;left:72px;right:0;bottom:72px;display:flex;gap:48px;padding:24px 48px;box-sizing:border-box}
  #player{flex:1;display:flex;align-items:center;justify-content:center}
  #song-image img{width:min(40vw,480px);aspect-ratio:1;border-radius:8px}
  #side-panel{width:min(38vw,560px);display:flex;flex-direction:column;min-height:0}
@@ -54,13 +54,31 @@ function page(light) {
  tp-yt-paper-tab{flex:1;text-align:center;padding:14px 0;font-weight:500;color:#aaa;cursor:pointer}
  tp-yt-paper-tab[aria-selected="true"]{color:#fff;border-bottom:2px solid #fff}
  #tab-renderer{flex:1;min-height:0;overflow:auto;display:block}
- ytmusic-player-bar{position:fixed;left:0;right:0;bottom:0;height:72px;background:#212121;display:flex;align-items:center;gap:16px;padding:0 16px;z-index:4}
+ ytmusic-player-bar{position:fixed;left:0;right:0;bottom:0;height:72px;overflow:visible;background:#212121;display:flex;align-items:center;gap:16px;padding:0 16px;z-index:4}
  ytmusic-player-bar .thumbnail-image-wrapper img{width:40px;height:40px;border-radius:2px}
  .middle-controls{display:flex;align-items:center;gap:12px;flex:1}
  .middle-controls-buttons{display:flex;gap:8px;align-items:center}
+ ytmusic-search-box{display:block;margin-left:140px;width:480px;height:40px}
+ ytmusic-search-box .search-box{height:100%;box-sizing:border-box;border:1px solid #ffffff26;border-radius:8px;background:#ffffff1a;display:flex;align-items:center;padding:0 14px}
+ ytmusic-search-box input{flex:1;background:none;border:0;color:#fff;font-size:15px;outline:none}
+ ytmusic-mini-guide-renderer{position:fixed;left:6px;top:76px;z-index:3;display:flex;flex-direction:column;gap:6px}
+ ytmusic-mini-guide-entry-renderer{display:block;width:56px}
+ tp-yt-paper-item{display:block;text-align:center;font-size:10px;padding:8px 0;border-radius:8px;line-height:1.6}
+ ytmusic-mini-guide-entry-renderer[active] tp-yt-paper-item{background:#ffffff1f}
+ #progress-bar{position:absolute;left:0;right:0;top:-6px;height:14px;display:block;cursor:pointer}
+ #sliderContainer{position:relative;height:100%}
+ #sliderBar{position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);display:block}
+ #progressContainer{position:relative;height:2px;background:var(--paper-slider-container-color,#ffffff33)}
+ #secondaryProgress,#primaryProgress{position:absolute;inset:0;transform-origin:left}
+ #secondaryProgress{background:var(--paper-slider-secondary-color,#ffffff55);transform:scaleX(.7)}
+ #primaryProgress{background:var(--paper-slider-active-color,red);transform:scaleX(.4)}
+ #sliderKnob{position:absolute;left:40%;top:50%;width:12px;height:12px;margin:-6px 0 0 -6px;opacity:0;transition:opacity .2s}
+ #progress-bar:hover #sliderKnob{opacity:1}
+ #sliderKnobInner{width:100%;height:100%;border-radius:50%;background:var(--paper-slider-knob-color,red)}
  ytmusic-player-bar .title{font-weight:500}.byline{color:#aaa;font-size:14px}
 </style></head><body><ytmusic-app>
-<ytmusic-nav-bar>YouTube Music</ytmusic-nav-bar>
+<ytmusic-nav-bar>YouTube Music<ytmusic-search-box><div class="search-box"><input id="input" placeholder="曲、アルバム、アーティスト、ポッドキャストを検索"></div></ytmusic-search-box></ytmusic-nav-bar>
+<ytmusic-mini-guide-renderer><ytmusic-mini-guide-entry-renderer active><tp-yt-paper-item>⌂<br>ホーム</tp-yt-paper-item></ytmusic-mini-guide-entry-renderer><ytmusic-mini-guide-entry-renderer><tp-yt-paper-item>◎<br>探索</tp-yt-paper-item></ytmusic-mini-guide-entry-renderer><ytmusic-mini-guide-entry-renderer><tp-yt-paper-item>▢<br>ライブラリ</tp-yt-paper-item></ytmusic-mini-guide-entry-renderer></ytmusic-mini-guide-renderer>
 <ytmusic-player-page player-page-open_ player-ui-state="PLAYER_PAGE_OPEN">
  <div id="player"><ytmusic-player><div id="song-image"><img src="https://i.ytimg.com/vi/${VIDEO_ID}/cover.svg"></div>
   <div id="movie_player"><video class="html5-main-video" muted></video></div></ytmusic-player></div>
@@ -70,7 +88,7 @@ function page(light) {
   <tp-yt-paper-tab role="tab" aria-selected="false"><div class="tab-content">関連</div></tp-yt-paper-tab></tp-yt-paper-tabs>
   <ytmusic-tab-renderer id="tab-renderer" page-type="MUSIC_PAGE_TYPE_TRACK_LYRICS"><div class="lyrics-placeholder"></div></ytmusic-tab-renderer></div>
 </ytmusic-player-page>
-<ytmusic-player-bar class="ytmusic-app"><div class="thumbnail-image-wrapper"><img class="image" src="https://i.ytimg.com/vi/${VIDEO_ID}/cover.svg"></div>
+<ytmusic-player-bar class="ytmusic-app"><tp-yt-paper-slider id="progress-bar"><div id="sliderContainer"><tp-yt-paper-progress id="sliderBar"><div id="progressContainer"><div id="secondaryProgress"></div><div id="primaryProgress"></div></div></tp-yt-paper-progress><div id="sliderKnob"><div id="sliderKnobInner"></div></div></div></tp-yt-paper-slider><div class="thumbnail-image-wrapper"><img class="image" src="https://i.ytimg.com/vi/${VIDEO_ID}/cover.svg"></div>
  <div class="middle-controls"><div class="content-info-wrapper"><div class="title ytmusic-player-bar">夜明けのうた</div><div class="byline ytmusic-player-bar">Preview Artist • Preview Album • 2026</div></div>
  <div class="middle-controls-buttons"></div></div></ytmusic-player-bar>
 </ytmusic-app>
