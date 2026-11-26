@@ -1,36 +1,63 @@
-// Liquid Glass: SVG lens filters that bend the backdrop near the edges of glass surfaces.
-// The CSS uses them only once html.ytmls-lg-lens is set, so a page without them keeps plain blur.
+// Liquid Glass: SVG lens filters that bend the backdrop near the edges of glass surfaces,
+// like the rounded rim of a thick piece of glass. The CSS uses them only once
+// html.ytmls-lg-lens is set, so a page without them keeps the plain blur.
 (() => {
   'use strict';
   if (window.__ytmlsLiquidGlass) return;
   window.__ytmlsLiquidGlass = true;
   try { if (!CSS.supports('backdrop-filter', 'url(#ytmls-lg-lens) blur(1px)')) return; } catch (_) { return; }
-  // Red bends horizontally and green vertically; mid-grey (0.5) in the middle leaves the center untouched.
-  const MAPS = {
-    surface: 'data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20100%20100%22%20preserveAspectRatio%3D%22none%22%3E%3Cdefs%3E%3ClinearGradient%20id%3D%22x%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%23f00%22/%3E%3Cstop%20offset%3D%220.07%22%20stop-color%3D%22%23800000%22/%3E%3Cstop%20offset%3D%220.93%22%20stop-color%3D%22%23800000%22/%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%23000%22/%3E%3C/linearGradient%3E%3ClinearGradient%20id%3D%22y%22%20x2%3D%220%22%20y2%3D%221%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%230f0%22/%3E%3Cstop%20offset%3D%220.07%22%20stop-color%3D%22%23008000%22/%3E%3Cstop%20offset%3D%220.93%22%20stop-color%3D%22%23008000%22/%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%23000%22/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect%20width%3D%22100%22%20height%3D%22100%22%20fill%3D%22url%28%23x%29%22/%3E%3Crect%20width%3D%22100%22%20height%3D%22100%22%20fill%3D%22url%28%23y%29%22%20style%3D%22mix-blend-mode%3Ascreen%22/%3E%3C/svg%3E',
-    pill: 'data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20100%20100%22%20preserveAspectRatio%3D%22none%22%3E%3Cdefs%3E%3ClinearGradient%20id%3D%22x%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%23f00%22/%3E%3Cstop%20offset%3D%220.22%22%20stop-color%3D%22%23800000%22/%3E%3Cstop%20offset%3D%220.78%22%20stop-color%3D%22%23800000%22/%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%23000%22/%3E%3C/linearGradient%3E%3ClinearGradient%20id%3D%22y%22%20x2%3D%220%22%20y2%3D%221%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%230f0%22/%3E%3Cstop%20offset%3D%220.34%22%20stop-color%3D%22%23008000%22/%3E%3Cstop%20offset%3D%220.66%22%20stop-color%3D%22%23008000%22/%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%23000%22/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect%20width%3D%22100%22%20height%3D%22100%22%20fill%3D%22url%28%23x%29%22/%3E%3Crect%20width%3D%22100%22%20height%3D%22100%22%20fill%3D%22url%28%23y%29%22%20style%3D%22mix-blend-mode%3Ascreen%22/%3E%3C/svg%3E',
-  };
-  const NS = 'http://www.w3.org/2000/svg';
-  function filter(id, map, scale) {
-    const el = document.createElementNS(NS, 'filter');
-    el.id = id;
-    for (const [key, value] of Object.entries({x: '0', y: '0', width: '1', height: '1', primitiveUnits: 'objectBoundingBox', 'color-interpolation-filters': 'sRGB'})) el.setAttribute(key, value);
-    const image = document.createElementNS(NS, 'feImage');
-    for (const [key, value] of Object.entries({href: map, x: '0', y: '0', width: '1', height: '1', preserveAspectRatio: 'none', result: 'map'})) image.setAttribute(key, value);
-    const displace = document.createElementNS(NS, 'feDisplacementMap');
-    for (const [key, value] of Object.entries({in: 'SourceGraphic', in2: 'map', scale: String(scale), xChannelSelector: 'R', yChannelSelector: 'G'})) displace.setAttribute(key, value);
-    el.append(image, displace);
-    return el;
+
+  // Displacement map: red bends horizontally and green vertically. A full-range gradient
+  // gives every edge its inward direction (corners included); a blurred mid-grey rounded
+  // rectangle on top leaves the middle untouched, so the bend grows smoothly toward the rim.
+  function lensMap(inset, radius, softness) {
+    const size = 100 - inset * 2;
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" preserveAspectRatio="none">` +
+      `<defs><linearGradient id="x"><stop offset="0" stop-color="#f00"/><stop offset="1" stop-color="#000"/></linearGradient>` +
+      `<linearGradient id="y" x2="0" y2="1"><stop offset="0" stop-color="#0f0"/><stop offset="1" stop-color="#000"/></linearGradient>` +
+      `<filter id="b" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="${softness}"/></filter></defs>` +
+      `<rect width="100" height="100" fill="#000"/>` +
+      `<rect width="100" height="100" fill="url(#x)"/>` +
+      `<rect width="100" height="100" fill="url(#y)" style="mix-blend-mode:screen"/>` +
+      `<rect x="${inset}" y="${inset}" width="${size}" height="${size}" rx="${radius}" fill="#808000" filter="url(#b)"/></svg>`;
+    return 'data:image/svg+xml,' + encodeURIComponent(svg);
   }
+
+  const NS = 'http://www.w3.org/2000/svg';
+  function el(tag, attrs, children = []) {
+    const node = document.createElementNS(NS, tag);
+    for (const [key, value] of Object.entries(attrs)) node.setAttribute(key, String(value));
+    node.append(...children);
+    return node;
+  }
+  const displace = (scale, result) => el('feDisplacementMap', {in: 'SourceGraphic', in2: 'map', scale, xChannelSelector: 'R', yChannelSelector: 'G', result});
+  const channel = (input, row, result) => el('feColorMatrix', {in: input, type: 'matrix', values: row, result});
+
+  // spread > 0 bends red, green and blue by slightly different amounts: a faint color fringe at the rim.
+  function lensFilter(id, map, scale, spread = 0) {
+    const base = {id, x: 0, y: 0, width: 1, height: 1, primitiveUnits: 'objectBoundingBox', 'color-interpolation-filters': 'sRGB'};
+    const image = el('feImage', {href: map, x: 0, y: 0, width: 1, height: 1, preserveAspectRatio: 'none', result: 'map'});
+    if (!spread) return el('filter', base, [image, displace(scale)]);
+    return el('filter', base, [
+      image,
+      displace(scale * (1 + spread), 'dr'), displace(scale, 'dg'), displace(scale * (1 - spread), 'db'),
+      channel('dr', '1 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0', 'r'),
+      channel('dg', '0 0 0 0 0  0 1 0 0 0  0 0 0 0 0  0 0 0 1 0', 'g'),
+      channel('db', '0 0 0 0 0  0 0 0 0 0  0 0 1 0 0  0 0 0 1 0', 'b'),
+      el('feBlend', {in: 'r', in2: 'g', mode: 'screen', result: 'rg'}),
+      el('feBlend', {in: 'rg', in2: 'b', mode: 'screen'}),
+    ]);
+  }
+
   function install() {
     if (document.getElementById('ytmls-lg-filters')) return;
-    const svg = document.createElementNS(NS, 'svg');
-    svg.id = 'ytmls-lg-filters';
-    svg.setAttribute('aria-hidden', 'true');
-    svg.setAttribute('width', '0');
-    svg.setAttribute('height', '0');
+    const svg = el('svg', {id: 'ytmls-lg-filters', 'aria-hidden': 'true', width: 0, height: 0}, [
+      // Menus and panes: a narrow rim, so text in the middle stays straight.
+      lensFilter('ytmls-lg-lens', lensMap(9, 14, 4), 0.07),
+      // Buttons: the whole capsule acts as a lens, with a faint color fringe.
+      lensFilter('ytmls-lg-lens-pill', lensMap(22, 30, 9), 0.34, 0.08),
+    ]);
     svg.style.cssText = 'position:fixed;width:0;height:0;overflow:hidden;pointer-events:none';
-    svg.append(filter('ytmls-lg-lens', MAPS.surface, 0.035), filter('ytmls-lg-lens-pill', MAPS.pill, 0.12));
     document.documentElement.append(svg);
     document.documentElement.classList.add('ytmls-lg-lens');
   }

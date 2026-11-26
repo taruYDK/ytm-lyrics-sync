@@ -79,7 +79,7 @@ function page(light) {
 
 const userData = fs.mkdtempSync(path.join(os.tmpdir(), 'ytmls-profile-'));
 const context = await chromium.launchPersistentContext(userData, {
-  headless: true, channel: 'chromium', viewport: {width: 1440, height: 900}, deviceScaleFactor: 1,
+  headless: true, channel: 'chromium', viewport: {width: 1440, height: 900}, deviceScaleFactor: Number(process.env.PREVIEW_SCALE) || 1,
   args: [`--disable-extensions-except=${extDir}`, `--load-extension=${extDir}`],
 });
 let light = false;
@@ -122,7 +122,7 @@ if (want('candidates')) {
 if (want('readings')) {
   await tab.evaluate(() => document.getElementById('ytmls-reading-edit')?.click());
   await tab.waitForTimeout(500); await shot(tab, 'readings');
-  await tab.evaluate(() => typeof closeLyricsToolsPane === 'function' && closeLyricsToolsPane());
+  await tab.evaluate(() => [...document.querySelectorAll('#ytmls-tools-pane button')].find(b => b.textContent.trim() === '閉じる')?.click());
 }
 if (want('timing')) {
   await tab.evaluate(() => document.querySelector('#ytmls-track-offset-button')?.click());

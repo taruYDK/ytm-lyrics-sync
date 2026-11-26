@@ -6,7 +6,7 @@ const read = name => fs.readFileSync(new URL('../extension/' + name, import.meta
 
 function lensHarness(supported) {
   const byId = {}; const classes = new Set(); let observer;
-  const node = tag => ({tag, attrs: {}, children: [], style: {}, setAttribute(k, v) { this.attrs[k] = v; }, append(...c) { this.children.push(...c); }, set id(v) { this._id = v; }, get id() { return this._id; }});
+  const node = tag => ({tag, attrs: {}, children: [], style: {}, setAttribute(k, v) { this.attrs[k] = v; if (k === 'id') this.id = v; }, append(...c) { this.children.push(...c); }});
   const documentElement = {classList: {add: c => classes.add(c)}, append(el) { byId[el.id] = el; }};
   const document = {documentElement, createElementNS: (ns, tag) => node(tag), getElementById: id => byId[id] || null};
   const window = {};
@@ -22,9 +22,15 @@ test('Liquid Glass installs the lens filters once and puts them back when the pa
   assert.deepEqual(svg.children.map(f => f.id), ['ytmls-lg-lens', 'ytmls-lg-lens-pill']);
   for (const filter of svg.children) {
     assert.equal(filter.attrs.primitiveUnits, 'objectBoundingBox');
-    assert.deepEqual(filter.children.map(c => c.tag), ['feImage', 'feDisplacementMap']);
+    assert.equal(filter.children[0].tag, 'feImage');
     assert.match(filter.children[0].attrs.href, /^data:image\/svg\+xml,/);
+    assert.ok(filter.children.some(c => c.tag === 'feDisplacementMap'));
   }
+  const [surface, pill] = svg.children;
+  assert.equal(surface.children.length, 2, 'menus bend once: cheap over large areas');
+  assert.equal(pill.children.filter(c => c.tag === 'feDisplacementMap').length, 3, 'buttons get a faint color fringe');
+  const map = decodeURIComponent(surface.children[0].attrs.href);
+  assert.match(map, /fill="#808000" filter="url\(#b\)"/, 'the middle stays straight');
   assert.ok(h.classes.has('ytmls-lg-lens'));
   h.reinstall();
   assert.ok(h.byId['ytmls-lg-filters'], 'reinstalled');
