@@ -42,11 +42,12 @@ const LIGHT_COVER = COVER.replace('#ff5e7e', '#fff3c4').replace('#7b3fe4', '#ffd
 
 // PREVIEW_GUIDE=full: the wide side menu (≡) instead of the narrow one.
 const ICON = '<yt-icon class="guide-icon"><svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><circle cx="12" cy="12" r="7"/></svg></yt-icon>';
-const entry = (title, sub, active) => `<ytmusic-guide-entry-renderer${active ? ' active' : ''}><tp-yt-paper-item>${ICON}<div class="title-column"><yt-formatted-string class="title">${title}</yt-formatted-string>${sub ? `<yt-formatted-string class="subtitle">${sub}</yt-formatted-string>` : ''}</div></tp-yt-paper-item></ytmusic-guide-entry-renderer>`;
-const FULL_GUIDE = `<div id="guide-col"><ytmusic-guide-renderer><div id="sections">
-<ytmusic-guide-section-renderer><div id="items">${entry('ホーム', '', true)}${entry('探索')}${entry('ライブラリ')}</div></ytmusic-guide-section-renderer>
-<ytmusic-guide-section-renderer><div id="items">${entry('高評価', '自動プレイリスト')}${entry('ドライブ用', 'あなた')}${entry('作業用 BGM', 'あなた')}${entry('アニソン', 'あなた')}</div></ytmusic-guide-section-renderer>
-</div></ytmusic-guide-renderer></div>`;
+// The real structure of YouTube Music's wide side menu (from 診断情報 → Guide layout).
+const entry = (title, sub, active) => `<ytmusic-guide-entry-renderer${active ? ' active' : ''}><tp-yt-paper-item>${ICON}<div class="title-column"><div class="title-group"><yt-formatted-string class="title">${title}</yt-formatted-string></div>${sub ? `<div class="subtitle-group"><yt-formatted-string class="subtitle">${sub}</yt-formatted-string></div>` : ''}</div></tp-yt-paper-item></ytmusic-guide-entry-renderer>`;
+const FULL_GUIDE = `<tp-yt-app-drawer id="guide" slot="guide" opened persistent><div id="contentContainer"><div id="guide-wrapper"><div id="guide-content"><ytmusic-guide-renderer id="guide-renderer"><div id="sections">
+<ytmusic-guide-section-renderer><div id="items" class="scroller">${entry('ホーム', '', true)}${entry('探索')}${entry('ライブラリ')}</div></ytmusic-guide-section-renderer>
+<ytmusic-guide-section-renderer><div id="items" class="scroller">${entry('高評価', '自動プレイリスト')}${entry('ドライブ用', 'あなた')}${entry('作業用 BGM', 'あなた')}${entry('アニソン', 'あなた')}</div></ytmusic-guide-section-renderer>
+</div></ytmusic-guide-renderer></div></div></div></tp-yt-app-drawer>`;
 const MINI_GUIDE = `<div id="mini-col"><ytmusic-mini-guide-renderer><ytmusic-mini-guide-entry-renderer active><tp-yt-paper-item>⌂<br>ホーム</tp-yt-paper-item></ytmusic-mini-guide-entry-renderer><ytmusic-mini-guide-entry-renderer><tp-yt-paper-item>◎<br>探索</tp-yt-paper-item></ytmusic-mini-guide-entry-renderer><ytmusic-mini-guide-entry-renderer><tp-yt-paper-item>▢<br>ライブラリ</tp-yt-paper-item></ytmusic-mini-guide-entry-renderer></ytmusic-mini-guide-renderer></div>`;
 const FULL = process.env.PREVIEW_GUIDE === 'full';
 
@@ -56,8 +57,8 @@ function page(light) {
  html,body{margin:0;height:100%;background:#030303;color:#fff;font-family:Roboto,Arial,sans-serif;overflow:hidden}
  ytmusic-app{display:block;height:100%}
  ytmusic-nav-bar{position:fixed;top:0;left:0;right:0;height:64px;display:flex;align-items:center;padding:0 24px;background:#030303;z-index:3}
- #guide-col{position:fixed;left:0;top:64px;bottom:0;width:240px;z-index:3}
- ytmusic-guide-renderer{display:block;height:100%;overflow:auto}
+ tp-yt-app-drawer{position:fixed;left:0;top:0;bottom:0;width:240px;z-index:2;display:block} #contentContainer,#guide-wrapper{height:100%} #guide-content{height:100%;padding-top:64px;box-sizing:border-box}
+ ytmusic-guide-renderer{display:block;height:calc(100% - 96px)} #sections{height:100%;overflow:auto} #items{padding:0 8px}
  ytmusic-guide-entry-renderer{display:block} ytmusic-guide-renderer tp-yt-paper-item{display:flex;align-items:center;gap:24px;padding:0 24px;height:48px;font-size:14px}
  ytmusic-guide-renderer yt-icon{width:24px;height:24px;display:inline-flex;color:#fff} ytmusic-guide-renderer .title-column{display:flex;flex-direction:column}
  ytmusic-guide-renderer .subtitle{font-size:12px;color:#aaa} ytmusic-guide-entry-renderer[active] tp-yt-paper-item{background:#ffffff1f}

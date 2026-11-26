@@ -637,6 +637,60 @@ html.music-glass .ytmls-tabs-segment[data-lens="true"] > .ytmls-seg-thumb { opac
 /* Theme turned off: the tabs are YouTube Music's own again. */
 html:not(.music-glass) tp-yt-paper-tabs .ytmls-seg-thumb { display: none !important; }
 
-/* Mac Music-style sidebar: on hold. YouTube Music uses the same menu element for the narrow and the
-   wide side menu, so styles written for one broke the other on real pages. The side menu is styled
-   again once its real structure is known (診断情報 → Guide layout). */
+/* ==========================================================================
+   Mac Music-style layout (step 1): the wide side menu (≡) as the sidebar of Music on macOS.
+   Real structure (診断情報 → Guide layout): tp-yt-app-drawer#guide > … > ytmusic-guide-renderer#guide-renderer
+   > #sections > ytmusic-guide-section-renderer > #items > ytmusic-guide-entry-renderer > tp-yt-paper-item
+   > yt-icon.guide-icon + .title-column (.title-group, .subtitle-group). The narrow menu is the same element
+   type with the id #mini-guide-renderer, so everything here is scoped to #guide-renderer by id.
+   ========================================================================== */
+/* The glass panel: a layer behind the list, inset from the column's edges (nothing in the layout moves). */
+html.music-glass ytmusic-guide-renderer#guide-renderer #sections { position: relative; isolation: isolate; }
+html.music-glass ytmusic-guide-renderer#guide-renderer #sections::before {
+  content: ""; position: absolute; inset: 2px 8px 6px; z-index: -1; pointer-events: none; border-radius: 18px;
+  background: linear-gradient(rgb(255 255 255 / .05), rgb(255 255 255 / .05)), rgb(18 16 22 / .2);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / .12), inset 0 0 18px rgb(255 255 255 / .05), inset 0 -10px 16px -14px rgb(255 255 255 / .25);
+  -webkit-backdrop-filter: blur(24px) saturate(140%); backdrop-filter: blur(24px) saturate(140%);
+  /* Clipped to its rounded shape, so the blur never shows past the corners as a square. */
+  clip-path: inset(0 round 18px);
+}
+html.music-glass ytmusic-guide-renderer#guide-renderer ytmusic-guide-section-renderer { padding: 6px 0 !important; margin: 0 !important; border: 0 !important; }
+html.music-glass ytmusic-guide-renderer#guide-renderer ytmusic-guide-section-renderer + ytmusic-guide-section-renderer { position: relative; }
+/* Section dividers: a hairline inside the panel instead of a full-width rule. */
+html.music-glass ytmusic-guide-renderer#guide-renderer ytmusic-guide-section-renderer + ytmusic-guide-section-renderer::before {
+  content: ""; position: absolute; top: 0; left: 22px; right: 22px; height: 1px; background: rgb(255 255 255 / .09);
+}
+html.music-glass ytmusic-guide-renderer#guide-renderer #items { padding-inline: 14px !important; box-sizing: border-box; }
+/* Rows: one line, a small icon in the accent color, then the name (like the Mac sidebar). */
+html.music-glass ytmusic-guide-renderer#guide-renderer ytmusic-guide-entry-renderer {
+  display: block; margin: 1px 0 !important; border-radius: 8px !important; box-shadow: none !important;
+  -webkit-backdrop-filter: none !important; backdrop-filter: none !important; background: transparent !important;
+  transition: background-color .14s ease;
+}
+html.music-glass ytmusic-guide-renderer#guide-renderer ytmusic-guide-entry-renderer tp-yt-paper-item {
+  display: flex !important; align-items: center !important; gap: 10px !important;
+  min-height: 32px !important; height: 32px !important; padding: 0 10px !important; border-radius: 8px !important;
+  box-sizing: border-box; background: transparent !important;
+}
+html.music-glass ytmusic-guide-renderer#guide-renderer ytmusic-guide-entry-renderer yt-icon.guide-icon {
+  flex: 0 0 18px !important; width: 18px !important; height: 18px !important; margin: 0 !important; padding: 0 !important;
+  color: var(--lg-accent) !important; fill: var(--lg-accent) !important; --iron-icon-fill-color: var(--lg-accent);
+}
+html.music-glass ytmusic-guide-renderer#guide-renderer ytmusic-guide-entry-renderer yt-icon.guide-icon :is(svg, span, .yt-icon-shape) { width: 18px !important; height: 18px !important; }
+html.music-glass ytmusic-guide-renderer#guide-renderer ytmusic-guide-entry-renderer .title-column { min-width: 0; flex: 1 1 auto; text-align: left !important; }
+html.music-glass ytmusic-guide-renderer#guide-renderer ytmusic-guide-entry-renderer .title-group,
+html.music-glass ytmusic-guide-renderer#guide-renderer ytmusic-guide-entry-renderer .title-group * {
+  font-size: 13px !important; font-weight: 500 !important; line-height: 1.25 !important; letter-spacing: .01em;
+  color: rgb(255 255 255 / .9) !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+/* Playlists show only their name (no owner line under it). */
+html.music-glass ytmusic-guide-renderer#guide-renderer ytmusic-guide-entry-renderer .subtitle-group { display: none !important; }
+html.music-glass ytmusic-guide-renderer#guide-renderer ytmusic-guide-entry-renderer:not([active]):hover { background: rgb(255 255 255 / .07) !important; }
+/* The chosen row: a soft rounded highlight (the glass bead is for the narrow menu). */
+html.music-glass ytmusic-guide-renderer#guide-renderer ytmusic-guide-entry-renderer[active] { background: rgb(255 255 255 / .13) !important; }
+html.music-glass ytmusic-guide-renderer#guide-renderer ytmusic-guide-entry-renderer[active] :is(.title-group, .title-group *) { color: #fff !important; font-weight: 600 !important; }
+/* Lightweight mode and reduced transparency: a solid panel. */
+html.ytmls-lyrics-motion-lightweight.music-glass ytmusic-guide-renderer#guide-renderer #sections::before { -webkit-backdrop-filter: none; backdrop-filter: none; background: rgb(40 38 46 / .92); }
+@media (prefers-reduced-transparency: reduce) {
+  html.music-glass ytmusic-guide-renderer#guide-renderer #sections::before { -webkit-backdrop-filter: none; backdrop-filter: none; background: rgb(40 38 46); }
+}
