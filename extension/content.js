@@ -7908,8 +7908,8 @@ function practiceTick() {
 // Feature: glass-segment.js
 // Glass segmented control (Small / Medium / Large): a glass bead marks the chosen button.
 // Press anywhere and slide (or press and hold) to move it: it follows the pointer on a spring,
-// stretches with its speed, lifts and magnifies the label under it, stretches like rubber and
-// squashes when pulled past either end, and bounces onto the nearest button on release.
+// stretches with its speed and magnifies the label under it. It never leaves the track: pulled
+// past an end it squashes against the wall, and it bounces off the walls inside the track.
 // A short tap still works as a normal button.
 const GLASS_SEGMENT_HOLD_MS = 170;
 const GLASS_SEGMENT_DRAG_PX = 4;
@@ -7938,15 +7938,26 @@ function attachGlassSegment(group) {
  // Spring state: position and width follow their targets; velocity drives the stretch.
  const state = {x: 0, w: 0, vx: 0, vw: 0, tx: 0, tw: 0, frame: 0, last: 0, placed: false, dragging: false, grab: 0, squash: 0, sq: 0, vsq: 0};
 
+ // The bead's travel inside the track for its current width.
+ function bounds(width = state.w) {
+  const list = buttons(), first = list[0], last = list.at(-1);
+  if (!first || !last) return {min: 0, max: 0};
+  return {min: slot(first).x, max: slot(last).x + slot(last).w - width};
+ }
  function paint() {
   const motion = glassSegmentMotion();
   const speed = Math.min(1, Math.abs(state.vx) / 2400);
   const stretch = motion ? speed * .22 : 0;
-  // Squash against a wall: narrower and taller, like a drop pressed to the side.
-  const squash = motion ? Math.max(0, Math.min(.4, state.sq)) : 0;
-  const lift = state.dragging ? 1.12 : 1;
-  const sx = lift * (1 + stretch) * (1 - squash * .55), sy = lift * (1 - stretch * .45) * (1 + squash * .35);
+  // Squash against a wall: narrower and a little taller, pressed to the wall it touches.
+  const squash = motion ? Math.max(0, Math.min(.35, state.sq)) : 0;
+  const {min, max} = bounds();
+  const side = state.x <= min + .5 ? 'left' : state.x >= max - .5 ? 'right' : 'center';
+  let sx = (1 + stretch) * (1 - squash * .6);
+  const sy = Math.min(1.1, (1 - stretch * .4) * (1 + squash * .3));
+  // Touching a wall it grows only away from it, so it never pokes out of the track.
+  if (side !== 'center') sx = Math.min(1, sx);
   thumb.style.width = `${Math.max(0, state.w)}px`;
+  thumb.style.transformOrigin = side === 'center' ? 'center' : `${side} center`;
   thumb.style.transform = `translateX(${state.x}px) scale(${sx.toFixed(4)}, ${sy.toFixed(4)})`;
  }
  function step(now) {
@@ -7960,6 +7971,14 @@ function attachGlassSegment(group) {
   // The squash springs back on its own, so a release from the wall wobbles too.
   state.vsq += ((state.squash - state.sq) * 700 - state.vsq * 16) * dt;
   state.x += state.vx * dt; state.w += state.vw * dt; state.sq += state.vsq * dt;
+  // Walls: the bead stays inside the track and bounces off, squashing with the hit.
+  const {min, max} = bounds();
+  if (max >= min && (state.x < min || state.x > max)) {
+   state.x = state.x < min ? min : max;
+   if (glassSegmentMotion()) state.vsq += Math.min(14, Math.abs(state.vx) / 90);
+   state.vx = -state.vx * .35;
+  }
+  if (state.sq < 0) { state.sq = 0; state.vsq = Math.abs(state.vsq) * .3; }
   const resting = Math.abs(state.tx - state.x) < .3 && Math.abs(state.vx) < 8 && Math.abs(state.tw - state.w) < .3 && Math.abs(state.vw) < 8 &&
    Math.abs(state.squash - state.sq) < .004 && Math.abs(state.vsq) < .05;
   if (resting && !state.dragging) {
@@ -8024,11 +8043,12 @@ function attachGlassSegment(group) {
   const min = slot(first).x, max = slot(last).x + slot(last).w - state.tw;
   const raw = clientX - rect.left - state.grab;
   const x = Math.max(min, Math.min(max, raw));
-  const band = glassSegmentRubber(raw - x, state.tw * .3);
+  // Past an end the bead stays put and squashes harder the further it is pulled.
+  const band = glassSegmentRubber(raw - x, state.tw * .35);
   const under = nearest(x + state.tw / 2);
   if (under) state.tw = slot(under).w;
   markUnder(under);
-  state.tx = x + band;
+  state.tx = x;
   state.squash = state.tw ? Math.abs(band) / state.tw : 0;
   if (!state.frame && typeof requestAnimationFrame === 'function') state.frame = requestAnimationFrame(step);
  }
@@ -8041,7 +8061,7 @@ function attachGlassSegment(group) {
   state.squash = 0;
   delete group.dataset.dragging;
   markUnder(null);
-  const target = nearest(Math.max(slot(buttons()[0]).x, Math.min(state.tx, slot(buttons().at(-1)).x)) + state.w / 2);
+  const target = nearest(state.tx + state.w / 2);
   if (target) {
    const s = slot(target);
    moveTo(s.x, s.w);
