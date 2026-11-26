@@ -27,13 +27,13 @@ test('Liquid Glass installs the lens filters once and puts them back when the pa
     assert.ok(filter.children.some(c => c.tag === 'feDisplacementMap'));
   }
   const [surface, pill, drop] = svg.children;
-  assert.equal(drop.children.filter(c => c.tag === 'feDisplacementMap').length, 3, 'the drag drop splits colors at its rim');
+  assert.equal(drop.children.length, 2, 'the drag drop bends once: no color split (it tore the labels into rainbow colors)');
   assert.equal(surface.children.length, 2, 'menus bend once: cheap over large areas');
   assert.equal(pill.children.filter(c => c.tag === 'feDisplacementMap').length, 3, 'buttons get a faint color fringe');
   const map = decodeURIComponent(surface.children[0].attrs.href);
   assert.match(map, /fill="#808000" fill-opacity="1" filter="url\(#b\)"/, 'the middle stays straight');
   const dropMap = decodeURIComponent(drop.children[0].attrs.href);
-  assert.doesNotMatch(dropMap, /#808000/, 'the drop magnifies evenly (no flat middle, so nothing smears)');
+  assert.match(dropMap, /fill="#808000" fill-opacity="1"/, 'the middle of the drop stays flat, so labels under it stay clean');
   assert.match(dropMap, /stop-color="#00b900"/, 'with a weaker vertical bend for its wide shape');
   assert.ok(h.classes.has('ytmls-lg-lens'));
   h.reinstall();

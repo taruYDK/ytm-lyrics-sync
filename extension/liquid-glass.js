@@ -64,9 +64,9 @@
       // The vertical bend is weakened to the pills' shape (Chrome measures it against the width; at full
       // strength the top edge reached far above the pill and pulled in the tab underline as a white band).
       lensFilter('ytmls-lg-lens-pill', lensMap(22, 30, 9, 1, .35), 0.34, 0.08),
-      // The drag drop (glass-segment.js): a thick lens that magnifies what is under it and
-      // splits the colors at its rim, like the iOS tab-bar selection while it is dragged.
-      lensFilter('ytmls-lg-lens-drop', lensMap(14, 30, 9, 0, .45), 0.16, 0.7),
+      // The drag drop (glass-segment.js): clear glass whose rim bends what is under it, with a faint
+      // color fringe there. The middle stays flat so labels under it are not split into rainbow colors.
+      lensFilter('ytmls-lg-lens-drop', lensMap(12, 30, 7, 1, .45), 0.07),
     ]);
     svg.style.cssText = 'position:fixed;width:0;height:0;overflow:hidden;pointer-events:none';
     document.documentElement.append(svg);
