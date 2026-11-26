@@ -129,7 +129,6 @@ html.music-glass-hide-scrollbar #ytmls-more .ytmls-more-body { scrollbar-width: 
 #ytmls-more [data-icon="sliders"] { --lg-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 7h9M17 7h3M4 17h3M11 17h9'/%3E%3Ccircle cx='15' cy='7' r='2'/%3E%3Ccircle cx='9' cy='17' r='2'/%3E%3C/svg%3E"); }
 #ytmls-more [data-icon="expand"] { --lg-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M9 4H4v5M15 4h5v5M20 15v5h-5M4 15v5h5'/%3E%3C/svg%3E"); }
 #ytmls-more [data-icon="book"] { --lg-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 5.5C5.6 4 9 4 12 6c3-2 6.4-2 9-.5V19c-2.6-1.5-6-1.5-9 .5-3-2-6.4-2-9-.5z'/%3E%3Cpath d='M12 6v13.5'/%3E%3C/svg%3E"); }
-#ytmls-more [data-icon="clock"] { --lg-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='8.5'/%3E%3Cpath d='M12 7.5V12l3 2'/%3E%3C/svg%3E"); }
 #ytmls-more [data-icon="search"] { --lg-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='10.5' cy='10.5' r='6.5'/%3E%3Cpath d='m15.5 15.5 4.5 4.5'/%3E%3C/svg%3E"); }
 #ytmls-more [data-icon="plus"] { --lg-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='8.5'/%3E%3Cpath d='M12 8v8M8 12h8'/%3E%3C/svg%3E"); }
 #ytmls-more [data-icon="pencil"] { --lg-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 20l1.2-4.2L15.8 5.2a2 2 0 0 1 2.9 0l.1.1a2 2 0 0 1 0 2.9L8.2 18.8z'/%3E%3Cpath d='m14 7 3 3'/%3E%3C/svg%3E"); }
@@ -501,3 +500,20 @@ html.ytmls-lyrics-motion-lightweight :is(#ytmls-tools > .ytmls-tool-button, #ytm
 }
 #ytmls-panel #ytmls-tools-pane, #ytmls-track-offset-popover { box-shadow: var(--lg-edge-glow), var(--lg-inner), var(--lg-shadow); }
 #ytmls-more > .ytmls-more-menu { box-shadow: var(--lg-edge-glow), var(--lg-specular), 0 18px 48px rgb(0 0 0 / .28), 0 2px 6px rgb(0 0 0 / .12) !important; }
+
+/* Narrow windows: the player bar's re-sync and timing buttons move into this menu. They look like the
+   other rows there, not like the bar's pills. */
+#ytmls-more #ytmls-playback-menu > :is(#ytmls-resync-button, #ytmls-track-offset-button) {
+  display: flex !important; align-items: center; gap: 12px !important; width: 100%; box-sizing: border-box;
+  min-height: 38px !important; height: auto !important; margin: 0 !important; padding: 0 12px !important;
+  border: 0 !important; border-radius: 14px !important; background: transparent !important; box-shadow: none !important;
+  color: rgb(var(--lg-ink) / .94) !important; font-size: 14px !important; font-weight: 500 !important; letter-spacing: .01em;
+  transform: none !important; filter: none !important;
+}
+#ytmls-more #ytmls-playback-menu > :is(#ytmls-resync-button, #ytmls-track-offset-button):not(:disabled):is(:hover, :focus-visible, [aria-expanded="true"]) { background: rgb(var(--lg-ink) / .12) !important; }
+#ytmls-more #ytmls-playback-menu > :is(#ytmls-resync-button, #ytmls-track-offset-button)::before,
+#ytmls-more #ytmls-playback-menu > :is(#ytmls-resync-button, #ytmls-track-offset-button)::after { display: none !important; }
+#ytmls-more #ytmls-playback-menu :is(.ytmls-resync-icon, .ytmls-track-offset-icon) { width: 18px !important; height: 18px !important; flex: 0 0 18px !important; opacity: .9 !important; fill: currentColor; }
+/* The status dot sits on the clock icon's corner instead of taking its own column. */
+#ytmls-more #ytmls-playback-menu #ytmls-track-offset-button { position: relative; }
+#ytmls-more #ytmls-playback-menu #ytmls-track-offset-button .ytmls-track-health { position: absolute; left: 24px; top: 9px; margin: 0 !important; }

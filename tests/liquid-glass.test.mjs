@@ -100,7 +100,7 @@ test('その他 menu: rim on the menu, a scrolling body inside, regular rows wit
   assert.match(css, /#ytmls-more > \.ytmls-more-menu::before \{[^}]*background: var\(--lg-glint\);[^}]*mask:/);
   assert.match(css, /#ytmls-more \.ytmls-more-body \{[^}]*overflow-y: auto;/);
   assert.match(css, /font-weight: 500 !important;/);
-  for (const name of ['sliders', 'expand', 'book', 'clock', 'search', 'plus', 'pencil', 'ruby', 'download', 'info']) assert.ok(css.includes(`[data-icon="${name}"]`), name);
+  for (const name of ['sliders', 'expand', 'book', 'search', 'plus', 'pencil', 'ruby', 'download', 'info']) assert.ok(css.includes(`[data-icon="${name}"]`), name);
   const panel = fs.readFileSync(new URL('../src/content/lyrics-panel.js', import.meta.url), 'utf8');
   assert.match(panel, /menuBody\.className = "ytmls-more-body";\s*menuBody\.append\(displayGroup, playbackGroup, lyricsGroup, storageGroup\);\s*menu\.append\(menuBody\);/);
 });
