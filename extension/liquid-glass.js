@@ -71,7 +71,10 @@
     document.documentElement.classList.add('ytmls-lg-lens');
   }
   install();
-  // YouTube Music rebuilds parts of the page; put the filters back if they are removed.
-  new MutationObserver(() => { if (!document.getElementById('ytmls-lg-filters')) install(); })
-    .observe(document.documentElement, {childList: true});
+  // YouTube Music rebuilds parts of the page and may rewrite <html>'s classes: put the filters and
+  // the class back if they are removed.
+  new MutationObserver(() => {
+    if (!document.getElementById('ytmls-lg-filters')) install();
+    else if (!document.documentElement.classList.contains('ytmls-lg-lens')) document.documentElement.classList.add('ytmls-lg-lens');
+  }).observe(document.documentElement, {childList: true, attributes: true, attributeFilter: ['class']});
 })();

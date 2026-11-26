@@ -996,6 +996,7 @@
       `Player source: ${snapshot.playerSource}`,
       `Pinned lyrics: ${snapshot.pinned ? "yes" : "no"}`,
       `Local lyrics: ${snapshot.local ? "yes" : "no"}`,
+      `Glass lens: ${typeof glassLensDiagnostics === "function" ? glassLensDiagnostics() : "n/a"}`,
     ].join("\n");
   }
 

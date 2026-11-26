@@ -7,12 +7,12 @@ const read = name => fs.readFileSync(new URL('../extension/' + name, import.meta
 function lensHarness(supported) {
   const byId = {}; const classes = new Set(); let observer;
   const node = tag => ({tag, attrs: {}, children: [], style: {}, setAttribute(k, v) { this.attrs[k] = v; if (k === 'id') this.id = v; }, append(...c) { this.children.push(...c); }});
-  const documentElement = {classList: {add: c => classes.add(c)}, append(el) { byId[el.id] = el; }};
+  const documentElement = {classList: {add: c => classes.add(c), contains: c => classes.has(c)}, append(el) { byId[el.id] = el; }};
   const document = {documentElement, createElementNS: (ns, tag) => node(tag), getElementById: id => byId[id] || null};
   const window = {};
   vm.runInNewContext(read('liquid-glass.js'), {window, document, CSS: {supports: () => supported},
     MutationObserver: class { constructor(fn) { observer = fn; } observe() {} }});
-  return {byId, classes, reinstall: () => { delete byId['ytmls-lg-filters']; observer(); }};
+  return {byId, classes, reinstall: () => { delete byId['ytmls-lg-filters']; observer(); }, pageRewritesClasses: () => { classes.clear(); observer(); }};
 }
 
 test('Liquid Glass installs the lens filters once and puts them back when the page removes them', () => {
@@ -38,6 +38,8 @@ test('Liquid Glass installs the lens filters once and puts them back when the pa
   assert.ok(h.classes.has('ytmls-lg-lens'));
   h.reinstall();
   assert.ok(h.byId['ytmls-lg-filters'], 'reinstalled');
+  h.pageRewritesClasses();
+  assert.ok(h.classes.has('ytmls-lg-lens'), 'the class comes back when the page rewrites <html> classes');
   const unsupported = lensHarness(false);
   assert.equal(unsupported.byId['ytmls-lg-filters'], undefined);
   assert.equal(unsupported.classes.size, 0, 'plain blur stays when the browser cannot use the lens');

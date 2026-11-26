@@ -28,7 +28,7 @@ function segment({motion = true} = {}) {
   const fire = (type, extra = {}) => { const e = {pointerId: 1, button: 0, target: extra.target || buttons[1], isTrusted: true, preventDefault() { e.prevented = true; }, stopPropagation() { e.stopped = true; }, ...extra}; listeners[type](e); return e; };
   const step = () => { if (frames.length) { now += 16; frames.shift()(now); } };
   const step32 = () => { if (frames.length) { now += 32; frames.shift()(now); } };
-  return {api, group, buttons, clicks, timers, settle, step, step32, fire, translate: () => Number(/translateX\(([-\d.]+)px\)/.exec(api.thumb.style.transform)[1])};
+  return {api, context: c, group, buttons, clicks, timers, settle, step, step32, fire, translate: () => Number(/translateX\(([-\d.]+)px\)/.exec(api.thumb.style.transform)[1])};
 }
 
 test('glass bead starts on the chosen size', () => {
@@ -158,4 +158,13 @@ test('holding still on slow frames: the bead stays under the finger (no drift or
   const positions = [];
   for (let i = 0; i < 40; i++) { h.step32(); positions.push(h.translate()); }
   for (const x of positions.slice(5)) assert.ok(Math.abs(x - 63) < 1, `stays at 63 (${x})`);
+});
+
+test('診断情報 reports what the last drag did with the drop', () => {
+  const h = segment();
+  h.fire('pointerdown', {clientX: 93, pointerType: 'mouse'});
+  const report = vm.runInContext('glassLensReport.lastDrag', h.context);
+  assert.match(report, /^mouse: no drop \(not allowed here\)$/, report);
+  const panel = fs.readFileSync(new URL('../src/content/lyrics-panel.js', import.meta.url), 'utf8');
+  assert.match(panel, /`Glass lens: \$\{typeof glassLensDiagnostics === "function" \? glassLensDiagnostics\(\) : "n\/a"\}`/);
 });

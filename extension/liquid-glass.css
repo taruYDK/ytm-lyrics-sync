@@ -319,10 +319,11 @@ html.ytmls-lyrics-motion-lightweight #ytmls-more .ytmls-glass-segment > .ytmls-t
 }
 html.ytmls-lg-lens .ytmls-seg-lens { backdrop-filter: url(#ytmls-lg-lens-drop) saturate(125%) brightness(1.1); }
 .ytmls-seg-lens.ytmls-seg-lens-out { animation: ytmls-seg-lens-out .22s cubic-bezier(.3, .7, .25, 1) both; }
-@keyframes ytmls-seg-lens-in { from { opacity: 0; transform: scale(.72, .62); } }
+@keyframes ytmls-seg-lens-in { from { opacity: .5; transform: scale(.82, .76); } }
 @keyframes ytmls-seg-lens-out { to { opacity: 0; transform: scale(.72, .62); } }
 @media (prefers-reduced-motion: reduce) { .ytmls-seg-lens, .ytmls-seg-lens.ytmls-seg-lens-out { animation-duration: .01s; } }
-#ytmls-more .ytmls-glass-segment[data-lens="true"] > .ytmls-seg-thumb { opacity: 0; transition: opacity .12s ease; }
+/* The bead stays faintly visible under the drop (and still shows if a device cannot draw the drop). */
+#ytmls-more .ytmls-glass-segment[data-lens="true"] > .ytmls-seg-thumb { opacity: .35; transition: opacity .12s ease; }
 html #ytmls-more .ytmls-glass-segment[data-lens="true"] > .ytmls-tool-button.ytmls-seg-under { transform: none; }
 :root[data-ytmls-theme="light"] #ytmls-more .ytmls-size-presets .ytmls-tool-button.ytmls-tool-button[aria-pressed="true"] { background: linear-gradient(#fff, #fff) padding-box, var(--lg-rim) border-box !important; }
 /* Primary action: tinted glass in the accent color. */

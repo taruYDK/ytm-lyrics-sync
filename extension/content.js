@@ -2458,6 +2458,7 @@ function readingTokensToRomaji(tokens) {
       `Player source: ${snapshot.playerSource}`,
       `Pinned lyrics: ${snapshot.pinned ? "yes" : "no"}`,
       `Local lyrics: ${snapshot.local ? "yes" : "no"}`,
+      `Glass lens: ${typeof glassLensDiagnostics === "function" ? glassLensDiagnostics() : "n/a"}`,
     ].join("\n");
   }
 
@@ -8088,6 +8089,17 @@ function glassSegmentRubber(over, limit) {
  return Math.sign(over) * limit * (1 - 1 / (Math.abs(over) / limit + 1));
 }
 
+// What the last drag did, for 診断情報 (to find out why the drop does not show on a device).
+const glassLensReport = {lastDrag: 'none'};
+function glassLensDiagnostics() {
+ const root = document.documentElement;
+ let supports = false, reduced = false;
+ try { supports = CSS.supports('backdrop-filter', 'url(#ytmls-lg-lens) blur(1px)'); } catch (_) {}
+ try { reduced = matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (_) {}
+ return `lensClass=${root.classList.contains('ytmls-lg-lens')} supports=${supports} filters=${Boolean(document.getElementById('ytmls-lg-filters'))}` +
+  ` lightweight=${root.classList.contains('ytmls-lyrics-motion-lightweight')} reducedMotion=${reduced} lastDrag=${glassLensReport.lastDrag}`;
+}
+
 function glassSegmentMotion() {
  return typeof playerFeedbackEnabled !== 'function' || playerFeedbackEnabled();
 }
@@ -8113,7 +8125,7 @@ function attachGlassSegment(group) {
  let lens = null;
  const lensAllowed = () => Boolean(document.documentElement?.classList?.contains('ytmls-lg-lens')) &&
   !document.documentElement.classList.contains('ytmls-lyrics-motion-lightweight') &&
-  typeof group.getBoundingClientRect === 'function' && Boolean(document.body);
+  typeof group.getBoundingClientRect === 'function' && Boolean(document.documentElement);
  function placeLens(sx = 1, sy = 1) {
   if (!lens) return;
   const rect = group.getBoundingClientRect(), track = Math.max(0, group.offsetHeight - 6);
@@ -8129,13 +8141,24 @@ function attachGlassSegment(group) {
   lens.style.height = `${height.toFixed(1)}px`;
  }
  function showLens() {
-  if (lens || !lensAllowed()) return;
+  const kind = press?.type || 'unknown';
+  if (lens) return;
+  if (!lensAllowed()) { glassLensReport.lastDrag = `${kind}: no drop (not allowed here)`; return; }
   lens = document.createElement('div');
   lens.className = 'ytmls-seg-lens';
   lens.setAttribute('aria-hidden', 'true');
-  document.body.append(lens);
+  // On the root, not in <body>: a transform or filter on the page's body would move or clip it.
+  document.documentElement.append(lens);
   group.dataset.lens = 'true';
   placeLens();
+  const shown = lens;
+  glassLensReport.lastDrag = `${kind}: drop created`;
+  setTimeout(() => {
+   if (!shown.isConnected) return;
+   const style = getComputedStyle(shown), rect = shown.getBoundingClientRect();
+   glassLensReport.lastDrag = `${kind}: drop ${Math.round(rect.width)}x${Math.round(rect.height)} at ${Math.round(rect.left)},${Math.round(rect.top)}` +
+    ` display=${style.display} opacity=${style.opacity} backdrop=${style.backdropFilter || style.webkitBackdropFilter || 'none'}`;
+  }, 150);
  }
  function hideLens() {
   if (!lens) return;
@@ -8297,7 +8320,7 @@ function attachGlassSegment(group) {
  }
  group.addEventListener('pointerdown', event => {
   if (event.button !== 0 || buttons().every(button => button.disabled)) return;
-  press = {id: event.pointerId, startX: event.clientX, lastX: event.clientX, button: event.target.closest?.('button') || buttonAt(event.clientX)};
+  press = {id: event.pointerId, type: event.pointerType || 'pointer', startX: event.clientX, lastX: event.clientX, button: event.target.closest?.('button') || buttonAt(event.clientX)};
   try { group.setPointerCapture(event.pointerId); } catch (_) {}
   beginDrag();
  });
