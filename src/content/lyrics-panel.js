@@ -1072,6 +1072,7 @@
     manualSearchButtonEl.type = "button";
     manualSearchButtonEl.className = "ytmls-tool-button";
     manualSearchButtonEl.textContent = "手動検索";
+    manualSearchButtonEl.dataset.icon = "search";
     manualSearchButtonEl.setAttribute("aria-pressed", "false");
     manualSearchButtonEl.addEventListener("click", renderManualSearchPane);
 
@@ -1079,6 +1080,7 @@
     editLyricsButtonEl.type = "button";
     editLyricsButtonEl.className = "ytmls-tool-button";
     editLyricsButtonEl.textContent = "歌詞編集";
+    editLyricsButtonEl.dataset.icon = "pencil";
     editLyricsButtonEl.setAttribute("aria-pressed", "false");
     editLyricsButtonEl.addEventListener("click", renderLyricsEditPane);
 
@@ -1086,6 +1088,7 @@
     localLyricsButtonEl.type = "button";
     localLyricsButtonEl.className = "ytmls-tool-button ytmls-local-lyrics-button";
     localLyricsButtonEl.textContent = "歌詞を追加";
+    localLyricsButtonEl.dataset.icon = "plus";
     localLyricsButtonEl.setAttribute("aria-pressed", "false");
     localLyricsButtonEl.addEventListener("click", renderLocalLyricsPane);
 
@@ -1093,13 +1096,20 @@
     exportLyricsButtonEl.type = "button";
     exportLyricsButtonEl.className = "ytmls-tool-button";
     exportLyricsButtonEl.textContent = "LRC保存";
+    exportLyricsButtonEl.dataset.icon = "download";
     exportLyricsButtonEl.addEventListener("click", renderLrcExportPane);
     const more = document.createElement("details");
     more.id = "ytmls-more";
     const moreToggle = document.createElement("summary");
     moreToggle.className = "ytmls-tool-button";
     moreToggle.textContent = "その他";
-    moreToggle.addEventListener('click',event=>{if(more.open){event.preventDefault();closeMoreMenu(more);}});
+    moreToggle.addEventListener('click',event=>{
+      if(!more.open)return;
+      event.preventDefault();
+      // Pressed again while it shrinks back: grow out of the button again instead of ignoring the press.
+      if(more.dataset.closing==='true'&&typeof stopGlassMorph==='function'){stopGlassMorph(menu);fitMoreMenu(more,menu);glassMorph(menu,moreToggle);return;}
+      closeMoreMenu(more);
+    });
     const menu = document.createElement("div");
     menu.className = "ytmls-more-menu";
     function menuGroup(title, id) {
@@ -1121,7 +1131,11 @@
     lyricsGroup.append(manualSearchButtonEl, localLyricsButtonEl, editLyricsButtonEl);
     const storageGroup = menuGroup('保存・診断', 'ytmls-storage-menu');
     storageGroup.append(exportLyricsButtonEl);
-    menu.append(displayGroup, playbackGroup, lyricsGroup, storageGroup);
+    // The menu draws the glass and its rim; the body inside scrolls (so the rim never scrolls away).
+    const menuBody = document.createElement("div");
+    menuBody.className = "ytmls-more-body";
+    menuBody.append(displayGroup, playbackGroup, lyricsGroup, storageGroup);
+    menu.append(menuBody);
     more.append(moreToggle, menu);
     lyricsToolsEl.append(candidateButtonEl, more);
     for (const button of [candidateButtonEl, manualSearchButtonEl, editLyricsButtonEl, localLyricsButtonEl, exportLyricsButtonEl]) {
@@ -1151,6 +1165,7 @@
     diagnosticDetails.className = "ytmls-diagnostic-details";
     const diagnosticToggle = document.createElement("summary");
     diagnosticToggle.textContent = "診断情報";
+    diagnosticToggle.dataset.icon = "info";
     diagnosticDetails.append(diagnosticToggle, diagnosticsEl);
     storageGroup.append(diagnosticDetails);
     more.addEventListener("toggle", () => {

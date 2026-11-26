@@ -116,7 +116,7 @@ if (want('menu')) {
 }
 if (want('drag')) {
   // Hold Medium, slide to Large, release: the bead follows and the size changes.
-  await tab.click('#ytmls-more summary'); await tab.waitForTimeout(400);
+  await tab.click('#ytmls-more summary'); await tab.waitForTimeout(800);
   const box = async label => (await tab.locator('.ytmls-size-presets button', {hasText: label}).boundingBox());
   const mid = await box('中'), big = await box('大');
   const y = mid.y + mid.height / 2;
@@ -133,7 +133,7 @@ if (want('drag')) {
 }
 if (want('wall')) {
   // Quick slide (no hold) from Medium past the right end: rubber band and squash, then the bounce back.
-  await tab.click('#ytmls-more summary'); await tab.waitForTimeout(400);
+  await tab.click('#ytmls-more summary'); await tab.waitForTimeout(800);
   const mid = await tab.locator('.ytmls-size-presets button', {hasText: '中'}).boundingBox();
   const y = mid.y + mid.height / 2, x0 = mid.x + mid.width / 2;
   const clip = {x: mid.x - 140, y: mid.y - 30, width: 380, height: 90};
@@ -147,7 +147,7 @@ if (want('wall')) {
 }
 if (want('tap')) {
   // A light tap (quick press, no movement) selects a size and slides the bead there.
-  await tab.click('#ytmls-more summary'); await tab.waitForTimeout(400);
+  await tab.click('#ytmls-more summary'); await tab.waitForTimeout(800);
   const small = await tab.locator('.ytmls-size-presets button', {hasText: '小'}).boundingBox();
   await tab.mouse.click(small.x + small.width / 2, small.y + small.height / 2, {delay: 40});
   await tab.waitForTimeout(800);

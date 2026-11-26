@@ -87,3 +87,13 @@ test('the その他 button is a header pill, not a chip inside the menu (same gl
   assert.equal(css.split(chip + ':not(summary)').length - 1, 2);
   assert.ok(css.includes('.ytmls-tools-close, .ytmls-tool-button:not(summary), .ytmls-candidate-pin,'));
 });
+
+test('その他 menu: rim on the menu, a scrolling body inside, regular rows with line icons', () => {
+  const css = read('liquid-glass.css');
+  assert.match(css, /#ytmls-more > \.ytmls-more-menu::before \{[^}]*background: var\(--lg-glint\);[^}]*mask:/);
+  assert.match(css, /#ytmls-more \.ytmls-more-body \{[^}]*overflow-y: auto;/);
+  assert.match(css, /font-weight: 500 !important;/);
+  for (const name of ['sliders', 'expand', 'book', 'clock', 'search', 'plus', 'pencil', 'ruby', 'download', 'info']) assert.ok(css.includes(`[data-icon="${name}"]`), name);
+  const panel = fs.readFileSync(new URL('../src/content/lyrics-panel.js', import.meta.url), 'utf8');
+  assert.match(panel, /menuBody\.className = "ytmls-more-body";\s*menuBody\.append\(displayGroup, playbackGroup, lyricsGroup, storageGroup\);\s*menu\.append\(menuBody\);/);
+});

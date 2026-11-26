@@ -2534,6 +2534,7 @@ function readingTokensToRomaji(tokens) {
     manualSearchButtonEl.type = "button";
     manualSearchButtonEl.className = "ytmls-tool-button";
     manualSearchButtonEl.textContent = "手動検索";
+    manualSearchButtonEl.dataset.icon = "search";
     manualSearchButtonEl.setAttribute("aria-pressed", "false");
     manualSearchButtonEl.addEventListener("click", renderManualSearchPane);
 
@@ -2541,6 +2542,7 @@ function readingTokensToRomaji(tokens) {
     editLyricsButtonEl.type = "button";
     editLyricsButtonEl.className = "ytmls-tool-button";
     editLyricsButtonEl.textContent = "歌詞編集";
+    editLyricsButtonEl.dataset.icon = "pencil";
     editLyricsButtonEl.setAttribute("aria-pressed", "false");
     editLyricsButtonEl.addEventListener("click", renderLyricsEditPane);
 
@@ -2548,6 +2550,7 @@ function readingTokensToRomaji(tokens) {
     localLyricsButtonEl.type = "button";
     localLyricsButtonEl.className = "ytmls-tool-button ytmls-local-lyrics-button";
     localLyricsButtonEl.textContent = "歌詞を追加";
+    localLyricsButtonEl.dataset.icon = "plus";
     localLyricsButtonEl.setAttribute("aria-pressed", "false");
     localLyricsButtonEl.addEventListener("click", renderLocalLyricsPane);
 
@@ -2555,13 +2558,20 @@ function readingTokensToRomaji(tokens) {
     exportLyricsButtonEl.type = "button";
     exportLyricsButtonEl.className = "ytmls-tool-button";
     exportLyricsButtonEl.textContent = "LRC保存";
+    exportLyricsButtonEl.dataset.icon = "download";
     exportLyricsButtonEl.addEventListener("click", renderLrcExportPane);
     const more = document.createElement("details");
     more.id = "ytmls-more";
     const moreToggle = document.createElement("summary");
     moreToggle.className = "ytmls-tool-button";
     moreToggle.textContent = "その他";
-    moreToggle.addEventListener('click',event=>{if(more.open){event.preventDefault();closeMoreMenu(more);}});
+    moreToggle.addEventListener('click',event=>{
+      if(!more.open)return;
+      event.preventDefault();
+      // Pressed again while it shrinks back: grow out of the button again instead of ignoring the press.
+      if(more.dataset.closing==='true'&&typeof stopGlassMorph==='function'){stopGlassMorph(menu);fitMoreMenu(more,menu);glassMorph(menu,moreToggle);return;}
+      closeMoreMenu(more);
+    });
     const menu = document.createElement("div");
     menu.className = "ytmls-more-menu";
     function menuGroup(title, id) {
@@ -2583,7 +2593,11 @@ function readingTokensToRomaji(tokens) {
     lyricsGroup.append(manualSearchButtonEl, localLyricsButtonEl, editLyricsButtonEl);
     const storageGroup = menuGroup('保存・診断', 'ytmls-storage-menu');
     storageGroup.append(exportLyricsButtonEl);
-    menu.append(displayGroup, playbackGroup, lyricsGroup, storageGroup);
+    // The menu draws the glass and its rim; the body inside scrolls (so the rim never scrolls away).
+    const menuBody = document.createElement("div");
+    menuBody.className = "ytmls-more-body";
+    menuBody.append(displayGroup, playbackGroup, lyricsGroup, storageGroup);
+    menu.append(menuBody);
     more.append(moreToggle, menu);
     lyricsToolsEl.append(candidateButtonEl, more);
     for (const button of [candidateButtonEl, manualSearchButtonEl, editLyricsButtonEl, localLyricsButtonEl, exportLyricsButtonEl]) {
@@ -2613,6 +2627,7 @@ function readingTokensToRomaji(tokens) {
     diagnosticDetails.className = "ytmls-diagnostic-details";
     const diagnosticToggle = document.createElement("summary");
     diagnosticToggle.textContent = "診断情報";
+    diagnosticToggle.dataset.icon = "info";
     diagnosticDetails.append(diagnosticToggle, diagnosticsEl);
     storageGroup.append(diagnosticDetails);
     more.addEventListener("toggle", () => {
@@ -7480,7 +7495,7 @@ function readingTokensToRomaji(tokens) {
     }
     const button = document.createElement('button');
     button.className = 'ytmls-tool-button';
-    button.id = 'ytmls-reading-edit'; button.type = 'button'; button.textContent = 'ふりがな編集';
+    button.id = 'ytmls-reading-edit'; button.type = 'button'; button.textContent = 'ふりがな編集'; button.dataset.icon = 'ruby';
     button.disabled = !canEditLyricsReadings();
     button.title = button.disabled ? '曲と歌詞の読み込みが完了すると編集できます' : '行ごとのふりがなを編集';
     button.addEventListener('click', () => { const more = lyricsToolsEl.querySelector('#ytmls-more'); if (more) closeMoreMenu(more); openManualReadingEditor(); });
@@ -8050,7 +8065,7 @@ function ensurePracticeControls() {
  const group = menu.querySelector('#ytmls-practice-controls');
  if (!group) return;
  if (!group.querySelector('button')) {
-  for(const [title,fn] of [['この曲の表示設定',showTrackDisplay],['全画面歌詞ビュー',openPracticeFullscreen]])practiceButton(group,title,()=>{const details=menu.closest('details');if(details)closeMoreMenu(details);fn();});
+  for(const [title,fn,icon] of [['この曲の表示設定',showTrackDisplay,'sliders'],['全画面歌詞ビュー',openPracticeFullscreen,'expand']])practiceButton(group,title,()=>{const details=menu.closest('details');if(details)closeMoreMenu(details);fn();}).dataset.icon=icon;
  }
  const available=practiceCurrent(STATE.displayedVideoId)&&STATE.lines.length>0;
  for(const button of group.querySelectorAll(':scope > button'))button.disabled=!available;
@@ -8384,13 +8399,13 @@ function ensureEnhancementControls(){
   });button.setAttribute('aria-label','文字サイズ '+name);button.dataset.size=String(size);}
   display.querySelector('.ytmls-menu-label').after(sizes);
   if(typeof attachGlassSegment==='function')attachGlassSegment(sizes);
-  const mode=practiceButton(playback,'読むモード',()=>{chrome.storage.sync.set({trackingEnabled:!STATE.trackingEnabled},()=>{if(chrome.runtime.lastError)mode.title='設定を保存できませんでした';});});mode.id='ytmls-reading-mode';
+  const mode=practiceButton(playback,'読むモード',()=>{chrome.storage.sync.set({trackingEnabled:!STATE.trackingEnabled},()=>{if(chrome.runtime.lastError)mode.title='設定を保存できませんでした';});});mode.id='ytmls-reading-mode';mode.dataset.icon='book';
   const timing=practiceButton(playback,'同期タイミングを調整',event=>{
    event.stopPropagation();
    const details=menu.closest('details');
    if(details)closeMoreMenu(details);
    toggleTrackTimingPopover(details?.querySelector('summary') || trackTimingButtonEl);
-  });timing.id='ytmls-timing-shortcut';
+  });timing.id='ytmls-timing-shortcut';timing.dataset.icon='clock';
  }
  const mode=playback.querySelector('#ytmls-reading-mode'),modeLabel=STATE.trackingEnabled?'読むモードに切り替え':'追跡モードに切り替え';if(mode.textContent!==modeLabel)mode.textContent=modeLabel;mode.removeAttribute('aria-pressed');
  const available=practiceCurrent(STATE.displayedVideoId)&&STATE.lines.length>0;

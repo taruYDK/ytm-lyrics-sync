@@ -65,7 +65,72 @@
 html.ytmls-lg-lens :is(#ytmls-more > .ytmls-more-menu, #ytmls-panel #ytmls-tools-pane, #ytmls-track-offset-popover) {
   backdrop-filter: url(#ytmls-lg-lens) var(--lg-backdrop);
 }
-#ytmls-more > .ytmls-more-menu { padding: 8px; transform-origin: top right; }
+/* ---------- その他 menu, like an iPhone menu ----------
+   Big rounded glass with the same two rim glints as the buttons (a ring on the menu itself; the
+   body inside scrolls), regular-weight rows with line icons, quiet section titles and thin dividers. */
+#ytmls-more > .ytmls-more-menu {
+  display: flex; flex-direction: column; overflow: hidden !important; padding: 0 !important;
+  border-radius: 26px; transform-origin: top right;
+  background: linear-gradient(var(--lg-fill), var(--lg-fill)) padding-box !important;
+  box-shadow: var(--lg-specular), 0 18px 48px rgb(0 0 0 / .28), 0 2px 6px rgb(0 0 0 / .12) !important;
+  text-shadow: none !important;
+}
+#ytmls-more > .ytmls-more-menu::before {
+  content: ""; position: absolute; inset: -1px; padding: 1px; border-radius: inherit; pointer-events: none; z-index: 1;
+  background: var(--lg-glint);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+}
+#ytmls-more .ytmls-more-body {
+  flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain;
+  padding: 6px; scrollbar-width: thin; scrollbar-color: rgb(var(--lg-ink) / .3) transparent;
+}
+html.music-glass-hide-scrollbar #ytmls-more .ytmls-more-body { scrollbar-width: thin !important; }
+#ytmls-more .ytmls-menu-group { margin: 0; }
+#ytmls-more .ytmls-menu-group + .ytmls-menu-group { margin-top: 6px; padding-top: 6px; border-top: 1px solid rgb(var(--lg-ink) / .1); }
+#ytmls-more .ytmls-menu-label {
+  margin: 0 !important; padding: 6px 12px 3px !important; font-size: 11.5px !important; font-weight: 600 !important;
+  color: rgb(var(--lg-ink) / .48) !important; letter-spacing: .02em;
+}
+#ytmls-more .ytmls-menu-label::after { display: none !important; }
+#ytmls-more .ytmls-menu-group > .ytmls-tool-button,
+#ytmls-more .ytmls-diagnostic-details > summary {
+  display: flex !important; align-items: center; gap: 12px; width: 100%; box-sizing: border-box;
+  min-height: 38px; padding: 0 12px !important; border: 0 !important; border-radius: 14px !important;
+  background: transparent !important; color: rgb(var(--lg-ink) / .94) !important;
+  font-size: 14px !important; font-weight: 500 !important; letter-spacing: .01em; text-align: left; line-height: 1.3;
+  transition: background-color .14s ease, transform .3s var(--lg-spring) !important;
+}
+#ytmls-more .ytmls-menu-group > .ytmls-tool-button[data-icon]::before,
+#ytmls-more .ytmls-diagnostic-details > summary[data-icon]::before {
+  content: ""; flex: 0 0 18px; width: 18px; height: 18px; background: currentColor; opacity: .9;
+  -webkit-mask: var(--lg-icon) center / contain no-repeat; mask: var(--lg-icon) center / contain no-repeat;
+}
+#ytmls-more .ytmls-menu-group > .ytmls-tool-button:not(:disabled):is(:hover, :focus-visible),
+#ytmls-more .ytmls-diagnostic-details > summary:is(:hover, :focus-visible) { background: rgb(var(--lg-ink) / .12) !important; }
+#ytmls-more .ytmls-menu-group > .ytmls-tool-button:not(:disabled):active { background: rgb(var(--lg-ink) / .18) !important; transform: scale(.98); }
+#ytmls-more .ytmls-menu-group > .ytmls-tool-button:disabled { opacity: .38 !important; }
+#ytmls-more .ytmls-menu-hint { display: block; margin: -4px 0 4px; padding: 0 12px 0 42px; font-size: 11px; line-height: 1.4; color: rgb(var(--lg-ink) / .5); }
+/* 診断情報: a row like the others, with a chevron that turns when it opens. */
+#ytmls-more .ytmls-diagnostic-details > summary { list-style: none; cursor: pointer; }
+#ytmls-more .ytmls-diagnostic-details > summary::-webkit-details-marker { display: none; }
+#ytmls-more .ytmls-diagnostic-details > summary::after {
+  content: ""; margin-left: auto; width: 12px; height: 12px; background: currentColor; opacity: .5;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m9 6 6 6-6 6'/%3E%3C/svg%3E") center / contain no-repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m9 6 6 6-6 6'/%3E%3C/svg%3E") center / contain no-repeat;
+  transition: transform .3s var(--lg-spring);
+}
+#ytmls-more .ytmls-diagnostic-details[open]:not([data-closing="true"]) > summary::after { transform: rotate(90deg); }
+#ytmls-more .ytmls-size-presets { margin: 2px 4px 6px !important; }
+#ytmls-more [data-icon="sliders"] { --lg-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 7h9M17 7h3M4 17h3M11 17h9'/%3E%3Ccircle cx='15' cy='7' r='2'/%3E%3Ccircle cx='9' cy='17' r='2'/%3E%3C/svg%3E"); }
+#ytmls-more [data-icon="expand"] { --lg-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M9 4H4v5M15 4h5v5M20 15v5h-5M4 15v5h5'/%3E%3C/svg%3E"); }
+#ytmls-more [data-icon="book"] { --lg-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 5.5C5.6 4 9 4 12 6c3-2 6.4-2 9-.5V19c-2.6-1.5-6-1.5-9 .5-3-2-6.4-2-9-.5z'/%3E%3Cpath d='M12 6v13.5'/%3E%3C/svg%3E"); }
+#ytmls-more [data-icon="clock"] { --lg-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='8.5'/%3E%3Cpath d='M12 7.5V12l3 2'/%3E%3C/svg%3E"); }
+#ytmls-more [data-icon="search"] { --lg-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='10.5' cy='10.5' r='6.5'/%3E%3Cpath d='m15.5 15.5 4.5 4.5'/%3E%3C/svg%3E"); }
+#ytmls-more [data-icon="plus"] { --lg-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='8.5'/%3E%3Cpath d='M12 8v8M8 12h8'/%3E%3C/svg%3E"); }
+#ytmls-more [data-icon="pencil"] { --lg-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 20l1.2-4.2L15.8 5.2a2 2 0 0 1 2.9 0l.1.1a2 2 0 0 1 0 2.9L8.2 18.8z'/%3E%3Cpath d='m14 7 3 3'/%3E%3C/svg%3E"); }
+#ytmls-more [data-icon="ruby"] { --lg-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 19l4.5-11L12 19M4.7 15h5.6'/%3E%3Cpath d='M14 19l3-7.5 3 7.5M15 16.8h4'/%3E%3C/svg%3E"); }
+#ytmls-more [data-icon="download"] { --lg-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 4v11M7.5 10.5 12 15l4.5-4.5M5 20h14'/%3E%3C/svg%3E"); }
+#ytmls-more [data-icon="info"] { --lg-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='8.5'/%3E%3Cpath d='M12 11v5.5'/%3E%3Cpath d='M12 7.8v.1' stroke-width='2.4'/%3E%3C/svg%3E"); }
 
 /* They grow out of their button instead (glass-morph.js), so the older fade/scale-in animations are off. */
 #ytmls-panel #ytmls-tools-pane:not([hidden]), #ytmls-track-offset-popover:not([hidden]), html #ytmls-more[open] > .ytmls-more-menu { animation: none !important; }

@@ -57,7 +57,7 @@ test('grouped lyrics menu initializes the reading editor and candidate toolbar t
  const c = vm.createContext({
   STATE: { enabled: true, lyricCandidates: [{}] }, lyricsToolsEl, candidateButtonEl,
   exportLyricsButtonEl: null, editLyricsButtonEl: null, localLyricsButtonEl: null,
-  document: { createElement: () => ({ addEventListener() {} }) },
+  document: { createElement: () => ({ addEventListener() {}, dataset: {} }) },
   diagnosticsSummaryEl: null, updateHelpfulUi() { helpfulUpdates++; }
  });
  for (const file of ['readings.js', 'lyrics-panel.js']) {

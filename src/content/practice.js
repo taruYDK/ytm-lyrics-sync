@@ -365,7 +365,7 @@ function ensurePracticeControls() {
  const group = menu.querySelector('#ytmls-practice-controls');
  if (!group) return;
  if (!group.querySelector('button')) {
-  for(const [title,fn] of [['この曲の表示設定',showTrackDisplay],['全画面歌詞ビュー',openPracticeFullscreen]])practiceButton(group,title,()=>{const details=menu.closest('details');if(details)closeMoreMenu(details);fn();});
+  for(const [title,fn,icon] of [['この曲の表示設定',showTrackDisplay,'sliders'],['全画面歌詞ビュー',openPracticeFullscreen,'expand']])practiceButton(group,title,()=>{const details=menu.closest('details');if(details)closeMoreMenu(details);fn();}).dataset.icon=icon;
  }
  const available=practiceCurrent(STATE.displayedVideoId)&&STATE.lines.length>0;
  for(const button of group.querySelectorAll(':scope > button'))button.disabled=!available;

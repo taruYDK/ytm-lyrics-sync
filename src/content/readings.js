@@ -160,7 +160,7 @@
     }
     const button = document.createElement('button');
     button.className = 'ytmls-tool-button';
-    button.id = 'ytmls-reading-edit'; button.type = 'button'; button.textContent = 'ふりがな編集';
+    button.id = 'ytmls-reading-edit'; button.type = 'button'; button.textContent = 'ふりがな編集'; button.dataset.icon = 'ruby';
     button.disabled = !canEditLyricsReadings();
     button.title = button.disabled ? '曲と歌詞の読み込みが完了すると編集できます' : '行ごとのふりがなを編集';
     button.addEventListener('click', () => { const more = lyricsToolsEl.querySelector('#ytmls-more'); if (more) closeMoreMenu(more); openManualReadingEditor(); });

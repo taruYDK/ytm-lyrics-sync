@@ -12,13 +12,13 @@ function ensureEnhancementControls(){
   });button.setAttribute('aria-label','文字サイズ '+name);button.dataset.size=String(size);}
   display.querySelector('.ytmls-menu-label').after(sizes);
   if(typeof attachGlassSegment==='function')attachGlassSegment(sizes);
-  const mode=practiceButton(playback,'読むモード',()=>{chrome.storage.sync.set({trackingEnabled:!STATE.trackingEnabled},()=>{if(chrome.runtime.lastError)mode.title='設定を保存できませんでした';});});mode.id='ytmls-reading-mode';
+  const mode=practiceButton(playback,'読むモード',()=>{chrome.storage.sync.set({trackingEnabled:!STATE.trackingEnabled},()=>{if(chrome.runtime.lastError)mode.title='設定を保存できませんでした';});});mode.id='ytmls-reading-mode';mode.dataset.icon='book';
   const timing=practiceButton(playback,'同期タイミングを調整',event=>{
    event.stopPropagation();
    const details=menu.closest('details');
    if(details)closeMoreMenu(details);
    toggleTrackTimingPopover(details?.querySelector('summary') || trackTimingButtonEl);
-  });timing.id='ytmls-timing-shortcut';
+  });timing.id='ytmls-timing-shortcut';timing.dataset.icon='clock';
  }
  const mode=playback.querySelector('#ytmls-reading-mode'),modeLabel=STATE.trackingEnabled?'読むモードに切り替え':'追跡モードに切り替え';if(mode.textContent!==modeLabel)mode.textContent=modeLabel;mode.removeAttribute('aria-pressed');
  const available=practiceCurrent(STATE.displayedVideoId)&&STATE.lines.length>0;
