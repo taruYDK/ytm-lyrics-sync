@@ -1534,7 +1534,16 @@ function readingTokensToRomaji(tokens) {
     }
     if (candidateButtonEl) {
       const count = STATE.lyricCandidates.length;
-      candidateButtonEl.textContent = `歌詞候補 ${count}`;
+      // The count is a small badge; rebuilt only when it changes.
+      if (typeof candidateButtonEl.replaceChildren !== "function") candidateButtonEl.textContent = `歌詞候補 ${count}`;
+      else if (candidateButtonEl.dataset.count !== String(count)) {
+        candidateButtonEl.dataset.count = String(count);
+        const badge = document.createElement("span");
+        badge.className = "ytmls-count";
+        badge.textContent = String(count);
+        candidateButtonEl.replaceChildren("歌詞候補 ", badge);
+        candidateButtonEl.setAttribute("aria-label", `歌詞候補 ${count}件`);
+      }
       candidateButtonEl.disabled = count === 0;
       candidateButtonEl.title = count ? "取得した同期歌詞から選択" : "候補を検索中です";
     }

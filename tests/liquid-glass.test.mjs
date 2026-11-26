@@ -48,7 +48,7 @@ test('Liquid Glass styles load last and fall back to solid surfaces', () => {
   const lensRules = [...css.replace(/\/\*[\s\S]*?\*\//g, '').matchAll(/([^{}]+)\{([^{}]*)\}/g)].filter(([, , body]) => body.includes('url(#ytmls-lg-lens'));
   assert.ok(lensRules.length >= 2);
   for (const [, selector] of lensRules) assert.match(selector.trim(), /^html\.ytmls-lg-lens /, 'lens only after the filters exist');
-  assert.match(css, /html\.ytmls-lyrics-motion-lightweight :is\([^{]+\{\s*--lg-fill: var\(--lg-fill-solid\);\s*--lg-fill-pill: var\(--lg-fill-solid\);\s*-webkit-backdrop-filter: none !important; backdrop-filter: none !important;/);
+  assert.match(css, /html\.ytmls-lyrics-motion-lightweight :is\([^{]+\{\s*--lg-fill: var\(--lg-fill-solid\);\s*--lg-fill-pill: var\(--lg-fill-solid\);\s*--lg-pill-fill: linear-gradient\(var\(--lg-fill-solid\), var\(--lg-fill-solid\)\);\s*-webkit-backdrop-filter: none !important; backdrop-filter: none !important;/);
   assert.match(css, /@media \(prefers-reduced-transparency: reduce\)/);
   assert.match(css, /@media \(prefers-reduced-motion: reduce\)/);
   assert.doesNotMatch(css, /#ytmls-reading-edit/, 'that id is the menu button, not a surface');
@@ -63,4 +63,15 @@ test('settings and backup pages use the shared glass and keep switches readable'
   assert.match(css, /input:checked \+ \.slider \{ background: var\(--accent\) !important;/);
   assert.match(css, /@media \(prefers-reduced-transparency: reduce\)/);
   assert.match(css, /@media \(forced-colors: active\)/);
+});
+
+test('header pills: one thin rim, a drawn chevron that turns over, and the count as a badge', () => {
+  const css = read('liquid-glass.css');
+  assert.match(css, /background: var\(--lg-pill-fill\) padding-box, var\(--lg-pill-rim\) border-box !important;/);
+  assert.match(css, /#ytmls-more > summary\.ytmls-tool-button::after \{\s*content: "" !important;[^}]*mask:/);
+  assert.match(css, /#ytmls-more\[open\]:not\(\[data-closing="true"\]\) > summary\.ytmls-tool-button::after \{ transform: rotate\(180deg\); \}/);
+  assert.match(css, /#ytmls-tools \.ytmls-count \{/);
+  const panel = fs.readFileSync(new URL('../src/content/lyrics-panel.js', import.meta.url), 'utf8');
+  assert.match(panel, /candidateButtonEl\.replaceChildren\("歌詞候補 ", badge\);/);
+  assert.match(panel, /setAttribute\("aria-label", `歌詞候補 \$\{count\}件`\)/);
 });
