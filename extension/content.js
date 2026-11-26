@@ -2461,7 +2461,47 @@ function readingTokensToRomaji(tokens) {
       `Pinned lyrics: ${snapshot.pinned ? "yes" : "no"}`,
       `Local lyrics: ${snapshot.local ? "yes" : "no"}`,
       `Glass lens: ${typeof glassLensDiagnostics === "function" ? glassLensDiagnostics() : "n/a"}`,
+      `Guide layout: ${guideLayoutDiagnostics()}`,
     ].join("\n");
+  }
+
+  // How YouTube Music builds its side menu, to style it without guessing: element names, ids, slots,
+  // classes and sizes only (never titles such as playlist names).
+  function guideLayoutDiagnostics() {
+    try {
+      const describe = (el) => {
+        if (!el?.localName) return "?";
+        const cls = typeof el.className === "string" ? el.className.trim().split(/\s+/).filter(Boolean).slice(0, 3).join(".") : "";
+        const attrs = ["slot", "active", "mini", "collapsed", "opened", "persistent", "hidden"].filter((a) => el.hasAttribute?.(a)).map((a) => `[${a}]`).join("");
+        return `${el.localName}${el.id ? "#" + el.id : ""}${cls ? "." + cls : ""}${el.getAttribute?.("slot") ? `{slot=${el.getAttribute("slot")}}` : ""}${attrs}`;
+      };
+      const chain = (el) => {
+        const parts = [];
+        for (let n = el; n && n.localName !== "ytmusic-app-layout" && parts.length < 9; n = n.parentElement) {
+          const r = n.getBoundingClientRect?.();
+          parts.push(`${describe(n)}(${r ? Math.round(r.width) + "x" + Math.round(r.height) : ""})`);
+        }
+        return parts.reverse().join(" > ");
+      };
+      const inner = (el, depth = 0) => {
+        if (!el || depth > 2) return "";
+        const kids = [...el.children].slice(0, 4).map((c) => describe(c) + (c.children.length && depth < 2 ? "{" + inner(c, depth + 1) + "}" : ""));
+        return kids.join(",");
+      };
+      const layout = document.querySelector("ytmusic-app-layout");
+      const layoutAttrs = layout ? [...layout.attributes].map((a) => a.name).filter((n) => /guide|drawer|mini/.test(n)).join(",") : "none";
+      const entries = [...document.querySelectorAll("ytmusic-guide-entry-renderer, ytmusic-mini-guide-entry-renderer")].filter((e) => e.getBoundingClientRect().width > 0);
+      const first = entries[0];
+      return [
+        `layout[${layoutAttrs}]`,
+        `renderers=${[...document.querySelectorAll("ytmusic-guide-renderer, ytmusic-mini-guide-renderer")].map((r) => describe(r) + (r.getBoundingClientRect().width ? "" : "(hidden)")).join("|") || "none"}`,
+        `visibleEntries=${entries.length}`,
+        first ? `entry: ${chain(first)}` : "entry: none",
+        first ? `entryInside: ${inner(first)}` : "",
+      ].filter(Boolean).join(" ; ");
+    } catch (e) {
+      return "error " + (e?.message || e);
+    }
   }
 
   function updateDiagnosticsSummary() {
