@@ -13,16 +13,35 @@ test('cache writes coalesce and serialize the latest cache only once',()=>{
  assert.equal(writes.length,1);assert.equal(writes[0].ytmlsLyricsCacheV232.song.lines[0].text,'3');
 });
 
+
+// The MAIN-world bridge talks over events named with a key traded through a root attribute.
+function bridgeWorld(player, {now = () => 0, setTimeout = () => 1, clearTimeout = () => {}} = {}) {
+ const listeners = {}; let posts = 0, lastOut = null;
+ class EventTarget { addEventListener(type, fn) { (listeners[type] ||= []).push(fn); } dispatchEvent(event) { for (const fn of listeners[event.type] || []) fn(event); return true; } }
+ class CustomEvent { constructor(type, init) { this.type = type; this._detail = init?.detail; } get detail() { return this._detail; } }
+ const attrs = {};
+ const document = Object.assign(new EventTarget(), {
+  documentElement: {getAttribute: k => attrs[k] ?? null, setAttribute: (k, v) => { attrs[k] = v; }, removeAttribute: k => { delete attrs[k]; }},
+  getElementById: () => player,
+ });
+ const window = {addEventListener() {}};
+ const c = vm.createContext({window, document, EventTarget, CustomEvent, JSON, crypto: {randomUUID: () => 'k'}, performance: {now}, setTimeout, clearTimeout, Date});
+ vm.runInContext(read('player-bridge.js'), c);
+ const key = attrs['data-ytmls-bridge-key'];
+ document.addEventListener(`ytmls-bridge-out-${key}`, e => { posts++; lastOut = JSON.parse(e.detail); });
+ const send = message => document.dispatchEvent(new CustomEvent(`ytmls-bridge-in-${key}`, {detail: JSON.stringify(message)}));
+ return {send, key, attrs, document, CustomEvent, posts: () => posts, lastOut: () => lastOut};
+}
+
 test('bridge throttles metadata, stops while disabled and resumes',()=>{
- let now=0,reads=0,posts=0,listener;const timers=new Map();let id=0;
+ let now=0,reads=0;const timers=new Map();let id=0;
  const player={getVideoData(){reads++;return {video_id:'a'};},getCurrentTime:()=>now/1000,getDuration:()=>100,getPlayerState:()=>1,getPlaybackRate:()=>1,querySelector:()=>null};
- const window={postMessage(){posts++;},addEventListener:(type,fn)=>{if(type==='message')listener=fn;}};
- const c=vm.createContext({window,document:{getElementById:()=>player,addEventListener(){}},performance:{now:()=>now},setTimeout:fn=>{timers.set(++id,fn);return id;},clearTimeout:id=>timers.delete(id)});
- vm.runInContext(read('player-bridge.js'),c);
+ const w=bridgeWorld(player,{now:()=>now,setTimeout:fn=>{timers.set(++id,fn);return id;},clearTimeout:id=>timers.delete(id)});
  for(let i=0;i<10;i++){now+=34;const [key,fn]=timers.entries().next().value;timers.delete(key);fn();}
- assert.equal(posts,11);assert.equal(reads,2);
- listener({source:window,data:{source:'ytmls-player-bridge-v1',type:'tracking-config',enabled:false}});assert.equal(timers.size,0);
- listener({source:window,data:{source:'ytmls-player-bridge-v1',type:'tracking-config',enabled:true}});assert.equal(timers.size,1);assert.equal(reads,3);
+ assert.equal(w.posts(),10);assert.equal(reads,2);
+ assert.equal(w.lastOut().type,'snapshot');
+ w.send({type:'tracking-config',enabled:false});assert.equal(timers.size,0);
+ w.send({type:'tracking-config',enabled:true});assert.equal(timers.size,1);assert.equal(reads,3);
 });
 
 test('offscreen setup is shared and rejects invalid requests',async()=>{
@@ -60,15 +79,33 @@ test('real dictionary initializes and tokenizes inside worker global without pag
 });
 
 test('bridge toggles current playback and rejects stale or disabled commands',()=>{
- let listener,state=1,plays=0,pauses=0;
+ let state=1,plays=0,pauses=0;
  const player={getVideoData:()=>({video_id:'song'}),getCurrentTime:()=>0,getDuration:()=>100,getPlayerState:()=>state,getPlaybackRate:()=>1,querySelector:()=>null,playVideo(){plays++;state=1;},pauseVideo(){pauses++;state=2;}};
- const window={postMessage(){},addEventListener:(type,fn)=>{if(type==='message')listener=fn;}};
- vm.runInNewContext(read('player-bridge.js'),{window,document:{getElementById:()=>player,addEventListener(){}},performance:{now:()=>0},setTimeout:()=>1,clearTimeout(){}});
- const send=(videoId='song')=>listener({source:window,data:{source:'ytmls-player-bridge-v1',type:'toggle-playback',payload:{videoId}}});
+ const w=bridgeWorld(player);
+ const send=(videoId='song')=>w.send({type:'toggle-playback',payload:{videoId}});
  send();assert.equal(pauses,1);send();assert.equal(plays,1);
  state=3;send();assert.equal(pauses,2);send('old');assert.equal(plays,1);
- listener({source:window,data:{source:'ytmls-player-bridge-v1',type:'tracking-config',enabled:false}});
+ w.send({type:'tracking-config',enabled:false});
  send();assert.equal(plays,1);
+});
+
+test('bridge keeps its channel private: the key leaves the page, other event names and forged JSON are ignored',()=>{
+ let pauses=0;
+ const player={getVideoData:()=>({video_id:'song'}),getCurrentTime:()=>0,getDuration:()=>100,getPlayerState:()=>1,getPlaybackRate:()=>1,querySelector:()=>null,playVideo(){},pauseVideo(){pauses++;}};
+ const w=bridgeWorld(player);
+ assert.equal(w.key,'k','the bridge left its key for the extension');
+ // The extension side takes the key and removes it before the page's scripts run.
+ const channel=vm.createContext({document:w.document,CustomEvent:w.CustomEvent,JSON,crypto:{randomUUID:()=>'other'},globalThis:{}});
+ channel.globalThis=channel;
+ vm.runInContext(read('bridge-channel.js'),channel);
+ assert.equal(w.attrs['data-ytmls-bridge-key'],undefined,'nothing left for the page to read');
+ const seen=[];channel.ytmlsBridge.listen(m=>seen.push(m.type));
+ channel.ytmlsBridge.send({type:'toggle-playback',payload:{videoId:'song'}});
+ assert.equal(pauses,1,'the extension reaches the bridge');
+ w.document.dispatchEvent(new w.CustomEvent('ytmls-bridge-in-guess',{detail:JSON.stringify({type:'toggle-playback',payload:{videoId:'song'}})}));
+ w.document.dispatchEvent(new w.CustomEvent('ytmls-bridge-in-k',{detail:'not json'}));
+ assert.equal(pauses,1,'a guessed name or broken message does nothing');
+ assert.ok(!read('player-bridge.js').includes('postMessage'),'no window.postMessage left');
 });
 
 test('hidden main tick performs no DOM or playback work and resumes when visible',()=>{

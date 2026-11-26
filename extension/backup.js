@@ -59,7 +59,8 @@ async function restoreBackupData(syncData, localData, partial = false) {
   const before = keys.length ? await storageGet(chrome.storage.sync, keys) : {};
   if (keys.length) await storageSet(chrome.storage.sync, syncData);
   try {
-    if (Object.keys(localData).length) await mutateData({action:"restore",data:localData,merge:partial});
+    // A full restore always runs, so categories missing from the backup are cleared too.
+    if (Object.keys(localData).length || !partial) await mutateData({action:"restore",data:localData,merge:partial});
   } catch (error) {
     if (keys.length) {
       try {

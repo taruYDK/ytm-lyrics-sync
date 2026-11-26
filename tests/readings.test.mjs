@@ -149,7 +149,11 @@ test('manual line layout: English words, unmatched spelling and timed fragments 
  assert.equal(parts.map(p=>p.reading).join(''),'ハローワールド');
  const fallback=layoutManualLineReadings(text,[{start:0,end:11,lineIndex:0,reading:'はろーわーるど'}]);
  assert.equal(fallback.map(r=>r.reading).join(''),'はろーわーるど');
- assert(fallback.every(r=>r.end-r.start===1));
+ assert.deepEqual(fallback.map(r=>[r.start,r.end]),[[0,5],[6,11]],'the reading goes to the words, not to the space');
+ // Mixed line that cannot be aligned: kana and punctuation get no ruby, nothing is dropped.
+ const mixed=layoutManualLineReadings('愛、そしてLove',[{start:0,end:9,lineIndex:0,reading:'あいそしてらぶっ'}],true,false);
+ assert.deepEqual(mixed.map(r=>[r.start,r.end]),[[0,1]],'only the kanji carries ruby when English readings are off');
+ assert.equal(mixed[0].reading,'あいそしてらぶっ');
  const hidden={start:0,end:11,lineIndex:0,reading:''};
  assert.deepEqual(layoutManualLineReadings(text,[hidden]),[hidden]);
 });

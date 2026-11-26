@@ -153,6 +153,14 @@
 
   function collectTimedSpans(element, inheritedBackground, output) {
     for (const node of element.childNodes) {
+      // Text between timed spans (usually the space between words) belongs to the word before it;
+      // dropping it ran words together ("Hello world" → "Helloworld").
+      if (node.nodeType === Node.TEXT_NODE) {
+        const gap = String(node.nodeValue || "").replace(/\s+/g, " ");
+        const previous = output[output.length - 1];
+        if (gap && previous && !(gap === " " && /\s$/.test(previous.text))) previous.text += gap;
+        continue;
+      }
       if (node.nodeType !== Node.ELEMENT_NODE) continue;
       const el = node;
       const localName = (el.localName || el.tagName || "").toLowerCase();

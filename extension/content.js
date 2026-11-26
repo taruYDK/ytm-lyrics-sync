@@ -169,15 +169,24 @@ function layoutManualLineReadings(text, ranges, ja = true, en = true, automatic 
     }
     const aligned = tokens.length < 150 ? align(0, 0) : null;
     if (aligned) return aligned;
-    // Unmatched kana/spacing must not produce one centered ruby across the line.
-    // Preserve the complete entered reading, distributing by original character length.
+    // Unaligned: give the whole entered reading to the words that can carry ruby (kanji, and
+    // English when its readings are shown), by length. Kana, spaces and punctuation get none,
+    // so nothing lands on the wrong characters and no part of the reading is dropped.
     const mora = range.reading.match(/.[ぁぃぅぇぉゃゅょァィゥェォャュョ]?/gu) || [];
-    return Array.from(text).map((char, i, chars) => ({
-      start: chars.slice(0,i).join('').length, end: chars.slice(0,i+1).join('').length,
-      reading: mora.slice(Math.floor(i*mora.length/chars.length),Math.floor((i+1)*mora.length/chars.length)).join(''),
-    }));
+    const carriers = tokens.filter(t => t.variable && (/[\p{Script=Han}々〆ヶ]/u.test(t.text) ? ja : en));
+    if (!carriers.length) return [{start:0,end:text.length,reading:range.reading,whole:true}];
+    const total = carriers.reduce((n, t) => n + t.text.length, 0);
+    let used = 0, from = 0;
+    return carriers.map((t, i) => {
+      used += t.text.length;
+      const to = i === carriers.length - 1 ? mora.length : Math.round(used * mora.length / total);
+      const part = {start:t.start,end:t.end,reading:mora.slice(from,to).join(''),whole:true};
+      from = to;
+      return part;
+    });
   }).map(r => ({...r, reading: r.reading === text.slice(r.start,r.end) ? '' : r.reading}))
-    .filter(r => /[\p{Script=Han}々〆ヶぁ-ゖァ-ヶ]/u.test(text.slice(r.start,r.end)) ? ja : en);
+    // Fallback parts were already chosen for what is shown; keep them as they are.
+    .filter(r => r.whole ? (delete r.whole, true) : /[\p{Script=Han}々〆ヶぁ-ゖァ-ヶ]/u.test(text.slice(r.start,r.end)) ? ja : en);
 }
 
 function readingSegmentProgressCss(start, end, length) {
@@ -473,17 +482,19 @@ function readingTokensToRomaji(tokens) {
   // ---------- YouTube Player 本体とのブリッジ ----------
   // DOM上の <video> は自動次曲時に前曲要素が残ることがあるため、
   // MAIN world の #movie_player API が返す videoId/currentTime を最優先する。
-  const PLAYER_BRIDGE_SOURCE = "ytmls-player-bridge-v1";
+  // Messages go through the private channel from bridge-channel.js (not window.postMessage,
+  // which page scripts could read and forge).
+  function sendToPlayerBridge(message) {
+    if (typeof ytmlsBridge !== "undefined") ytmlsBridge.send(message);
+  }
 
   function requestPlayerToggle(videoId) {
     if (!STATE.enabled || !videoId) return;
-    window.postMessage({ source: PLAYER_BRIDGE_SOURCE, type: 'toggle-playback', payload: { videoId } }, '*');
+    sendToPlayerBridge({ type: 'toggle-playback', payload: { videoId } });
   }
 
-  window.addEventListener("message", (event) => {
-    if (event.source !== window) return;
-    const data = event.data;
-    if (!data || data.source !== PLAYER_BRIDGE_SOURCE || data.type !== "snapshot") return;
+  if (typeof ytmlsBridge !== "undefined") ytmlsBridge.listen((data) => {
+    if (!data || data.type !== "snapshot") return;
     const payload = data.payload || {};
     const currentTime = Number(payload.currentTime);
     const duration = Number(payload.duration);
@@ -575,11 +586,7 @@ function readingTokensToRomaji(tokens) {
     const id = String(videoId || "");
     const time = Number(seconds);
     if (!id || !Number.isFinite(time)) return false;
-    window.postMessage({
-      source: PLAYER_BRIDGE_SOURCE,
-      type: "seek",
-      payload: { videoId: id, time: Math.max(0, time) },
-    }, "*");
+    sendToPlayerBridge({ type: "seek", payload: { videoId: id, time: Math.max(0, time) } });
     return true;
   }
 
@@ -676,6 +683,11 @@ function readingTokensToRomaji(tokens) {
 
       chrome.storage.onChanged.addListener((changes, areaName) => {
         if (!areaName || areaName === "local") {
+          // Edits saved in another tab for the song shown here are applied right away.
+          const editsChange = changes[LYRICS_EDITS_STORAGE_KEY];
+          const shownId = String(STATE.displayedVideoId || "");
+          const editsForShownChanged = Boolean(editsChange && shownId &&
+            JSON.stringify((STATE.lyricsEdits || {})[shownId] || null) !== JSON.stringify((editsChange.newValue || {})[shownId] || null));
           for (const [key, field] of [
             [TRACK_TIMING_OFFSETS_STORAGE_KEY, "trackTimingOffsets"],
             [LYRICS_EDITS_STORAGE_KEY, "lyricsEdits"],
@@ -683,6 +695,12 @@ function readingTokensToRomaji(tokens) {
           ]) {
             if (changes[key]) STATE[field] = changes[key].newValue || {};
           }
+          if (editsForShownChanged && lyricsToolsPaneMode !== "edit" && typeof activeOriginalLyricsCandidate === "function") {
+            const candidate = activeOriginalLyricsCandidate();
+            const info = STATE.activeSearchInfo || STATE.activeBaseInfo;
+            if (candidate && info && STATE.lastTrackKey) applyLyricsResult(candidate.result, info, STATE.lastTrackKey, STATE.searchGeneration);
+          }
+          if (typeof LYRICS_CACHE_STORAGE_KEY !== "undefined" && changes[LYRICS_CACHE_STORAGE_KEY]) mergeLyricsCacheChange(changes[LYRICS_CACHE_STORAGE_KEY]);
           if (changes[TRACK_TIMING_OFFSETS_STORAGE_KEY]) {
             updateTrackTimingControl();
             const media = getVideoElement();
@@ -2751,7 +2769,7 @@ function readingTokensToRomaji(tokens) {
   function applySettings() {
     if (bridgeEnabledSetting !== STATE.enabled) {
       bridgeEnabledSetting = STATE.enabled;
-      window.postMessage({source:PLAYER_BRIDGE_SOURCE,type:'tracking-config',enabled:STATE.enabled===true}, '*');
+      sendToPlayerBridge({type:'tracking-config',enabled:STATE.enabled===true});
     }
     if (listEl) listEl.style.fontSize = STATE.fontSize + "px";
     if (panelEl) {
@@ -3991,6 +4009,14 @@ function readingTokensToRomaji(tokens) {
 
   function collectTimedSpans(element, inheritedBackground, output) {
     for (const node of element.childNodes) {
+      // Text between timed spans (usually the space between words) belongs to the word before it;
+      // dropping it ran words together ("Hello world" → "Helloworld").
+      if (node.nodeType === Node.TEXT_NODE) {
+        const gap = String(node.nodeValue || "").replace(/\s+/g, " ");
+        const previous = output[output.length - 1];
+        if (gap && previous && !(gap === " " && /\s$/.test(previous.text))) previous.text += gap;
+        continue;
+      }
       if (node.nodeType !== Node.ELEMENT_NODE) continue;
       const el = node;
       const localName = (el.localName || el.tagName || "").toLowerCase();
@@ -4633,11 +4659,13 @@ function readingTokensToRomaji(tokens) {
     const blocks = String(raw || "").split(/\n\n|\r\n\r\n/);
     for (const block of blocks) {
       let eventName = "";
-      let dataText = "";
+      const dataLines = [];
       for (const line of block.split(/\r?\n/)) {
         if (line.startsWith("event:")) eventName = line.slice(6).trim();
-        else if (line.startsWith("data:")) dataText += line.slice(5).trim();
+        // SSE: drop only the one optional space after "data:", and join lines with "\n".
+        else if (line.startsWith("data:")) dataLines.push(line.slice(line.startsWith("data: ") ? 6 : 5));
       }
+      const dataText = dataLines.join("\n").trim();
       if (eventName !== "provider" || !dataText || dataText === "[DONE]") continue;
       let data;
       try { data = JSON.parse(dataText); } catch (_) { continue; }
@@ -5906,6 +5934,22 @@ function readingTokensToRomaji(tokens) {
     }
   }
 
+  // Another tab wrote the shared cache: take its entries and removals, so this tab's next
+  // write does not drop them (each tab otherwise wrote only its own in-memory map).
+  function mergeLyricsCacheChange(change) {
+    const before = change && change.oldValue && typeof change.oldValue === "object" ? change.oldValue : {};
+    const after = change && change.newValue && typeof change.newValue === "object" ? change.newValue : {};
+    for (const key of Object.keys(before)) {
+      if (!Object.prototype.hasOwnProperty.call(after, key)) STATE.lyricsCache.delete(key);
+    }
+    for (const [key, value] of Object.entries(after)) {
+      if (!value || !Array.isArray(value.lines) || !value.lines.length) continue;
+      const mine = STATE.lyricsCache.get(key);
+      if (!mine || Number(value.ts || 0) > Number(mine.ts || 0)) STATE.lyricsCache.set(key, value);
+    }
+    while (STATE.lyricsCache.size > LYRICS_CACHE_MAX_ENTRIES) STATE.lyricsCache.delete(STATE.lyricsCache.keys().next().value);
+  }
+
   let lyricsCacheSaveTimer = null;
   function saveLyricsCacheToStorage() {
     clearTimeout(lyricsCacheSaveTimer);
@@ -5931,6 +5975,8 @@ function readingTokensToRomaji(tokens) {
       syncLevel: result.syncLevel || "none",
       _source: result._source || "",
       _providerKey: result._providerKey || "",
+      // Edits are saved under this id; rebuilt from filtered lines it would differ.
+      _candidateId: result._candidateId || lyricCandidateIdentity(result),
       _providerSignature: providerConfigSignature(),
       ts: Date.now(),
     });

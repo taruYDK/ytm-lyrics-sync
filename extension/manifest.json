@@ -32,6 +32,15 @@
         "https://music.youtube.com/*"
       ],
       "js": [
+        "bridge-channel.js"
+      ],
+      "run_at": "document_start"
+    },
+    {
+      "matches": [
+        "https://music.youtube.com/*"
+      ],
+      "js": [
         "player-bridge.js"
       ],
       "run_at": "document_start",

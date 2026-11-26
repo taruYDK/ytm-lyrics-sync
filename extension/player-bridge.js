@@ -2,7 +2,18 @@
 // MAIN world から YouTube Music プレイヤー本体の状態を毎フレーム取得する。
 (() => {
   'use strict';
-  const SOURCE = 'ytmls-player-bridge-v1';
+  // Talks to the extension only through events named with a key traded before the page's
+  // scripts run (see bridge-channel.js). Built-ins are captured now, so later page scripts
+  // cannot patch them to read or fake the messages.
+  const ATTR = 'data-ytmls-bridge-key';
+  const dispatch = EventTarget.prototype.dispatchEvent, listen = EventTarget.prototype.addEventListener;
+  const CustomEventCtor = CustomEvent, stringify = JSON.stringify, parse = JSON.parse;
+  const detailOf = Object.getOwnPropertyDescriptor(CustomEvent.prototype, 'detail').get;
+  const root = document.documentElement;
+  let key = root.getAttribute(ATTR);
+  if (key) root.removeAttribute(ATTR);
+  else { key = crypto.randomUUID(); root.setAttribute(ATTR, key); }
+  const post = message => dispatch.call(document, new CustomEventCtor(`ytmls-bridge-out-${key}`, {detail: stringify(message)}));
 
   function readNumber(fn) {
     try {
@@ -54,8 +65,7 @@
 
     if (!videoId && currentTime == null && duration == null) return;
 
-    window.postMessage({
-      source: SOURCE,
+    post({
       type: 'snapshot',
       payload: {
         videoId,
@@ -69,13 +79,13 @@
         sampledAt,
         wallTime: Date.now()
       }
-    }, '*');
+    });
   }
 
-  window.addEventListener('message', (event) => {
-    if (event.source !== window) return;
-    const message = event.data;
-    if (!message || message.source !== SOURCE) return;
+  listen.call(document, `ytmls-bridge-in-${key}`, (event) => {
+    let message;
+    try { message = parse(detailOf.call(event)); } catch (_) { return; }
+    if (!message || typeof message !== 'object') return;
     if (message.type === 'tracking-config') {enabled=message.enabled===true;if(enabled){publish(true);schedule();}else{clearTimeout(timer);timer=null;}return;}
     if (!['seek', 'toggle-playback'].includes(message.type) || !enabled) return;
     const payload = message.payload || {};

@@ -1,17 +1,19 @@
   // ---------- YouTube Player 本体とのブリッジ ----------
   // DOM上の <video> は自動次曲時に前曲要素が残ることがあるため、
   // MAIN world の #movie_player API が返す videoId/currentTime を最優先する。
-  const PLAYER_BRIDGE_SOURCE = "ytmls-player-bridge-v1";
+  // Messages go through the private channel from bridge-channel.js (not window.postMessage,
+  // which page scripts could read and forge).
+  function sendToPlayerBridge(message) {
+    if (typeof ytmlsBridge !== "undefined") ytmlsBridge.send(message);
+  }
 
   function requestPlayerToggle(videoId) {
     if (!STATE.enabled || !videoId) return;
-    window.postMessage({ source: PLAYER_BRIDGE_SOURCE, type: 'toggle-playback', payload: { videoId } }, '*');
+    sendToPlayerBridge({ type: 'toggle-playback', payload: { videoId } });
   }
 
-  window.addEventListener("message", (event) => {
-    if (event.source !== window) return;
-    const data = event.data;
-    if (!data || data.source !== PLAYER_BRIDGE_SOURCE || data.type !== "snapshot") return;
+  if (typeof ytmlsBridge !== "undefined") ytmlsBridge.listen((data) => {
+    if (!data || data.type !== "snapshot") return;
     const payload = data.payload || {};
     const currentTime = Number(payload.currentTime);
     const duration = Number(payload.duration);
@@ -103,11 +105,7 @@
     const id = String(videoId || "");
     const time = Number(seconds);
     if (!id || !Number.isFinite(time)) return false;
-    window.postMessage({
-      source: PLAYER_BRIDGE_SOURCE,
-      type: "seek",
-      payload: { videoId: id, time: Math.max(0, time) },
-    }, "*");
+    sendToPlayerBridge({ type: "seek", payload: { videoId: id, time: Math.max(0, time) } });
     return true;
   }
 

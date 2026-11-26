@@ -64,6 +64,11 @@
 
       chrome.storage.onChanged.addListener((changes, areaName) => {
         if (!areaName || areaName === "local") {
+          // Edits saved in another tab for the song shown here are applied right away.
+          const editsChange = changes[LYRICS_EDITS_STORAGE_KEY];
+          const shownId = String(STATE.displayedVideoId || "");
+          const editsForShownChanged = Boolean(editsChange && shownId &&
+            JSON.stringify((STATE.lyricsEdits || {})[shownId] || null) !== JSON.stringify((editsChange.newValue || {})[shownId] || null));
           for (const [key, field] of [
             [TRACK_TIMING_OFFSETS_STORAGE_KEY, "trackTimingOffsets"],
             [LYRICS_EDITS_STORAGE_KEY, "lyricsEdits"],
@@ -71,6 +76,12 @@
           ]) {
             if (changes[key]) STATE[field] = changes[key].newValue || {};
           }
+          if (editsForShownChanged && lyricsToolsPaneMode !== "edit" && typeof activeOriginalLyricsCandidate === "function") {
+            const candidate = activeOriginalLyricsCandidate();
+            const info = STATE.activeSearchInfo || STATE.activeBaseInfo;
+            if (candidate && info && STATE.lastTrackKey) applyLyricsResult(candidate.result, info, STATE.lastTrackKey, STATE.searchGeneration);
+          }
+          if (typeof LYRICS_CACHE_STORAGE_KEY !== "undefined" && changes[LYRICS_CACHE_STORAGE_KEY]) mergeLyricsCacheChange(changes[LYRICS_CACHE_STORAGE_KEY]);
           if (changes[TRACK_TIMING_OFFSETS_STORAGE_KEY]) {
             updateTrackTimingControl();
             const media = getVideoElement();

@@ -184,11 +184,13 @@
     const blocks = String(raw || "").split(/\n\n|\r\n\r\n/);
     for (const block of blocks) {
       let eventName = "";
-      let dataText = "";
+      const dataLines = [];
       for (const line of block.split(/\r?\n/)) {
         if (line.startsWith("event:")) eventName = line.slice(6).trim();
-        else if (line.startsWith("data:")) dataText += line.slice(5).trim();
+        // SSE: drop only the one optional space after "data:", and join lines with "\n".
+        else if (line.startsWith("data:")) dataLines.push(line.slice(line.startsWith("data: ") ? 6 : 5));
       }
+      const dataText = dataLines.join("\n").trim();
       if (eventName !== "provider" || !dataText || dataText === "[DONE]") continue;
       let data;
       try { data = JSON.parse(dataText); } catch (_) { continue; }

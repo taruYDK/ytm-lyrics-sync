@@ -129,15 +129,24 @@ export function layoutManualLineReadings(text, ranges, ja = true, en = true, aut
     }
     const aligned = tokens.length < 150 ? align(0, 0) : null;
     if (aligned) return aligned;
-    // Unmatched kana/spacing must not produce one centered ruby across the line.
-    // Preserve the complete entered reading, distributing by original character length.
+    // Unaligned: give the whole entered reading to the words that can carry ruby (kanji, and
+    // English when its readings are shown), by length. Kana, spaces and punctuation get none,
+    // so nothing lands on the wrong characters and no part of the reading is dropped.
     const mora = range.reading.match(/.[ぁぃぅぇぉゃゅょァィゥェォャュョ]?/gu) || [];
-    return Array.from(text).map((char, i, chars) => ({
-      start: chars.slice(0,i).join('').length, end: chars.slice(0,i+1).join('').length,
-      reading: mora.slice(Math.floor(i*mora.length/chars.length),Math.floor((i+1)*mora.length/chars.length)).join(''),
-    }));
+    const carriers = tokens.filter(t => t.variable && (/[\p{Script=Han}々〆ヶ]/u.test(t.text) ? ja : en));
+    if (!carriers.length) return [{start:0,end:text.length,reading:range.reading,whole:true}];
+    const total = carriers.reduce((n, t) => n + t.text.length, 0);
+    let used = 0, from = 0;
+    return carriers.map((t, i) => {
+      used += t.text.length;
+      const to = i === carriers.length - 1 ? mora.length : Math.round(used * mora.length / total);
+      const part = {start:t.start,end:t.end,reading:mora.slice(from,to).join(''),whole:true};
+      from = to;
+      return part;
+    });
   }).map(r => ({...r, reading: r.reading === text.slice(r.start,r.end) ? '' : r.reading}))
-    .filter(r => /[\p{Script=Han}々〆ヶぁ-ゖァ-ヶ]/u.test(text.slice(r.start,r.end)) ? ja : en);
+    // Fallback parts were already chosen for what is shown; keep them as they are.
+    .filter(r => r.whole ? (delete r.whole, true) : /[\p{Script=Han}々〆ヶぁ-ゖァ-ヶ]/u.test(text.slice(r.start,r.end)) ? ja : en);
 }
 
 export function readingSegmentProgressCss(start, end, length) {
