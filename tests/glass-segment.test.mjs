@@ -168,3 +168,11 @@ test('診断情報 reports what the last drag did with the drop', () => {
   const panel = fs.readFileSync(new URL('../src/content/lyrics-panel.js', import.meta.url), 'utf8');
   assert.match(panel, /`Glass lens: \$\{typeof glassLensDiagnostics === "function" \? glassLensDiagnostics\(\) : "n\/a"\}`/);
 });
+
+test('at a wall the drop squashes against the wall like the bead, and the bead steps aside', () => {
+  const source = fs.readFileSync(new URL('../src/content/glass-segment.js', import.meta.url), 'utf8');
+  assert.match(source, /if \(side === 'left'\) left = rect\.left \+ state\.x;\s*else if \(side === 'right'\) left = rect\.left \+ state\.x \+ state\.w - width;/);
+  assert.match(source, /placeLens\(sx, sy, side\);/);
+  const css = fs.readFileSync(new URL('../extension/liquid-glass.css', import.meta.url), 'utf8');
+  assert.match(css, /\[data-lens="true"\] > \.ytmls-seg-thumb \{ opacity: 0;/);
+});

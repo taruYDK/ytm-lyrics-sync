@@ -48,15 +48,21 @@ function attachGlassSegment(group) {
  const lensAllowed = () => Boolean(document.documentElement?.classList?.contains('ytmls-lg-lens')) &&
   !document.documentElement.classList.contains('ytmls-lyrics-motion-lightweight') &&
   typeof group.getBoundingClientRect === 'function' && Boolean(document.documentElement);
- function placeLens(sx = 1, sy = 1) {
+ // The drop covers the bead exactly as it is drawn: same anchor at a wall (it squashes against the
+ // wall like the bead, instead of shrinking toward its own middle and leaving the wall).
+ function placeLens(sx = 1, sy = 1, side = 'center') {
   if (!lens) return;
   const rect = group.getBoundingClientRect(), track = Math.max(0, group.offsetHeight - 6);
   const {min, max} = bounds();
-  // Bigger than the bead (it lifts), but never wider past the track's ends.
-  const room = (max + state.w) - min;
-  const width = Math.min(room + 6, state.w * 1.05 * sx), height = track * 1.32 * sy;
-  let left = rect.left + state.x + state.w / 2 - width / 2;
-  left = Math.max(rect.left + min - 4, Math.min(rect.left + max + state.w + 4 - width, left));
+  const trackLeft = rect.left + min, trackRight = rect.left + max + state.w;
+  const drawn = state.w * sx;
+  // A little bigger than the bead (it lifts), never past the track's ends.
+  const width = Math.min(trackRight - trackLeft, drawn * 1.05), height = track * 1.32 * sy;
+  let left;
+  if (side === 'left') left = rect.left + state.x;
+  else if (side === 'right') left = rect.left + state.x + state.w - width;
+  else left = rect.left + state.x + state.w / 2 - width / 2;
+  left = Math.max(trackLeft, Math.min(trackRight - width, left));
   lens.style.left = `${left.toFixed(1)}px`;
   lens.style.top = `${(rect.top + group.offsetHeight / 2 - height / 2).toFixed(1)}px`;
   lens.style.width = `${width.toFixed(1)}px`;
@@ -112,7 +118,7 @@ function attachGlassSegment(group) {
   thumb.style.width = `${Math.max(0, state.w)}px`;
   thumb.style.transformOrigin = side === 'center' ? 'center' : `${side} center`;
   thumb.style.transform = `translateX(${Number(state.x.toFixed(3))}px) scale(${sx.toFixed(4)}, ${sy.toFixed(4)})`;
-  placeLens(sx, sy);
+  placeLens(sx, sy, side);
  }
  function step(now) {
   state.frame = 0;
