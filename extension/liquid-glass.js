@@ -61,7 +61,9 @@
       // Menus and panes: a narrow rim, so text in the middle stays straight.
       lensFilter('ytmls-lg-lens', lensMap(9, 14, 4), 0.07),
       // Buttons: the whole capsule acts as a lens, with a faint color fringe.
-      lensFilter('ytmls-lg-lens-pill', lensMap(22, 30, 9), 0.34, 0.08),
+      // The vertical bend is weakened to the pills' shape (Chrome measures it against the width; at full
+      // strength the top edge reached far above the pill and pulled in the tab underline as a white band).
+      lensFilter('ytmls-lg-lens-pill', lensMap(22, 30, 9, 1, .35), 0.34, 0.08),
       // The drag drop (glass-segment.js): a thick lens that magnifies what is under it and
       // splits the colors at its rim, like the iOS tab-bar selection while it is dragged.
       lensFilter('ytmls-lg-lens-drop', lensMap(14, 30, 9, 0, .45), 0.16, 0.7),
