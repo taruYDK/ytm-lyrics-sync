@@ -638,76 +638,98 @@ html.music-glass .ytmls-tabs-segment[data-lens="true"] > .ytmls-seg-thumb { opac
 html:not(.music-glass) tp-yt-paper-tabs .ytmls-seg-thumb { display: none !important; }
 
 /* ==========================================================================
-   Mac Music-style layout (step 1): the wide side menu (≡) as the sidebar of Music on macOS.
+   Mac Music-style layout (step 1): both side menus as the sidebar of Music on macOS.
    Real structure (診断情報 → Guide layout): tp-yt-app-drawer#guide > … > ytmusic-guide-renderer#guide-renderer
    > #sections > ytmusic-guide-section-renderer > #items > ytmusic-guide-entry-renderer > tp-yt-paper-item
    > yt-icon.guide-icon + .title-column (.title-group, .subtitle-group). The narrow menu is the same element
-   type with the id #mini-guide-renderer, so everything here is scoped to #guide-renderer by id.
+   type with the id #mini-guide-renderer, so each menu is addressed by its id. Nothing in the layout
+   moves: the glass is a layer behind the list, the rows only change their look.
    ========================================================================== */
-/* The glass panel: a layer behind the list, inset from the column's edges (nothing in the layout moves). */
-/* Both menus get the same panel (the narrow one, #mini-guide-renderer, slimmer), so switching with ≡
-   keeps the same look. */
-html.music-glass ytmusic-guide-renderer:is(#guide-renderer, #mini-guide-renderer) #sections { position: relative; isolation: isolate; }
-html.music-glass ytmusic-guide-renderer:is(#guide-renderer, #mini-guide-renderer) #sections::before {
+:root {
+  --ytmls-sb-fill: linear-gradient(rgb(255 255 255 / .05), rgb(255 255 255 / .05)), rgb(18 16 22 / .2);
+  --ytmls-sb-rim: inset 0 0 0 1px rgb(255 255 255 / .12), inset 0 0 18px rgb(255 255 255 / .05), inset 0 -10px 16px -14px rgb(255 255 255 / .25);
+  --ytmls-sb-row: rgb(255 255 255 / .07);
+  --ytmls-sb-chosen: rgb(255 255 255 / .13);
+  --ytmls-sb-text: rgb(255 255 255 / .9);
+  --ytmls-sb-playlist: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 6h11M4 11h11M4 16h6'/%3E%3Cpath d='M18 17.5V7l3-1'/%3E%3Ccircle cx='16' cy='17.5' r='2'/%3E%3C/svg%3E");
+  --ytmls-sb-plus: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round'%3E%3Cpath d='M12 5v14M5 12h14'/%3E%3C/svg%3E");
+}
+/* The panel: the wide menu draws it behind its list (#sections), the narrow menu behind itself. */
+html.music-glass ytmusic-guide-renderer#guide-renderer #sections,
+html.music-glass ytmusic-guide-renderer#mini-guide-renderer { position: relative; isolation: isolate; }
+html.music-glass ytmusic-guide-renderer#guide-renderer #sections::before,
+html.music-glass ytmusic-guide-renderer#mini-guide-renderer::before {
   content: ""; position: absolute; inset: 2px 8px 6px; z-index: -1; pointer-events: none; border-radius: 18px;
-  background: linear-gradient(rgb(255 255 255 / .05), rgb(255 255 255 / .05)), rgb(18 16 22 / .2);
-  box-shadow: inset 0 0 0 1px rgb(255 255 255 / .12), inset 0 0 18px rgb(255 255 255 / .05), inset 0 -10px 16px -14px rgb(255 255 255 / .25);
+  background: var(--ytmls-sb-fill); box-shadow: var(--ytmls-sb-rim);
   -webkit-backdrop-filter: blur(24px) saturate(140%); backdrop-filter: blur(24px) saturate(140%);
   /* Clipped to its rounded shape, so the blur never shows past the corners as a square. */
   clip-path: inset(0 round 18px);
 }
-html.music-glass ytmusic-guide-renderer#guide-renderer ytmusic-guide-section-renderer { padding: 6px 0 !important; margin: 0 !important; border: 0 !important; }
-html.music-glass ytmusic-guide-renderer#guide-renderer ytmusic-guide-section-renderer + ytmusic-guide-section-renderer { position: relative; }
-/* Section dividers: a hairline inside the panel instead of a full-width rule. */
-html.music-glass ytmusic-guide-renderer#guide-renderer ytmusic-guide-section-renderer + ytmusic-guide-section-renderer::before {
-  content: ""; position: absolute; top: 0; left: 22px; right: 22px; height: 1px; background: rgb(255 255 255 / .09);
+html.music-glass ytmusic-guide-renderer#mini-guide-renderer::before { inset: 2px 6px 6px; border-radius: 16px; clip-path: inset(0 round 16px); }
+
+/* Rows in both menus: no glass bead, a soft rounded highlight for the chosen one, accent icons. */
+html.music-glass ytmusic-guide-renderer:is(#guide-renderer, #mini-guide-renderer) ytmusic-guide-entry-renderer {
+  display: block; box-shadow: none !important; background: transparent !important;
+  -webkit-backdrop-filter: none !important; backdrop-filter: none !important; transition: background-color .14s ease;
 }
+html.music-glass ytmusic-guide-renderer:is(#guide-renderer, #mini-guide-renderer) ytmusic-guide-entry-renderer tp-yt-paper-item { background: transparent !important; }
+html.music-glass ytmusic-guide-renderer:is(#guide-renderer, #mini-guide-renderer) ytmusic-guide-entry-renderer:not([active]):hover { background: var(--ytmls-sb-row) !important; }
+html.music-glass ytmusic-guide-renderer:is(#guide-renderer, #mini-guide-renderer) ytmusic-guide-entry-renderer[active] { background: var(--ytmls-sb-chosen) !important; }
+html.music-glass ytmusic-guide-renderer:is(#guide-renderer, #mini-guide-renderer) ytmusic-guide-entry-renderer yt-icon.guide-icon {
+  color: var(--lg-accent) !important; fill: var(--lg-accent) !important; --iron-icon-fill-color: var(--lg-accent);
+}
+html.music-glass ytmusic-guide-renderer:is(#guide-renderer, #mini-guide-renderer) ytmusic-guide-entry-renderer :is(.title-group, .title-group *) {
+  color: var(--ytmls-sb-text) !important; font-weight: 500 !important; letter-spacing: .01em;
+}
+html.music-glass ytmusic-guide-renderer:is(#guide-renderer, #mini-guide-renderer) ytmusic-guide-entry-renderer[active] :is(.title-group, .title-group *) { color: #fff !important; font-weight: 600 !important; }
+
+/* Narrow menu: icon over a small label, the same sizes as the wide menu's icons and text. */
+html.music-glass ytmusic-guide-renderer#mini-guide-renderer ytmusic-guide-entry-renderer { margin: 2px 8px !important; border-radius: 12px !important; }
+html.music-glass ytmusic-guide-renderer#mini-guide-renderer ytmusic-guide-entry-renderer :is(.title-group, .title-group *) { white-space: nowrap !important; }
+html.music-glass ytmusic-guide-renderer#mini-guide-renderer ytmusic-guide-entry-renderer yt-icon.guide-icon,
+html.music-glass ytmusic-guide-renderer#mini-guide-renderer ytmusic-guide-entry-renderer yt-icon.guide-icon :is(svg, span, .yt-icon-shape) { width: 20px !important; height: 20px !important; }
+html.music-glass ytmusic-guide-renderer#mini-guide-renderer ytmusic-guide-entry-renderer :is(.title-group, .title-group *) { font-size: 10px !important; line-height: 1.3 !important; }
+
+/* Wide menu: one line per row, a small icon then the name. */
+html.music-glass ytmusic-guide-renderer#guide-renderer ytmusic-guide-section-renderer { padding: 6px 0 !important; margin: 0 !important; }
 html.music-glass ytmusic-guide-renderer#guide-renderer #items { padding-inline: 14px !important; box-sizing: border-box; }
-/* Rows: one line, a small icon in the accent color, then the name (like the Mac sidebar). */
-html.music-glass ytmusic-guide-renderer#guide-renderer ytmusic-guide-entry-renderer {
-  display: block; margin: 1px 0 !important; border-radius: 8px !important; box-shadow: none !important;
-  -webkit-backdrop-filter: none !important; backdrop-filter: none !important; background: transparent !important;
-  transition: background-color .14s ease;
-}
+html.music-glass ytmusic-guide-renderer#guide-renderer ytmusic-guide-entry-renderer { margin: 1px 0 !important; border-radius: 8px !important; }
 html.music-glass ytmusic-guide-renderer#guide-renderer ytmusic-guide-entry-renderer tp-yt-paper-item {
   display: flex !important; align-items: center !important; gap: 10px !important;
-  min-height: 32px !important; height: 32px !important; padding: 0 10px !important; border-radius: 8px !important;
-  box-sizing: border-box; background: transparent !important;
+  min-height: 32px !important; height: 32px !important; padding: 0 10px !important; border-radius: 8px !important; box-sizing: border-box;
 }
 html.music-glass ytmusic-guide-renderer#guide-renderer ytmusic-guide-entry-renderer yt-icon.guide-icon {
   flex: 0 0 18px !important; width: 18px !important; height: 18px !important; margin: 0 !important; padding: 0 !important;
-  color: var(--lg-accent) !important; fill: var(--lg-accent) !important; --iron-icon-fill-color: var(--lg-accent);
 }
 html.music-glass ytmusic-guide-renderer#guide-renderer ytmusic-guide-entry-renderer yt-icon.guide-icon :is(svg, span, .yt-icon-shape) { width: 18px !important; height: 18px !important; }
 html.music-glass ytmusic-guide-renderer#guide-renderer ytmusic-guide-entry-renderer .title-column { min-width: 0; flex: 1 1 auto; text-align: left !important; }
-html.music-glass ytmusic-guide-renderer#guide-renderer ytmusic-guide-entry-renderer .title-group,
-html.music-glass ytmusic-guide-renderer#guide-renderer ytmusic-guide-entry-renderer .title-group * {
-  font-size: 13px !important; font-weight: 500 !important; line-height: 1.25 !important; letter-spacing: .01em;
-  color: rgb(255 255 255 / .9) !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+html.music-glass ytmusic-guide-renderer#guide-renderer ytmusic-guide-entry-renderer :is(.title-group, .title-group *) {
+  font-size: 13px !important; line-height: 1.25 !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-/* Playlists show only their name (no owner line under it). */
+/* Playlists: only the name (no owner line), and a playlist icon in the accent color, so their names
+   line up with the rows above (YouTube Music shows no icon there). */
 html.music-glass ytmusic-guide-renderer#guide-renderer ytmusic-guide-entry-renderer .subtitle-group { display: none !important; }
-html.music-glass ytmusic-guide-renderer#guide-renderer ytmusic-guide-entry-renderer:not([active]):hover { background: rgb(255 255 255 / .07) !important; }
-/* The chosen row: a soft rounded highlight (the glass bead is for the narrow menu). */
-html.music-glass ytmusic-guide-renderer#guide-renderer ytmusic-guide-entry-renderer[active] { background: rgb(255 255 255 / .13) !important; }
-html.music-glass ytmusic-guide-renderer#guide-renderer ytmusic-guide-entry-renderer[active] :is(.title-group, .title-group *) { color: #fff !important; font-weight: 600 !important; }
-/* The narrow menu: the same panel, inset less (the column is narrow); the same chosen-row highlight,
-   accent icons and white labels as the wide menu, instead of the glass bead and pink label. */
-html.music-glass ytmusic-guide-renderer#mini-guide-renderer #sections::before { inset: 2px 4px 6px; }
-html.music-glass ytmusic-guide-renderer#mini-guide-renderer ytmusic-guide-entry-renderer {
-  border-radius: 12px !important; box-shadow: none !important; background: transparent !important;
-  -webkit-backdrop-filter: none !important; backdrop-filter: none !important; transition: background-color .14s ease;
+html.music-glass ytmusic-guide-renderer#guide-renderer ytmusic-guide-section-renderer:not(:first-of-type) ytmusic-guide-entry-renderer yt-icon.guide-icon { display: none !important; }
+html.music-glass ytmusic-guide-renderer#guide-renderer ytmusic-guide-section-renderer:not(:first-of-type) ytmusic-guide-entry-renderer tp-yt-paper-item::before {
+  content: ""; flex: 0 0 18px; width: 18px; height: 18px; background: var(--lg-accent);
+  -webkit-mask: var(--ytmls-sb-playlist) center / contain no-repeat; mask: var(--ytmls-sb-playlist) center / contain no-repeat;
 }
-html.music-glass ytmusic-guide-renderer#mini-guide-renderer ytmusic-guide-entry-renderer tp-yt-paper-item { background: transparent !important; }
-html.music-glass ytmusic-guide-renderer#mini-guide-renderer ytmusic-guide-entry-renderer:not([active]):hover { background: rgb(255 255 255 / .07) !important; }
-html.music-glass ytmusic-guide-renderer#mini-guide-renderer ytmusic-guide-entry-renderer[active] { background: rgb(255 255 255 / .13) !important; }
-html.music-glass ytmusic-guide-renderer#mini-guide-renderer ytmusic-guide-entry-renderer yt-icon.guide-icon {
-  color: var(--lg-accent) !important; fill: var(--lg-accent) !important; --iron-icon-fill-color: var(--lg-accent);
+/* "新しい再生リスト": a quiet row with a + in the accent color, like the Mac sidebar, not a big pill. */
+html.music-glass ytmusic-guide-renderer#guide-renderer ytmusic-guide-section-renderer :is(yt-button-renderer, ytmusic-button-renderer, button-view-model, yt-button-shape) {
+  display: block !important; margin: 0 14px !important; padding: 0 !important; width: auto !important;
 }
-html.music-glass ytmusic-guide-renderer#mini-guide-renderer ytmusic-guide-entry-renderer :is(.title-group, .title-group *) { color: rgb(255 255 255 / .9) !important; }
-html.music-glass ytmusic-guide-renderer#mini-guide-renderer ytmusic-guide-entry-renderer[active] :is(.title-group, .title-group *) { color: #fff !important; font-weight: 600 !important; }
+html.music-glass ytmusic-guide-renderer#guide-renderer ytmusic-guide-section-renderer :is(yt-button-renderer, ytmusic-button-renderer, button-view-model, yt-button-shape) :is(button, a, tp-yt-paper-button) {
+  display: flex !important; align-items: center !important; justify-content: flex-start !important; gap: 10px !important;
+  width: 100% !important; height: 32px !important; min-height: 32px !important; padding: 0 10px !important; margin: 0 !important;
+  border: 0 !important; border-radius: 8px !important; background: transparent !important; box-shadow: none !important;
+  color: var(--ytmls-sb-text) !important; font-size: 13px !important; font-weight: 500 !important; text-transform: none !important;
+}
+html.music-glass ytmusic-guide-renderer#guide-renderer ytmusic-guide-section-renderer :is(yt-button-renderer, ytmusic-button-renderer, button-view-model, yt-button-shape) :is(button, a, tp-yt-paper-button):hover { background: var(--ytmls-sb-row) !important; }
+html.music-glass ytmusic-guide-renderer#guide-renderer ytmusic-guide-section-renderer :is(yt-button-renderer, ytmusic-button-renderer, button-view-model, yt-button-shape) :is(yt-icon, .yt-spec-button-shape-next__icon, svg) {
+  width: 18px !important; height: 18px !important; margin: 0 !important; color: var(--lg-accent) !important; fill: var(--lg-accent) !important;
+}
 /* Lightweight mode and reduced transparency: a solid panel. */
-html.ytmls-lyrics-motion-lightweight.music-glass ytmusic-guide-renderer:is(#guide-renderer, #mini-guide-renderer) #sections::before { -webkit-backdrop-filter: none; backdrop-filter: none; background: rgb(40 38 46 / .92); }
+html.ytmls-lyrics-motion-lightweight.music-glass :is(ytmusic-guide-renderer#guide-renderer #sections, ytmusic-guide-renderer#mini-guide-renderer)::before { -webkit-backdrop-filter: none; backdrop-filter: none; background: rgb(40 38 46 / .92); }
 @media (prefers-reduced-transparency: reduce) {
-  html.music-glass ytmusic-guide-renderer:is(#guide-renderer, #mini-guide-renderer) #sections::before { -webkit-backdrop-filter: none; backdrop-filter: none; background: rgb(40 38 46); }
+  html.music-glass :is(ytmusic-guide-renderer#guide-renderer #sections, ytmusic-guide-renderer#mini-guide-renderer)::before { -webkit-backdrop-filter: none; backdrop-filter: none; background: rgb(40 38 46); }
 }

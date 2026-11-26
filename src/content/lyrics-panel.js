@@ -1036,6 +1036,13 @@
         `visibleEntries=${entries.length}`,
         first ? `entry: ${chain(first)}` : "entry: none",
         first ? `entryInside: ${inner(first)}` : "",
+        ...["guide-renderer", "mini-guide-renderer"].map((id) => {
+          const r = document.getElementById(id);
+          if (!r) return `${id}: none`;
+          const box = r.getBoundingClientRect();
+          return `${id}(${Math.round(box.width)}x${Math.round(box.height)}): ${inner(r)}`;
+        }),
+        `sections: ${[...document.querySelectorAll("#guide-renderer ytmusic-guide-section-renderer")].map((sec) => `[${[...sec.children].map(describe).join(",")}]`).join(" ") || "none"}`,
       ].filter(Boolean).join(" ; ");
     } catch (e) {
       return "error " + (e?.message || e);
