@@ -8149,7 +8149,10 @@ function attachGlassSegment(group) {
  const groupRect = () => layout || group.getBoundingClientRect();
  const groupHeight = () => layout ? layout.height : group.offsetHeight;
  // Spring state: position and width follow their targets; a smoothed velocity drives the stretch.
- const state = {x: 0, w: 0, vx: 0, vw: 0, vs: 0, tx: 0, tw: 0, frame: 0, last: 0, placed: false, dragging: false, grab: 0, squash: 0, sq: 0, vsq: 0};
+ const state = {x: 0, w: 0, vx: 0, vw: 0, vs: 0, tx: 0, tw: 0, frame: 0, last: 0, placed: false, dragging: false, grab: 0, squash: 0, sq: 0, vsq: 0,
+  // How lifted the drop is: 0 = the size of the bead, 1 = lifted. One spring carries it up on press
+  // (a little past, a pop) and down on release (a little under: a short squash as it lands).
+  lift: 0, vlift: 0, liftTarget: 0};
  let drawnWidth = -1, lensSize = '';
 
  // ---------- The drop: a real lens while dragging ----------
@@ -8167,9 +8170,13 @@ function attachGlassSegment(group) {
   const rect = groupRect(), track = Math.max(0, groupHeight() - 6);
   const {min, max} = bounds();
   const trackLeft = rect.left + min, trackRight = rect.left + max + state.w;
-  const drawn = state.w * sx;
-  // A little bigger than the bead (it lifts), never past the track's ends.
-  const width = Math.min(trackRight - trackLeft, drawn * 1.05), height = track * 1.32 * sy;
+  const drawn = state.w * sx, lift = state.lift;
+  // Lifted it is a little bigger than the bead; landing (lift below 0) it is briefly wider and
+  // flatter, then settles to exactly the bead. Never past the track's ends.
+  let wide = 1 + .05 * lift, tall = 1 + .32 * lift;
+  if (lift < 0) { wide = 1 - lift * .34; tall = 1 + lift * .26; }
+  const width = Math.min(trackRight - trackLeft, drawn * wide), height = track * tall * sy;
+  lens.style.setProperty('--lift', Math.max(0, Math.min(1, lift)).toFixed(3));
   let left;
   if (side === 'left') left = rect.left + state.x;
   else if (side === 'right') left = rect.left + state.x + state.w - width;
@@ -8207,7 +8214,7 @@ function attachGlassSegment(group) {
   lens = null;
   delete group.dataset.lens;
   leaving.classList.add('ytmls-seg-lens-out');
-  setTimeout(() => leaving.remove(), 240);
+  setTimeout(() => leaving.remove(), 200);
  }
 
  // The bead's travel inside the track for its current width.
@@ -8251,6 +8258,8 @@ function attachGlassSegment(group) {
    // The squash springs back on its own, so a release from the wall wobbles too.
    state.vsq += ((state.squash - state.sq) * 700 - state.vsq * 16) * h;
    state.x += state.vx * h; state.w += state.vw * h; state.sq += state.vsq * h;
+   state.vlift += ((state.liftTarget - state.lift) * 380 - state.vlift * 17) * h;
+   state.lift += state.vlift * h;
    // Walls: the bead stays inside the track and bounces off, squashing with the hit.
    if (max >= min && (state.x < min || state.x > max)) {
     state.x = state.x < min ? min : max;
@@ -8261,11 +8270,20 @@ function attachGlassSegment(group) {
   if (state.sq < 0) { state.sq = 0; state.vsq = Math.abs(state.vsq) * .3; }
   // The stretch follows a smoothed speed, so uneven pointer events do not make it flicker.
   state.vs += (state.vx - state.vs) * Math.min(1, dt * 14);
+  // Landed to the eye (the last wobble is below a pixel): swap the heavy drop for the bead now.
+  if (lens && !state.dragging && state.liftTarget === 0 && Math.abs(state.lift) < .03 && Math.abs(state.vlift) < .4 &&
+   Math.abs(state.tx - state.x) < .5 && Math.abs(state.vx) < 15) { paint(); hideLens(); }
   const resting = Math.abs(state.tx - state.x) < .3 && Math.abs(state.vx) < 8 && Math.abs(state.tw - state.w) < .3 && Math.abs(state.vw) < 8 &&
-   Math.abs(state.squash - state.sq) < .004 && Math.abs(state.vsq) < .05;
+   Math.abs(state.squash - state.sq) < .004 && Math.abs(state.vsq) < .05 &&
+   Math.abs(state.liftTarget - state.lift) < .006 && Math.abs(state.vlift) < .06;
   if (resting && !state.dragging) {
    state.x = state.tx; state.w = state.tw; state.vx = state.vw = state.vs = 0; state.sq = state.squash; state.vsq = 0; state.last = 0;
+   state.lift = state.liftTarget; state.vlift = 0;
+   paint();
+   // Landed: the drop is now exactly the bead, so they swap with a short cross-fade.
+   hideLens();
    layout = null; // measured again for the next drag
+   return;
   } else {
    state.frame = requestAnimationFrame(step);
   }
@@ -8320,6 +8338,8 @@ function attachGlassSegment(group) {
   state.dragging = true;
   group.dataset.dragging = 'true';
   showLens();
+  state.liftTarget = 1;
+  if (!glassSegmentMotion()) { state.lift = 1; state.vlift = 0; }
   thumb.hidden = false;
   const current = pressed() || press.button;
   if (current) { const s = slot(current); state.tw = s.w; if (!state.placed) moveTo(s.x, s.w, false); }
@@ -8349,10 +8369,13 @@ function attachGlassSegment(group) {
   if (!wasDragging) return;
   state.dragging = false;
   state.squash = 0;
-  hideLens();
+  // The drop is not dropped here: it glides to the chosen size and shrinks into the bead there.
+  state.liftTarget = 0;
+  if (!glassSegmentMotion()) { state.lift = 0; state.vlift = 0; hideLens(); }
   delete group.dataset.dragging;
   markUnder(null);
   const target = nearest(state.tx + state.w / 2);
+  if (!state.frame && typeof requestAnimationFrame === 'function') state.frame = requestAnimationFrame(step);
   if (target) {
    const s = slot(target);
    moveTo(s.x, s.w);

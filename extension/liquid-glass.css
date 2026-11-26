@@ -312,11 +312,14 @@ html.ytmls-lyrics-motion-lightweight #ytmls-more .ytmls-glass-segment > .ytmls-t
    aside meanwhile, so the drop bends the real labels. */
 .ytmls-seg-lens {
   position: fixed; left: 0; top: 0; z-index: 2147483600; pointer-events: none; box-sizing: border-box; border-radius: 999px;
-  background: rgb(255 255 255 / .03);
+  /* Clear while lifted, the bead's faint white as it lands (--lift goes 1 → 0). */
+  background: rgb(255 255 255 / calc(.14 - .11 * var(--lift, 1)));
   -webkit-backdrop-filter: saturate(125%) brightness(1.1);
   backdrop-filter: saturate(125%) brightness(1.1);
-  box-shadow: inset 0 -10px 14px -12px rgb(255 255 255 / .45), inset 0 0 18px rgb(255 255 255 / .08), 0 10px 28px rgb(0 0 0 / .22);
-  animation: ytmls-seg-lens-in .26s cubic-bezier(.34, 1.56, .64, 1) both;
+  /* The shadow shrinks with the lift too, to the bead's own small shadow on landing. */
+  box-shadow: inset 0 -10px 14px -12px rgb(255 255 255 / .45), inset 0 0 18px rgb(255 255 255 / .08),
+    0 calc(1px + 9px * var(--lift, 1)) calc(4px + 24px * var(--lift, 1)) rgb(0 0 0 / calc(.14 + .08 * var(--lift, 1)));
+  transition: opacity .14s ease;
 }
 .ytmls-seg-lens::before {
   content: ""; position: absolute; inset: 0; padding: 1.5px; border-radius: inherit;
@@ -326,10 +329,8 @@ html.ytmls-lyrics-motion-lightweight #ytmls-more .ytmls-glass-segment > .ytmls-t
   mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
 }
 html.ytmls-lg-lens .ytmls-seg-lens { backdrop-filter: url(#ytmls-lg-lens-drop) saturate(125%) brightness(1.1); }
-.ytmls-seg-lens.ytmls-seg-lens-out { animation: ytmls-seg-lens-out .22s cubic-bezier(.3, .7, .25, 1) both; }
-@keyframes ytmls-seg-lens-in { from { opacity: .5; transform: scale(.82, .76); } }
-@keyframes ytmls-seg-lens-out { to { opacity: 0; transform: scale(.72, .62); } }
-@media (prefers-reduced-motion: reduce) { .ytmls-seg-lens, .ytmls-seg-lens.ytmls-seg-lens-out { animation-duration: .01s; } }
+.ytmls-seg-lens.ytmls-seg-lens-out { opacity: 0; }
+
 /* The drop covers the bead exactly, so the bead steps aside (two outlines would show at a wall). */
 #ytmls-more .ytmls-glass-segment[data-lens="true"] > .ytmls-seg-thumb { opacity: 0; transition: opacity .12s ease; }
 html #ytmls-more .ytmls-glass-segment[data-lens="true"] > .ytmls-tool-button.ytmls-seg-under { transform: none; }

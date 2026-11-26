@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 const source = fs.readFileSync(new URL('../src/content/glass-segment.js', import.meta.url), 'utf8');
 
-function segment({motion = true, refuse = false} = {}) {
+function segment({motion = true, refuse = false, lensOn = false} = {}) {
   const listeners = {}, timers = [], frames = []; let now = 0;
   const clicks = [];
   const classSet = () => { const s = new Set(); return {add: c => s.add(c), toggle: (c, on) => on ? s.add(c) : s.delete(c), contains: c => s.has(c)}; };
@@ -15,15 +15,18 @@ function segment({motion = true, refuse = false} = {}) {
   });
   const group = {dataset: {}, classList: classSet(), children: [], prepend(el) { this.thumb = el; },
     querySelectorAll: () => buttons, addEventListener: (type, fn) => { listeners[type] = fn; },
-    setPointerCapture(id) { this.captured = id; }, getBoundingClientRect: () => ({left: 0})};
-  const windowListeners = {};
+    setPointerCapture(id) { this.captured = id; }, offsetHeight: 38, getBoundingClientRect: () => ({left: 0, top: 0})};
+  const windowListeners = {}, lenses = [];
   const window = {
     addEventListener: (type, fn) => { (windowListeners[type] ||= new Set()).add(fn); },
     removeEventListener: (type, fn) => { windowListeners[type]?.delete(fn); },
   };
   const c = vm.createContext({
     window,
-    document: {createElement: () => ({style: {}, hidden: false, setAttribute() {}})},
+    document: {
+      createElement: () => { const el = {style: {setProperty(k, v) { this[k] = v; }}, hidden: false, isConnected: true, setAttribute() {}, classList: {add(c) { el.out = c; }}, remove() { el.isConnected = false; el.removed = true; }}; return el; },
+      documentElement: {classList: {contains: c => lensOn && c === 'ytmls-lg-lens'}, append(el) { lenses.push(el); }},
+    },
     playerFeedbackEnabled: () => motion,
     setTimeout: fn => { timers.push(fn); return timers.length; }, clearTimeout: id => { timers[id - 1] = null; },
     requestAnimationFrame: fn => { frames.push(fn); return frames.length; }, cancelAnimationFrame() { frames.length = 0; },
@@ -40,7 +43,7 @@ function segment({motion = true, refuse = false} = {}) {
   };
   const step = () => { if (frames.length) { now += 16; frames.shift()(now); } };
   const step32 = () => { if (frames.length) { now += 32; frames.shift()(now); } };
-  return {api, context: c, group, buttons, clicks, timers, settle, step, step32, fire, translate: () => Number(/translateX\(([-\d.]+)px\)/.exec(api.thumb.style.transform)[1])};
+  return {api, context: c, lenses, group, buttons, clicks, timers, settle, step, step32, fire, translate: () => Number(/translateX\(([-\d.]+)px\)/.exec(api.thumb.style.transform)[1])};
 }
 
 test('glass bead starts on the chosen size', () => {
@@ -230,4 +233,24 @@ test('the drag keeps following when the page takes the pointer capture, and ends
   h.fire('pointerup', {clientX: 150});
   assert.deepEqual(h.clicks, ['大']);
   assert.match(vm.runInContext('glassLensReport.lastEnd', h.context), /^pointerup 93->150$/);
+});
+
+test('release: the drop glides to the chosen size, shrinks into the bead with a short squash, then swaps', () => {
+  const h = segment({lensOn: true});
+  h.fire('pointerdown', {clientX: 93});
+  for (let i = 0; i < 30; i++) h.step();
+  const drop = h.lenses[0];
+  assert.ok(drop, 'pressing lifts a drop');
+  const lifted = parseFloat(drop.style.height);
+  assert.ok(lifted > 32 * 1.25, `lifted taller than the bead (${lifted})`);
+  h.fire('pointermove', {clientX: 140});
+  h.fire('pointerup', {clientX: 140});
+  assert.ok(!drop.out, 'not dropped on release');
+  const heights = [], lefts = [];
+  for (let i = 0; i < 120 && !drop.out; i++) { h.step(); heights.push(parseFloat(drop.style.height)); lefts.push(parseFloat(drop.style.translate)); }
+  assert.ok(Math.min(...heights) < 32 - 1, `squashes a little as it lands (${Math.min(...heights).toFixed(1)})`);
+  assert.ok(Math.abs(lefts.at(-1) - 123) < 1, `lands on Large (${lefts.at(-1)})`);
+  assert.ok(Math.abs(heights.at(-1) - 32) < .5, 'ends exactly the size of the bead');
+  assert.equal(drop.out, 'ytmls-seg-lens-out', 'then cross-fades into the bead');
+  assert.equal(h.group.dataset.lens, undefined);
 });
