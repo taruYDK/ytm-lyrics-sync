@@ -11,16 +11,21 @@
   // gives every edge its inward direction (corners included); a blurred mid-grey rounded
   // rectangle on top leaves the middle untouched, so the bend grows smoothly toward the rim.
   // hold < 1 lets part of the ramp through in the middle too: the whole lens magnifies a little.
-  function lensMap(inset, radius, softness, hold = 1) {
+  // hold 0 leaves the plain ramp: an even magnification over the whole lens (nothing smears).
+  // yAmp < 1 weakens the vertical bend: Chrome measures the displacement against the lens's width
+  // on both axes, so a wide, short lens needs about height / width here to magnify evenly.
+  function lensMap(inset, radius, softness, hold = 1, yAmp = 1) {
+    const hex = v => Math.round(v).toString(16).padStart(2, '0');
+    const yTop = `#00${hex(127.5 + 127.5 * yAmp)}00`, yBottom = `#00${hex(127.5 - 127.5 * yAmp)}00`;
     const size = 100 - inset * 2;
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" preserveAspectRatio="none">` +
       `<defs><linearGradient id="x"><stop offset="0" stop-color="#f00"/><stop offset="1" stop-color="#000"/></linearGradient>` +
-      `<linearGradient id="y" x2="0" y2="1"><stop offset="0" stop-color="#0f0"/><stop offset="1" stop-color="#000"/></linearGradient>` +
+      `<linearGradient id="y" x2="0" y2="1"><stop offset="0" stop-color="${yTop}"/><stop offset="1" stop-color="${yBottom}"/></linearGradient>` +
       `<filter id="b" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="${softness}"/></filter></defs>` +
       `<rect width="100" height="100" fill="#000"/>` +
       `<rect width="100" height="100" fill="url(#x)"/>` +
       `<rect width="100" height="100" fill="url(#y)" style="mix-blend-mode:screen"/>` +
-      `<rect x="${inset}" y="${inset}" width="${size}" height="${size}" rx="${radius}" fill="#808000" fill-opacity="${hold}" filter="url(#b)"/></svg>`;
+      (hold > 0 ? `<rect x="${inset}" y="${inset}" width="${size}" height="${size}" rx="${radius}" fill="#808000" fill-opacity="${hold}" filter="url(#b)"/>` : '') + `</svg>`;
     return 'data:image/svg+xml,' + encodeURIComponent(svg);
   }
 
@@ -59,7 +64,7 @@
       lensFilter('ytmls-lg-lens-pill', lensMap(22, 30, 9), 0.34, 0.08),
       // The drag drop (glass-segment.js): a thick lens that magnifies what is under it and
       // splits the colors at its rim, like the iOS tab-bar selection while it is dragged.
-      lensFilter('ytmls-lg-lens-drop', lensMap(14, 30, 9, .6), 0.2, 0.3),
+      lensFilter('ytmls-lg-lens-drop', lensMap(14, 30, 9, 0, .45), 0.16, 0.7),
     ]);
     svg.style.cssText = 'position:fixed;width:0;height:0;overflow:hidden;pointer-events:none';
     document.documentElement.append(svg);

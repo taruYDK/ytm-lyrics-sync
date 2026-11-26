@@ -8120,7 +8120,7 @@ function attachGlassSegment(group) {
   const {min, max} = bounds();
   // Bigger than the bead (it lifts), but never wider past the track's ends.
   const room = (max + state.w) - min;
-  const width = Math.min(room + 8, state.w * 1.14 * sx), height = track * 1.6 * sy;
+  const width = Math.min(room + 6, state.w * 1.05 * sx), height = track * 1.32 * sy;
   let left = rect.left + state.x + state.w / 2 - width / 2;
   left = Math.max(rect.left + min - 4, Math.min(rect.left + max + state.w + 4 - width, left));
   lens.style.left = `${left.toFixed(1)}px`;
