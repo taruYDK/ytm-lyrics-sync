@@ -32,7 +32,8 @@ test('opening grows from the button on a spring; contents fade in', async () => 
   h.c.glassMorph(h.el, anchor);
   const a = h.el.last;
   assert.match(a.keyframes[0].clipPath, /round 16px\)$/);
-  assert.equal(a.keyframes[1].clipPath, 'inset(0px 0px 0px 0px round 22px)');
+  assert.equal(a.keyframes.at(-1).clipPath, 'inset(-48px -48px -48px -48px round 70px)', 'room for the shadow');
+  assert.equal(a.keyframes[0].opacity, 0);
   assert.match(a.options.easing, /^linear\(0, .*, 1\)$/);
   assert.ok(a.options.easing.split(',').some(v => Number(v.replace(/[^\d.]/g, '')) > 1.02), 'overshoots a little');
   assert.equal(h.el.dataset.morphing, 'opening');
@@ -46,7 +47,11 @@ test('closing shrinks back and only then runs the hide', async () => {
   let hidden = false;
   h.c.glassMorph(h.el, anchor, {closing: true, onDone: () => { hidden = true; }});
   assert.equal(hidden, false);
-  assert.equal(h.el.last.keyframes[1].clipPath, h.c.glassMorphStart(h.el.getBoundingClientRect(), anchor.getBoundingClientRect()).inset);
+  const last = h.el.last.keyframes.at(-1);
+  assert.equal(last.clipPath, h.c.glassMorphStart(h.el.getBoundingClientRect(), anchor.getBoundingClientRect()).inset);
+  assert.equal(last.opacity, 0, 'melts into the button');
+  assert.match(h.el.last.keyframes[0].clipPath, /^inset\(-48px/, 'the shadow is not cut off when closing starts');
+  assert.match(h.el.last.options.easing, /^cubic-bezier\(\.25, \.8/, 'fast first, then eases into the button');
   h.el.last.finish(); await h.el.last.finished; await null;
   assert.equal(hidden, true);
 });

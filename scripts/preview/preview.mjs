@@ -160,10 +160,11 @@ if (want('tap')) {
 if (want('morph')) {
   // Frames of the menu growing out of "その他", the timing popover out of its button, and shrinking back.
   const frames = async (name, clip, open) => {
-    await tab.evaluate(() => { window.__t0 = performance.now(); });
+    // Animations run 4x slower here so the frames are evenly spaced; names keep real time.
     await open();
+    await tab.evaluate(() => { for (const a of document.getAnimations()) a.playbackRate = .25; window.__t0 = performance.now(); });
     for (const t of [30, 90, 160, 260, 600]) {
-      await tab.waitForFunction(ms => performance.now() - window.__t0 >= ms, t);
+      await tab.waitForFunction(ms => performance.now() - window.__t0 >= ms * 4, t);
       await shot(tab, `${name}-${t}`, clip);
     }
   };

@@ -3,7 +3,9 @@
 // a spring while its contents fade in. Used by the "その他" menu, the timing popover and the
 // lyrics tool pane. Without motion (lightweight mode, reduced motion) they open as before.
 const GLASS_MORPH_OPEN_MS = 460;
-const GLASS_MORPH_CLOSE_MS = 220;
+const GLASS_MORPH_CLOSE_MS = 300;
+// Room around the surface so the clip never cuts off its shadow.
+const GLASS_MORPH_SHADOW_ROOM = 48;
 let glassMorphSpringEasing = null;
 
 // A soft spring (about 10% overshoot) as a CSS linear() curve; cubic-bezier where unsupported.
@@ -55,17 +57,24 @@ function glassMorph(el, anchorEl, {closing = false, onDone} = {}) {
  // A reopen during a close must not leave the contents faded out.
  for (const child of el.children) child.getAnimations?.().forEach(a => a.cancel());
  const start = glassMorphStart(surface, anchor);
- const radius = getComputedStyle(el).borderTopLeftRadius || '22px';
+ const radius = parseFloat(getComputedStyle(el).borderTopLeftRadius) || 22;
+ const room = GLASS_MORPH_SHADOW_ROOM;
  const capsule = {clipPath: start.inset, transform: `translate(${start.dx}px, ${start.dy}px)`};
- const open = {clipPath: `inset(0px 0px 0px 0px round ${radius})`, transform: 'translate(0px, 0px)'};
- const animation = el.animate(closing ? [open, capsule] : [capsule, open], {
+ // Fully open, the clip reaches past the edges (with matching rounded corners) so the shadow stays.
+ const open = {clipPath: `inset(${-room}px ${-room}px ${-room}px ${-room}px round ${radius + room}px)`, transform: 'translate(0px, 0px)'};
+ // Opening: the capsule fades in from the button. Closing: it moves fast at first, then eases
+ // into the button and melts into it instead of vanishing.
+ const keyframes = closing
+  ? [{...open, opacity: 1}, {opacity: 1, offset: .55}, {...capsule, opacity: 0}]
+  : [{...capsule, opacity: 0}, {opacity: 1, offset: .12}, {...open, opacity: 1}];
+ const animation = el.animate(keyframes, {
   duration: closing ? GLASS_MORPH_CLOSE_MS : GLASS_MORPH_OPEN_MS,
-  easing: closing ? 'cubic-bezier(.4, 0, .9, .6)' : glassMorphEasing(),
+  easing: closing ? 'cubic-bezier(.25, .8, .25, 1)' : glassMorphEasing(),
  });
  // Contents fade in once the glass has room, and out first when it shrinks back.
  for (const child of el.children) {
   child.animate(closing ? [{opacity: 1}, {opacity: 0}] : [{opacity: 0}, {opacity: 0, offset: .25}, {opacity: 1}], {
-   duration: closing ? GLASS_MORPH_CLOSE_MS * .6 : GLASS_MORPH_OPEN_MS * .7, easing: 'ease-out', fill: closing ? 'forwards' : 'none',
+   duration: closing ? GLASS_MORPH_CLOSE_MS * .4 : GLASS_MORPH_OPEN_MS * .7, easing: 'ease-out', fill: closing ? 'forwards' : 'none',
   });
  }
  el.glassMorph = animation;

@@ -107,6 +107,13 @@ ytmusic-player-bar #ytmls-track-offset-button[aria-expanded="true"],
   background: var(--lg-sheen) padding-box, linear-gradient(rgb(255 255 255 / .85), rgb(255 255 255 / .85)) padding-box, var(--lg-rim) border-box !important;
 }
 
+/* While the menu shrinks back, its button already looks closed. */
+#ytmls-more[data-closing="true"] > summary.ytmls-tool-button {
+  background: linear-gradient(var(--lg-fill-pill), var(--lg-fill-pill)) padding-box, var(--lg-rim) border-box !important;
+  box-shadow: var(--lg-specular), 0 4px 12px rgb(0 0 0 / .2) !important;
+}
+#ytmls-more[data-closing="true"] > summary::after { content: "⌄"; }
+
 /* ---------- Controls inside glass surfaces: clear chips, no second blur ---------- */
 :is(#ytmls-more, #ytmls-tools-pane, #ytmls-track-offset-popover) :is(
   .ytmls-tools-secondary, .ytmls-tools-close, .ytmls-tool-button:not(.ytmls-menu-group > .ytmls-tool-button):not(.ytmls-reading-primary):not(.ytmls-size-presets > *), .ytmls-candidate-pin, button:not([class]),
