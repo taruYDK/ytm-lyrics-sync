@@ -16,7 +16,13 @@ function segment({motion = true, refuse = false} = {}) {
   const group = {dataset: {}, classList: classSet(), children: [], prepend(el) { this.thumb = el; },
     querySelectorAll: () => buttons, addEventListener: (type, fn) => { listeners[type] = fn; },
     setPointerCapture(id) { this.captured = id; }, getBoundingClientRect: () => ({left: 0})};
+  const windowListeners = {};
+  const window = {
+    addEventListener: (type, fn) => { (windowListeners[type] ||= new Set()).add(fn); },
+    removeEventListener: (type, fn) => { windowListeners[type]?.delete(fn); },
+  };
   const c = vm.createContext({
+    window,
     document: {createElement: () => ({style: {}, hidden: false, setAttribute() {}})},
     playerFeedbackEnabled: () => motion,
     setTimeout: fn => { timers.push(fn); return timers.length; }, clearTimeout: id => { timers[id - 1] = null; },
@@ -25,7 +31,13 @@ function segment({motion = true, refuse = false} = {}) {
   vm.runInContext(source, c);
   const api = c.attachGlassSegment(group);
   const settle = (ms = 16) => { for (let i = 0; i < 400 && frames.length; i++) { now += ms; frames.shift()(now); } };
-  const fire = (type, extra = {}) => { const e = {pointerId: 1, button: 0, target: extra.target || buttons[1], isTrusted: true, preventDefault() { e.prevented = true; }, stopPropagation() { e.stopped = true; }, ...extra}; listeners[type](e); return e; };
+  // Moves, releases and cancels reach the window during a drag (as in the page, in the capture phase).
+  const fire = (type, extra = {}) => {
+    const e = {type, pointerId: 1, button: 0, target: extra.target || buttons[1], isTrusted: true, preventDefault() { e.prevented = true; }, stopPropagation() { e.stopped = true; }, ...extra};
+    if (['pointermove', 'pointerup', 'pointercancel'].includes(type)) for (const fn of [...(windowListeners[type] || [])]) fn(e);
+    else listeners[type]?.(e);
+    return e;
+  };
   const step = () => { if (frames.length) { now += 16; frames.shift()(now); } };
   const step32 = () => { if (frames.length) { now += 32; frames.shift()(now); } };
   return {api, context: c, group, buttons, clicks, timers, settle, step, step32, fire, translate: () => Number(/translateX\(([-\d.]+)px\)/.exec(api.thumb.style.transform)[1])};
@@ -71,11 +83,19 @@ test('a tap picks the size it was released on; holding still and letting go chan
   still.fire('pointerup', {clientX: 93});
   assert.deepEqual(still.clicks, [], 'a tap on the chosen size keeps it');
 
+  // The browser taking the drag over (selection, native drag, touch scroll) still picks the size
+  // the bead was slid to, instead of sending it back.
   const cancelled = segment();
   cancelled.fire('pointerdown', {clientX: 93});
-  cancelled.fire('pointermove', {clientX: 104});
+  cancelled.fire('pointermove', {clientX: 120});
+  cancelled.fire('pointermove', {clientX: 150});
   cancelled.fire('pointercancel');
-  assert.deepEqual(cancelled.clicks, [], 'a cancelled drag changes nothing');
+  assert.deepEqual(cancelled.clicks, ['大'], 'slid from Medium to Large, then cancelled: Large');
+  assert.match(vm.runInContext('glassLensReport.lastEnd', cancelled.context), /^pointercancel 93->150$/);
+  const unmoved = segment();
+  unmoved.fire('pointerdown', {clientX: 93});
+  unmoved.fire('pointercancel');
+  assert.deepEqual(unmoved.clicks, [], 'cancelled without sliding: nothing changes');
 });
 
 test('pulled past an end, the bead stays inside the track and squashes against the wall', () => {
@@ -199,4 +219,15 @@ test('a choice that is not taken (the song is still loading) sends the bead back
   assert.deepEqual(h.clicks, ['大'], 'it was tried');
   h.settle();
   assert.equal(h.translate(), 63, 'back on Medium, which is still the size in use');
+});
+
+test('the drag keeps following when the page takes the pointer capture, and ends where it is released', () => {
+  const h = segment();
+  h.fire('pointerdown', {clientX: 93});
+  h.fire('lostpointercapture');
+  assert.equal(h.group.dataset.dragging, 'true', 'losing the capture does not end the drag');
+  h.fire('pointermove', {clientX: 150});
+  h.fire('pointerup', {clientX: 150});
+  assert.deepEqual(h.clicks, ['大']);
+  assert.match(vm.runInContext('glassLensReport.lastEnd', h.context), /^pointerup 93->150$/);
 });

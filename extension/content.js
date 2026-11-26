@@ -8110,14 +8110,14 @@ function glassSegmentRubber(over, limit) {
 }
 
 // What the last drag did, for 診断情報 (to find out why the drop does not show on a device).
-const glassLensReport = {lastDrag: 'none'};
+const glassLensReport = {lastDrag: 'none', lastEnd: 'none'};
 function glassLensDiagnostics() {
  const root = document.documentElement;
  let supports = false, reduced = false;
  try { supports = CSS.supports('backdrop-filter', 'url(#ytmls-lg-lens) blur(1px)'); } catch (_) {}
  try { reduced = matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (_) {}
  return `lensClass=${root.classList.contains('ytmls-lg-lens')} supports=${supports} filters=${Boolean(document.getElementById('ytmls-lg-filters'))}` +
-  ` lightweight=${root.classList.contains('ytmls-lyrics-motion-lightweight')} reducedMotion=${reduced} lastDrag=${glassLensReport.lastDrag}`;
+  ` lightweight=${root.classList.contains('ytmls-lyrics-motion-lightweight')} reducedMotion=${reduced} lastDrag=${glassLensReport.lastDrag} lastEnd=${glassLensReport.lastEnd}`;
 }
 
 function glassSegmentMotion() {
@@ -8368,25 +8368,44 @@ function attachGlassSegment(group) {
   const x = clientX - groupRect().left;
   return buttons().find(button => { const s = slot(button); return x >= s.x && x < s.x + s.w; }) || null;
  }
+ // While a drag runs, the whole window is watched (capture phase), not only this control: if the
+ // page captures the pointer for itself, or capture is lost, the drag still follows the pointer and
+ // ends where it is released.
+ const watched = ['pointermove', 'pointerup', 'pointercancel'];
+ function onWindowPointer(event) {
+  if (!press || event.pointerId !== press.id) return;
+  if (event.type === 'pointermove') {
+   if (!state.dragging) return;
+   press.lastX = event.clientX;
+   follow(event.clientX);
+   return;
+  }
+  if (event.type === 'pointerup') { noteEnd('pointerup'); follow(event.clientX); }
+  else if (!state.dragging) { stopWatching(); press = null; return; }
+  else noteEnd('pointercancel');
+  // The browser taking a drag over (selection, native drag, touch scroll) still picks the size the
+  // bead was slid to, instead of sending it back.
+  stopWatching();
+  endDrag(true);
+ }
+ function startWatching() { for (const type of watched) window.addEventListener(type, onWindowPointer, true); }
+ function stopWatching() { for (const type of watched) window.removeEventListener(type, onWindowPointer, true); }
+ function noteEnd(how) {
+  const from = press ? Math.round(press.startX) : '?', to = press ? Math.round(press.lastX) : '?';
+  glassLensReport.lastEnd = `${how} ${from}->${to}`;
+ }
  group.addEventListener('pointerdown', event => {
   if (event.button !== 0 || buttons().every(button => button.disabled)) return;
   press = {id: event.pointerId, type: event.pointerType || 'pointer', startX: event.clientX, lastX: event.clientX, button: event.target.closest?.('button') || buttonAt(event.clientX)};
   try { group.setPointerCapture(event.pointerId); } catch (_) {}
+  startWatching();
   beginDrag();
  });
- group.addEventListener('pointermove', event => {
-  if (!press || event.pointerId !== press.id || !state.dragging) return;
-  press.lastX = event.clientX;
-  event.preventDefault();
-  follow(event.clientX);
- });
- group.addEventListener('pointerup', event => {
-  if (!press || event.pointerId !== press.id) return;
-  follow(event.clientX);
-  endDrag(true);
- });
- group.addEventListener('pointercancel', () => endDrag(false));
- group.addEventListener('lostpointercapture', () => { if (state.dragging) endDrag(true); else press = null; });
+ // Losing the capture does not end the drag (the window still reports the pointer).
+ group.addEventListener('lostpointercapture', () => { if (state.dragging && press) glassLensReport.lastEnd = 'capture lost (still following)'; });
+ // Keep the browser from starting its own selection or drag from the labels.
+ group.addEventListener('dragstart', event => event.preventDefault());
+ group.addEventListener('selectstart', event => event.preventDefault());
  // Pointer clicks were handled above; keyboard clicks (Enter, Space) still move the bead.
  group.addEventListener('click', event => {
   if (event.isTrusted && suppressClick) { event.stopPropagation(); event.preventDefault(); return; }

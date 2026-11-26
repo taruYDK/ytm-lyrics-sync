@@ -273,7 +273,8 @@ html #ytmls-more .ytmls-size-presets .ytmls-tool-button.ytmls-tool-button[aria-p
 :root[data-ytmls-theme="light"] #ytmls-more .ytmls-size-presets { background: rgb(0 0 0 / .06); }
 /* The draggable glass bead (glass-segment.js). It sits under the labels and stays inside the track;
    while dragged it turns clearer and the label it passes over is magnified. */
-#ytmls-more .ytmls-size-presets.ytmls-glass-segment { position: relative; isolation: isolate; touch-action: pan-y; user-select: none; -webkit-user-select: none; }
+#ytmls-more .ytmls-size-presets.ytmls-glass-segment { position: relative; isolation: isolate; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-user-drag: none; }
+#ytmls-more .ytmls-glass-segment > * { -webkit-user-drag: none; touch-action: none; }
 html #ytmls-more .ytmls-glass-segment > .ytmls-tool-button.ytmls-tool-button { position: relative; z-index: 1; }
 html #ytmls-more .ytmls-glass-segment > .ytmls-tool-button.ytmls-tool-button[aria-pressed="true"] {
   background: transparent !important; box-shadow: none !important; border-color: transparent !important;
