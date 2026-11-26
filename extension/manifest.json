@@ -43,6 +43,7 @@
       ],
       "js": [
         "space-playback.js",
+        "details-motion.js",
         "content.js",
         "empty-width.js",
         "display-class-settings.js",

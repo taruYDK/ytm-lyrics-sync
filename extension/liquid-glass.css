@@ -263,3 +263,6 @@ html.ytmls-lyrics-motion-lightweight :is(#ytmls-tools > .ytmls-tool-button, #ytm
 @media (forced-colors: active) {
   :is(#ytmls-more > .ytmls-more-menu, #ytmls-panel #ytmls-tools-pane, #ytmls-track-offset-popover, #ytmls-reload-notice) { background: Canvas !important; border-color: CanvasText !important; }
 }
+
+/* A section folding shut already shows the closed marker (details-motion.js). */
+details[data-closing="true"] > summary { list-style-type: disclosure-closed; }

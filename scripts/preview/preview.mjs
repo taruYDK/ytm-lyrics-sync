@@ -1,6 +1,6 @@
 // Screenshots of the extension on a stand-in YouTube Music page (no network needed).
 // Usage: node scripts/preview/preview.mjs [outDir] [scene...]
-// Scenes: panel, menu, morph, drag, wall, tap, candidates, readings, timing, fullscreen, popup, backup, light
+// Scenes: panel, menu, morph, fold, drag, wall, tap, candidates, readings, timing, fullscreen, popup, backup, light
 // PREVIEW_EVAL='<js>' runs in the page before the scenes and prints the result.
 import {createRequire} from 'node:module';
 let chromium;
@@ -238,6 +238,24 @@ for (const scheme of ['light', 'dark']) {
     const p = await context.newPage(); await p.emulateMedia({colorScheme: scheme}); await p.setViewportSize({width: 640, height: 600});
     await p.goto(`chrome-extension://${extId}/popup.html`); await p.waitForTimeout(800);
     await shot(p, `popup-${scheme}`); await p.close();
+  }
+  if (want('fold') && scheme === 'dark') {
+    // A disclosure in the settings popup opening and closing (4x slower; names keep real time).
+    const p = await context.newPage(); await p.emulateMedia({colorScheme: scheme}); await p.setViewportSize({width: 640, height: 600});
+    await p.goto(`chrome-extension://${extId}/popup.html`); await p.waitForTimeout(800);
+    for (const phase of ['open', 'close']) {
+      await p.evaluate(() => {
+        const seen = new WeakSet(document.getAnimations()); window.__slow = true; window.__t0 = performance.now();
+        const loop = () => { if (!window.__slow) return; for (const a of document.getAnimations()) if (!seen.has(a)) { seen.add(a); a.playbackRate = .25; } requestAnimationFrame(loop); };
+        loop(); document.querySelector('.help-details > summary').click();
+      });
+      for (const t of [40, 120, 220, 600]) {
+        await p.waitForFunction(ms => performance.now() - window.__t0 >= ms * 4, t, {polling: 16});
+        await shot(p, `fold-${phase}-${t}`, {x: 158, y: 290, width: 482, height: 200});
+      }
+      await p.evaluate(() => { window.__slow = false; });
+    }
+    await p.close();
   }
   if (want('backup')) {
     const p = await context.newPage(); await p.emulateMedia({colorScheme: scheme});
