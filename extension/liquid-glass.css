@@ -148,6 +148,34 @@ html #ytmls-more .ytmls-size-presets .ytmls-tool-button.ytmls-tool-button[aria-p
   color: rgb(var(--lg-ink)) !important; text-shadow: var(--lg-text-lift);
 }
 :root[data-ytmls-theme="light"] #ytmls-more .ytmls-size-presets { background: rgb(0 0 0 / .06); }
+/* The draggable glass bead (glass-segment.js). At rest it sits under the labels; while dragged it
+   lifts above them as a clear lens that magnifies the label it passes over. */
+#ytmls-more .ytmls-size-presets.ytmls-glass-segment { position: relative; isolation: isolate; touch-action: pan-y; user-select: none; -webkit-user-select: none; }
+html #ytmls-more .ytmls-glass-segment > .ytmls-tool-button.ytmls-tool-button { position: relative; z-index: 1; }
+html #ytmls-more .ytmls-glass-segment > .ytmls-tool-button.ytmls-tool-button[aria-pressed="true"] {
+  background: transparent !important; box-shadow: none !important; border-color: transparent !important;
+}
+.ytmls-seg-thumb {
+  position: absolute; z-index: 0; top: 3px; bottom: 3px; left: 0; width: 0;
+  border: 1px solid transparent; border-radius: 999px; box-sizing: border-box; pointer-events: none;
+  transform-origin: center; will-change: transform, width;
+  background: linear-gradient(rgb(255 255 255 / .2), rgb(255 255 255 / .2)) padding-box, var(--lg-rim) border-box;
+  box-shadow: var(--lg-specular), inset 0 0 12px rgb(255 255 255 / .12), 0 3px 10px rgb(0 0 0 / .3);
+  transition: background .2s ease, box-shadow .2s ease;
+}
+.ytmls-seg-thumb[hidden] { display: none; }
+:root[data-ytmls-theme="light"] .ytmls-seg-thumb { background: linear-gradient(#fff, #fff) padding-box, var(--lg-rim) border-box; }
+#ytmls-more .ytmls-glass-segment[data-dragging="true"] { cursor: grabbing; }
+#ytmls-more .ytmls-glass-segment[data-dragging="true"] > .ytmls-seg-thumb {
+  /* Lifted: clearer body, brighter rim, deeper shadow. (A second backdrop blur inside the
+     glass menu would only see the menu itself, so the lens is drawn by scaling the label.) */
+  background: linear-gradient(rgb(255 255 255 / .1), rgb(255 255 255 / .1)) padding-box, var(--lg-rim) border-box;
+  box-shadow: var(--lg-specular), inset 0 0 14px rgb(255 255 255 / .2), 0 10px 24px rgb(0 0 0 / .35), 0 0 0 .5px rgb(255 255 255 / .25);
+}
+html #ytmls-more .ytmls-glass-segment > .ytmls-tool-button.ytmls-tool-button { transition: transform .34s var(--lg-spring), color .16s ease !important; }
+html #ytmls-more .ytmls-glass-segment[data-dragging="true"] > .ytmls-tool-button.ytmls-tool-button { color: rgb(var(--lg-ink) / .6) !important; }
+html #ytmls-more .ytmls-glass-segment[data-dragging="true"] > .ytmls-tool-button.ytmls-seg-under { color: rgb(var(--lg-ink)) !important; transform: scale(1.22); }
+html.ytmls-lyrics-motion-lightweight #ytmls-more .ytmls-glass-segment > .ytmls-tool-button.ytmls-seg-under { transform: none; }
 :root[data-ytmls-theme="light"] #ytmls-more .ytmls-size-presets .ytmls-tool-button.ytmls-tool-button[aria-pressed="true"] { background: linear-gradient(#fff, #fff) padding-box, var(--lg-rim) border-box !important; }
 /* Primary action: tinted glass in the accent color. */
 #ytmls-tools-pane :is(.ytmls-tools-primary, .ytmls-reading-primary) {

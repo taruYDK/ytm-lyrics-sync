@@ -11,6 +11,7 @@ function ensureEnhancementControls(){
    button.dataset.saving='true';button.disabled=true;void queuePracticeSettingsSave(()=>savePracticeEntry(id,{...practiceEntry(id),settings:{...(practiceEntry(id).settings||{}),fontSize:size}})).catch(e=>{button.title='保存できませんでした：'+e.message;}).finally(()=>{delete button.dataset.saving;button.disabled=false;});
   });button.setAttribute('aria-label','文字サイズ '+name);button.dataset.size=String(size);}
   display.querySelector('.ytmls-menu-label').after(sizes);
+  if(typeof attachGlassSegment==='function')attachGlassSegment(sizes);
   const mode=practiceButton(playback,'読むモード',()=>{chrome.storage.sync.set({trackingEnabled:!STATE.trackingEnabled},()=>{if(chrome.runtime.lastError)mode.title='設定を保存できませんでした';});});mode.id='ytmls-reading-mode';
   const timing=practiceButton(playback,'同期タイミングを調整',event=>{
    event.stopPropagation();

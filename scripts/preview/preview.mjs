@@ -1,6 +1,6 @@
 // Screenshots of the extension on a stand-in YouTube Music page (no network needed).
 // Usage: node scripts/preview/preview.mjs [outDir] [scene...]
-// Scenes: panel, menu, candidates, readings, timing, fullscreen, popup, backup, light
+// Scenes: panel, menu, drag, candidates, readings, timing, fullscreen, popup, backup, light
 // PREVIEW_EVAL='<js>' runs in the page before the scenes and prints the result.
 import {createRequire} from 'node:module';
 let chromium;
@@ -113,6 +113,23 @@ if (want('menu')) {
   await tab.click('#ytmls-more summary').catch(() => {});
   await tab.waitForTimeout(400); await shot(tab, 'menu');
   await tab.keyboard.press('Escape'); await tab.click('#ytmls-more summary').catch(() => {});
+}
+if (want('drag')) {
+  // Hold Medium, slide to Large, release: the bead follows and the size changes.
+  await tab.click('#ytmls-more summary'); await tab.waitForTimeout(400);
+  const box = async label => (await tab.locator('.ytmls-size-presets button', {hasText: label}).boundingBox());
+  const mid = await box('中'), big = await box('大');
+  const y = mid.y + mid.height / 2;
+  await tab.mouse.move(mid.x + mid.width / 2, y); await tab.mouse.down(); await tab.waitForTimeout(260);
+  for (let i = 1; i <= 6; i++) { await tab.mouse.move(mid.x + mid.width / 2 + (big.x - mid.x) * i / 10, y); await tab.waitForTimeout(16); }
+  await shot(tab, 'drag-moving', {x: mid.x - 140, y: mid.y - 30, width: 340, height: 90});
+  for (let i = 7; i <= 10; i++) { await tab.mouse.move(mid.x + mid.width / 2 + (big.x - mid.x) * i / 10, y); await tab.waitForTimeout(16); }
+  await tab.waitForTimeout(300);
+  await shot(tab, 'drag-holding', {x: mid.x - 140, y: mid.y - 30, width: 340, height: 90});
+  await tab.mouse.up(); await tab.waitForTimeout(700);
+  await shot(tab, 'drag-released', {x: mid.x - 140, y: mid.y - 30, width: 340, height: 90});
+  console.log('pressed after drag:', await tab.evaluate(() => document.querySelector('.ytmls-size-presets button[aria-pressed="true"]')?.textContent));
+  await tab.click('#ytmls-more summary');
 }
 if (want('candidates')) {
   await tab.evaluate(() => [...document.querySelectorAll('#ytmls-tools .ytmls-tool-button')].find(b => b.textContent.includes('候補'))?.click());

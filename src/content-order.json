@@ -21,6 +21,7 @@
   "readings.js",
   "helpful-ui.js",
   "practice.js",
+  "glass-segment.js",
   "enhancements.js",
   "main.js"
 ]
