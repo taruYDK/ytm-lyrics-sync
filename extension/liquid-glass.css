@@ -1,0 +1,207 @@
+/* Liquid Glass: one glass material for everything the extension draws on YouTube Music.
+   - Rim: a light edge that is brightest at the top-left, drawn as a gradient border.
+   - Body: blurred, saturated backdrop, faintly tinted with the cover color (--mg-aurora-2).
+   - Lens: the backdrop bends near the edges (SVG filters from liquid-glass.js, html.ytmls-lg-lens).
+   - Response: controls swell slightly on hover and press with a soft spring.
+   Lightweight mode, reduced transparency and forced colors fall back to solid surfaces. */
+
+:root {
+  --lg-ink: 255 255 255;
+  --lg-tint: rgb(var(--mg-aurora-2, 40 38 52) / .55);
+  --lg-base: color-mix(in srgb, var(--ytmls-bg, #222326) 42%, transparent);
+  --lg-fill: color-mix(in srgb, var(--lg-tint) 26%, var(--lg-base));
+  --lg-fill-solid: color-mix(in srgb, rgb(var(--mg-aurora-2, 40 38 52)) 18%, var(--ytmls-bg, #222326));
+  --lg-sheen: linear-gradient(180deg, rgb(255 255 255 / .13), rgb(255 255 255 / .035) 38%, rgb(255 255 255 / 0) 62%, rgb(255 255 255 / .05));
+  --lg-rim: linear-gradient(155deg, rgb(255 255 255 / .62), rgb(255 255 255 / .16) 24%, rgb(255 255 255 / .05) 52%, rgb(255 255 255 / .12) 78%, rgb(255 255 255 / .34));
+  --lg-shadow: 0 18px 44px rgb(0 0 0 / .34), 0 3px 10px rgb(0 0 0 / .2);
+  --lg-inner: inset 0 1px 1px rgb(255 255 255 / .3), inset 0 -12px 26px -18px rgb(255 255 255 / .22);
+  --lg-backdrop: blur(26px) saturate(185%) brightness(1.04);
+  --lg-backdrop-pill: blur(14px) saturate(180%) brightness(1.06);
+  --lg-spring: cubic-bezier(.34, 1.56, .64, 1);
+  --lg-accent: var(--mg-accent, #fa5876);
+}
+:root[data-ytmls-theme="light"] {
+  --lg-ink: 25 28 32;
+  --lg-base: color-mix(in srgb, #fff 58%, transparent);
+  --lg-sheen: linear-gradient(180deg, rgb(255 255 255 / .55), rgb(255 255 255 / .18) 40%, rgb(255 255 255 / .08));
+  --lg-rim: linear-gradient(155deg, rgb(255 255 255 / .95), rgb(255 255 255 / .45) 30%, rgb(0 0 0 / .06) 60%, rgb(255 255 255 / .7));
+  --lg-shadow: 0 16px 40px rgb(0 0 0 / .16), 0 2px 8px rgb(0 0 0 / .08);
+}
+
+/* ---------- Surfaces: menus, panes and popovers ---------- */
+#ytmls-more > .ytmls-more-menu,
+#ytmls-panel #ytmls-tools-pane,
+#ytmls-track-offset-popover,
+#ytmls-reload-notice {
+  border: 1px solid transparent;
+  border-radius: 22px;
+  background: var(--lg-sheen) padding-box, linear-gradient(var(--lg-fill), var(--lg-fill)) padding-box, var(--lg-rim) border-box;
+  box-shadow: var(--lg-inner), var(--lg-shadow);
+  -webkit-backdrop-filter: var(--lg-backdrop);
+  backdrop-filter: var(--lg-backdrop);
+}
+html.ytmls-lg-lens :is(#ytmls-more > .ytmls-more-menu, #ytmls-panel #ytmls-tools-pane, #ytmls-track-offset-popover) {
+  backdrop-filter: url(#ytmls-lg-lens) var(--lg-backdrop);
+}
+#ytmls-more > .ytmls-more-menu { padding: 8px; transform-origin: top right; }
+html:not(.ytmls-lyrics-motion-lightweight) #ytmls-more[open] > .ytmls-more-menu { animation: lg-pop .32s var(--lg-spring); }
+@keyframes lg-pop { from { opacity: 0; transform: scale(.94) translateY(-4px); } }
+
+/* Menu rows: rounded highlight capsules inside the glass. */
+#ytmls-more .ytmls-menu-group > .ytmls-tool-button,
+#ytmls-more .ytmls-diagnostic-details > summary { border-radius: 12px; padding: 8px 12px; transition: background-color .16s ease; }
+#ytmls-more .ytmls-menu-group > .ytmls-tool-button:not(:disabled):is(:hover, :focus-visible),
+#ytmls-more .ytmls-diagnostic-details > summary:is(:hover, :focus-visible) { background: rgb(var(--lg-ink) / .12); }
+#ytmls-more .ytmls-menu-label { color: rgb(var(--lg-ink) / .58); letter-spacing: .02em; }
+#ytmls-more .ytmls-menu-label::after { border-top-color: rgb(var(--lg-ink) / .14); }
+
+/* ---------- Glass pills: header buttons, badge, player bar and fullscreen controls ---------- */
+#ytmls-tools > .ytmls-tool-button,
+#ytmls-more > summary.ytmls-tool-button,
+#ytmls-helpful > .ytmls-source-badge,
+ytmusic-player-bar :is(#ytmls-resync-button, #ytmls-track-offset-button),
+#ytmls-fullscreen :is(.ytmls-full-size button, .ytmls-full-close) {
+  border: 1px solid transparent !important;
+  border-radius: 999px !important;
+  background: var(--lg-sheen) padding-box, linear-gradient(var(--lg-fill), var(--lg-fill)) padding-box, var(--lg-rim) border-box !important;
+  box-shadow: inset 0 1px 1px rgb(255 255 255 / .28), 0 4px 14px rgb(0 0 0 / .22) !important;
+  -webkit-backdrop-filter: var(--lg-backdrop-pill);
+  backdrop-filter: var(--lg-backdrop-pill);
+  color: rgb(var(--lg-ink) / .9) !important;
+  opacity: 1 !important;
+  transition: transform .34s var(--lg-spring), box-shadow .2s ease, color .16s ease, filter .2s ease !important;
+}
+html.ytmls-lg-lens :is(#ytmls-tools > .ytmls-tool-button, #ytmls-more > summary.ytmls-tool-button, ytmusic-player-bar :is(#ytmls-resync-button, #ytmls-track-offset-button), #ytmls-fullscreen :is(.ytmls-full-size button, .ytmls-full-close)) {
+  backdrop-filter: url(#ytmls-lg-lens-pill) var(--lg-backdrop-pill);
+}
+/* The badge is a label, not a button: lighter and without the swell. */
+#ytmls-helpful > .ytmls-source-badge { color: rgb(var(--lg-ink) / .78) !important; box-shadow: inset 0 1px 1px rgb(255 255 255 / .2) !important; }
+
+/* Hover swells the pill and lifts its light; pressing squeezes it. */
+:is(#ytmls-tools > .ytmls-tool-button, #ytmls-more > summary.ytmls-tool-button, ytmusic-player-bar :is(#ytmls-resync-button, #ytmls-track-offset-button), #ytmls-fullscreen :is(.ytmls-full-size button, .ytmls-full-close)):not(:disabled):is(:hover, :focus-visible) {
+  transform: scale(1.05);
+  color: rgb(var(--lg-ink)) !important;
+  filter: brightness(1.12);
+  box-shadow: inset 0 1px 1px rgb(255 255 255 / .4), inset 0 0 14px rgb(255 255 255 / .1), 0 8px 22px rgb(0 0 0 / .28) !important;
+}
+:is(#ytmls-tools > .ytmls-tool-button, #ytmls-more > summary.ytmls-tool-button, ytmusic-player-bar :is(#ytmls-resync-button, #ytmls-track-offset-button), #ytmls-fullscreen :is(.ytmls-full-size button, .ytmls-full-close)):not(:disabled):active {
+  transform: scale(.96); transition-duration: .1s !important;
+}
+/* Open or selected: the glass fills with light. */
+#ytmls-more[open] > summary.ytmls-tool-button,
+#ytmls-tools > .ytmls-tool-button[aria-pressed="true"],
+ytmusic-player-bar #ytmls-track-offset-button[aria-expanded="true"],
+#ytmls-fullscreen .ytmls-full-group button[aria-pressed="true"] {
+  background: var(--lg-sheen) padding-box, linear-gradient(rgb(255 255 255 / .3), rgb(255 255 255 / .3)) padding-box, var(--lg-rim) border-box !important;
+  color: rgb(var(--lg-ink)) !important;
+}
+:root[data-ytmls-theme="light"] :is(#ytmls-more[open] > summary.ytmls-tool-button, #ytmls-tools > .ytmls-tool-button[aria-pressed="true"]) {
+  background: var(--lg-sheen) padding-box, linear-gradient(rgb(255 255 255 / .85), rgb(255 255 255 / .85)) padding-box, var(--lg-rim) border-box !important;
+}
+
+/* ---------- Controls inside glass surfaces: clear chips, no second blur ---------- */
+:is(#ytmls-more, #ytmls-tools-pane, #ytmls-track-offset-popover) :is(
+  .ytmls-size-presets .ytmls-tool-button, .ytmls-tools-secondary, .ytmls-tools-close, .ytmls-tool-button:not(.ytmls-menu-group > .ytmls-tool-button):not(.ytmls-reading-primary), .ytmls-candidate-pin, button:not([class]),
+  .ytmls-track-offset-quick button, .ytmls-track-offset-add, .ytmls-track-offset-reset-all, .ytmls-track-offset-delete) {
+  border: 1px solid transparent !important;
+  border-radius: 999px !important;
+  background: linear-gradient(rgb(var(--lg-ink) / .09), rgb(var(--lg-ink) / .09)) padding-box,
+    linear-gradient(160deg, rgb(255 255 255 / .38), rgb(255 255 255 / .06) 45%, rgb(255 255 255 / .16)) border-box !important;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / .14) !important;
+  color: rgb(var(--lg-ink) / .92) !important;
+  transition: transform .3s var(--lg-spring), background-color .16s ease, filter .16s ease !important;
+}
+:is(#ytmls-more, #ytmls-tools-pane, #ytmls-track-offset-popover) :is(
+  .ytmls-size-presets .ytmls-tool-button, .ytmls-tools-secondary, .ytmls-tools-close, .ytmls-tool-button:not(.ytmls-menu-group > .ytmls-tool-button):not(.ytmls-reading-primary), .ytmls-candidate-pin, button:not([class]),
+  .ytmls-track-offset-quick button, .ytmls-track-offset-add, .ytmls-track-offset-reset-all, .ytmls-track-offset-delete):not(:disabled):hover {
+  filter: brightness(1.25); transform: scale(1.03);
+}
+:is(#ytmls-more, #ytmls-tools-pane, #ytmls-track-offset-popover) :is(
+  .ytmls-size-presets .ytmls-tool-button, .ytmls-tools-secondary, .ytmls-tools-close, .ytmls-tool-button, .ytmls-candidate-pin,
+  .ytmls-track-offset-quick button, .ytmls-track-offset-add, .ytmls-track-offset-reset-all, .ytmls-track-offset-delete):not(:disabled):active {
+  transform: scale(.96); transition-duration: .1s !important;
+}
+#ytmls-more .ytmls-size-presets .ytmls-tool-button[aria-pressed="true"] {
+  background: linear-gradient(rgb(255 255 255 / .9), rgb(255 255 255 / .9)) padding-box, linear-gradient(#fff, #fff) border-box !important;
+  color: #17151b !important;
+  box-shadow: 0 2px 8px rgb(0 0 0 / .25) !important;
+}
+/* Primary action: tinted glass in the accent color. */
+#ytmls-tools-pane :is(.ytmls-tools-primary, .ytmls-reading-primary) {
+  border: 1px solid transparent !important; border-radius: 999px !important;
+  background: linear-gradient(180deg, rgb(255 255 255 / .22), rgb(255 255 255 / 0) 55%) padding-box,
+    linear-gradient(var(--lg-accent), var(--lg-accent)) padding-box,
+    linear-gradient(160deg, rgb(255 255 255 / .7), rgb(255 255 255 / .1) 50%, rgb(255 255 255 / .3)) border-box !important;
+  box-shadow: inset 0 1px 1px rgb(255 255 255 / .35), 0 6px 16px color-mix(in srgb, var(--lg-accent) 35%, transparent) !important;
+  color: #fff !important;
+}
+/* Grouped blocks inside surfaces (timing groups, candidate list) read as recessed glass. */
+#ytmls-track-offset-popover .ytmls-track-offset-group,
+#ytmls-tools-pane .ytmls-candidate-row {
+  background: rgb(var(--lg-ink) / .06) !important;
+  border-color: rgb(var(--lg-ink) / .08) !important;
+  box-shadow: inset 0 1px 2px rgb(0 0 0 / .12);
+}
+#ytmls-tools-pane .ytmls-candidate-item[data-active="true"] { background: color-mix(in srgb, var(--lg-accent) 20%, transparent) !important; }
+#ytmls-tools-pane :is(input[type="text"], input[type="number"], input:not([type]), textarea, select) {
+  border-radius: 12px !important;
+  background: rgb(0 0 0 / .18) !important;
+  box-shadow: inset 0 1px 3px rgb(0 0 0 / .25), inset 0 0 0 1px rgb(255 255 255 / .06);
+}
+:root[data-ytmls-theme="light"] #ytmls-tools-pane :is(input[type="text"], input[type="number"], input:not([type]), textarea, select) {
+  background: rgb(255 255 255 / .6) !important;
+  box-shadow: inset 0 1px 3px rgb(0 0 0 / .1), inset 0 0 0 1px rgb(0 0 0 / .06);
+}
+#ytmls-tools-pane .ytmls-reading-preview {
+  border-radius: 12px !important; border-color: rgb(255 255 255 / .06) !important;
+  background: rgb(0 0 0 / .18) !important; box-shadow: inset 0 1px 3px rgb(0 0 0 / .25);
+}
+:root[data-ytmls-theme="light"] #ytmls-tools-pane .ytmls-reading-preview { background: rgb(255 255 255 / .6) !important; border-color: rgb(0 0 0 / .06) !important; }
+/* Timing slider knob: a small glass bead. */
+#ytmls-track-offset-popover .ytmls-track-offset-range::-webkit-slider-thumb {
+  width: 26px; height: 18px; margin-top: -7px; border-radius: 999px;
+  background: linear-gradient(180deg, #fff, #eceaf0);
+  box-shadow: 0 2px 6px rgb(0 0 0 / .35), inset 0 -1px 1px rgb(0 0 0 / .08), 0 0 0 .5px rgb(0 0 0 / .1);
+  transition: transform .3s var(--lg-spring);
+}
+#ytmls-track-offset-popover .ytmls-track-offset-range:active::-webkit-slider-thumb { transform: scale(1.18); }
+
+/* ---------- Player bar: the floating bar gets the same rim ---------- */
+@media (min-width: 1101px) {
+  html.music-glass.ytmls-custom-playerbar ytmusic-player-bar {
+    border-radius: 18px !important;
+    outline: 0 !important;
+    box-shadow: inset 0 1px 1px rgb(255 255 255 / .22), inset 0 0 0 1px rgb(255 255 255 / .1), 0 12px 32px rgb(0 0 0 / .32) !important;
+  }
+  html.music-glass.ytmls-custom-playerbar ytmusic-player-bar > .music-glass-surface {
+    background-image: var(--lg-sheen);
+  }
+}
+
+/* ---------- Fullscreen: header cover framed like glass ---------- */
+#ytmls-fullscreen .ytmls-full-cover { border-radius: 12px; box-shadow: inset 0 0 0 1px rgb(255 255 255 / .2), 0 10px 26px rgb(0 0 0 / .4); }
+
+/* ---------- Fallbacks ---------- */
+@media (prefers-reduced-motion: reduce) {
+  :is(#ytmls-tools > .ytmls-tool-button, #ytmls-more > summary.ytmls-tool-button, ytmusic-player-bar :is(#ytmls-resync-button, #ytmls-track-offset-button), #ytmls-fullscreen :is(.ytmls-full-size button, .ytmls-full-close)) { transition: none !important; transform: none !important; }
+  #ytmls-more[open] > .ytmls-more-menu { animation: none !important; }
+}
+/* Lightweight mode and "reduce transparency": solid fills keep the rim but drop blur and lens. */
+html.ytmls-lyrics-motion-lightweight :is(#ytmls-more > .ytmls-more-menu, #ytmls-panel #ytmls-tools-pane, #ytmls-track-offset-popover, #ytmls-reload-notice,
+  #ytmls-tools > .ytmls-tool-button, #ytmls-more > summary.ytmls-tool-button, #ytmls-helpful > .ytmls-source-badge,
+  ytmusic-player-bar :is(#ytmls-resync-button, #ytmls-track-offset-button), #ytmls-fullscreen :is(.ytmls-full-size button, .ytmls-full-close)) {
+  --lg-fill: var(--lg-fill-solid);
+  -webkit-backdrop-filter: none !important; backdrop-filter: none !important;
+}
+html.ytmls-lyrics-motion-lightweight :is(#ytmls-tools > .ytmls-tool-button, #ytmls-more > summary.ytmls-tool-button, ytmusic-player-bar :is(#ytmls-resync-button, #ytmls-track-offset-button), #ytmls-fullscreen :is(.ytmls-full-size button, .ytmls-full-close)) { transform: none !important; filter: none !important; }
+@media (prefers-reduced-transparency: reduce) {
+  :is(#ytmls-more > .ytmls-more-menu, #ytmls-panel #ytmls-tools-pane, #ytmls-track-offset-popover, #ytmls-reload-notice,
+    #ytmls-tools > .ytmls-tool-button, #ytmls-more > summary.ytmls-tool-button, #ytmls-helpful > .ytmls-source-badge,
+    ytmusic-player-bar :is(#ytmls-resync-button, #ytmls-track-offset-button), #ytmls-fullscreen :is(.ytmls-full-size button, .ytmls-full-close)) {
+    --lg-fill: var(--lg-fill-solid);
+    -webkit-backdrop-filter: none !important; backdrop-filter: none !important;
+  }
+}
+@media (forced-colors: active) {
+  :is(#ytmls-more > .ytmls-more-menu, #ytmls-panel #ytmls-tools-pane, #ytmls-track-offset-popover, #ytmls-reload-notice) { background: Canvas !important; border-color: CanvasText !important; }
+}

@@ -1,0 +1,161 @@
+/* Liquid Glass for the settings popup and the backup page (loaded last on both).
+   A soft color field sits behind the page so the grouped lists, sidebar, header and
+   buttons read as glass over it, like the surfaces on YouTube Music. */
+:root {
+  --glass-fill: rgb(44 42 52 / .52);
+  --glass-fill-strong: rgb(52 50 62 / .66);
+  --glass-rim: linear-gradient(155deg, rgb(255 255 255 / .34), rgb(255 255 255 / .08) 26%, rgb(255 255 255 / .03) 55%, rgb(255 255 255 / .16));
+  --glass-sheen: linear-gradient(180deg, rgb(255 255 255 / .07), rgb(255 255 255 / 0) 40%);
+  --glass-shadow: 0 10px 30px rgb(0 0 0 / .28), 0 1px 3px rgb(0 0 0 / .2);
+  --glass-inner: inset 0 1px 0 rgb(255 255 255 / .1);
+  --glass-blur: blur(28px) saturate(170%);
+  --glass-chip: rgb(255 255 255 / .1);
+  --spring: cubic-bezier(.34, 1.56, .64, 1);
+  --field-a: #6d2d6a; --field-b: #2b2f7a; --field-c: #0f5e6e; --field-base: #141219;
+  /* Existing variables become translucent so every grouped list turns to glass. */
+  --group: var(--glass-fill); --card: var(--glass-fill); --sidebar: rgb(32 30 38 / .42); --bg: transparent;
+  --control: rgb(255 255 255 / .1); --border: transparent;
+}
+@media (prefers-color-scheme: light) {
+  :root {
+    --glass-fill: rgb(255 255 255 / .62);
+    --glass-fill-strong: rgb(255 255 255 / .78);
+    --glass-rim: linear-gradient(155deg, rgb(255 255 255 / 1), rgb(255 255 255 / .55) 30%, rgb(0 0 0 / .05) 62%, rgb(255 255 255 / .8));
+    --glass-sheen: linear-gradient(180deg, rgb(255 255 255 / .5), rgb(255 255 255 / 0) 45%);
+    --glass-shadow: 0 10px 28px rgb(40 30 70 / .1), 0 1px 3px rgb(0 0 0 / .06);
+    --glass-inner: inset 0 1px 0 rgb(255 255 255 / .8);
+    --glass-chip: rgb(0 0 0 / .05);
+    --field-a: #ffc8dc; --field-b: #d6d0ff; --field-c: #c4eef4; --field-base: #f4f2f8;
+    --sidebar: rgb(255 255 255 / .38); --control: rgb(0 0 0 / .06);
+  }
+}
+
+/* ---------- Color field behind the glass ---------- */
+html { background: var(--field-base); }
+body { background: transparent !important; position: relative; isolation: isolate; }
+body::before {
+  content: ""; position: fixed; inset: -20%; z-index: -1; pointer-events: none;
+  background:
+    radial-gradient(34% 38% at 18% 14%, var(--field-a), transparent 70%),
+    radial-gradient(38% 42% at 86% 30%, var(--field-b), transparent 70%),
+    radial-gradient(40% 40% at 50% 96%, var(--field-c), transparent 72%),
+    var(--field-base);
+  filter: saturate(115%);
+}
+
+/* ---------- Shared glass recipe ---------- */
+.settings-group, .help-details, .glass-details, .provider-list, .provider-test, #savedDataSummary, .data-button,
+.card, .note {
+  border: 1px solid transparent !important;
+  background: var(--glass-sheen) padding-box, linear-gradient(var(--glass-fill), var(--glass-fill)) padding-box, var(--glass-rim) border-box !important;
+  box-shadow: var(--glass-inner), var(--glass-shadow) !important;
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+}
+.settings-group, .help-details, .glass-details, .provider-list, .provider-test, #savedDataSummary { border-radius: 18px !important; }
+.card { border-radius: 22px !important; }
+.card.danger { background: var(--glass-sheen) padding-box, linear-gradient(var(--glass-fill), var(--glass-fill)) padding-box,
+  linear-gradient(155deg, color-mix(in srgb, var(--danger, #ff6b81) 70%, #fff), color-mix(in srgb, var(--danger, #ff6b81) 25%, transparent) 40%, color-mix(in srgb, var(--danger, #ff6b81) 45%, transparent)) border-box !important; }
+
+/* ---------- Popup: header and sidebar as glass bars ---------- */
+.header {
+  background: linear-gradient(var(--sidebar), var(--sidebar)) !important;
+  border-bottom: 1px solid rgb(255 255 255 / .1) !important;
+  -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur);
+  box-shadow: inset 0 -1px 0 rgb(0 0 0 / .12);
+}
+.settings-sidebar {
+  background: var(--sidebar) !important;
+  border-right: 1px solid rgb(255 255 255 / .1) !important;
+  -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur);
+}
+@media (prefers-color-scheme: light) {
+  .header { border-bottom-color: rgb(255 255 255 / .7) !important; box-shadow: inset 0 -1px 0 rgb(0 0 0 / .06); }
+  .settings-sidebar { border-right-color: rgb(255 255 255 / .7) !important; box-shadow: inset -1px 0 0 rgb(0 0 0 / .05); }
+}
+.settings-content { background: transparent !important; }
+.settings-nav a { border-radius: 12px !important; transition: background-color .16s ease, transform .3s var(--spring); }
+.settings-nav a[aria-selected=true] {
+  border: 1px solid transparent !important;
+  background: var(--glass-sheen) padding-box, linear-gradient(var(--glass-fill-strong), var(--glass-fill-strong)) padding-box, var(--glass-rim) border-box !important;
+  box-shadow: var(--glass-inner), 0 4px 12px rgb(0 0 0 / .16);
+  padding: 5px 7px !important;
+}
+.settings-nav a:active { transform: scale(.97); }
+.nav-icon { border-radius: 7px; box-shadow: inset 0 1px 0 rgb(255 255 255 / .35), inset 0 0 0 .5px rgb(0 0 0 / .15), 0 1px 3px rgb(0 0 0 / .2); }
+
+/* ---------- Controls ---------- */
+/* Toggle: the knob is a glass bead that stretches while pressed. */
+.slider { background: var(--control) !important; box-shadow: inset 0 1px 2px rgb(0 0 0 / .18); transition: background-color .2s ease; }
+.slider::before, .switch.small .slider::before {
+  background: linear-gradient(180deg, #fff, #f0eef4) !important;
+  box-shadow: 0 2px 5px rgb(0 0 0 / .28), inset 0 -1px 1px rgb(0 0 0 / .06), 0 0 0 .5px rgb(0 0 0 / .08) !important;
+  transition: transform .34s var(--spring), width .2s ease !important;
+}
+.switch:active .slider::before { width: 27px !important; }
+.switch:active input:checked + .slider::before { transform: translateX(13px) !important; }
+input:checked + .slider { background: var(--accent) !important; box-shadow: inset 0 1px 2px rgb(0 0 0 / .2), inset 0 0 0 1px rgb(255 255 255 / .12); }
+input:disabled + .slider { opacity: .5; }
+
+/* Pop-up selects and fields: recessed glass. */
+.section select, #backupReminderThreshold, #trackFilter, #trackView, .provider-move, .track-open {
+  border: 0 !important; border-radius: 10px !important;
+  background-color: var(--control) !important;
+  box-shadow: inset 0 1px 2px rgb(0 0 0 / .16), inset 0 0 0 1px rgb(255 255 255 / .06) !important;
+}
+
+/* Buttons: glass pills that swell on hover and squeeze on press. */
+.data-button, button:not(.provider-move):not(.track-open):not([role="tab"]) {
+  border-radius: 999px !important;
+  transition: transform .3s var(--spring), filter .16s ease, background-color .16s ease !important;
+}
+.data-button:not(:disabled):hover, button:not(.provider-move):not(.track-open):not(:disabled):hover { transform: scale(1.03); filter: brightness(1.1); }
+.data-button:not(:disabled):active, button:not(.provider-move):not(.track-open):not(:disabled):active { transform: scale(.97); transition-duration: .1s !important; }
+.card button:not(.primary):not(.danger):not(.track-open) {
+  border: 1px solid transparent !important;
+  background: linear-gradient(var(--glass-chip), var(--glass-chip)) padding-box, var(--glass-rim) border-box !important;
+  box-shadow: var(--glass-inner), 0 2px 6px rgb(0 0 0 / .12) !important;
+}
+button.primary {
+  border: 1px solid transparent !important;
+  background: linear-gradient(180deg, rgb(255 255 255 / .24), rgb(255 255 255 / 0) 55%) padding-box,
+    linear-gradient(var(--accent), var(--accent)) padding-box,
+    linear-gradient(160deg, rgb(255 255 255 / .75), rgb(255 255 255 / .1) 50%, rgb(255 255 255 / .35)) border-box !important;
+  box-shadow: inset 0 1px 1px rgb(255 255 255 / .35), 0 6px 16px color-mix(in srgb, var(--accent) 35%, transparent) !important;
+}
+
+/* Sliders: capsule glass bead. */
+input[type=range]::-webkit-slider-thumb {
+  width: 28px !important; height: 20px !important; margin-top: -8px !important; border-radius: 999px !important;
+  background: linear-gradient(180deg, #fff, #eeecf2) !important;
+  box-shadow: 0 2px 6px rgb(0 0 0 / .3), inset 0 -1px 1px rgb(0 0 0 / .07), 0 0 0 .5px rgb(0 0 0 / .1) !important;
+  transition: transform .3s var(--spring) !important;
+}
+input[type=range]:active::-webkit-slider-thumb { transform: scale(1.15) !important; }
+
+/* Lists inside glass keep inset separators but no second fill. */
+.provider-row, .saved-track { background: transparent !important; }
+/* Saved-tracks list: one recessed block, header row on top. */
+.list-head { border: 1px solid rgb(255 255 255 / .08) !important; border-bottom: 0 !important; border-radius: 14px 14px 0 0 !important; background: rgb(0 0 0 / .14) !important; }
+#savedTracks { border: 1px solid rgb(255 255 255 / .08) !important; border-radius: 0 0 14px 14px !important; background: rgb(0 0 0 / .08) !important; }
+@media (prefers-color-scheme: light) {
+  .list-head { border-color: rgb(0 0 0 / .06) !important; background: rgb(255 255 255 / .5) !important; }
+  #savedTracks { border-color: rgb(0 0 0 / .06) !important; background: rgb(255 255 255 / .3) !important; }
+}
+
+/* ---------- Fallbacks ---------- */
+@media (prefers-reduced-transparency: reduce) {
+  :root { --glass-fill: #2c2c2e; --glass-fill-strong: #3a3a3c; --sidebar: #232325; }
+  body::before { display: none; }
+  * { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
+}
+@media (prefers-reduced-transparency: reduce) and (prefers-color-scheme: light) {
+  :root { --glass-fill: #fff; --glass-fill-strong: #fff; --sidebar: #e9e9ee; }
+}
+@media (prefers-reduced-motion: reduce) {
+  * { transition-duration: 0s !important; }
+}
+@media (forced-colors: active) {
+  body::before { display: none; }
+  .settings-group, .card, .note, .provider-list, .provider-test { background: Canvas !important; border-color: CanvasText !important; }
+}

@@ -72,11 +72,13 @@
         "header-divider.css",
         "lyrics-panel-lift.css",
         "player-depth-clean.css",
-        "player-depth-surface-guard.css"
+        "player-depth-surface-guard.css",
+        "liquid-glass.css"
       ],
       "js": [
         "music-glass.js",
-        "player-depth-scroll-guard.js"
+        "player-depth-scroll-guard.js",
+        "liquid-glass.js"
       ],
       "run_at": "document_idle"
     }
