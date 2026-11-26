@@ -107,6 +107,7 @@ async function shot(tab, name, clip) {
 }
 
 const tab = await open();
+if (process.env.PREVIEW_SCRIPT) await (await import(path.resolve(process.env.PREVIEW_SCRIPT))).run(tab, (...a) => console.log(...a.map(x => typeof x === 'string' ? x : JSON.stringify(x))));
 if (process.env.PREVIEW_EVAL) console.log(JSON.stringify(await tab.evaluate(process.env.PREVIEW_EVAL), null, 1));
 if (want('panel')) await shot(tab, 'panel');
 if (want('menu')) {

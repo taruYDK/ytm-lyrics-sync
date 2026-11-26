@@ -321,6 +321,7 @@ html.ytmls-lg-lens .ytmls-seg-lens { backdrop-filter: url(#ytmls-lg-lens-drop) s
 .ytmls-seg-lens.ytmls-seg-lens-out { animation: ytmls-seg-lens-out .22s cubic-bezier(.3, .7, .25, 1) both; }
 @keyframes ytmls-seg-lens-in { from { opacity: 0; transform: scale(.72, .62); } }
 @keyframes ytmls-seg-lens-out { to { opacity: 0; transform: scale(.72, .62); } }
+@media (prefers-reduced-motion: reduce) { .ytmls-seg-lens, .ytmls-seg-lens.ytmls-seg-lens-out { animation-duration: .01s; } }
 #ytmls-more .ytmls-glass-segment[data-lens="true"] > .ytmls-seg-thumb { opacity: 0; transition: opacity .12s ease; }
 html #ytmls-more .ytmls-glass-segment[data-lens="true"] > .ytmls-tool-button.ytmls-seg-under { transform: none; }
 :root[data-ytmls-theme="light"] #ytmls-more .ytmls-size-presets .ytmls-tool-button.ytmls-tool-button[aria-pressed="true"] { background: linear-gradient(#fff, #fff) padding-box, var(--lg-rim) border-box !important; }

@@ -15,7 +15,7 @@ function segment({motion = true} = {}) {
   });
   const group = {dataset: {}, classList: classSet(), children: [], prepend(el) { this.thumb = el; },
     querySelectorAll: () => buttons, addEventListener: (type, fn) => { listeners[type] = fn; },
-    setPointerCapture() {}, getBoundingClientRect: () => ({left: 0})};
+    setPointerCapture(id) { this.captured = id; }, getBoundingClientRect: () => ({left: 0})};
   const c = vm.createContext({
     document: {createElement: () => ({style: {}, hidden: false, setAttribute() {}})},
     playerFeedbackEnabled: () => motion,
@@ -37,11 +37,14 @@ test('glass bead starts on the chosen size', () => {
   assert.ok(h.group.classList.contains('ytmls-glass-segment'));
 });
 
-test('holding and sliding moves the bead with the pointer and picks the nearest size on release', () => {
+test('pressing and sliding moves the bead with the pointer at once and picks the nearest size on release', () => {
   const h = segment();
   h.fire('pointerdown', {clientX: 93});
-  h.timers.at(-1)(); // the hold elapses
-  assert.equal(h.group.dataset.dragging, 'true');
+  assert.equal(h.group.captured, 1, 'the pointer is captured right away');
+  assert.equal(h.group.dataset.dragging, undefined, 'no drag before it moves');
+  assert.equal(h.timers.filter(Boolean).length, 0, 'no hold timer: holding still never picks a size');
+  h.fire('pointermove', {clientX: 97});
+  assert.equal(h.group.dataset.dragging, 'true', 'a 4px slide starts the drag');
   h.fire('pointermove', {clientX: 140});
   h.fire('pointermove', {clientX: 160});
   h.settle();
@@ -50,34 +53,30 @@ test('holding and sliding moves the bead with the pointer and picks the nearest 
   h.fire('pointerup', {clientX: 160});
   assert.deepEqual(h.clicks, ['大']);
   assert.equal(h.group.dataset.dragging, undefined);
-  assert.ok(h.fire('click', {target: h.buttons[2]}).stopped, 'the click after a drag is swallowed');
+  assert.ok(h.fire('click', {target: h.group}).stopped, 'the native click after a drag is swallowed');
   h.settle();
   assert.equal(h.translate(), 123);
 });
 
-test('a light slide anywhere starts the drag at once; a short tap stays a normal button', () => {
-  const h = segment();
-  h.fire('pointerdown', {clientX: 33, target: h.buttons[0]});
-  h.fire('pointermove', {clientX: 39});
-  assert.equal(h.group.dataset.dragging, 'true', 'no hold needed, even away from the bead');
-  h.fire('pointercancel');
-  assert.deepEqual(h.clicks, [], 'a cancelled drag changes nothing');
-
+test('a tap picks the size it was released on; holding still and letting go changes nothing else', () => {
   const tap = segment();
   tap.fire('pointerdown', {clientX: 33, target: tap.buttons[0]});
-  tap.fire('pointerup', {clientX: 33, target: tap.buttons[0]});
-  assert.equal(tap.group.dataset.dragging, undefined);
-  assert.equal(tap.fire('click', {target: tap.buttons[0]}).stopped, undefined, 'the tap reaches the button');
+  tap.fire('pointerup', {clientX: 33, target: tap.group});
+  assert.deepEqual(tap.clicks, ['小'], 'chosen by the tap itself (the captured pointer would not click)');
+  assert.ok(tap.fire('click', {target: tap.group}).stopped, 'no second, native click');
   tap.settle();
   assert.equal(tap.translate(), 3, 'the bead slides to the tapped size');
-});
 
-test('without motion the bead jumps instead of springing', () => {
-  const h = segment({motion: false});
-  h.buttons[1].attrs['aria-pressed'] = 'false'; h.buttons[0].attrs['aria-pressed'] = 'true';
-  h.api.sync();
-  assert.equal(h.translate(), 3);
-  assert.doesNotMatch(h.api.thumb.style.transform, /scale\(1\.0[1-9]/, 'no stretch');
+  const still = segment();
+  still.fire('pointerdown', {clientX: 93});
+  still.fire('pointerup', {clientX: 93});
+  assert.deepEqual(still.clicks, [], 'a tap on the chosen size keeps it');
+
+  const cancelled = segment();
+  cancelled.fire('pointerdown', {clientX: 93});
+  cancelled.fire('pointermove', {clientX: 104});
+  cancelled.fire('pointercancel');
+  assert.deepEqual(cancelled.clicks, [], 'a cancelled drag changes nothing');
 });
 
 test('pulled past an end, the bead stays inside the track and squashes against the wall', () => {

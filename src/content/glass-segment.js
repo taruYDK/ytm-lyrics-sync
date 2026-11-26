@@ -1,10 +1,9 @@
 // Glass segmented control (Small / Medium / Large): a glass bead marks the chosen button.
-// Press anywhere and slide (or press and hold) to move it: it follows the pointer on a spring,
+// Press anywhere and slide to move it: it follows the pointer on a spring,
 // stretches with its speed and magnifies the label under it. It never leaves the track: pulled
 // past an end it squashes against the wall, and it bounces off the walls inside the track.
 // A short tap still works as a normal button.
-const GLASS_SEGMENT_HOLD_MS = 170;
-const GLASS_SEGMENT_DRAG_PX = 4;
+const GLASS_SEGMENT_DRAG_PX = 3;
 
 // Rubber band past the ends: moves less and less the further it is pulled (at most `limit`).
 function glassSegmentRubber(over, limit) {
@@ -35,7 +34,8 @@ function attachGlassSegment(group) {
  // clear drop is shown above the page (fixed, at the bead's place) and bends everything under it:
  // the labels, the track and the menu glass, with colors split at its rim like the iOS tab bar.
  let lens = null;
- const lensAllowed = () => glassSegmentMotion() && Boolean(document.documentElement?.classList?.contains('ytmls-lg-lens')) &&
+ const lensAllowed = () => Boolean(document.documentElement?.classList?.contains('ytmls-lg-lens')) &&
+  !document.documentElement.classList.contains('ytmls-lyrics-motion-lightweight') &&
   typeof group.getBoundingClientRect === 'function' && Boolean(document.body);
  function placeLens(sx = 1, sy = 1) {
   if (!lens) return;
@@ -97,7 +97,7 @@ function attachGlassSegment(group) {
   const dt = Math.min(.032, Math.max(.001, (now - (state.last || now)) / 1000 || .016));
   state.last = now;
   // Close behind the pointer while dragging; springy (overshoots and wobbles) when settling.
-  const stiffness = state.dragging ? 1100 : 420, damping = state.dragging ? 46 : 17;
+  const stiffness = state.dragging ? 2000 : 420, damping = state.dragging ? 64 : 17;
   state.vx += ((state.tx - state.x) * stiffness - state.vx * damping) * dt;
   state.vw += ((state.tw - state.w) * stiffness - state.vw * damping) * dt;
   // The squash springs back on its own, so a release from the wall wobbles too.
@@ -152,16 +152,21 @@ function attachGlassSegment(group) {
   for (const item of buttons()) item.classList.toggle('ytmls-seg-under', item === button);
  }
 
- // ---------- Press, hold and drag ----------
+ // ---------- Press and drag ----------
+ // The pointer is captured as soon as it goes down, so every move reaches the control (even off
+ // it). A slide of a few pixels starts the drag at once; releasing without sliding is a tap,
+ // handled here too (with the pointer captured the browser would not click the button).
  let press = null, suppressClick = false;
+ function swallowNextClick() {
+  suppressClick = true;
+  setTimeout(() => { suppressClick = false; }, 0);
+ }
  function beginDrag() {
   if (!press || state.dragging) return;
-  clearTimeout(press.timer);
   state.dragging = true;
   group.dataset.dragging = 'true';
   showLens();
   thumb.hidden = false;
-  try { group.setPointerCapture(press.id); } catch (_) {}
   const current = pressed() || press.button;
   if (current) { const s = slot(current); state.tw = s.w; if (!state.placed) moveTo(s.x, s.w, false); }
   // Keep the spot that was grabbed under the pointer; pressing elsewhere centers the bead there.
@@ -187,7 +192,6 @@ function attachGlassSegment(group) {
  }
  function endDrag(commit) {
   const wasDragging = state.dragging;
-  if (press) clearTimeout(press.timer);
   press = null;
   if (!wasDragging) return;
   state.dragging = false;
@@ -201,26 +205,41 @@ function attachGlassSegment(group) {
    moveTo(s.x, s.w);
    if (commit && !target.disabled && target.getAttribute('aria-pressed') !== 'true') target.click();
   }
-  suppressClick = true;
-  setTimeout(() => { suppressClick = false; }, 0);
+  swallowNextClick();
+ }
+ // The button under a point (with the pointer captured, events report the group as their target).
+ function buttonAt(clientX) {
+  const rect = group.getBoundingClientRect();
+  const x = clientX - rect.left;
+  return buttons().find(button => { const s = slot(button); return x >= s.x && x < s.x + s.w; }) || null;
  }
  group.addEventListener('pointerdown', event => {
   if (event.button !== 0 || buttons().every(button => button.disabled)) return;
-  const button = event.target.closest?.('button');
-  press = {id: event.pointerId, startX: event.clientX, lastX: event.clientX, button,
-   timer: setTimeout(beginDrag, GLASS_SEGMENT_HOLD_MS)};
+  press = {id: event.pointerId, startX: event.clientX, lastX: event.clientX, button: event.target.closest?.('button') || buttonAt(event.clientX)};
+  try { group.setPointerCapture(event.pointerId); } catch (_) {}
  });
  group.addEventListener('pointermove', event => {
   if (!press || event.pointerId !== press.id) return;
   press.lastX = event.clientX;
   if (state.dragging) { event.preventDefault(); follow(event.clientX); return; }
-  // A small slide anywhere on the control starts the drag; no need to hold first.
   if (Math.abs(event.clientX - press.startX) > GLASS_SEGMENT_DRAG_PX) beginDrag();
  });
- group.addEventListener('pointerup', event => { if (press && event.pointerId === press.id) endDrag(true); });
+ group.addEventListener('pointerup', event => {
+  if (!press || event.pointerId !== press.id) return;
+  if (state.dragging) { endDrag(true); return; }
+  // A tap: choose the button it was released on.
+  const tapped = buttonAt(event.clientX) || press.button;
+  press = null;
+  swallowNextClick();
+  if (tapped && !tapped.disabled) {
+   const s = slot(tapped);
+   if (s.w) moveTo(s.x, s.w);
+   if (tapped.getAttribute('aria-pressed') !== 'true') tapped.click();
+  }
+ });
  group.addEventListener('pointercancel', () => endDrag(false));
- group.addEventListener('lostpointercapture', () => { if (state.dragging) endDrag(true); });
- // The click after a drag is the drag itself; a plain tap moves the bead right away.
+ group.addEventListener('lostpointercapture', () => { if (state.dragging) endDrag(true); else press = null; });
+ // Pointer clicks were handled above; keyboard clicks (Enter, Space) still move the bead.
  group.addEventListener('click', event => {
   if (event.isTrusted && suppressClick) { event.stopPropagation(); event.preventDefault(); return; }
   const button = event.target.closest?.('button');
