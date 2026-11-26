@@ -28,10 +28,16 @@ const LRC = [
   '[00:21.50]遠くで揺れる信号の青', '[00:25.00]ひとつずつ数えて', '[00:28.50]明日へ続く道を', '[00:32.00]二人で選んだ',
   '[00:35.50]Don\'t let go of this moment', '[00:39.00]何度でも思い出して', '[00:42.50]この空の色を',
 ].join('\n');
-const COVER = `<svg xmlns="http://www.w3.org/2000/svg" width="544" height="544"><defs>
+let COVER = `<svg xmlns="http://www.w3.org/2000/svg" width="544" height="544"><defs>
 <linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff5e7e"/><stop offset=".5" stop-color="#7b3fe4"/><stop offset="1" stop-color="#1fb6c9"/></linearGradient>
 <radialGradient id="s" cx=".3" cy=".3" r=".6"><stop offset="0" stop-color="#ffd36e" stop-opacity=".9"/><stop offset="1" stop-color="#ffd36e" stop-opacity="0"/></radialGradient></defs>
 <rect width="544" height="544" fill="url(#g)"/><rect width="544" height="544" fill="url(#s)"/><circle cx="380" cy="360" r="110" fill="#0b1030" opacity=".55"/></svg>`;
+// PREVIEW_COVER=yellow: a bright, busy yellow cover (sky, field, figures) to judge glass over light artwork.
+const YELLOW_COVER = `<svg xmlns="http://www.w3.org/2000/svg" width="544" height="544"><rect width="544" height="544" fill="#f4e04a"/>
+<rect width="544" height="190" fill="#9fd3f0"/><path d="M0 200q140-40 272 0t272-10v354H0z" fill="#d9c93a"/>
+<circle cx="270" cy="300" r="90" fill="#f6b73c"/><rect x="230" y="330" width="80" height="170" fill="#6b4a2a"/>
+<circle cx="120" cy="380" r="50" fill="#5a6ea8"/><circle cx="430" cy="420" r="40" fill="#222"/><text x="300" y="90" font-size="44" font-weight="900" fill="#7a2a14">NOTTEKE!</text></svg>`;
+if (process.env.PREVIEW_COVER === 'yellow') COVER = YELLOW_COVER;
 const LIGHT_COVER = COVER.replace('#ff5e7e', '#fff3c4').replace('#7b3fe4', '#ffd9e6').replace('#1fb6c9', '#cdeffd');
 
 function page(light) {

@@ -7,11 +7,11 @@
 
 :root {
   --lg-ink: 255 255 255;
-  /* Clear, nearly neutral glass: the color comes from what is behind it, with only a hint of the cover. */
-  --lg-tint: rgb(var(--mg-aurora-2, 40 38 52));
-  /* Menus and panes hold small text, so they are denser than the pills: over a bright cover a thinner
-     fill let the artwork show through the labels. */
-  --lg-fill: color-mix(in srgb, var(--lg-tint) 9%, rgb(22 22 26 / .58));
+  /* Clear, neutral glass: the color comes only from what is behind it. */
+  /* Clear glass like iOS Liquid Glass: a faint white fill over a darkened, softened backdrop, with no
+     cover tint (a dark tinted fill turned muddy brown over yellow artwork). The darkening keeps small
+     text readable over bright covers. */
+  --lg-fill: rgb(255 255 255 / .08);
   --lg-fill-pill: rgb(255 255 255 / .07);
   /* Glass pills: lighter at the top, one thin rim that is brightest along the top edge. */
   /* Clear glass like iOS: almost no fill (the backdrop is only brightened), no outline. Light catches
@@ -32,7 +32,8 @@
   --lg-specular: inset 0 -10px 16px -14px rgb(255 255 255 / .28), inset 0 0 18px rgb(255 255 255 / .04);
   --lg-shadow: 0 14px 36px rgb(0 0 0 / .2), 0 1px 3px rgb(0 0 0 / .1);
   --lg-inner: var(--lg-specular);
-  --lg-backdrop: blur(24px) saturate(180%) brightness(.94);
+  /* A heavy blur turns the artwork into soft color fields, as on iOS, instead of recognizable shapes. */
+  --lg-backdrop: blur(36px) saturate(140%) brightness(.64) contrast(.9);
   --lg-backdrop-pill: blur(2px) saturate(115%) brightness(1.16);
   --lg-text-lift: 0 1px 2px rgb(0 0 0 / .35);
   --lg-spring: cubic-bezier(.34, 1.56, .64, 1);
@@ -40,8 +41,8 @@
 }
 :root[data-ytmls-theme="light"] {
   --lg-ink: 25 28 32;
-  --lg-fill: color-mix(in srgb, var(--lg-tint) 6%, rgb(255 255 255 / .68));
-  --lg-backdrop: blur(24px) saturate(180%) brightness(1.04);
+  --lg-fill: rgb(250 250 252 / .66);
+  --lg-backdrop: blur(40px) saturate(150%) brightness(1.04);
   --lg-fill-pill: rgb(255 255 255 / .4);
   --lg-glint: linear-gradient(rgb(255 255 255 / .7), rgb(255 255 255 / .7));
   --lg-pill-fill: linear-gradient(rgb(255 255 255 / .32), rgb(255 255 255 / .32));
@@ -486,3 +487,17 @@ html.ytmls-lyrics-motion-lightweight :is(#ytmls-tools > .ytmls-tool-button, #ytm
    was hard to read over a bright cover, even through the denser fill. */
 :is(#ytmls-tools-pane, #ytmls-track-offset-popover) :is(.ytmls-track-offset-track, .ytmls-track-offset-help, .ytmls-track-offset-total,
   .ytmls-candidate-meta, .ytmls-sync-progress, .ytmls-recommendation-note) { color: rgb(var(--lg-ink) / .74) !important; }
+
+/* Vibrancy, like Apple's secondary labels: section titles, icons and chevrons are lightened by the
+   color behind the glass instead of being a flat grey. Dark theme only (plus-lighter needs a dark base). */
+:root:not([data-ytmls-theme="light"]) #ytmls-more :is(.ytmls-menu-label, .ytmls-menu-hint) {
+  color: rgb(255 255 255 / .5) !important; mix-blend-mode: plus-lighter;
+}
+:root:not([data-ytmls-theme="light"]) #ytmls-more :is(.ytmls-menu-group > .ytmls-tool-button[data-icon], .ytmls-diagnostic-details > summary[data-icon])::before,
+:root:not([data-ytmls-theme="light"]) #ytmls-more .ytmls-diagnostic-details > summary::after { mix-blend-mode: plus-lighter; }
+/* A faint glow just inside the rim, all the way round: the glass catches light at its edge. */
+#ytmls-more > .ytmls-more-menu, #ytmls-panel #ytmls-tools-pane, #ytmls-track-offset-popover {
+  --lg-edge-glow: inset 0 0 0 1px rgb(255 255 255 / .08), inset 0 0 14px rgb(255 255 255 / .1);
+}
+#ytmls-panel #ytmls-tools-pane, #ytmls-track-offset-popover { box-shadow: var(--lg-edge-glow), var(--lg-inner), var(--lg-shadow); }
+#ytmls-more > .ytmls-more-menu { box-shadow: var(--lg-edge-glow), var(--lg-specular), 0 18px 48px rgb(0 0 0 / .28), 0 2px 6px rgb(0 0 0 / .12) !important; }
