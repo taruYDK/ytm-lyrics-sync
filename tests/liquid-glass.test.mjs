@@ -103,3 +103,11 @@ test('その他 menu: rim on the menu, a scrolling body inside, regular rows wit
   const panel = fs.readFileSync(new URL('../src/content/lyrics-panel.js', import.meta.url), 'utf8');
   assert.match(panel, /menuBody\.className = "ytmls-more-body";\s*menuBody\.append\(displayGroup, playbackGroup, lyricsGroup, storageGroup\);\s*menu\.append\(menuBody\);/);
 });
+
+test('the resting bead is the same clear glass as the pills and the drop', () => {
+  const css = read('liquid-glass.css');
+  const bead = css.slice(css.indexOf('.ytmls-seg-thumb {'), css.indexOf('.ytmls-seg-thumb[hidden]'));
+  assert.match(bead, /background: rgb\(255 255 255 \/ \.14\) padding-box;/, 'a faint clear body, not a milky fill');
+  assert.doesNotMatch(bead, /--lg-rim\) border-box|0 3px 10px rgb\(0 0 0 \/ \.3\)/, 'no thick rim, no dark shadow');
+  assert.match(bead, /\.ytmls-seg-thumb::before \{[^}]*background: var\(--lg-glint\);[^}]*mask:/, 'the two rim glints');
+});

@@ -257,7 +257,7 @@ ytmusic-player-bar #ytmls-track-offset-button[aria-expanded="true"],
 /* Small / Medium / Large: one recessed capsule; the chosen size is a clear glass bead. */
 #ytmls-more .ytmls-size-presets {
   gap: 2px; margin: 2px 6px 4px; padding: 3px; border-radius: 999px;
-  background: rgb(0 0 0 / .22); box-shadow: inset 0 1px 3px rgb(0 0 0 / .3), inset 0 0 0 .5px rgb(255 255 255 / .06);
+  background: rgb(0 0 0 / .16); box-shadow: inset 0 1px 2px rgb(0 0 0 / .2), inset 0 0 0 .5px rgb(255 255 255 / .06);
 }
 html #ytmls-more .ytmls-size-presets .ytmls-tool-button.ytmls-tool-button {
   min-height: 28px; border: 1px solid transparent !important; border-radius: 999px !important;
@@ -282,18 +282,25 @@ html #ytmls-more .ytmls-glass-segment > .ytmls-tool-button.ytmls-tool-button[ari
   position: absolute; z-index: 0; top: 3px; bottom: 3px; left: 0; width: 0;
   border: 1px solid transparent; border-radius: 999px; box-sizing: border-box; pointer-events: none;
   will-change: transform, width;
-  background: linear-gradient(rgb(255 255 255 / .2), rgb(255 255 255 / .2)) padding-box, var(--lg-rim) border-box;
-  box-shadow: var(--lg-specular), inset 0 0 12px rgb(255 255 255 / .12), 0 3px 10px rgb(0 0 0 / .3);
-  transition: background .2s ease, box-shadow .2s ease;
+  /* The same clear glass as the header pills and the drop: a faint white body so the choice shows,
+     two rim glints (the ring below), a soft glow inside the lower edge and almost no shadow. */
+  background: rgb(255 255 255 / .14) padding-box;
+  box-shadow: inset 0 -6px 10px -8px rgb(255 255 255 / .4), inset 0 0 10px rgb(255 255 255 / .06), 0 1px 4px rgb(0 0 0 / .14);
+  transition: background .2s ease, box-shadow .2s ease, opacity .12s ease;
+}
+.ytmls-seg-thumb::before {
+  content: ""; position: absolute; inset: -1px; padding: 1px; border-radius: inherit; pointer-events: none;
+  background: var(--lg-glint);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
 }
 .ytmls-seg-thumb[hidden] { display: none; }
-:root[data-ytmls-theme="light"] .ytmls-seg-thumb { background: linear-gradient(#fff, #fff) padding-box, var(--lg-rim) border-box; }
+:root[data-ytmls-theme="light"] .ytmls-seg-thumb { background: rgb(255 255 255 / .85) padding-box; box-shadow: 0 1px 4px rgb(0 0 0 / .12); }
 #ytmls-more .ytmls-glass-segment[data-dragging="true"] { cursor: grabbing; }
 #ytmls-more .ytmls-glass-segment[data-dragging="true"] > .ytmls-seg-thumb {
-  /* Lifted: clearer body, brighter rim, deeper shadow. (A second backdrop blur inside the
-     glass menu would only see the menu itself, so the lens is drawn by scaling the label.) */
-  background: linear-gradient(rgb(255 255 255 / .1), rgb(255 255 255 / .1)) padding-box, var(--lg-rim) border-box;
-  box-shadow: var(--lg-specular), inset 0 0 14px rgb(255 255 255 / .2), 0 10px 24px rgb(0 0 0 / .35), 0 0 0 .5px rgb(255 255 255 / .25);
+  /* Lifted without the drop (lightweight mode): clearer body and a little more glow. */
+  background: rgb(255 255 255 / .1) padding-box;
+  box-shadow: inset 0 -6px 10px -8px rgb(255 255 255 / .5), inset 0 0 12px rgb(255 255 255 / .1), 0 4px 12px rgb(0 0 0 / .18);
 }
 html #ytmls-more .ytmls-glass-segment > .ytmls-tool-button.ytmls-tool-button { transition: transform .34s var(--lg-spring), color .16s ease !important; }
 html #ytmls-more .ytmls-glass-segment[data-dragging="true"] > .ytmls-tool-button.ytmls-tool-button { color: rgb(var(--lg-ink) / .6) !important; }
