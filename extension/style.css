@@ -1116,8 +1116,8 @@ ytmusic-tab-renderer[page-type="MUSIC_PAGE_TYPE_TRACK_LYRICS"].ytmls-replaced {
 #ytmls-tools > :not(#ytmls-helpful), #ytmls-helpful button { flex-shrink:0; }
 /* Fade clipped text at the viewport edge without changing lyric geometry. */
 #ytmls-list {
-  -webkit-mask-image: linear-gradient(to bottom, transparent 0, transparent 6px, #000 24px);
-  mask-image: linear-gradient(to bottom, transparent 0, transparent 6px, #000 24px);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, transparent 4px, #000 56px);
+  mask-image: linear-gradient(to bottom, transparent 0, transparent 4px, #000 56px);
 }
 
 /* Expanded volume slider keeps the native player bar to itself on narrow windows. */

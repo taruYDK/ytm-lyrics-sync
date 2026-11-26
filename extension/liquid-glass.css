@@ -9,7 +9,9 @@
   --lg-ink: 255 255 255;
   /* Clear, nearly neutral glass: the color comes from what is behind it, with only a hint of the cover. */
   --lg-tint: rgb(var(--mg-aurora-2, 40 38 52));
-  --lg-fill: color-mix(in srgb, var(--lg-tint) 9%, rgb(24 24 28 / .34));
+  /* Menus and panes hold small text, so they are denser than the pills: over a bright cover a thinner
+     fill let the artwork show through the labels. */
+  --lg-fill: color-mix(in srgb, var(--lg-tint) 9%, rgb(22 22 26 / .58));
   --lg-fill-pill: rgb(255 255 255 / .07);
   /* Glass pills: lighter at the top, one thin rim that is brightest along the top edge. */
   /* Clear glass like iOS: almost no fill (the backdrop is only brightened), no outline. Light catches
@@ -30,7 +32,7 @@
   --lg-specular: inset 0 -10px 16px -14px rgb(255 255 255 / .28), inset 0 0 18px rgb(255 255 255 / .04);
   --lg-shadow: 0 14px 36px rgb(0 0 0 / .2), 0 1px 3px rgb(0 0 0 / .1);
   --lg-inner: var(--lg-specular);
-  --lg-backdrop: blur(14px) saturate(210%) brightness(1.06);
+  --lg-backdrop: blur(24px) saturate(180%) brightness(.94);
   --lg-backdrop-pill: blur(2px) saturate(115%) brightness(1.16);
   --lg-text-lift: 0 1px 2px rgb(0 0 0 / .35);
   --lg-spring: cubic-bezier(.34, 1.56, .64, 1);
@@ -38,7 +40,8 @@
 }
 :root[data-ytmls-theme="light"] {
   --lg-ink: 25 28 32;
-  --lg-fill: color-mix(in srgb, var(--lg-tint) 6%, rgb(255 255 255 / .5));
+  --lg-fill: color-mix(in srgb, var(--lg-tint) 6%, rgb(255 255 255 / .68));
+  --lg-backdrop: blur(24px) saturate(180%) brightness(1.04);
   --lg-fill-pill: rgb(255 255 255 / .4);
   --lg-glint: linear-gradient(rgb(255 255 255 / .7), rgb(255 255 255 / .7));
   --lg-pill-fill: linear-gradient(rgb(255 255 255 / .32), rgb(255 255 255 / .32));
@@ -91,7 +94,7 @@ html.music-glass-hide-scrollbar #ytmls-more .ytmls-more-body { scrollbar-width: 
 #ytmls-more .ytmls-menu-group + .ytmls-menu-group { margin-top: 6px; padding-top: 6px; border-top: 1px solid rgb(var(--lg-ink) / .1); }
 #ytmls-more .ytmls-menu-label {
   margin: 0 !important; padding: 6px 12px 3px !important; font-size: 11.5px !important; font-weight: 600 !important;
-  color: rgb(var(--lg-ink) / .48) !important; letter-spacing: .02em;
+  color: rgb(var(--lg-ink) / .6) !important; letter-spacing: .02em;
 }
 #ytmls-more .ytmls-menu-label::after { display: none !important; }
 #ytmls-more .ytmls-menu-group > .ytmls-tool-button,
@@ -111,7 +114,7 @@ html.music-glass-hide-scrollbar #ytmls-more .ytmls-more-body { scrollbar-width: 
 #ytmls-more .ytmls-diagnostic-details > summary:is(:hover, :focus-visible) { background: rgb(var(--lg-ink) / .12) !important; }
 #ytmls-more .ytmls-menu-group > .ytmls-tool-button:not(:disabled):active { background: rgb(var(--lg-ink) / .18) !important; transform: scale(.98); }
 #ytmls-more .ytmls-menu-group > .ytmls-tool-button:disabled { opacity: .38 !important; }
-#ytmls-more .ytmls-menu-hint { display: block; margin: -4px 0 4px; padding: 0 12px 0 42px; font-size: 11px; line-height: 1.4; color: rgb(var(--lg-ink) / .5); }
+#ytmls-more .ytmls-menu-hint { display: block; margin: -4px 0 4px; padding: 0 12px 0 42px; font-size: 11px; line-height: 1.4; color: rgb(var(--lg-ink) / .62); }
 /* 診断情報: a row like the others, with a chevron that turns when it opens. */
 #ytmls-more .ytmls-diagnostic-details > summary { list-style: none; cursor: pointer; }
 #ytmls-more .ytmls-diagnostic-details > summary::-webkit-details-marker { display: none; }
@@ -478,3 +481,8 @@ html.ytmls-lyrics-motion-lightweight :is(#ytmls-tools > .ytmls-tool-button, #ytm
   :is(#ytmls-tools > .ytmls-tool-button, #ytmls-more > summary.ytmls-tool-button, #ytmls-helpful > .ytmls-source-badge,
   ytmusic-player-bar :is(#ytmls-resync-button, #ytmls-track-offset-button), #ytmls-fullscreen :is(.ytmls-full-size button, .ytmls-full-close))::after { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
 }
+
+/* Small secondary text on glass (track name, help, status, candidate details): dimmer than this
+   was hard to read over a bright cover, even through the denser fill. */
+:is(#ytmls-tools-pane, #ytmls-track-offset-popover) :is(.ytmls-track-offset-track, .ytmls-track-offset-help, .ytmls-track-offset-total,
+  .ytmls-candidate-meta, .ytmls-sync-progress, .ytmls-recommendation-note) { color: rgb(var(--lg-ink) / .74) !important; }
