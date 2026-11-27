@@ -214,8 +214,14 @@
     shuffle: () => {
       const pressed = pressChanging(barButton('.shuffle'), stateOf);
       flashButton(ui.shuffle);
-      // YouTube Music's shuffle reorders the queue once (no on/off), so say what happened.
-      if (pressed && !shuffleState().toggle) showToast('シャッフルしました', '次に再生する曲の順番を並べ替えました', '', 'シャッフル');
+      // YouTube Music's shuffle reorders the queue once (no on/off): the button glows for a moment
+      // and a note says what happened.
+      if (pressed) {
+        ui.shuffle.classList.add('is-recent');
+        clearTimeout(ui.shuffle.recentTimer);
+        ui.shuffle.recentTimer = setTimeout(() => ui.shuffle.classList.remove('is-recent'), 2500);
+        showToast('シャッフルしました', '次に再生する曲の順番を並べ替えました', '', 'シャッフル');
+      }
       setTimeout(syncShuffleRepeat, 300); setTimeout(syncShuffleRepeat, 900);
     },
     repeat: () => {

@@ -243,6 +243,7 @@ html.ytmls-am-drawer-open .ytmls-am-scrim { display: block; position: fixed; ins
 .ytmls-am-prev svg, .ytmls-am-next svg { width: 21px; height: 21px; }
 .ytmls-am-shuffle, .ytmls-am-repeat { position: relative; color: rgb(var(--am-ink) / .6) !important; }
 /* On (repeat all / one, shuffle on): accent colour and a soft pill behind, like the Mac. */
+.ytmls-am-shuffle.is-recent { color: var(--am-accent, #fa2d48) !important; background: rgb(250 45 72 / .16); transition: color .6s, background-color .6s; }
 .ytmls-am-shuffle.is-active, .ytmls-am-repeat.is-active { color: var(--am-accent, #fa2d48) !important; background: rgb(250 45 72 / .16); }
 .ytmls-am-repeat[data-mode="one"]::after {
   content: "1";
@@ -431,8 +432,10 @@ html.ytmls-am-no-side .ytmls-am-menu { display: grid; }
 /* "Now playing" banner when the song changes. */
 .ytmls-am-toast {
   position: fixed;
+  /* Centred under the toolbar's now-playing display, clear of the lyrics panel on the right. */
   top: calc(var(--ytmls-am-top, 64px) + 6px);
-  right: 16px;
+  left: calc(var(--ytmls-am-side, 0px) + (100vw - var(--ytmls-am-side, 0px)) / 2);
+  translate: -50% 0;
   display: flex;
   align-items: center;
   gap: 10px;
