@@ -9,7 +9,7 @@ YT Music 歌詞シンクロの開発内容をまとめた引き継ぎ用のメ�
 | 公開中のバージョン | **v3.2.1**（GitHub Releases に公開済み。`main` の `0c67969` にタグ `v3.2.1`） |
 | 作業ブランチ | `claude/github-content-review-ub7w55`（push 済み） |
 | `main` への取り込み | **まだ**。大きなアップデートのときにまとめて取り込む方針 |
-| テスト | `npm run check` で 247 件すべて成功 |
+| テスト | `npm run check` で 249 件すべて成功 |
 | 開発版 ZIP | `npm run package` で作成し、`manifest.json` の `version_name` を `3.2.1-dev` に書き換えて配布（リポジトリのバージョンは 3.2.1 のまま） |
 
 ## 決定事項
@@ -191,5 +191,7 @@ v3.2.1 より前からある部分も含めて全体を確認し、見つかっ�
       - ホーム（Mac 風の画面のときだけ、見た目だけで大きさや配置は変えない）：棚の見出し（`ytmusic-carousel-shelf-basic-header-renderer`）を太く、ジャケット（`ytmusic-two-row-item-renderer`）を角丸＋影、乗せたときの再生ボタンをガラスの丸（YouTube Music は曲のジャケットに常に出しているが、邪魔と言われたため乗せたとき・その曲の再生中だけ表示）、気分のチップ（`ytmusic-chip-cloud-chip-renderer`）をガラスのカプセル（選択中は白）。
       - 曲メニュー（`ytmusic-menu-popup-renderer`）：角丸 14px のガラス、項目は角丸の行＋乗せると明るく。
       - どれも実機の作りは未確認。診断情報に `Mac pages:`（各部品の数、再生待ちの項目の中身、開いているメニューの項目の種類）を追加。
+    - **再生中の画面からホームへ戻れなかった（2026-11-27）：** YouTube Music の閉じるボタン（⌄）は隠れた再生バーの中。サイドバーの項目を押すと再生中の画面を閉じてから移動、上部バーの曲名・ジャケットはもう一度押すと閉じる（`togglePlayerPage`）、Esc でも閉じる（メニュー・歌詞ツール・入力欄などが開いているときは除く）。
+    - **曲／動画が使えないとき（2026-11-27）：** 動画のない曲では YouTube Music が切り替えを薄くして無効にしているが、不透明にしたため使えるように見えていた。`toggle-disabled`／`disabled`／`aria-disabled` を見て `.ytmls-av-unavailable` を付け、全体を暗く、文字と粒を薄く、カーソルを禁止マークに。
     - 次の候補：再生中の画面（ジャケット＋タブ＋歌詞）を Mac の再生中画面／右の歌詞パネル風にする、全画面歌詞ビューを Mac 風にする。
   - 1（取りやめ）：左メニューを Mac のサイドバー風にする試みは、実機で揃わずユーザーの判断で戻した（`liquid-glass.css` から全部削除）。左メニューは「選択中の項目がガラスの粒」だけの状態。実機の構造：広いメニュー＝`ytmusic-guide-renderer#guide-renderer`、細いメニュー＝同じ要素の `#mini-guide-renderer`。診断情報の `Guide layout:` は残してある。

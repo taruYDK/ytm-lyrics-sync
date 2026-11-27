@@ -679,3 +679,15 @@ html.music-glass ytmusic-player-page ytmusic-av-toggle.ytmls-av-glass,
 html.music-glass ytmusic-player-page ytmusic-av-toggle.ytmls-av-glass .ytmls-av-segment,
 html.music-glass ytmusic-player-page ytmusic-av-toggle.ytmls-av-glass :is(.song-button, .video-button) { opacity: 1 !important; filter: none !important; }
 html.music-glass ytmusic-player-page ytmusic-av-toggle.ytmls-av-glass :is(.song-button, .video-button).ytmls-av-on { color: #fff !important; }
+/* Unavailable (a song without a video): darker, the bead dimmed, and it does not react. */
+html.music-glass ytmusic-player-page ytmusic-av-toggle.ytmls-av-glass.ytmls-av-unavailable .ytmls-av-segment {
+  background: rgb(0 0 0 / .38) !important;
+  box-shadow: inset 0 1px 3px rgb(0 0 0 / .35) !important;
+  cursor: not-allowed;
+}
+html.music-glass ytmusic-player-page ytmusic-av-toggle.ytmls-av-glass.ytmls-av-unavailable :is(.song-button, .video-button) {
+  color: rgb(255 255 255 / .3) !important;
+  cursor: not-allowed !important;
+}
+html.music-glass ytmusic-player-page ytmusic-av-toggle.ytmls-av-glass.ytmls-av-unavailable :is(.song-button, .video-button).ytmls-av-on { color: rgb(255 255 255 / .55) !important; }
+html.music-glass ytmusic-player-page ytmusic-av-toggle.ytmls-av-glass.ytmls-av-unavailable .ytmls-av-segment > .ytmls-seg-thumb { opacity: .4; box-shadow: none; }

@@ -247,3 +247,17 @@ test('song artwork: the play button shows only under the pointer (or while that 
   assert.match(css, /ytmusic-play-button-renderer:not\(\[play-button-state="playing"\]\)[^{]*\{\s*opacity: 0 !important;/);
   assert.match(css, /:is\(:hover, :focus-within\) ytmusic-item-thumbnail-overlay-renderer ytmusic-play-button-renderer[^{]*\{\s*opacity: 1 !important;/);
 });
+
+test('leaving the Now Playing page: sidebar items, the now-playing display (again) and Esc close it', () => {
+  const shell = read('apple-shell.js');
+  assert.match(shell, /closePlayerPage\(\);\s*press\(item\.entry/);
+  assert.match(shell, /info\.addEventListener\('click', togglePlayerPage\)/);
+  assert.match(shell, /if \(event\.key !== 'Escape'\) return;[\s\S]*?closePlayerPage\(\);/);
+});
+
+test('曲/動画 switch looks unavailable (darker, no bead) when YouTube Music disables it', () => {
+  const src = fs.readFileSync(new URL('../src/content/glass-segment.js', import.meta.url), 'utf8');
+  assert.match(src, /function ytmAvDisabled\(toggle, button\)/);
+  assert.match(src, /toggle\.classList\.toggle\('ytmls-av-unavailable'/);
+  assert.match(read('liquid-glass.css'), /\.ytmls-av-unavailable \.ytmls-av-segment \{[^}]*cursor: not-allowed;/);
+});

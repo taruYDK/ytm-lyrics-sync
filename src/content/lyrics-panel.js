@@ -1081,7 +1081,7 @@
         }
       }
       const av = page.querySelector("ytmusic-av-toggle");
-      const avText = av ? `mode=${av.getAttribute("playback-mode") || "-"} disabled=${av.hasAttribute("toggle-disabled")} buttons=${[...av.querySelectorAll(".song-button, .video-button")].map(b => `${describe(b)}[pressed=${b.getAttribute("aria-pressed") || "-"}] in ${describe(b.parentElement)}`).join(" , ")}` : "none";
+      const avText = av ? `mode=${av.getAttribute("playback-mode") || "-"} disabled=${av.hasAttribute("toggle-disabled")} buttons=${[...av.querySelectorAll(".song-button, .video-button")].map(b => `${describe(b)}[pressed=${b.getAttribute("aria-pressed") || "-"} disabled=${b.disabled || b.hasAttribute("disabled")} aria-disabled=${b.getAttribute("aria-disabled") || "-"}] in ${describe(b.parentElement)}`).join(" , ")}` : "none";
       return `tabs=[${tabs.join(" | ")}] columns=[${columns.join(", ")}] comments=[${comments.join(" ; ") || "none"}] av=[${avText}]`;
     } catch (_) {
       return "error";

@@ -391,6 +391,8 @@
         button.append(label);
         button.addEventListener('click', () => {
           closeDrawer();
+          // Going to a page from the sidebar also leaves the Now Playing page, so the page shows.
+          closePlayerPage();
           press(item.entry.querySelector('tp-yt-paper-item') || item.entry);
         });
         group.append(button);
@@ -569,6 +571,19 @@
   }
 
   // Open the Now Playing page and, if asked, one of its tabs (lyrics / up next).
+  function playerPageOpen() {
+    return Boolean(layoutEl()?.hasAttribute('player-page-open'));
+  }
+  // Close the Now Playing page (YouTube Music's own ⌄ button sits in its hidden player bar).
+  function closePlayerPage() {
+    if (!playerPageOpen()) return false;
+    press(barButton('.toggle-player-page-button')) || playerBar()?.click();
+    return true;
+  }
+  // The now-playing display opens the Now Playing page, and closes it again, like the Mac.
+  function togglePlayerPage() {
+    if (!closePlayerPage()) openPlayerPage();
+  }
   function openPlayerPage(tab) {
     const layout = layoutEl();
     const open = layout?.hasAttribute('player-page-open');
@@ -885,14 +900,14 @@
     const info = document.createElement('button');
     info.type = 'button';
     info.className = 'ytmls-am-info';
-    info.title = '再生中の画面を開く';
+    info.title = '再生中の画面を開く・閉じる（Esc でも閉じる）';
     ui.title = document.createElement('span');
     ui.title.className = 'ytmls-am-title';
     ui.subtitle = document.createElement('span');
     ui.subtitle.className = 'ytmls-am-subtitle';
     info.append(ui.title, ui.subtitle);
-    info.addEventListener('click', () => openPlayerPage());
-    ui.art.addEventListener('click', () => openPlayerPage());
+    info.addEventListener('click', togglePlayerPage);
+    ui.art.addEventListener('click', togglePlayerPage);
     ui.progress = document.createElement('div');
     ui.progress.className = 'ytmls-am-progress';
     ui.progress.setAttribute('aria-label', '再生位置');
@@ -927,7 +942,16 @@
     scrim.addEventListener('click', closeDrawer);
     shell.append(scrim, sidebar, toolbar);
     document.body.append(shell);
-    document.addEventListener('keydown', event => { if (event.key === 'Escape') closeDrawer(); });
+    document.addEventListener('keydown', event => {
+      if (event.key !== 'Escape') return;
+      closeDrawer();
+      // Esc leaves the Now Playing page, unless something on top of it takes Esc first (menus,
+      // panes, text fields, the lyrics tools…).
+      if (event.defaultPrevented || !root.classList.contains('ytmls-am') || !playerPageOpen()) return;
+      if (editableTarget(event)) return;
+      if (document.querySelector('tp-yt-iron-dropdown:not([aria-hidden="true"]):not([style*="display: none"]) ytmusic-menu-popup-renderer, #ytmls-more[open], #ytmls-tools-pane:not([hidden]), #ytmls-track-offset-popover:not([hidden]), #ytmls-fullscreen, tp-yt-paper-dialog[opened]')) return;
+      closePlayerPage();
+    });
     addShortcutHints();
   }
 

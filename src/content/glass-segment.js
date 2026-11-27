@@ -440,6 +440,11 @@ function ytmAvSelected(button) {
  return button.getAttribute('aria-pressed') === 'true' || button.getAttribute('aria-selected') === 'true' ||
   button.classList.contains('selected') || button.classList.contains('active') || button.hasAttribute('selected');
 }
+// Unavailable (a song without a video, for example): YouTube Music marks the toggle or its buttons.
+function ytmAvDisabled(toggle, button) {
+ const off = el => Boolean(el && (el.disabled || el.hasAttribute?.('disabled') || el.getAttribute?.('aria-disabled') === 'true'));
+ return Boolean(toggle?.hasAttribute('toggle-disabled') || toggle?.hasAttribute('disabled') || off(button));
+}
 function ensureYtmAvToggleGlass() {
  if (!document.documentElement?.classList.contains('music-glass')) return null;
  const toggle = document.querySelector('ytmusic-player-page ytmusic-av-toggle');
@@ -449,13 +454,15 @@ function ensureYtmAvToggleGlass() {
  if (!group || !video || video.parentElement !== group) return null;
  // The chosen side's label is white (marked here: playback-mode may be missing or named differently).
  for (const button of [song, video]) button.classList.toggle('ytmls-av-on', ytmAvSelected(button));
+ // The whole switch looks unavailable when neither side can be chosen.
+ toggle.classList.toggle('ytmls-av-unavailable', ytmAvDisabled(toggle, song) && ytmAvDisabled(toggle, video) || ytmAvDisabled(toggle, video) && ytmAvSelected(song) || ytmAvDisabled(toggle, song) && ytmAvSelected(video));
  if (group.glassSegment) return group.glassSegment;
  toggle.classList.add('ytmls-av-glass');
  group.classList.add('ytmls-av-segment');
  const segment = attachGlassSegment(group, {
   items: () => [...group.children].filter(el => el.classList.contains('song-button') || el.classList.contains('video-button')),
   isSelected: ytmAvSelected,
-  isDisabled: button => button.disabled || toggle.hasAttribute('toggle-disabled'),
+  isDisabled: button => ytmAvDisabled(toggle, button),
   activate: button => button.click(),
   watch: ['class', 'aria-pressed', 'aria-selected', 'selected', 'disabled'],
   settleMs: 400,
