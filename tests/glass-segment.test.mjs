@@ -301,3 +301,11 @@ test('曲 / 動画 switch gets the same glass segmented control (selection from 
   assert.match(css, /ytmusic-av-toggle\.ytmls-av-glass \.ytmls-av-segment \{/);
   assert.match(css, /\.ytmls-av-segment > \.ytmls-seg-thumb \{/);
 });
+
+test('YouTube Music\'s tabs and 曲/動画 switch take presses only while the Now Playing page is open and visible', () => {
+  const src = fs.readFileSync(new URL('../src/content/glass-segment.js', import.meta.url), 'utf8');
+  assert.match(src, /if \(event\.button !== 0 \|\| !enabled\(\) \|\| !canPress\(\) \|\|/);
+  assert.match(src, /if \(!canPress\(\)\) \{ hideLens\(\); return; \}/);
+  assert.equal((src.match(/canPress: \(\) => ytmPlayerControlShown\(group\)/g) || []).length, 2);
+  assert.match(src, /checkVisibility\(\{opacityProperty: true, visibilityProperty: true\}\)/);
+});

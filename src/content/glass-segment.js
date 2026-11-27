@@ -36,6 +36,9 @@ function attachGlassSegment(group, opts = {}) {
  const isDisabled = opts.isDisabled || (item => Boolean(item.disabled));
  const activate = opts.activate || (item => item.click());
  const enabled = opts.enabled || (() => true);
+ // canPress(): may a press start now (YouTube Music's tabs stay in the page, invisible, while the
+ // Now Playing page is closed; a press there must not lift a drop over the home page).
+ const canPress = opts.canPress || (() => true);
  const settleMs = opts.settleMs || 0;
  const thumb = document.createElement('span');
  thumb.className = 'ytmls-seg-thumb';
@@ -80,6 +83,7 @@ function attachGlassSegment(group, opts = {}) {
  // wall like the bead, instead of shrinking toward its own middle and leaving the wall).
  function placeLens(sx = 1, sy = 1, side = 'center') {
   if (!lens) return;
+  if (!canPress()) { hideLens(); return; }
   const rect = groupRect(), track = Math.max(0, groupHeight() - 6);
   const {min, max} = bounds();
   const trackLeft = rect.left + min, trackRight = rect.left + max + state.w;
@@ -332,7 +336,7 @@ function attachGlassSegment(group, opts = {}) {
   glassLensReport.lastEnd = `${how} ${from}->${to}`;
  }
  group.addEventListener('pointerdown', event => {
-  if (event.button !== 0 || !enabled() || buttons().every(isDisabled)) return;
+  if (event.button !== 0 || !enabled() || !canPress() || buttons().every(isDisabled)) return;
   press = {id: event.pointerId, type: event.pointerType || 'pointer', startX: event.clientX, lastX: event.clientX, button: itemOf(event.target) || buttonAt(event.clientX)};
   try { group.setPointerCapture(event.pointerId); } catch (_) {}
   startWatching();
@@ -394,6 +398,14 @@ function activateYtmTab(tab) {
   try { tab.dispatchEvent(new CustomEvent('tap', {bubbles: true, cancelable: true, composed: true})); } catch (_) {}
  }
 }
+// YouTube Music's Now Playing controls can be pressed only while that page is open and they show.
+function ytmPlayerControlShown(el) {
+ const layout = document.querySelector('ytmusic-app-layout');
+ if (layout && (!layout.hasAttribute('player-page-open') && !layout.hasAttribute('player-fullscreened'))) return false;
+ if (typeof el?.checkVisibility === 'function' && !el.checkVisibility({opacityProperty: true, visibilityProperty: true})) return false;
+ const rect = el?.getBoundingClientRect?.();
+ return !rect || (rect.width > 0 && rect.height > 0 && rect.bottom > 0 && rect.top < (window.innerHeight || Infinity));
+}
 function ensureYtmTabGlassSegment() {
  const root = document.documentElement;
  if (!root?.classList.contains('music-glass')) return null;
@@ -413,6 +425,7 @@ function ensureYtmTabGlassSegment() {
   watch: ['aria-selected', 'class'],
   settleMs: 300,
   enabled: () => document.documentElement.classList.contains('music-glass'),
+  canPress: () => ytmPlayerControlShown(group),
  });
 }
 
@@ -445,6 +458,7 @@ function ensureYtmAvToggleGlass() {
   watch: ['class', 'aria-pressed', 'aria-selected', 'selected', 'disabled'],
   settleMs: 400,
   enabled: () => document.documentElement.classList.contains('music-glass'),
+  canPress: () => ytmPlayerControlShown(group),
  });
  // playback-mode lives on the toggle, above the group the segment watches.
  if (typeof MutationObserver === 'function') {
