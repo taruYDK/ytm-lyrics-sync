@@ -406,7 +406,7 @@ function ensureYtmTabGlassSegment() {
  tabs.classList.add('ytmls-tabs-glass');
  group.classList.add('ytmls-tabs-segment');
  return attachGlassSegment(group, {
-  items: () => [...group.children].filter(el => el.localName === 'tp-yt-paper-tab'),
+  items: () => [...group.children].filter(el => el.localName === 'tp-yt-paper-tab' && !el.classList.contains('ytmls-tab-hidden')),
   isSelected: ytmTabSelected,
   isDisabled: ytmTabDisabled,
   activate: activateYtmTab,

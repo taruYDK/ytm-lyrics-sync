@@ -1000,7 +1000,33 @@
       `Local lyrics: ${snapshot.local ? "yes" : "no"}`,
       `Glass lens: ${typeof glassLensDiagnostics === "function" ? glassLensDiagnostics() : "n/a"}`,
       `Guide layout: ${guideLayoutDiagnostics()}`,
+      `Player page layout: ${playerPageLayoutDiagnostics()}`,
     ].join("\n");
+  }
+
+  // How the Now Playing page is built (to find the comments): tab labels, the page's columns, and
+  // anything whose tag or id says "comment". Element names, ids, classes and sizes only.
+  function playerPageLayoutDiagnostics() {
+    try {
+      const page = document.querySelector("ytmusic-player-page");
+      if (!page) return "no player page";
+      const box = (el) => { const r = el.getBoundingClientRect(); return `${Math.round(r.width)}x${Math.round(r.height)}@${Math.round(r.left)},${Math.round(r.top)}`; };
+      const describe = (el) => `${el.localName}${el.id ? "#" + el.id : ""}${el.classList.length ? "." + [...el.classList].slice(0, 3).join(".") : ""}(${box(el)})`;
+      const tabs = [...page.querySelectorAll("tp-yt-paper-tab")].map(tab => `${tab.textContent.replace(/\s+/g, " ").trim().slice(0, 12)}${tab.classList.contains("ytmls-tab-hidden") ? "[hidden]" : ""}`);
+      const columns = [...(page.querySelector("#content, .content") || page).children].map(describe);
+      const comments = [];
+      const walker = document.createTreeWalker(page, NodeFilter.SHOW_ELEMENT);
+      for (let el = walker.nextNode(); el && comments.length < 6; el = walker.nextNode()) {
+        if (el.closest("#ytmls-panel")) continue;
+        if (/comment/i.test(el.localName) || /comment/i.test(el.id || "")) {
+          const chain = []; for (let p = el.parentElement; p && p !== page && chain.length < 4; p = p.parentElement) chain.push(describe(p));
+          comments.push(`${describe(el)} < ${chain.join(" < ")}`);
+        }
+      }
+      return `tabs=[${tabs.join(" | ")}] columns=[${columns.join(", ")}] comments=[${comments.join(" ; ") || "none"}]`;
+    } catch (_) {
+      return "error";
+    }
   }
 
   // How YouTube Music builds its side menu, to style it without guessing: element names, ids, slots,

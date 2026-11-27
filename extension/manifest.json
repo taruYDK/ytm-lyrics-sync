@@ -90,7 +90,8 @@
         "music-glass.js",
         "player-depth-scroll-guard.js",
         "liquid-glass.js",
-        "apple-shell.js"
+        "apple-shell.js",
+        "comments-toggle.js"
       ],
       "run_at": "document_idle"
     }

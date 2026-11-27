@@ -18,7 +18,7 @@ test('YouTube Music chrome keeps its space and is hidden only while the screen i
   const hide = css.match(/([^{}]+)\{\s*visibility:\s*hidden !important;\s*\}/);
   assert.ok(hide, 'hidden with visibility (layout unchanged), not display:none');
   for (const part of ['ytmusic-nav-bar', 'tp-yt-app-drawer#guide', 'ytmusic-player-bar']) assert.match(hide[1], new RegExp(`html\\.ytmls-am ${part.replace('#', '\\#')}`));
-  assert.doesNotMatch(css, /ytmusic-[a-z-]+[^{}]*\{[^}]*display:\s*none/);
+  assert.doesNotMatch(css.replace(/[^{}]*ytmls-(?:tab|comments)-hidden[^{}]*\{[^}]*\}/g, ''), /ytmusic-[a-z-]+[^{}]*\{[^}]*display:\s*none/);
   assert.match(css, /#ytmls-am \{ display: none; \}/);
 });
 
@@ -70,7 +70,7 @@ test('settings page has the switch, saved as appleShellEnabled', () => {
   const writes = [];
   const toggle = {checked: false, disabled: false, addEventListener(name, fn) { this[name] = fn; }};
   const chrome = {runtime: {}, storage: {local: {get: (d, cb) => cb(d), set: (v, cb) => { writes.push(v); cb(); }}, onChanged: {addListener() {}}}};
-  vm.runInNewContext(read('apple-shell-popup.js'), {chrome, document: {getElementById: id => id === 'appleShellToggle' ? toggle : {textContent: ''}}});
+  vm.runInNewContext(read('apple-shell-popup.js'), {chrome, document: {getElementById: id => id === 'appleShellToggle' ? toggle : null}});
   assert.equal(toggle.checked, true, 'on by default');
   toggle.checked = false; toggle.change();
   assert.equal(JSON.stringify(writes), JSON.stringify([{appleShellEnabled: false}]));
@@ -84,4 +84,58 @@ test('with YouTube Music\'s top bar and player bar present, the screen is built'
 test('the lyrics timing buttons move into the menu while YouTube Music\'s player bar is hidden', () => {
   const src = fs.readFileSync(new URL('../src/content/timing-offset.js', import.meta.url), 'utf8');
   assert.match(src, /classList\.contains\('ytmls-am'\)/);
+});
+
+function classList() {
+  const set = new Set();
+  return {set, add: c => set.add(c), remove: c => set.delete(c), contains: c => set.has(c), toggle: (c, on) => on ? set.add(c) : set.delete(c)};
+}
+function runComments({tabs = [], panels = [], stored = {}} = {}) {
+  let listener;
+  const page = {contains: () => true};
+  const document = {
+    hidden: false,
+    querySelectorAll: selector => selector.includes('tp-yt-paper-tab') ? tabs : panels.filter(el => el.classList.contains('ytmls-comments-hidden')),
+    querySelector: selector => selector === 'ytmusic-player-page' ? page : null,
+    createTreeWalker: (root, what, filter) => {
+      const list = panels.filter(el => filter.acceptNode(el) === 1);
+      let i = 0;
+      return {nextNode: () => list[i++] || null};
+    },
+    addEventListener() {},
+  };
+  const chrome = {storage: {local: {get: (d, cb) => cb({...d, ...stored})}, onChanged: {addListener: fn => { listener = fn; }}}};
+  vm.runInNewContext(read('comments-toggle.js'), {document, chrome, setInterval() {}, NodeFilter: {SHOW_ELEMENT: 1, FILTER_ACCEPT: 1, FILTER_REJECT: 2, FILTER_SKIP: 3}});
+  return change => listener(change, 'local');
+}
+const tab = (text, selected = false) => ({textContent: text, classList: classList(), clicked: 0, getAttribute: name => name === 'aria-selected' ? String(selected) : null, hasAttribute: () => false, click() { this.clicked++; }});
+
+test('comments: the comments tab is hidden by default and the lyrics tab is opened instead', () => {
+  const tabs = [tab('次のコンテンツ'), tab('歌詞'), tab(' コメント 1.2万 ', true), tab('関連')];
+  const change = runComments({tabs});
+  assert.equal(tabs[2].classList.contains('ytmls-tab-hidden'), true);
+  assert.equal(tabs.filter(t => t.classList.contains('ytmls-tab-hidden')).length, 1);
+  assert.equal(tabs[1].clicked, 1);
+  change({hideYtmComments: {newValue: false}});
+  assert.equal(tabs[2].classList.contains('ytmls-tab-hidden'), false);
+});
+
+test('comments: a comments panel (tag or id says comment) is hidden, outermost only; switch shows it again', () => {
+  const make = (localName, id = '', parent = null) => ({localName, id, classList: classList(), parentElement: parent ? {closest: () => parent.classList.contains('ytmls-comments-hidden') ? parent : null} : null});
+  const outer = make('ytmusic-comments-section-renderer');
+  const inner = make('div', 'comment-list', outer);
+  const other = make('div', 'related');
+  const change = runComments({panels: [outer, inner, other]});
+  assert.equal(outer.classList.contains('ytmls-comments-hidden'), true);
+  assert.equal(inner.classList.contains('ytmls-comments-hidden'), false);
+  assert.equal(other.classList.contains('ytmls-comments-hidden'), false);
+  change({hideYtmComments: {newValue: false}});
+  assert.equal(outer.classList.contains('ytmls-comments-hidden'), false);
+});
+
+test('comments: the setting is on the settings page and loads on YouTube Music', () => {
+  assert.match(read('popup.html'), /id="ytmCommentsToggle"/);
+  assert.match(read('apple-shell-popup.js'), /bind\('ytmCommentsToggle', 'hideYtmComments', true\)/);
+  assert.ok(JSON.parse(read('manifest.json')).content_scripts.some(item => item.js?.includes('comments-toggle.js')));
+  assert.match(fs.readFileSync(new URL('../src/content/glass-segment.js', import.meta.url), 'utf8'), /!el\.classList\.contains\('ytmls-tab-hidden'\)/);
 });

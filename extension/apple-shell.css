@@ -330,3 +330,7 @@ html.ytmls-lyrics-motion-lightweight .ytmls-am-toolbar::before { background: #11
 @media (prefers-reduced-motion: reduce) {
   .ytmls-am-btn, .ytmls-am-progress-track, .ytmls-am-time { transition: none; }
 }
+
+/* comments-toggle.js: YouTube Music's comments, hidden by the setting. */
+html ytmusic-player-page tp-yt-paper-tabs tp-yt-paper-tab.ytmls-tab-hidden.ytmls-tab-hidden,
+ytmusic-player-page .ytmls-comments-hidden { display: none !important; }
