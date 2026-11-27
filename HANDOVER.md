@@ -9,7 +9,7 @@ YT Music 歌詞シンクロの開発内容をまとめた引き継ぎ用のメ�
 | 公開中のバージョン | **v3.2.1**（GitHub Releases に公開済み。`main` の `0c67969` にタグ `v3.2.1`） |
 | 作業ブランチ | `claude/github-content-review-ub7w55`（push 済み） |
 | `main` への取り込み | **まだ**。大きなアップデートのときにまとめて取り込む方針 |
-| テスト | `npm run check` で 237 件すべて成功 |
+| テスト | `npm run check` で 239 件すべて成功 |
 | 開発版 ZIP | `npm run package` で作成し、`manifest.json` の `version_name` を `3.2.1-dev` に書き換えて配布（リポジトリのバージョンは 3.2.1 のまま） |
 
 ## 決定事項
@@ -175,5 +175,9 @@ v3.2.1 より前からある部分も含めて全体を確認し、見つかっ�
     - **コメント欄（2026-11-27）：** 実機では再生中の画面の歌詞の隣にコメント欄が出る（作りは未確認）。設定「背景 → コメント欄を表示」（`chrome.storage.local` の `hideYtmComments`、初期値＝隠す）。`extension/comments-toggle.js` が 0.8 秒ごとに、①「コメント／Comments（件数付き可）」のタブを隠し（開いていたら歌詞タブへ）、②再生中の画面の中でタグ名か id に comment を含む一番外側の要素を隠す。ガラスのタブの粒は隠したタブを数えない。消えなかったときのため、診断情報に `Player page layout:`（タブ名・列・comment を含む要素と親）を追加。
     - **音量・お気に入り・通知（2026-11-27）：** 上部バーの右に音量（スピーカー＝消音、細いスライダー。ドラッグ・ホイール・矢印キー）。音量は `player-bridge.js`（MAIN）の `set-volume`／`toggle-mute` でプレーヤー本体の `setVolume`／`mute` を呼ぶので YouTube Music 側の音量と食い違わない。スナップショットに `volume`／`muted` を追加。LCD の右端に ☆（YouTube Music の高評価。`ytmusic-like-button-renderer` の `like-status="LIKE"` で状態を読む。乗せると出る・オンのときは赤で常に表示）。曲が変わると右上に「再生中」の小さな通知（ページを開いて最初の曲では出さない）。これらは `globalThis.ytmlsAppleControls`（transport／音量／高評価／`createVolumeControl`）として content.js からも使える。
     - **全画面歌詞ビューを Mac の「再生中」画面に（2026-11-27）：** `src/content/fullscreen-now.js`。左にジャケット（大）・曲名・アーティスト・再生位置（ドラッグ／矢印キーで移動、経過と残り時間）・前へ／再生／次へ・音量、右に歌詞。一時停止中はジャケットが少し小さくなる。狭い・低いウインドウ（幅 860px 以下か高さ 520px 以下）では上に小さな行、下に歌詞。歌詞の文字は右の列に合わせて少し小さめ（A−／A+ は効く）。CSS は `apple-shell.css` の末尾。
+    - **右側の歌詞パネル・ミニプレーヤー・キー操作（2026-11-27）：** `src/content/side-lyrics.js`。
+      - 歌詞パネル：上部バーの「歌詞」で画面右に浮いたガラスの歌詞（再生中の画面が開いているときは従来どおり歌詞タブ）。再生中の画面を開くと閉じる。今の行は `STATE.lines` と再生時刻＋同期タイミング（`timingOffsetSeconds`）から自分で計算するので、YouTube Music の歌詞タブが無くても流れる。行の中身は歌詞パネルの行を複製（ふりがな付き）、無ければ文字だけ。押すとその行へ移動。手でスクロールすると設定の待ち時間だけ追従を止める。
+      - ミニプレーヤー：Document Picture-in-Picture（Chrome 116 以降）の常に手前の小窓。ジャケット・曲名・今の歌詞の行と次の行・前へ／再生／次へ・再生位置（押すと移動）。小窓自身の `requestAnimationFrame` で動くので YouTube Music のタブが隠れても進む。Space で再生／一時停止。CSS は JS 内の文字列（`MINI_PLAYER_CSS`）。非対応ブラウザではボタンを隠す。
+      - キー操作（Mac 風の画面のときだけ。Windows は Ctrl、Mac は ⌘）：→／← 次・前の曲、↑／↓ 音量 ±10、F 検索欄、Shift+L 歌詞、Shift+P ミニプレーヤー。文字入力中は矢印キーを奪わない。ボタンのツールチップと検索欄にキーを表示。
     - 次の候補：再生中の画面（ジャケット＋タブ＋歌詞）を Mac の再生中画面／右の歌詞パネル風にする、全画面歌詞ビューを Mac 風にする。
   - 1（取りやめ）：左メニューを Mac のサイドバー風にする試みは、実機で揃わずユーザーの判断で戻した（`liquid-glass.css` から全部削除）。左メニューは「選択中の項目がガラスの粒」だけの状態。実機の構造：広いメニュー＝`ytmusic-guide-renderer#guide-renderer`、細いメニュー＝同じ要素の `#mini-guide-renderer`。診断情報の `Guide layout:` は残してある。

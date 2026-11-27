@@ -44,6 +44,7 @@
     speaker: svg('<path d="M4.5 9.5h3l4.5-4v13l-4.5-4h-3z"/><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11"/>'),
     speakerLow: svg('<path d="M4.5 9.5h3l4.5-4v13l-4.5-4h-3z"/><path d="M15.5 9a4 4 0 0 1 0 6"/>'),
     speakerMuted: svg('<path d="M4.5 9.5h3l4.5-4v13l-4.5-4h-3z"/><path d="m15.5 9.5 5 5M20.5 9.5l-5 5"/>'),
+    miniplayer: svg('<rect x="3.5" y="5" width="17" height="14" rx="2.5"/><rect x="11.5" y="11.5" width="7" height="5.5" rx="1.2" fill="currentColor" stroke="none"/>'),
     account: svg('<circle cx="12" cy="9" r="3.5"/><path d="M5.5 19.5c1.2-3 3.7-4.5 6.5-4.5s5.3 1.5 6.5 4.5"/>'),
   };
 
@@ -461,6 +462,76 @@
   }
   let lastTab = '';
 
+  // ---------- lyrics panel / mini player (content.js: side-lyrics.js) ----------
+  // While the Now Playing page is open it already shows the lyrics, so the button picks its tab;
+  // otherwise it opens the lyrics panel on the right, like the Mac.
+  function toggleLyricsView() {
+    const side = globalThis.ytmlsSideLyrics;
+    if (layoutEl()?.hasAttribute('player-page-open') || !side) { side?.toggle(false); openPlayerPage('lyrics'); return; }
+    side.toggle();
+    syncViewButtons();
+  }
+  function toggleMiniPlayer() {
+    const mini = globalThis.ytmlsMiniPlayer;
+    if (!mini?.supported()) { showToast('ミニプレーヤーを使えません', 'Chrome 116 以降で使えます', ''); return; }
+    Promise.resolve(mini.toggle()).finally(syncViewButtons);
+  }
+  function syncViewButtons() {
+    const side = globalThis.ytmlsSideLyrics, mini = globalThis.ytmlsMiniPlayer;
+    if (ui.lyrics) ui.lyrics.classList.toggle('is-on', Boolean(side?.isOpen()));
+    if (ui.miniplayer) {
+      ui.miniplayer.classList.toggle('is-on', Boolean(mini?.isOpen()));
+      ui.miniplayer.hidden = mini ? !mini.supported() : true;
+    }
+  }
+
+  // ---------- Mac-style shortcuts (Ctrl on Windows, ⌘ on Mac) ----------
+  const isMac = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent || '');
+  const MOD = isMac ? '⌘' : 'Ctrl+';
+  const SHIFT = isMac ? '⇧' : 'Shift+';
+  const SHORTCUTS = [
+    {name: 'next', label: '次へ', keys: `${MOD}→`, match: e => !e.shiftKey && e.key === 'ArrowRight', run: () => transport.next(), text: false},
+    {name: 'prev', label: '前へ', keys: `${MOD}←`, match: e => !e.shiftKey && e.key === 'ArrowLeft', run: () => transport.prev(), text: false},
+    {name: 'volumeUp', label: '音量を上げる', keys: `${MOD}↑`, match: e => !e.shiftKey && e.key === 'ArrowUp', run: () => setVolume(getVolume().volume + 10), text: false},
+    {name: 'volumeDown', label: '音量を下げる', keys: `${MOD}↓`, match: e => !e.shiftKey && e.key === 'ArrowDown', run: () => setVolume(getVolume().volume - 10), text: false},
+    {name: 'search', label: '検索', keys: `${MOD}F`, match: e => !e.shiftKey && e.code === 'KeyF', run: focusSearch, text: true},
+    {name: 'lyrics', label: '歌詞', keys: `${SHIFT}${MOD}L`, match: e => e.shiftKey && e.code === 'KeyL', run: () => toggleLyricsView(), text: true},
+    {name: 'miniplayer', label: 'ミニプレーヤー', keys: `${SHIFT}${MOD}P`, match: e => e.shiftKey && e.code === 'KeyP', run: () => toggleMiniPlayer(), text: true},
+  ];
+  function editableTarget(event) {
+    return event.composedPath().some(el => el instanceof Element && (el.isContentEditable || el.matches('input, textarea, select, [role="textbox"], [contenteditable]:not([contenteditable="false"])')));
+  }
+  function focusSearch() {
+    const input = ui.searchBox?.querySelector('input');
+    if (!input) return;
+    if (root.classList.contains('ytmls-am-no-side')) root.classList.add('ytmls-am-drawer-open');
+    else if (root.classList.contains('ytmls-am-compact')) ui.searchBox.classList.add('is-open');
+    input.focus();
+    input.select();
+  }
+  document.addEventListener('keydown', event => {
+    if (!root.classList.contains('ytmls-am') || event.altKey || event.isComposing) return;
+    if (!(isMac ? event.metaKey && !event.ctrlKey : event.ctrlKey && !event.metaKey)) return;
+    const shortcut = SHORTCUTS.find(item => item.match(event));
+    if (!shortcut) return;
+    // Arrow keys with Ctrl move by word in a text field: leave those to the field.
+    if (!shortcut.text && editableTarget(event)) return;
+    event.preventDefault();
+    event.stopPropagation();
+    if (!event.repeat || shortcut.name.startsWith('volume')) shortcut.run();
+  }, true);
+  function addShortcutHints() {
+    for (const shortcut of SHORTCUTS) {
+      const el = ui[shortcut.name];
+      if (!el) continue;
+      const label = `${shortcut.label}（${shortcut.keys}）`;
+      el.title = label;
+      el.setAttribute('aria-keyshortcuts', shortcut.keys.replace('⌘', 'Meta+').replace('⇧', 'Shift+'));
+    }
+    const input = ui.searchBox?.querySelector('input');
+    if (input) input.placeholder = `検索（${MOD}F）`;
+  }
+
   // ---------- building ----------
   function button(name, label, icon, onClick) {
     const el = document.createElement('button');
@@ -563,8 +634,9 @@
     const views = document.createElement('div');
     views.className = 'ytmls-am-capsule';
     views.append(
-      button('lyrics', '歌詞', 'lyrics', () => openPlayerPage('lyrics')),
+      button('lyrics', '歌詞', 'lyrics', toggleLyricsView),
       button('queue', '次に再生', 'queue', () => openPlayerPage('queue')),
+      button('miniplayer', 'ミニプレーヤー', 'miniplayer', toggleMiniPlayer),
     );
     ui.volume = createVolumeControl('ytmls-am-capsule');
     right.append(ui.volume, views, button('account', 'アカウント', 'account', () => {
@@ -579,6 +651,7 @@
     shell.append(scrim, sidebar, toolbar);
     document.body.append(shell);
     document.addEventListener('keydown', event => { if (event.key === 'Escape') closeDrawer(); });
+    addShortcutHints();
   }
 
   // ---------- keeping it in place ----------
@@ -602,6 +675,8 @@
     root.classList.toggle('ytmls-am-no-side', layout.side < 40);
     if (layout.side >= 40) root.classList.remove('ytmls-am-drawer-open');
     renderGuide();
+    if (layoutEl()?.hasAttribute('player-page-open') && globalThis.ytmlsSideLyrics?.isOpen()) globalThis.ytmlsSideLyrics.toggle(false);
+    syncViewButtons();
     bindVideo();
     updateNowPlaying();
     updatePlayState();

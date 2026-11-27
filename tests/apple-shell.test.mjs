@@ -42,7 +42,7 @@ function runShell({nav = null, bar = null, stored = {}} = {}) {
   }};
   let built = false;
   try {
-    vm.runInNewContext(read('apple-shell.js'), {document, chrome, location: {pathname: '/'}, setInterval() {}, setTimeout() {}, requestAnimationFrame: fn => fn(), addEventListener() {}, window: {addEventListener() {}}});
+    vm.runInNewContext(read('apple-shell.js'), {document, chrome, navigator: {platform: 'Win32'}, location: {pathname: '/'}, setInterval() {}, setTimeout() {}, requestAnimationFrame: fn => fn(), addEventListener() {}, window: {addEventListener() {}}});
   } catch (error) { if (error.message === 'built') built = true; else throw error; }
   return {classes, props, built};
 }
@@ -166,4 +166,25 @@ test('fullscreen lyrics use the Mac Now Playing layout (artwork, position, butto
   for (const part of ['ytmls-full-now', 'ytmls-full-progress', 'ytmls-full-transport', "createVolumeControl?.('ytmls-full-volume')", 'requestPlayerSeek(id']) assert.ok(now.includes(part), part);
   const css = read('apple-shell.css');
   assert.match(css, /#ytmls-fullscreen\.ytmls-full-mac \{[^}]*display: grid;/);
+});
+
+test('lyrics panel on the right and mini player follow the lyrics on their own', () => {
+  const order = JSON.parse(fs.readFileSync(new URL('../src/content-order.json', import.meta.url), 'utf8'));
+  assert.ok(order.includes('side-lyrics.js') && order.indexOf('side-lyrics.js') < order.indexOf('main.js'));
+  const src = fs.readFileSync(new URL('../src/content/side-lyrics.js', import.meta.url), 'utf8');
+  assert.match(src, /findCurrentLineIndex\(adjusted\)/, 'current line worked out from the playback time and timing offset');
+  assert.match(src, /documentPictureInPicture\.requestWindow/);
+  assert.match(src, /win\.requestAnimationFrame\(frame\)/, 'the mini player animates in its own window (keeps going while YouTube Music is hidden)');
+  assert.match(src, /globalThis\.ytmlsSideLyrics = Object\.freeze/);
+  assert.match(src, /globalThis\.ytmlsMiniPlayer = Object\.freeze/);
+  const shell = read('apple-shell.js');
+  assert.match(shell, /button\('lyrics', '歌詞', 'lyrics', toggleLyricsView\)/);
+  assert.match(shell, /button\('miniplayer', 'ミニプレーヤー', 'miniplayer', toggleMiniPlayer\)/);
+});
+
+test('Mac-style shortcuts: Ctrl (⌘ on Mac) with arrows, F, Shift+L and Shift+P; arrows stay with text fields', () => {
+  const shell = read('apple-shell.js');
+  for (const key of ["e.key === 'ArrowRight'", "e.key === 'ArrowLeft'", "e.key === 'ArrowUp'", "e.key === 'ArrowDown'", "e.code === 'KeyF'", "e.shiftKey && e.code === 'KeyL'", "e.shiftKey && e.code === 'KeyP'"]) assert.ok(shell.includes(key), key);
+  assert.match(shell, /if \(!shortcut\.text && editableTarget\(event\)\) return;/);
+  assert.match(shell, /isMac \? event\.metaKey && !event\.ctrlKey : event\.ctrlKey && !event\.metaKey/);
 });
