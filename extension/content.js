@@ -2484,7 +2484,11 @@ function readingTokensToRomaji(tokens) {
           hit = top && (top === ours || ours.contains(top)) ? "ok" : describe(top);
         }
         return `${name}: native=${native ? describe(native) : "missing"} hit=${hit}`;
-      }).join("; ");
+      }).join("; ") + "; gap: " + (() => {
+        // What sits in the space between the sidebar and the toolbar (a strip was reported there).
+        const side = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--ytmls-am-side")) || 0;
+        return [-10, -4, 2, 8].map(dx => `${dx}=${describe(document.elementFromPoint(Math.max(0, side + dx), 30))}`).join(",");
+      })();
     } catch (_) {
       return "error";
     }

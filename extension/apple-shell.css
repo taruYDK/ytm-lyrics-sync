@@ -194,7 +194,8 @@ html.ytmls-am-drawer-open .ytmls-am-scrim { display: block; position: fixed; ins
 .ytmls-am-toolbar::before {
   content: "";
   position: absolute;
-  inset: 0 0 -18px;
+  /* From the window's left edge (under the sidebar), so no strip shows between the two. */
+  inset: 0 0 -18px calc(-1 * var(--ytmls-am-side, 0px));
   z-index: -1;
   background: linear-gradient(rgb(0 0 0 / .42), rgb(0 0 0 / .18) 70%, transparent);
   -webkit-backdrop-filter: blur(14px);
