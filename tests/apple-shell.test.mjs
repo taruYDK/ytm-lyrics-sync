@@ -206,7 +206,8 @@ test('shuffle and repeat show what they did: repeat mode on the button, a pulse 
   assert.match(shell, /showToast\(wasOn \? 'シャッフル：オフ' : 'シャッフル：オン'/);
   assert.match(shell, /function shuffleOn\(\)/);
   const css = read('apple-shell.css');
-  assert.match(css, /\.ytmls-am-repeat\[data-mode="one"\]::after \{\s*content: "1";/);
+  assert.match(shell, /mode === 'one' \? ICONS\.repeatOne : ICONS\.repeat/);
+  assert.doesNotMatch(css, /\.ytmls-am-repeat\[data-mode="one"\]::after/);
   assert.match(css, /\.ytmls-am-btn\.is-flash \{ animation: ytmls-am-flash/);
 });
 

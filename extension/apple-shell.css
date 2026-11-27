@@ -246,21 +246,7 @@ html.ytmls-am-drawer-open .ytmls-am-scrim { display: block; position: fixed; ins
 /* On (repeat all / one, shuffle on): accent colour and a soft pill behind, like the Mac. */
 .ytmls-am-shuffle.is-recent { color: var(--am-accent, #fa2d48) !important; background: rgb(250 45 72 / .16); transition: color .6s, background-color .6s; }
 .ytmls-am-shuffle.is-active, .ytmls-am-repeat.is-active { color: var(--am-accent, #fa2d48) !important; background: rgb(250 45 72 / .16); }
-.ytmls-am-repeat[data-mode="one"]::after {
-  content: "1";
-  position: absolute;
-  right: 4px;
-  top: 4px;
-  min-width: 11px;
-  height: 11px;
-  border-radius: 999px;
-  background: var(--am-accent, #fa2d48);
-  color: #fff;
-  font-size: 8px;
-  font-weight: 800;
-  line-height: 11px;
-  text-align: center;
-}
+/* Repeat one: its own icon (a 1 inside the arrows), no badge. */
 /* A press gives a short pulse, so it is clear the button was taken. */
 .ytmls-am-btn.is-flash { animation: ytmls-am-flash .6s ease-out; }
 @keyframes ytmls-am-flash {
