@@ -217,6 +217,7 @@ function closePracticeFullscreen(animate = true) {
  document.removeEventListener('keyup', handlePracticeFullscreenSpace, true);
  clearTimeout(box.closeTimer);
  box.resizeObserver?.disconnect();
+ cancelAnimationFrame(box.nowFrame||0);
  const finish = () => {
   practiceFullscreen = null;
   const exiting = document.fullscreenElement === box ? document.exitFullscreen() : Promise.resolve();
@@ -307,6 +308,7 @@ function openPracticeFullscreen() {
  const meta=document.createElement('div');meta.className='ytmls-full-meta';
  const title=document.createElement('h1');const artist=document.createElement('p');artist.className='ytmls-full-artist';
  meta.append(title,artist);head.append(cover,meta);box.append(head);updatePracticeFullscreenHeader(box);const list=document.createElement('div');list.className='ytmls-full-list';box.append(list);
+ if(typeof buildFullscreenNowPlaying==='function')buildFullscreenNowPlaying(box);
  box.returnFocus=document.activeElement;document.body.append(box);practiceFullscreen=box;trackingDisplayResumedAt=performance.now();document.addEventListener('keydown',handlePracticeFullscreenSpace,true);document.addEventListener('keyup',handlePracticeFullscreenSpace,true);practiceFullSignature='';practiceFullIndex=-1;refreshPracticeFullscreen();box.tabIndex=-1;box.focus();
  box.resizeObserver=new ResizeObserver(()=>{if(practiceFullscreen===box){box.pendingFollow=true;syncPracticeFullscreenTracking();}});box.resizeObserver.observe(list);
  const pause=()=>{box.manualUntil=performance.now()+(STATE.manualScrollReturnMs||3500);box.pendingFollow=true;box.dataset.browsing='true';};list.addEventListener('wheel',pause,{passive:true});list.addEventListener('touchmove',pause,{passive:true});list.addEventListener('keydown',e=>{if(['ArrowUp','ArrowDown','PageUp','PageDown','Home','End'].includes(e.key))pause();});

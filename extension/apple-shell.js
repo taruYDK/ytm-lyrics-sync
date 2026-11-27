@@ -39,6 +39,11 @@
     lyrics: svg('<path d="M5 5.5h14a1.5 1.5 0 0 1 1.5 1.5v8.5A1.5 1.5 0 0 1 19 17h-8l-4.5 3.5V17H5a1.5 1.5 0 0 1-1.5-1.5V7A1.5 1.5 0 0 1 5 5.5z"/><path d="M8.5 10h1M8.5 12.8h1M12 10h3.5M12 12.8h3.5"/>'),
     queue: svg('<path d="M4.5 6.5h15M4.5 11h15M4.5 15.5h8"/><path d="m15.5 14 4 2.5-4 2.5z"/>'),
     note: svg('<path d="M9 18V6.5l10-2V16"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="16.5" cy="16" r="2.5"/>'),
+    star: svg('<path d="M12 3.8 14.5 9l5.7.6-4.3 3.9 1.2 5.7L12 16.3l-5.1 2.9 1.2-5.7-4.3-3.9L9.5 9z"/>'),
+    starFilled: svg('<path d="M12 3.8 14.5 9l5.7.6-4.3 3.9 1.2 5.7L12 16.3l-5.1 2.9 1.2-5.7-4.3-3.9L9.5 9z"/>', true),
+    speaker: svg('<path d="M4.5 9.5h3l4.5-4v13l-4.5-4h-3z"/><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11"/>'),
+    speakerLow: svg('<path d="M4.5 9.5h3l4.5-4v13l-4.5-4h-3z"/><path d="M15.5 9a4 4 0 0 1 0 6"/>'),
+    speakerMuted: svg('<path d="M4.5 9.5h3l4.5-4v13l-4.5-4h-3z"/><path d="m15.5 9.5 5 5M20.5 9.5l-5 5"/>'),
     account: svg('<circle cx="12" cy="9" r="3.5"/><path d="M5.5 19.5c1.2-3 3.7-4.5 6.5-4.5s5.3 1.5 6.5 4.5"/>'),
   };
 
@@ -69,6 +74,126 @@
   function currentVideo() {
     return q('#movie_player video.html5-main-video') || q('ytmusic-player video') || q('video');
   }
+
+  // ---------- shared controls (also used by the Now Playing screen in content.js) ----------
+  const bridge = globalThis.ytmlsBridge;
+  const volumeState = {volume: null, muted: false, holdUntil: 0};
+  bridge?.listen?.(message => {
+    if (message?.type !== 'snapshot' || performance.now() < volumeState.holdUntil) return;
+    const payload = message.payload || {};
+    if (Number.isFinite(payload.volume)) volumeState.volume = payload.volume;
+    if (typeof payload.muted === 'boolean') volumeState.muted = payload.muted;
+  });
+  function getVolume() {
+    if (volumeState.volume !== null) return {volume: volumeState.volume, muted: volumeState.muted};
+    const media = currentVideo();
+    return media ? {volume: Math.round(media.volume * 100), muted: media.muted} : {volume: 100, muted: false};
+  }
+  function setVolume(value) {
+    const volume = Math.round(Math.min(100, Math.max(0, Number(value) || 0)));
+    volumeState.volume = volume;
+    if (volume > 0) volumeState.muted = false;
+    volumeState.holdUntil = performance.now() + 700;
+    if (bridge) bridge.send({type: 'set-volume', payload: {volume}});
+    else { const media = currentVideo(); if (media) media.volume = volume / 100; }
+    syncVolumeControls();
+  }
+  function toggleMute() {
+    volumeState.muted = !getVolume().muted;
+    if (volumeState.volume === null) volumeState.volume = getVolume().volume;
+    volumeState.holdUntil = performance.now() + 700;
+    if (bridge) bridge.send({type: 'toggle-mute'});
+    else { const media = currentVideo(); if (media) media.muted = !media.muted; }
+    syncVolumeControls();
+  }
+  function likeRenderer() {
+    return playerBar()?.querySelector('ytmusic-like-button-renderer') || null;
+  }
+  function likeButton() {
+    const renderer = likeRenderer();
+    return renderer?.querySelector('#button-shape-like button, #button-shape-like, .like button, tp-yt-paper-icon-button.like, .like') || null;
+  }
+  function isLiked() {
+    const renderer = likeRenderer();
+    if (renderer?.getAttribute('like-status')) return renderer.getAttribute('like-status') === 'LIKE';
+    const button = likeButton();
+    return (button?.querySelector?.('button') || button)?.getAttribute?.('aria-pressed') === 'true';
+  }
+  function toggleLike() { return press(likeButton()); }
+  const transport = {
+    play: () => { if (!press(barButton('#play-pause-button'))) { const media = currentVideo(); if (media) media.paused ? media.play() : media.pause(); } },
+    prev: () => press(barButton('.previous-button')),
+    next: () => press(barButton('.next-button')),
+    shuffle: () => press(barButton('.shuffle')),
+    repeat: () => press(barButton('.repeat')),
+  };
+
+  // A volume control: speaker button (mute) and a slider. Any number can be made; all stay in step.
+  const volumeControls = new Set();
+  function volumeIcon(volume, muted) {
+    return muted || volume === 0 ? ICONS.speakerMuted : volume < 50 ? ICONS.speakerLow : ICONS.speaker;
+  }
+  function createVolumeControl(className = '') {
+    const wrap = document.createElement('div');
+    wrap.className = `ytmls-am-volume ${className}`.trim();
+    const mute = document.createElement('button');
+    mute.type = 'button';
+    mute.className = 'ytmls-am-btn ytmls-am-volume-icon';
+    mute.addEventListener('click', toggleMute);
+    const slider = document.createElement('div');
+    slider.className = 'ytmls-am-volume-slider';
+    slider.setAttribute('role', 'slider');
+    slider.setAttribute('aria-label', '音量');
+    slider.setAttribute('aria-valuemin', '0');
+    slider.setAttribute('aria-valuemax', '100');
+    slider.tabIndex = 0;
+    slider.innerHTML = '<span class="ytmls-am-volume-track"><span class="ytmls-am-volume-fill"></span></span><span class="ytmls-am-volume-knob"></span>';
+    let dragging = false;
+    const fromPointer = event => {
+      const rect = slider.getBoundingClientRect();
+      setVolume(((event.clientX - rect.left) / Math.max(1, rect.width)) * 100);
+    };
+    slider.addEventListener('pointerdown', event => {
+      dragging = true; slider.setPointerCapture?.(event.pointerId); slider.classList.add('is-dragging'); fromPointer(event); event.preventDefault();
+    });
+    slider.addEventListener('pointermove', event => { if (dragging) fromPointer(event); });
+    const end = () => { dragging = false; slider.classList.remove('is-dragging'); };
+    slider.addEventListener('pointerup', end);
+    slider.addEventListener('pointercancel', end);
+    slider.addEventListener('keydown', event => {
+      const step = {ArrowRight: 5, ArrowUp: 5, ArrowLeft: -5, ArrowDown: -5}[event.key];
+      if (step === undefined) return;
+      event.preventDefault(); event.stopPropagation();
+      setVolume(getVolume().volume + step);
+    });
+    slider.addEventListener('wheel', event => { event.preventDefault(); setVolume(getVolume().volume + (event.deltaY < 0 ? 4 : -4)); }, {passive: false});
+    wrap.append(mute, slider);
+    volumeControls.add({wrap, mute, slider});
+    syncVolumeControls();
+    return wrap;
+  }
+  function syncVolumeControls() {
+    const {volume, muted} = getVolume();
+    const shown = muted ? 0 : volume;
+    for (const control of volumeControls) {
+      if (!control.wrap.isConnected && control.wrap.dataset.mounted) { volumeControls.delete(control); continue; }
+      if (control.wrap.isConnected) control.wrap.dataset.mounted = '1';
+      control.slider.style.setProperty('--level', String(shown / 100));
+      control.slider.setAttribute('aria-valuenow', String(shown));
+      control.slider.setAttribute('aria-valuetext', muted ? '消音' : `${volume}%`);
+      const label = muted ? '消音を解除' : '消音';
+      if (control.mute.title !== label) { control.mute.title = label; control.mute.setAttribute('aria-label', label); }
+      const icon = volumeIcon(volume, muted);
+      if (control.mute.dataset.icon !== icon) { control.mute.dataset.icon = icon; control.mute.innerHTML = icon; }
+    }
+  }
+
+  globalThis.ytmlsAppleControls = Object.freeze({
+    transport, getVolume, setVolume, toggleMute, isLiked, toggleLike,
+    hasLike: () => Boolean(likeButton()),
+    createVolumeControl, syncVolumeControls,
+    icons: ICONS,
+  });
 
   // ---------- where YouTube Music's chrome sits ----------
   function visibleRect(el) {
@@ -216,6 +341,31 @@
     else updateProgress();
   }
 
+  // A small "now playing" banner when the song changes (not on the first song after the page opens).
+  let lastToastTitle = null;
+  let toastTimer = 0;
+  function showToast(title, subtitle, art) {
+    if (!shell || document.hidden) return;
+    let toast = ui.toast;
+    if (!toast) {
+      toast = ui.toast = document.createElement('div');
+      toast.className = 'ytmls-am-toast';
+      toast.setAttribute('role', 'status');
+      toast.innerHTML = '<img alt=""><span class="ytmls-am-toast-text"><span class="ytmls-am-toast-label">再生中</span><span class="ytmls-am-toast-title"></span><span class="ytmls-am-toast-sub"></span></span>';
+      shell.append(toast);
+    }
+    const img = toast.querySelector('img');
+    if (art) img.setAttribute('src', art); else img.removeAttribute('src');
+    img.hidden = !art;
+    toast.querySelector('.ytmls-am-toast-title').textContent = title;
+    toast.querySelector('.ytmls-am-toast-sub').textContent = subtitle;
+    toast.classList.remove('is-shown');
+    void toast.offsetWidth;
+    toast.classList.add('is-shown');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toast.classList.remove('is-shown'), 3600);
+  }
+
   function updateNowPlaying() {
     if (!ui.lcd) return;
     const bar = playerBar();
@@ -225,6 +375,19 @@
     const img = bar?.querySelector('img.image, .thumbnail-image-wrapper img, img');
     const art = img?.currentSrc || img?.src || '';
     ui.lcd.classList.toggle('is-empty', !title);
+    const liked = isLiked();
+    ui.star.hidden = !likeButton();
+    ui.star.classList.toggle('is-on', liked);
+    if (ui.star.dataset.on !== String(liked)) {
+      ui.star.dataset.on = String(liked);
+      ui.star.innerHTML = liked ? ICONS.starFilled : ICONS.star;
+      ui.star.setAttribute('aria-pressed', String(liked));
+    }
+    if (title && title !== lastToastTitle) {
+      if (lastToastTitle !== null) showToast(title, subtitle, art);
+      lastToastTitle = title;
+    }
+    syncVolumeControls();
     if (ui.title.textContent !== title) ui.title.textContent = title;
     if (ui.subtitle.textContent !== subtitle) ui.subtitle.textContent = subtitle;
     if (art && ui.art.getAttribute('src') !== art) ui.art.setAttribute('src', art);
@@ -353,13 +516,11 @@
     const controls = document.createElement('div');
     controls.className = 'ytmls-am-capsule ytmls-am-controls';
     controls.append(
-      button('shuffle', 'シャッフル', 'shuffle', () => press(barButton('.shuffle'))),
-      button('prev', '前へ', 'prev', () => press(barButton('.previous-button'))),
-      button('play', '再生', 'play', () => {
-        if (!press(barButton('#play-pause-button')) && video) video.paused ? video.play() : video.pause();
-      }),
-      button('next', '次へ', 'next', () => press(barButton('.next-button'))),
-      button('repeat', 'リピート', 'repeat', () => press(barButton('.repeat'))),
+      button('shuffle', 'シャッフル', 'shuffle', transport.shuffle),
+      button('prev', '前へ', 'prev', transport.prev),
+      button('play', '再生', 'play', transport.play),
+      button('next', '次へ', 'next', transport.next),
+      button('repeat', 'リピート', 'repeat', transport.repeat),
     );
     left.append(menu, controls);
 
@@ -393,7 +554,8 @@
     ui.elapsed.className = 'ytmls-am-time ytmls-am-elapsed';
     ui.remaining = document.createElement('span');
     ui.remaining.className = 'ytmls-am-time ytmls-am-remaining';
-    lcd.append(ui.art, placeholder, info, ui.elapsed, ui.remaining, ui.progress);
+    const star = button('star', 'お気に入り（高評価）', 'star', () => { toggleLike(); setTimeout(updateNowPlaying, 250); setTimeout(updateNowPlaying, 900); });
+    lcd.append(ui.art, placeholder, info, star, ui.elapsed, ui.remaining, ui.progress);
     bindProgress();
 
     const right = document.createElement('div');
@@ -404,7 +566,8 @@
       button('lyrics', '歌詞', 'lyrics', () => openPlayerPage('lyrics')),
       button('queue', '次に再生', 'queue', () => openPlayerPage('queue')),
     );
-    right.append(views, button('account', 'アカウント', 'account', () => {
+    ui.volume = createVolumeControl('ytmls-am-capsule');
+    right.append(ui.volume, views, button('account', 'アカウント', 'account', () => {
       const native = q('ytmusic-nav-bar ytmusic-settings-button');
       press(native?.querySelector('button, tp-yt-paper-icon-button, #button, img') || native);
     }));

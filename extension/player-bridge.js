@@ -44,6 +44,9 @@
     const videoId = data && data.video_id ? String(data.video_id) : '';
     const title = data && data.title ? String(data.title) : '';
     const artist = data && (data.author || data.artist) ? String(data.author || data.artist) : '';
+    const volume = readNumber(() => player.getVolume());
+    let muted = null;
+    try { muted = typeof player.isMuted === 'function' ? Boolean(player.isMuted()) : null; } catch (_) {}
 
     // 通常再生中は実videoの currentTime が最も高精度で、毎フレーム滑らかに進む。
     // ただし自動次曲では前曲videoが一瞬残るため、Player API と0.75秒以上食い違う
@@ -75,6 +78,8 @@
         duration,
         playerState,
         playbackRate,
+        volume,
+        muted,
         timeSource,
         sampledAt,
         wallTime: Date.now()
@@ -87,6 +92,23 @@
     try { message = parse(detailOf.call(event)); } catch (_) { return; }
     if (!message || typeof message !== 'object') return;
     if (message.type === 'tracking-config') {enabled=message.enabled===true;if(enabled){publish(true);schedule();}else{clearTimeout(timer);timer=null;}return;}
+    // Volume (the Mac-style toolbar and Now Playing screen): 0-100, through the player itself so
+    // YouTube Music's own volume stays in step. Not tied to a song.
+    if (message.type === 'set-volume' || message.type === 'toggle-mute') {
+      const player = document.getElementById('movie_player');
+      if (!player) return;
+      try {
+        if (message.type === 'toggle-mute') { if (player.isMuted()) player.unMute(); else player.mute(); }
+        else {
+          const value = Math.round(Math.min(100, Math.max(0, Number(message.payload?.volume))));
+          if (!Number.isFinite(value)) return;
+          player.setVolume(value);
+          if (value > 0 && player.isMuted()) player.unMute();
+        }
+      } catch (_) {}
+      publish(true);
+      return;
+    }
     if (!['seek', 'toggle-playback'].includes(message.type) || !enabled) return;
     const payload = message.payload || {};
     const requestedVideoId = String(payload.videoId || '');

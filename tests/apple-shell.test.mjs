@@ -139,3 +139,31 @@ test('comments: the setting is on the settings page and loads on YouTube Music',
   assert.ok(JSON.parse(read('manifest.json')).content_scripts.some(item => item.js?.includes('comments-toggle.js')));
   assert.match(fs.readFileSync(new URL('../src/content/glass-segment.js', import.meta.url), 'utf8'), /!el\.classList\.contains\('ytmls-tab-hidden'\)/);
 });
+
+test('volume goes through the player itself (bridge set-volume / toggle-mute), snapshots carry it', () => {
+  const bridge = read('player-bridge.js');
+  assert.match(bridge, /message\.type === 'set-volume' \|\| message\.type === 'toggle-mute'/);
+  assert.match(bridge, /player\.setVolume\(value\)/);
+  assert.match(bridge, /volume,\s*\n\s*muted,/);
+  const shell = read('apple-shell.js');
+  assert.match(shell, /bridge\.send\(\{type: 'set-volume', payload: \{volume\}\}\)/);
+  assert.match(shell, /globalThis\.ytmlsAppleControls = Object\.freeze/);
+});
+
+test('the favourite star follows YouTube Music\'s like state', () => {
+  const shell = read('apple-shell.js');
+  assert.match(shell, /getAttribute\('like-status'\) === 'LIKE'/);
+  assert.match(shell, /button\('star', 'お気に入り（高評価）'/);
+});
+
+test('fullscreen lyrics use the Mac Now Playing layout (artwork, position, buttons and volume on the left)', () => {
+  const order = JSON.parse(fs.readFileSync(new URL('../src/content-order.json', import.meta.url), 'utf8'));
+  assert.ok(order.indexOf('fullscreen-now.js') > order.indexOf('practice.js'));
+  const practice = fs.readFileSync(new URL('../src/content/practice.js', import.meta.url), 'utf8');
+  assert.match(practice, /if\(typeof buildFullscreenNowPlaying==='function'\)buildFullscreenNowPlaying\(box\);/);
+  assert.match(practice, /cancelAnimationFrame\(box\.nowFrame\|\|0\)/);
+  const now = fs.readFileSync(new URL('../src/content/fullscreen-now.js', import.meta.url), 'utf8');
+  for (const part of ['ytmls-full-now', 'ytmls-full-progress', 'ytmls-full-transport', "createVolumeControl?.('ytmls-full-volume')", 'requestPlayerSeek(id']) assert.ok(now.includes(part), part);
+  const css = read('apple-shell.css');
+  assert.match(css, /#ytmls-fullscreen\.ytmls-full-mac \{[^}]*display: grid;/);
+});

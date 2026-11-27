@@ -112,7 +112,7 @@ ${FULL ? FULL_GUIDE : MINI_GUIDE}
 </ytmusic-player-page>
 <ytmusic-player-bar class="ytmusic-app"><tp-yt-paper-slider id="progress-bar"><div id="sliderContainer"><tp-yt-paper-progress id="sliderBar"><div id="progressContainer"><div id="secondaryProgress"></div><div id="primaryProgress"></div></div></tp-yt-paper-progress><div id="sliderKnob"><div id="sliderKnobInner"></div></div></div></tp-yt-paper-slider><div class="thumbnail-image-wrapper"><img class="image" src="https://i.ytimg.com/vi/${VIDEO_ID}/cover.svg"></div>
  <div class="middle-controls"><div class="content-info-wrapper"><div class="title ytmusic-player-bar">夜明けのうた</div><div class="byline ytmusic-player-bar">Preview Artist • Preview Album • 2026</div></div>
- <div class="middle-controls-buttons"></div></div>
+ <div class="middle-controls-buttons"><ytmusic-like-button-renderer like-status="INDIFFERENT"><div id="button-shape-like"><button aria-pressed="false">like</button></div></ytmusic-like-button-renderer></div></div>
  <div class="left-controls"><tp-yt-paper-icon-button class="previous-button" title="前の曲"></tp-yt-paper-icon-button><tp-yt-paper-icon-button id="play-pause-button" title="一時停止"></tp-yt-paper-icon-button><tp-yt-paper-icon-button class="next-button" title="次の曲"></tp-yt-paper-icon-button></div>
  <div id="right-controls"><tp-yt-paper-icon-button class="shuffle" title="シャッフル"></tp-yt-paper-icon-button><tp-yt-paper-icon-button class="repeat" title="リピートオフ"></tp-yt-paper-icon-button><tp-yt-paper-icon-button class="toggle-player-page-button"></tp-yt-paper-icon-button></div></ytmusic-player-bar>
 </ytmusic-app>
@@ -127,6 +127,7 @@ ${FULL ? FULL_GUIDE : MINI_GUIDE}
   for (const o of document.querySelectorAll('tp-yt-paper-tab')) o.setAttribute('aria-selected', String(o === t));
  });
  const v = document.querySelector('video'); v.addEventListener('loadedmetadata', () => { v.currentTime = ${'${START}'}; v.play().catch(() => {}); }, {once: true});
+ document.querySelector('#button-shape-like button').addEventListener('click', () => { const r = document.querySelector('ytmusic-like-button-renderer'); r.setAttribute('like-status', r.getAttribute('like-status') === 'LIKE' ? 'INDIFFERENT' : 'LIKE'); });
  document.getElementById('play-pause-button').addEventListener('click', () => v.paused ? v.play() : v.pause());
  document.querySelector('.toggle-player-page-button').addEventListener('click', () => { const pg = document.querySelector('ytmusic-player-page'); pg.hidden = !pg.hidden; });
  navigator.mediaSession.metadata = new MediaMetadata({title: '夜明けのうた', artist: 'Preview Artist'});
