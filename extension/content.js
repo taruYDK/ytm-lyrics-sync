@@ -2464,7 +2464,30 @@ function readingTokensToRomaji(tokens) {
       `Guide layout: ${guideLayoutDiagnostics()}`,
       `Player page layout: ${playerPageLayoutDiagnostics()}`,
       `Mac toolbar: ${macToolbarDiagnostics()}`,
+      `Mac pages: ${macPagesDiagnostics()}`,
     ].join("\n");
+  }
+
+  // Mac-style screen: how many of YouTube Music's parts that the Apple-style rules target are on the
+  // page (counts and tag names only), to see which ones the real page uses.
+  function macPagesDiagnostics() {
+    try {
+      const count = (selector) => document.querySelectorAll(selector).length;
+      const queue = document.querySelector("ytmusic-player-queue-item");
+      const menu = document.querySelector("ytmusic-menu-popup-renderer");
+      return [
+        `queueItems=${count("ytmusic-player-queue-item")}`,
+        queue ? `queueItem=[${["song-title", "byline", "duration"].map(c => `${c}:${queue.querySelector("." + c) ? "y" : "n"}`).join(",")} selected:${count("ytmusic-player-queue-item[selected]")} state:${queue.getAttribute("play-button-state") || "-"}]` : "queueItem=none",
+        `shelfHeaders=${count("ytmusic-carousel-shelf-basic-header-renderer")}`,
+        `twoRow=${count("ytmusic-two-row-item-renderer")}`,
+        `listRows=${count("ytmusic-responsive-list-item-renderer")}`,
+        `chips=${count("ytmusic-chip-cloud-chip-renderer")}`,
+        `playButtons=${count("ytmusic-item-thumbnail-overlay-renderer ytmusic-play-button-renderer")}`,
+        `menu=${menu ? `${menu.parentElement?.localName || "-"} items:${[...new Set([...menu.querySelectorAll("[class], *")].map(el => el.localName).filter(n => /^ytmusic-.*item/.test(n)))].join("/")}` : "closed"}`,
+      ].join(" ");
+    } catch (_) {
+      return "error";
+    }
   }
 
   // Mac-style screen (apple-shell.js): for each playback button, whether YouTube Music's own button

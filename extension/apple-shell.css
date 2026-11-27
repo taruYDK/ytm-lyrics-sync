@@ -572,8 +572,8 @@ html:not(.ytmls-extra-motion-disabled):not(.ytmls-lyrics-motion-lightweight) #yt
 }
 
 /* ---------- Lyrics panel on the right (side-lyrics.js), like the Mac's lyrics sidebar ---------- */
-#ytmls-side-lyrics { display: none; }
-html.ytmls-am #ytmls-side-lyrics:not([hidden]) {
+#ytmls-side-lyrics, #ytmls-side-queue { display: none; }
+html.ytmls-am :is(#ytmls-side-lyrics, #ytmls-side-queue):not([hidden]) {
   position: fixed;
   z-index: 61;
   top: calc(var(--ytmls-am-top, 64px) + 2px);
@@ -671,3 +671,115 @@ html.ytmls-am-compact:not(.ytmls-am-drawer-open) .ytmls-am-sidebar { overflow: v
   .ytmls-am-sidebar, .ytmls-am-toolbar, .ytmls-am-item, .ytmls-am-item-label, .ytmls-am-search, .ytmls-am-heading { transition: none !important; }
 }
 html.ytmls-lyrics-motion-lightweight :is(.ytmls-am-sidebar, .ytmls-am-toolbar, .ytmls-am-item, .ytmls-am-item-label) { transition: none !important; }
+
+/* ---------- "Up Next" panel (the same glass panel as the lyrics) ---------- */
+.ytmls-queue-list { flex: 1; min-height: 0; overflow-y: auto; padding: 4px 8px 14px; scrollbar-width: thin; overscroll-behavior: contain; }
+.ytmls-queue-row {
+  display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; align-items: center; gap: 10px;
+  width: 100%; padding: 6px 8px; border: 0; border-radius: 10px; background: transparent;
+  color: #fff; font: inherit; text-align: left; cursor: pointer;
+}
+.ytmls-queue-row:hover { background: rgb(255 255 255 / .07); }
+.ytmls-queue-row.is-current { background: rgb(255 255 255 / .12); }
+.ytmls-queue-art { width: 44px; height: 44px; border-radius: 6px; object-fit: cover; background: rgb(255 255 255 / .08); box-shadow: 0 2px 8px rgb(0 0 0 / .3); }
+.ytmls-queue-text { display: flex; flex-direction: column; min-width: 0; gap: 1px; }
+.ytmls-queue-title, .ytmls-queue-byline { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ytmls-queue-title { font-size: 13px; font-weight: 600; }
+.ytmls-queue-row.is-current .ytmls-queue-title { color: var(--am-accent, #fa2d48); }
+.ytmls-queue-byline { font-size: 12px; color: rgb(255 255 255 / .55); }
+.ytmls-queue-duration { font-size: 11.5px; font-variant-numeric: tabular-nums; color: rgb(255 255 255 / .45); }
+/* The playing song: three small bars, like the Mac. */
+.ytmls-queue-bars { display: inline-flex; align-items: flex-end; gap: 2px; height: 12px; }
+.ytmls-queue-bars i { width: 3px; height: 100%; border-radius: 1px; background: var(--am-accent, #fa2d48); animation: ytmls-queue-bar .9s ease-in-out infinite alternate; transform-origin: bottom; }
+.ytmls-queue-bars i:nth-child(2) { animation-delay: -.3s; }
+.ytmls-queue-bars i:nth-child(3) { animation-delay: -.6s; }
+@keyframes ytmls-queue-bar { from { transform: scaleY(.3); } to { transform: scaleY(1); } }
+@media (prefers-reduced-motion: reduce) { .ytmls-queue-bars i { animation: none; } }
+html.ytmls-lyrics-motion-lightweight #ytmls-side-queue { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; background: #232327 !important; animation: none !important; }
+
+/* ---------- Home and browse pages, Apple-style (Mac Music-style screen only) ----------
+   Only looks: type, corners, shadows and colours; no sizes or layout of YouTube Music's own. */
+/* Section headings (もう一度聴く, 新作 …): large and heavy. */
+html.ytmls-am ytmusic-carousel-shelf-basic-header-renderer :is(h2, .title) ,
+html.ytmls-am ytmusic-carousel-shelf-basic-header-renderer .title yt-formatted-string {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", Roboto, sans-serif !important;
+  font-weight: 800 !important;
+  letter-spacing: -.01em;
+}
+html.ytmls-am ytmusic-carousel-shelf-basic-header-renderer .strapline { color: rgb(255 255 255 / .5) !important; font-weight: 600 !important; }
+/* Artwork: rounded with a soft shadow. */
+html.ytmls-am ytmusic-two-row-item-renderer :is(#thumbnail, ytmusic-thumbnail-renderer, .image-wrapper, a.image-wrapper) {
+  border-radius: 10px !important;
+}
+html.ytmls-am ytmusic-two-row-item-renderer :is(ytmusic-thumbnail-renderer, .image-wrapper) {
+  overflow: hidden;
+  box-shadow: 0 8px 22px rgb(0 0 0 / .32), 0 1px 4px rgb(0 0 0 / .2);
+}
+html.ytmls-am ytmusic-two-row-item-renderer:not([aspect-ratio*="CIRCLE"]) :is(ytmusic-thumbnail-renderer, .image-wrapper) img { border-radius: 10px !important; }
+html.ytmls-am ytmusic-responsive-list-item-renderer :is(ytmusic-thumbnail-renderer, .thumbnail) img { border-radius: 6px !important; }
+/* Hover play button: a glass circle instead of the plain dark one. */
+html.ytmls-am ytmusic-item-thumbnail-overlay-renderer ytmusic-play-button-renderer {
+  --ytmusic-play-button-background-color: rgb(255 255 255 / .2) !important;
+  --ytmusic-play-button-active-background-color: rgb(255 255 255 / .28) !important;
+  --ytmusic-play-button-icon-color: #fff !important;
+  border-radius: 999px;
+  -webkit-backdrop-filter: blur(16px) saturate(170%);
+  backdrop-filter: blur(16px) saturate(170%);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / .22), 0 4px 14px rgb(0 0 0 / .3);
+}
+html.ytmls-am ytmusic-item-thumbnail-overlay-renderer #background,
+html.ytmls-am ytmusic-item-thumbnail-overlay-renderer .background { border-radius: 10px; }
+/* Title under the artwork a little bolder, the line under it softer. */
+html.ytmls-am ytmusic-two-row-item-renderer .title { font-weight: 600 !important; }
+html.ytmls-am ytmusic-two-row-item-renderer .subtitle { color: rgb(255 255 255 / .55) !important; }
+/* Mood chips (リラックス, 通勤 …): glass capsules; the chosen one white. */
+html.ytmls-am ytmusic-chip-cloud-chip-renderer :is(a, .gradient-box, #chip-container),
+html.ytmls-am ytmusic-chip-cloud-chip-renderer {
+  border-radius: 999px !important;
+}
+html.ytmls-am ytmusic-chip-cloud-chip-renderer :is(a, .gradient-box) {
+  border: 0 !important;
+  background: rgb(255 255 255 / .09) !important;
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / .1);
+  color: rgb(255 255 255 / .9) !important;
+  transition: background-color .15s;
+}
+html.ytmls-am ytmusic-chip-cloud-chip-renderer:hover :is(a, .gradient-box) { background: rgb(255 255 255 / .16) !important; }
+html.ytmls-am ytmusic-chip-cloud-chip-renderer:is([is-selected], [chip-style="STYLE_PRIMARY"]) :is(a, .gradient-box) {
+  background: rgb(255 255 255 / .92) !important;
+  color: #111 !important;
+}
+html.ytmls-am ytmusic-chip-cloud-chip-renderer:is([is-selected], [chip-style="STYLE_PRIMARY"]) :is(a, .gradient-box) * { color: #111 !important; }
+
+/* ---------- Song menus (right click / ⋮): glass menus like the Mac ---------- */
+html.ytmls-am ytmusic-menu-popup-renderer {
+  border: 0 !important;
+  border-radius: 14px !important;
+  padding: 6px !important;
+  /* Nearly solid: the dropdown fades in with opacity, which would cut a blur off from the page. */
+  background: rgb(38 38 42 / .9) !important;
+  -webkit-backdrop-filter: blur(30px) saturate(170%);
+  backdrop-filter: blur(30px) saturate(170%);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / .1), 0 18px 48px rgb(0 0 0 / .42), 0 2px 8px rgb(0 0 0 / .2) !important;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", Roboto, sans-serif;
+}
+html.ytmls-am ytmusic-menu-popup-renderer tp-yt-paper-listbox { background: transparent !important; padding: 0 !important; }
+html.ytmls-am ytmusic-menu-popup-renderer :is(ytmusic-menu-navigation-item-renderer, ytmusic-menu-service-item-renderer, ytmusic-toggle-menu-service-item-renderer, ytmusic-menu-service-item-download-renderer) {
+  border-radius: 8px !important;
+  overflow: hidden;
+}
+html.ytmls-am ytmusic-menu-popup-renderer :is(ytmusic-menu-navigation-item-renderer, ytmusic-menu-service-item-renderer, ytmusic-toggle-menu-service-item-renderer, ytmusic-menu-service-item-download-renderer) :is(a, tp-yt-paper-item, #navigation-endpoint) {
+  min-height: 34px !important;
+  border-radius: 8px !important;
+  background: transparent !important;
+}
+html.ytmls-am ytmusic-menu-popup-renderer :is(ytmusic-menu-navigation-item-renderer, ytmusic-menu-service-item-renderer, ytmusic-toggle-menu-service-item-renderer, ytmusic-menu-service-item-download-renderer):hover {
+  background: rgb(255 255 255 / .12) !important;
+}
+html.ytmls-am ytmusic-menu-popup-renderer :is(.text, yt-formatted-string) { font-size: 13.5px !important; font-weight: 500 !important; color: rgb(255 255 255 / .94) !important; }
+html.ytmls-am ytmusic-menu-popup-renderer yt-icon { color: rgb(255 255 255 / .75) !important; }
+/* The thin lines between groups. */
+html.ytmls-am ytmusic-menu-popup-renderer :is(#header, ytmusic-menu-title-renderer) { border-bottom: 1px solid rgb(255 255 255 / .08) !important; }
+html.ytmls-am tp-yt-iron-dropdown:has(ytmusic-menu-popup-renderer) #contentWrapper,
+html.ytmls-am tp-yt-iron-dropdown:has(ytmusic-menu-popup-renderer) .dropdown-content { background: transparent !important; border-radius: 14px; }
+html.ytmls-lyrics-motion-lightweight.ytmls-am ytmusic-menu-popup-renderer { -webkit-backdrop-filter: none; backdrop-filter: none; background: #26262a !important; }

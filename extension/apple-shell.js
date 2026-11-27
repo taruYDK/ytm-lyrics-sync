@@ -599,8 +599,120 @@
   function toggleLyricsView() {
     const side = globalThis.ytmlsSideLyrics;
     if (layoutEl()?.hasAttribute('player-page-open') || !side) { side?.toggle(false); openPlayerPage('lyrics'); return; }
-    side.toggle();
+    if (side.toggle()) toggleQueuePanel(false);
     syncViewButtons();
+  }
+
+  // ---------- "Up Next" panel on the right (the Mac's queue sidebar) ----------
+  // Reads YouTube Music's own queue (the 次のコンテンツ tab's items, there even while the Now Playing
+  // page is closed) and plays an item by pressing it.
+  let queuePanel = null;
+  let queueSignature = '';
+  function queueItems() {
+    return [...document.querySelectorAll('ytmusic-player-page ytmusic-player-queue-item, ytmusic-player-queue ytmusic-player-queue-item')]
+      .filter((item, index, all) => all.indexOf(item) === index);
+  }
+  function queueItemInfo(item) {
+    const text = selector => item.querySelector(selector)?.textContent.replace(/\s+/g, ' ').trim() || '';
+    const img = item.querySelector('img');
+    const state = item.getAttribute('play-button-state') || '';
+    return {
+      title: text('.song-title') || text('.title'),
+      byline: text('.byline'),
+      duration: text('.duration'),
+      art: img?.currentSrc || img?.src || '',
+      current: item.hasAttribute('selected') || state === 'playing' || state === 'paused',
+    };
+  }
+  function playQueueItem(item) {
+    const before = trackState();
+    const target = item.querySelector('.song-info, .left-items, .song-title') || item;
+    target.click();
+    setTimeout(() => {
+      if (trackState() !== before) return;
+      try { item.dispatchEvent(new CustomEvent('tap', {bubbles: true, cancelable: true, composed: true})); } catch (_) {}
+    }, 700);
+  }
+  function buildQueuePanel() {
+    if (queuePanel) return queuePanel;
+    queuePanel = document.createElement('aside');
+    queuePanel.id = 'ytmls-side-queue';
+    queuePanel.className = 'ytmls-side-panel';
+    queuePanel.setAttribute('aria-label', '次に再生');
+    queuePanel.hidden = true;
+    queuePanel.innerHTML = '<div class="ytmls-side-head"><span class="ytmls-side-title">次に再生</span><button type="button" class="ytmls-side-close" title="閉じる" aria-label="閉じる"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="m7 7 10 10M17 7 7 17"/></svg></button></div><p class="ytmls-side-message"></p><div class="ytmls-queue-list" role="list"></div>';
+    queuePanel.querySelector('.ytmls-side-close').addEventListener('click', () => toggleQueuePanel(false));
+    queuePanel.addEventListener('keydown', event => { if (event.key === 'Escape') { event.stopPropagation(); toggleQueuePanel(false); } });
+    document.body.append(queuePanel);
+    return queuePanel;
+  }
+  function renderQueuePanel() {
+    if (!queuePanel || queuePanel.hidden) return;
+    const items = queueItems();
+    const infos = items.map(queueItemInfo);
+    const signature = JSON.stringify(infos.map(info => [info.title, info.byline, info.current, info.art]));
+    if (signature === queueSignature) return;
+    queueSignature = signature;
+    const message = queuePanel.querySelector('.ytmls-side-message');
+    message.textContent = items.length ? '' : '再生待ちの曲はありません。曲を再生すると、ここに並びます。';
+    message.hidden = Boolean(items.length);
+    const list = queuePanel.querySelector('.ytmls-queue-list');
+    const scroll = list.scrollTop;
+    list.replaceChildren();
+    let currentRow = null;
+    items.forEach((item, index) => {
+      const info = infos[index];
+      const row = document.createElement('button');
+      row.type = 'button';
+      row.className = 'ytmls-queue-row';
+      row.setAttribute('role', 'listitem');
+      if (info.current) { row.classList.add('is-current'); row.setAttribute('aria-current', 'true'); currentRow = row; }
+      const art = document.createElement('img');
+      art.className = 'ytmls-queue-art';
+      art.alt = '';
+      art.loading = 'lazy';
+      if (/^https:/.test(info.art)) art.src = info.art;
+      const textBox = document.createElement('span');
+      textBox.className = 'ytmls-queue-text';
+      const title = document.createElement('span');
+      title.className = 'ytmls-queue-title';
+      title.textContent = info.title || '—';
+      const byline = document.createElement('span');
+      byline.className = 'ytmls-queue-byline';
+      byline.textContent = info.byline;
+      textBox.append(title, byline);
+      const duration = document.createElement('span');
+      duration.className = 'ytmls-queue-duration';
+      duration.textContent = info.current ? '' : info.duration;
+      if (info.current) duration.innerHTML = '<span class="ytmls-queue-bars" aria-hidden="true"><i></i><i></i><i></i></span>';
+      row.append(art, textBox, duration);
+      row.title = [info.title, info.byline].filter(Boolean).join(' — ');
+      row.addEventListener('click', () => playQueueItem(item));
+      list.append(row);
+    });
+    list.scrollTop = scroll;
+    if (currentRow && !queuePanel.dataset.scrolled) {
+      queuePanel.dataset.scrolled = '1';
+      list.scrollTop = Math.max(0, currentRow.offsetTop - 12);
+    }
+  }
+  function toggleQueuePanel(force) {
+    const panel = buildQueuePanel();
+    const open = typeof force === 'boolean' ? force : panel.hidden;
+    panel.hidden = !open;
+    root.classList.toggle('ytmls-side-queue-open', open);
+    if (open) {
+      globalThis.ytmlsSideLyrics?.toggle(false);
+      queueSignature = '';
+      delete panel.dataset.scrolled;
+      renderQueuePanel();
+    }
+    syncViewButtons();
+    return open;
+  }
+  function toggleQueueView() {
+    if (layoutEl()?.hasAttribute('player-page-open')) { toggleQueuePanel(false); openPlayerPage('queue'); return; }
+    toggleQueuePanel();
   }
   function toggleMiniPlayer() {
     const mini = globalThis.ytmlsMiniPlayer;
@@ -610,6 +722,7 @@
   function syncViewButtons() {
     const side = globalThis.ytmlsSideLyrics, mini = globalThis.ytmlsMiniPlayer;
     if (ui.lyrics) ui.lyrics.classList.toggle('is-on', Boolean(side?.isOpen()));
+    if (ui.queue) ui.queue.classList.toggle('is-on', Boolean(queuePanel && !queuePanel.hidden));
     if (ui.miniplayer) {
       ui.miniplayer.classList.toggle('is-on', Boolean(mini?.isOpen()));
       ui.miniplayer.hidden = mini ? !mini.supported() : true;
@@ -627,6 +740,7 @@
     {name: 'volumeDown', label: '音量を下げる', keys: `${MOD}↓`, match: e => !e.shiftKey && e.key === 'ArrowDown', run: () => setVolume(getVolume().volume - 10), text: false},
     {name: 'search', label: '検索', keys: `${MOD}F`, match: e => !e.shiftKey && e.code === 'KeyF', run: focusSearch, text: true},
     {name: 'lyrics', label: '歌詞', keys: `${SHIFT}${MOD}L`, match: e => e.shiftKey && e.code === 'KeyL', run: () => toggleLyricsView(), text: true},
+    {name: 'queue', label: '次に再生', keys: `${SHIFT}${MOD}U`, match: e => e.shiftKey && e.code === 'KeyU', run: () => toggleQueueView(), text: true},
     {name: 'miniplayer', label: 'ミニプレーヤー', keys: `${SHIFT}${MOD}P`, match: e => e.shiftKey && e.code === 'KeyP', run: () => toggleMiniPlayer(), text: true},
   ];
   function editableTarget(event) {
@@ -780,7 +894,7 @@
     views.className = 'ytmls-am-capsule';
     views.append(
       button('lyrics', '歌詞', 'lyrics', toggleLyricsView),
-      button('queue', '次に再生', 'queue', () => openPlayerPage('queue')),
+      button('queue', '次に再生', 'queue', toggleQueueView),
       button('miniplayer', 'ミニプレーヤー', 'miniplayer', toggleMiniPlayer),
     );
     ui.volume = createVolumeControl('ytmls-am-capsule');
@@ -813,7 +927,11 @@
     requestAnimationFrame(step);
   }
   function refresh() {
-    if (!active()) { root.classList.remove('ytmls-am', 'ytmls-am-compact', 'ytmls-am-no-side'); return; }
+    if (!active()) {
+      root.classList.remove('ytmls-am', 'ytmls-am-compact', 'ytmls-am-no-side');
+      if (queuePanel && !queuePanel.hidden) toggleQueuePanel(false);
+      return;
+    }
     const layout = measure();
     if (!layout) { root.classList.remove('ytmls-am'); return; }
     // While YouTube Music switches its side menu, for a moment neither the wide nor the narrow one
@@ -842,6 +960,10 @@
     }
     renderGuide();
     if (layoutEl()?.hasAttribute('player-page-open') && globalThis.ytmlsSideLyrics?.isOpen()) globalThis.ytmlsSideLyrics.toggle(false);
+    if (queuePanel && !queuePanel.hidden) {
+      if (layoutEl()?.hasAttribute('player-page-open')) toggleQueuePanel(false);
+      else renderQueuePanel();
+    }
     syncViewButtons();
     bindVideo();
     updateNowPlaying();

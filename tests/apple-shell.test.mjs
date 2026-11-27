@@ -216,3 +216,25 @@ test('sidebar switch (wide / icons) presses YouTube Music\'s hidden ≡ button',
   assert.match(shell, /sideToggle\.addEventListener\('click', \(\) => \{\s*press\(guideButton\(\)\);/);
   assert.match(read('liquid-glass.css'), /\.ytmls-av-on \{ color: #fff !important; \}/);
 });
+
+test('Up Next panel reads YouTube Music\'s queue and plays an item by pressing it; it and the lyrics panel take turns', () => {
+  const shell = read('apple-shell.js');
+  assert.match(shell, /querySelectorAll\('ytmusic-player-page ytmusic-player-queue-item/);
+  assert.match(shell, /button\('queue', '次に再生', 'queue', toggleQueueView\)/);
+  assert.match(shell, /globalThis\.ytmlsSideLyrics\?\.toggle\(false\);/);
+  assert.match(shell, /if \(side\.toggle\(\)\) toggleQueuePanel\(false\);/);
+  assert.match(shell, /e\.shiftKey && e\.code === 'KeyU'/);
+});
+
+test('home shelves and song menus get Apple-style looks only in the Mac-style screen, without resizing YouTube Music\'s parts', () => {
+  const css = read('apple-shell.css').replace(/\/\*[\s\S]*?\*\//g, '');
+  for (const part of ['ytmusic-carousel-shelf-basic-header-renderer', 'ytmusic-two-row-item-renderer', 'ytmusic-chip-cloud-chip-renderer', 'ytmusic-menu-popup-renderer']) {
+    const rules = css.match(new RegExp(`[^{}]*${part}[^{}]*\\{[^}]*\\}`, 'g')) || [];
+    assert.ok(rules.length, part);
+    for (const rule of rules) {
+      assert.match(rule.split('{')[0], /html(\.ytmls-lyrics-motion-lightweight)?\.ytmls-am /, `${part} only in the Mac-style screen`);
+      assert.doesNotMatch(rule, /(^|[;{\s])(width|height|display|position|margin)\s*:/, `${part} keeps YouTube Music's sizes`);
+    }
+  }
+  assert.match(fs.readFileSync(new URL('../src/content/lyrics-panel.js', import.meta.url), 'utf8'), /`Mac pages: \$\{macPagesDiagnostics\(\)\}`/);
+});
