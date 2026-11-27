@@ -783,3 +783,18 @@ html.ytmls-am ytmusic-menu-popup-renderer :is(#header, ytmusic-menu-title-render
 html.ytmls-am tp-yt-iron-dropdown:has(ytmusic-menu-popup-renderer) #contentWrapper,
 html.ytmls-am tp-yt-iron-dropdown:has(ytmusic-menu-popup-renderer) .dropdown-content { background: transparent !important; border-radius: 14px; }
 html.ytmls-lyrics-motion-lightweight.ytmls-am ytmusic-menu-popup-renderer { -webkit-backdrop-filter: none; backdrop-filter: none; background: #26262a !important; }
+/* The play button on song artwork shows only under the pointer (or while that song plays), like the
+   Mac; YouTube Music keeps it on songs all the time. */
+html.ytmls-am :is(ytmusic-two-row-item-renderer, ytmusic-responsive-list-item-renderer) ytmusic-item-thumbnail-overlay-renderer ytmusic-play-button-renderer:not([play-button-state="playing"]):not([play-button-state="paused"]):not([play-button-state="loading"]) {
+  opacity: 0 !important;
+  transform: scale(.85) !important;
+  transition: opacity .18s ease, transform .22s cubic-bezier(.2, .9, .3, 1.2);
+}
+html.ytmls-am :is(ytmusic-two-row-item-renderer, ytmusic-responsive-list-item-renderer):is(:hover, :focus-within) ytmusic-item-thumbnail-overlay-renderer ytmusic-play-button-renderer:not([play-button-state="playing"]):not([play-button-state="paused"]):not([play-button-state="loading"]) {
+  opacity: 1 !important;
+  transform: none !important;
+}
+html.ytmls-am :is(ytmusic-two-row-item-renderer, ytmusic-responsive-list-item-renderer):not(:hover):not(:focus-within) ytmusic-item-thumbnail-overlay-renderer :is(#background, .background) { opacity: 0 !important; }
+@media (prefers-reduced-motion: reduce) {
+  html.ytmls-am ytmusic-item-thumbnail-overlay-renderer ytmusic-play-button-renderer { transition: none !important; }
+}

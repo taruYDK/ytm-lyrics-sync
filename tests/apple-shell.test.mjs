@@ -241,3 +241,9 @@ test('home shelves and song menus get Apple-style looks only in the Mac-style sc
   }
   assert.match(fs.readFileSync(new URL('../src/content/lyrics-panel.js', import.meta.url), 'utf8'), /`Mac pages: \$\{macPagesDiagnostics\(\)\}`/);
 });
+
+test('song artwork: the play button shows only under the pointer (or while that song plays)', () => {
+  const css = read('apple-shell.css');
+  assert.match(css, /ytmusic-play-button-renderer:not\(\[play-button-state="playing"\]\)[^{]*\{\s*opacity: 0 !important;/);
+  assert.match(css, /:is\(:hover, :focus-within\) ytmusic-item-thumbnail-overlay-renderer ytmusic-play-button-renderer[^{]*\{\s*opacity: 1 !important;/);
+});

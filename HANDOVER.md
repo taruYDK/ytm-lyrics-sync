@@ -9,7 +9,7 @@ YT Music 歌詞シンクロの開発内容をまとめた引き継ぎ用のメ�
 | 公開中のバージョン | **v3.2.1**（GitHub Releases に公開済み。`main` の `0c67969` にタグ `v3.2.1`） |
 | 作業ブランチ | `claude/github-content-review-ub7w55`（push 済み） |
 | `main` への取り込み | **まだ**。大きなアップデートのときにまとめて取り込む方針 |
-| テスト | `npm run check` で 246 件すべて成功 |
+| テスト | `npm run check` で 247 件すべて成功 |
 | 開発版 ZIP | `npm run package` で作成し、`manifest.json` の `version_name` を `3.2.1-dev` に書き換えて配布（リポジトリのバージョンは 3.2.1 のまま） |
 
 ## 決定事項
@@ -188,7 +188,7 @@ v3.2.1 より前からある部分も含めて全体を確認し、見つかっ�
     - **シャッフルはオン／オフだった（2026-11-27 訂正）：** 実機で「2 回押すとシャッフルが終わる」と判明（一回きりの並べ替えではない）。オン中は赤＋薄い赤の丸、ツールチップ「シャッフル：オン／オフ」、押すと通知「シャッフル：オン／オフ」。YouTube Music のボタンがどこで状態を示すか未確認のため、自分で押した前後のボタンの見た目（title・aria・class・アイコンの形）を覚えて見分ける（`shuffleOn`）。見た目が変わらないときは押した回数で判断。診断情報の `Mac toolbar:` に `shuffle: [...]`（ボタンの属性）を追加。
     - **「次に再生」パネル・ホーム・曲メニュー（2026-11-27）：**
       - 「次に再生」パネル（`apple-shell.js`、`#ytmls-side-queue`、歌詞パネルと同じガラス）：上部バーの「次に再生」か Ctrl+Shift+U（Mac は ⇧⌘U）。YouTube Music の再生待ち（`ytmusic-player-queue-item` の `.song-title`／`.byline`／`.duration`／画像、再生中は `[selected]` か `play-button-state`）を読み、押すとその曲の項目を押す（変わらなければ `tap`）。ジャケットは、閉じた「次のコンテンツ」タブでは YouTube Music が画像を読み込まないため、ブリッジ（MAIN）の `queue-info` で各項目のデータ（`item.data.thumbnail.thumbnails`、`videoId`）から画像の URL を受け取る（無ければ `i.ytimg.com/vi/<id>/default.jpg`）。並びはどちらも `document.querySelectorAll('ytmusic-player-queue-item')` の順。再生中の曲は赤字＋動く 3 本線。歌詞パネルとは交代で開く。再生中の画面が開いているときは従来どおりタブ。
-      - ホーム（Mac 風の画面のときだけ、見た目だけで大きさや配置は変えない）：棚の見出し（`ytmusic-carousel-shelf-basic-header-renderer`）を太く、ジャケット（`ytmusic-two-row-item-renderer`）を角丸＋影、乗せたときの再生ボタンをガラスの丸、気分のチップ（`ytmusic-chip-cloud-chip-renderer`）をガラスのカプセル（選択中は白）。
+      - ホーム（Mac 風の画面のときだけ、見た目だけで大きさや配置は変えない）：棚の見出し（`ytmusic-carousel-shelf-basic-header-renderer`）を太く、ジャケット（`ytmusic-two-row-item-renderer`）を角丸＋影、乗せたときの再生ボタンをガラスの丸（YouTube Music は曲のジャケットに常に出しているが、邪魔と言われたため乗せたとき・その曲の再生中だけ表示）、気分のチップ（`ytmusic-chip-cloud-chip-renderer`）をガラスのカプセル（選択中は白）。
       - 曲メニュー（`ytmusic-menu-popup-renderer`）：角丸 14px のガラス、項目は角丸の行＋乗せると明るく。
       - どれも実機の作りは未確認。診断情報に `Mac pages:`（各部品の数、再生待ちの項目の中身、開いているメニューの項目の種類）を追加。
     - 次の候補：再生中の画面（ジャケット＋タブ＋歌詞）を Mac の再生中画面／右の歌詞パネル風にする、全画面歌詞ビューを Mac 風にする。
