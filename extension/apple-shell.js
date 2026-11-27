@@ -29,6 +29,7 @@
     playlist: svg('<path d="M4.5 6.5h11M4.5 11h11M4.5 15.5h6"/><circle cx="16.5" cy="17" r="2"/><path d="M18.5 17V9.5l2-.8"/>'),
     item: svg('<circle cx="12" cy="12" r="3"/>'),
     search: svg('<circle cx="10.5" cy="10.5" r="6"/><path d="m15 15 4.5 4.5"/>'),
+    sidebar: svg('<rect x="3.5" y="5" width="17" height="14" rx="2.5"/><path d="M9.5 5v14"/><path d="M5.8 8.5h1.6M5.8 11h1.6"/>'),
     menu: svg('<path d="M4.5 7h15M4.5 12h15M4.5 17h15"/>'),
     play: svg('<path d="M8 5.2v13.6a.8.8 0 0 0 1.2.7l11-6.8a.8.8 0 0 0 0-1.4l-11-6.8A.8.8 0 0 0 8 5.2z"/>', true),
     pause: svg('<rect x="6.5" y="5" width="3.8" height="14" rx="1"/><rect x="13.7" y="5" width="3.8" height="14" rx="1"/>', true),
@@ -388,6 +389,9 @@
     }, 1500);
   }
 
+  function guideButton() {
+    return q('ytmusic-nav-bar #guide-button') || q('ytmusic-nav-bar yt-icon-button.guide-button') || q('#guide-button');
+  }
   function closeDrawer() {
     root.classList.remove('ytmls-am-drawer-open');
     ui.searchBox?.classList.remove('is-open');
@@ -678,7 +682,21 @@
     ui.searchBox = searchBox;
     ui.nav = document.createElement('div');
     ui.nav.className = 'ytmls-am-nav';
-    sidebar.append(searchBox, searchToggle, ui.nav);
+    // Wide / icon-only sidebar: YouTube Music's own ≡ button (hidden with its top bar) switches its
+    // side menu between the two, and the sidebar follows the space it takes.
+    const sideHead = document.createElement('div');
+    sideHead.className = 'ytmls-am-side-head';
+    const sideToggle = document.createElement('button');
+    sideToggle.type = 'button';
+    sideToggle.className = 'ytmls-am-btn ytmls-am-side-toggle';
+    sideToggle.innerHTML = ICONS.sidebar;
+    sideToggle.addEventListener('click', () => {
+      press(guideButton());
+      setTimeout(queueRefresh, 120); setTimeout(queueRefresh, 450);
+    });
+    ui.sideToggle = sideToggle;
+    sideHead.append(sideToggle);
+    sidebar.append(sideHead, searchBox, searchToggle, ui.nav);
 
     // Toolbar
     const toolbar = document.createElement('div');
@@ -776,6 +794,11 @@
     root.classList.toggle('ytmls-am-compact', layout.side > 0 && layout.side < 160);
     root.classList.toggle('ytmls-am-no-side', layout.side < 40);
     if (layout.side >= 40) root.classList.remove('ytmls-am-drawer-open');
+    if (ui.sideToggle) {
+      ui.sideToggle.hidden = !guideButton() || layout.side < 40;
+      const label = layout.side >= 160 ? 'サイドバーを狭くする' : 'サイドバーを広げる';
+      if (ui.sideToggle.title !== label) { ui.sideToggle.title = label; ui.sideToggle.setAttribute('aria-label', label); }
+    }
     renderGuide();
     if (layoutEl()?.hasAttribute('player-page-open') && globalThis.ytmlsSideLyrics?.isOpen()) globalThis.ytmlsSideLyrics.toggle(false);
     syncViewButtons();

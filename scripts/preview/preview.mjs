@@ -99,7 +99,7 @@ function page(light) {
  #sliderKnobInner{width:100%;height:100%;border-radius:50%;background:var(--paper-slider-knob-color,red)}
  ytmusic-player-bar .title{font-weight:500}.byline{color:#aaa;font-size:14px}
 </style></head><body><ytmusic-app>
-<ytmusic-nav-bar>YouTube Music<ytmusic-settings-button style="margin-left:auto"><button id="button">A</button></ytmusic-settings-button><ytmusic-search-box><div class="search-box"><input id="input" placeholder="曲、アルバム、アーティスト、ポッドキャストを検索"></div></ytmusic-search-box></ytmusic-nav-bar>
+<ytmusic-nav-bar><yt-icon-button id="guide-button"><button>≡</button></yt-icon-button>YouTube Music<ytmusic-settings-button style="margin-left:auto"><button id="button">A</button></ytmusic-settings-button><ytmusic-search-box><div class="search-box"><input id="input" placeholder="曲、アルバム、アーティスト、ポッドキャストを検索"></div></ytmusic-search-box></ytmusic-nav-bar>
 ${FULL ? FULL_GUIDE : MINI_GUIDE}
 <ytmusic-player-page player-page-open_ player-ui-state="PLAYER_PAGE_OPEN">
  <div id="player" style="flex-direction:column;gap:16px"><ytmusic-av-toggle playback-mode="ATV_PREFERRED" style="display:flex;justify-content:center"><div id="av-id" class="av-toggle"><button class="song-button">曲</button><button class="video-button">動画</button></div></ytmusic-av-toggle><ytmusic-player><div id="song-image"><img src="https://i.ytimg.com/vi/${VIDEO_ID}/cover.svg"></div>

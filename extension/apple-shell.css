@@ -648,3 +648,10 @@ html.ytmls-am #ytmls-side-lyrics:not([hidden]) {
 }
 html.ytmls-lyrics-motion-lightweight #ytmls-side-lyrics { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; background: #232327 !important; animation: none !important; }
 html.ytmls-lyrics-motion-lightweight .ytmls-side-line { filter: none !important; transition: none; }
+
+/* Sidebar header: the wide / icon-only switch at its top right, like the Mac's sidebar button. */
+.ytmls-am-side-head { display: flex; justify-content: flex-end; margin: -6px 0 2px; }
+.ytmls-am-side-toggle { width: 30px; height: 30px; color: rgb(var(--am-ink) / .6) !important; }
+.ytmls-am-side-toggle svg { width: 17px; height: 17px; }
+.ytmls-am-side-toggle[hidden] { display: none; }
+html.ytmls-am-compact:not(.ytmls-am-drawer-open) .ytmls-am-side-head { justify-content: center; margin: -2px 0 4px; }

@@ -673,3 +673,9 @@ html.music-glass ytmusic-player-page .ytmls-av-segment[data-dragging="true"] > .
 html.music-glass ytmusic-player-page .ytmls-av-segment[data-lens="true"] > .ytmls-seg-thumb { opacity: 0; transition: opacity .12s ease; }
 html.music-glass ytmusic-player-page ytmusic-av-toggle.ytmls-av-glass :is(paper-ripple, tp-yt-paper-ripple, yt-interaction) { border-radius: 999px; overflow: hidden; }
 html:not(.music-glass) ytmusic-av-toggle .ytmls-seg-thumb { display: none !important; }
+/* The switch was drawn faint on the real page (dimmed like the header controls): fully opaque,
+   and the chosen side's label white. */
+html.music-glass ytmusic-player-page ytmusic-av-toggle.ytmls-av-glass,
+html.music-glass ytmusic-player-page ytmusic-av-toggle.ytmls-av-glass .ytmls-av-segment,
+html.music-glass ytmusic-player-page ytmusic-av-toggle.ytmls-av-glass :is(.song-button, .video-button) { opacity: 1 !important; filter: none !important; }
+html.music-glass ytmusic-player-page ytmusic-av-toggle.ytmls-av-glass :is(.song-button, .video-button).ytmls-av-on { color: #fff !important; }

@@ -447,6 +447,8 @@ function ensureYtmAvToggleGlass() {
  const video = toggle?.querySelector('.video-button');
  const group = song?.parentElement;
  if (!group || !video || video.parentElement !== group) return null;
+ // The chosen side's label is white (marked here: playback-mode may be missing or named differently).
+ for (const button of [song, video]) button.classList.toggle('ytmls-av-on', ytmAvSelected(button));
  if (group.glassSegment) return group.glassSegment;
  toggle.classList.add('ytmls-av-glass');
  group.classList.add('ytmls-av-segment');

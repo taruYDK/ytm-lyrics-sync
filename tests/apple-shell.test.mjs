@@ -208,3 +208,10 @@ test('shuffle and repeat show what they did: repeat mode on the button, a pulse 
   assert.match(css, /\.ytmls-am-repeat\[data-mode="one"\]::after \{\s*content: "1";/);
   assert.match(css, /\.ytmls-am-btn\.is-flash \{ animation: ytmls-am-flash/);
 });
+
+test('sidebar switch (wide / icons) presses YouTube Music\'s hidden ≡ button', () => {
+  const shell = read('apple-shell.js');
+  assert.match(shell, /q\('ytmusic-nav-bar #guide-button'\)/);
+  assert.match(shell, /sideToggle\.addEventListener\('click', \(\) => \{\s*press\(guideButton\(\)\);/);
+  assert.match(read('liquid-glass.css'), /\.ytmls-av-on \{ color: #fff !important; \}/);
+});
