@@ -638,3 +638,38 @@ html.music-glass .ytmls-tabs-segment[data-dragging="true"] > tp-yt-paper-tab.ytm
 html.music-glass .ytmls-tabs-segment[data-lens="true"] > .ytmls-seg-thumb { opacity: 0; transition: opacity .12s ease; }
 /* Theme turned off: the tabs are YouTube Music's own again. */
 html:not(.music-glass) tp-yt-paper-tabs .ytmls-seg-thumb { display: none !important; }
+
+/* ---------- 曲 / 動画 switch (ytmusic-av-toggle): the same segmented control as the tabs ----------
+   A recessed capsule; the chosen side is a clear glass bead (glass-segment.js, .ytmls-av-segment). */
+html.music-glass ytmusic-player-page ytmusic-av-toggle.ytmls-av-glass .ytmls-av-segment {
+  position: relative; isolation: isolate; display: inline-flex !important; align-items: stretch; gap: 0;
+  height: 34px; padding: 3px !important; box-sizing: border-box;
+  border: 0 !important; border-radius: 999px !important;
+  background: rgb(0 0 0 / .18) !important;
+  box-shadow: inset 0 1px 2px rgb(0 0 0 / .22), inset 0 0 0 .5px rgb(255 255 255 / .07) !important;
+  touch-action: none; user-select: none; -webkit-user-select: none;
+}
+html.music-glass ytmusic-player-page ytmusic-av-toggle.ytmls-av-glass :is(.song-button, .video-button) {
+  position: relative; z-index: 1;
+  display: inline-flex !important; align-items: center; justify-content: center;
+  min-width: 64px; height: 100% !important; padding: 0 16px !important; margin: 0 !important; box-sizing: border-box;
+  border: 0 !important; border-radius: 999px !important; background: transparent !important; box-shadow: none !important;
+  opacity: 1 !important; color: rgb(255 255 255 / .62) !important; font-size: 13px !important; font-weight: 600 !important;
+  transition: color .2s ease !important; -webkit-user-drag: none; touch-action: none; cursor: pointer;
+}
+html.music-glass ytmusic-player-page ytmusic-av-toggle.ytmls-av-glass :is(.song-button, .video-button):hover { color: rgb(255 255 255 / .86) !important; background: transparent !important; }
+html.music-glass ytmusic-player-page ytmusic-av-toggle.ytmls-av-glass[playback-mode^="ATV"] .song-button,
+html.music-glass ytmusic-player-page ytmusic-av-toggle.ytmls-av-glass[playback-mode^="OMV"] .video-button { color: #fff !important; }
+html.music-glass ytmusic-player-page ytmusic-av-toggle.ytmls-av-glass[toggle-disabled] :is(.song-button, .video-button),
+html.music-glass ytmusic-player-page ytmusic-av-toggle.ytmls-av-glass :is(.song-button, .video-button):disabled { color: rgb(255 255 255 / .28) !important; cursor: default; }
+html.music-glass ytmusic-player-page .ytmls-av-segment > .ytmls-seg-thumb {
+  top: 0; bottom: 0;
+  background: rgb(255 255 255 / .14) padding-box;
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / .12), inset 0 -6px 10px -9px rgb(255 255 255 / .3), 0 3px 10px rgb(0 0 0 / .18);
+}
+html.music-glass ytmusic-player-page .ytmls-av-segment[data-dragging="true"] { cursor: grabbing; }
+html.music-glass ytmusic-player-page .ytmls-av-segment[data-dragging="true"] > :is(.song-button, .video-button) { color: rgb(255 255 255 / .5) !important; }
+html.music-glass ytmusic-player-page .ytmls-av-segment[data-dragging="true"] > .ytmls-seg-under { color: #fff !important; }
+html.music-glass ytmusic-player-page .ytmls-av-segment[data-lens="true"] > .ytmls-seg-thumb { opacity: 0; transition: opacity .12s ease; }
+html.music-glass ytmusic-player-page ytmusic-av-toggle.ytmls-av-glass :is(paper-ripple, tp-yt-paper-ripple, yt-interaction) { border-radius: 999px; overflow: hidden; }
+html:not(.music-glass) ytmusic-av-toggle .ytmls-seg-thumb { display: none !important; }

@@ -102,7 +102,7 @@ function page(light) {
 <ytmusic-nav-bar>YouTube Music<ytmusic-settings-button style="margin-left:auto"><button id="button">A</button></ytmusic-settings-button><ytmusic-search-box><div class="search-box"><input id="input" placeholder="曲、アルバム、アーティスト、ポッドキャストを検索"></div></ytmusic-search-box></ytmusic-nav-bar>
 ${FULL ? FULL_GUIDE : MINI_GUIDE}
 <ytmusic-player-page player-page-open_ player-ui-state="PLAYER_PAGE_OPEN">
- <div id="player"><ytmusic-player><div id="song-image"><img src="https://i.ytimg.com/vi/${VIDEO_ID}/cover.svg"></div>
+ <div id="player" style="flex-direction:column;gap:16px"><ytmusic-av-toggle playback-mode="ATV_PREFERRED" style="display:flex;justify-content:center"><div id="av-id" class="av-toggle"><button class="song-button">曲</button><button class="video-button">動画</button></div></ytmusic-av-toggle><ytmusic-player><div id="song-image"><img src="https://i.ytimg.com/vi/${VIDEO_ID}/cover.svg"></div>
   <div id="movie_player"><video class="html5-main-video" muted autoplay src="/preview.wav"></video></div></ytmusic-player></div>
  <div id="side-panel"><tp-yt-paper-tabs id="tabs">
   <tp-yt-paper-tab role="tab" aria-selected="false"><div class="tab-content">次のコンテンツ</div></tp-yt-paper-tab>
@@ -129,6 +129,8 @@ ${FULL ? FULL_GUIDE : MINI_GUIDE}
  const v = document.querySelector('video'); v.addEventListener('loadedmetadata', () => { v.currentTime = ${'${START}'}; v.play().catch(() => {}); }, {once: true});
  document.querySelector('#button-shape-like button').addEventListener('click', () => { const r = document.querySelector('ytmusic-like-button-renderer'); r.setAttribute('like-status', r.getAttribute('like-status') === 'LIKE' ? 'INDIFFERENT' : 'LIKE'); });
  { const r = document.querySelector('.repeat'), modes = ['リピートオフ', 'すべてリピート', '1 曲リピート']; let m = 0; r.addEventListener('click', () => { m = (m + 1) % 3; r.title = modes[m]; }); }
+ document.querySelector('.song-button').addEventListener('click', () => document.querySelector('ytmusic-av-toggle').setAttribute('playback-mode', 'ATV_PREFERRED'));
+ document.querySelector('.video-button').addEventListener('click', () => document.querySelector('ytmusic-av-toggle').setAttribute('playback-mode', 'OMV_PREFERRED'));
  p.pauseVideo = () => v.pause(); p.playVideo = () => v.play(); p.getPlayerState = () => v.paused ? 2 : 1;
  document.getElementById('play-pause-button').addEventListener('click', () => v.paused ? v.play() : v.pause());
  document.querySelector('.toggle-player-page-button').addEventListener('click', () => { const pg = document.querySelector('ytmusic-player-page'); pg.hidden = !pg.hidden; });

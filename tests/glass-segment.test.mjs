@@ -290,3 +290,14 @@ test('switched off (theme off), a press does nothing', () => {
   assert.equal(h.group.dataset.dragging, undefined);
   assert.equal(h.group.captured, undefined);
 });
+
+test('曲 / 動画 switch gets the same glass segmented control (selection from playback-mode)', () => {
+  const src = fs.readFileSync(new URL('../src/content/glass-segment.js', import.meta.url), 'utf8');
+  assert.match(src, /function ensureYtmAvToggleGlass\(\)/);
+  assert.match(src, /mode\.startsWith\('ATV'\)/);
+  assert.match(src, /observe\(toggle, \{attributes: true, attributeFilter: \['playback-mode', 'toggle-disabled'\]\}\)/);
+  assert.match(fs.readFileSync(new URL('../src/content/main.js', import.meta.url), 'utf8'), /ensureYtmAvToggleGlass\(\)/);
+  const css = fs.readFileSync(new URL('../extension/liquid-glass.css', import.meta.url), 'utf8');
+  assert.match(css, /ytmusic-av-toggle\.ytmls-av-glass \.ytmls-av-segment \{/);
+  assert.match(css, /\.ytmls-av-segment > \.ytmls-seg-thumb \{/);
+});

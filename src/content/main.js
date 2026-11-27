@@ -7,6 +7,7 @@
     ensureVideoListener();
     ensurePlayerBarTimingControl();
     if (typeof ensureYtmTabGlassSegment === "function") ensureYtmTabGlassSegment();
+    if (typeof ensureYtmAvToggleGlass === "function") ensureYtmAvToggleGlass();
     maintainLyricsAutoOpen();
 
     if (STATE.enabled) {

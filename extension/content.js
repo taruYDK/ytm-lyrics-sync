@@ -2513,7 +2513,9 @@ function readingTokensToRomaji(tokens) {
           comments.push(`${describe(el)} < ${chain.join(" < ")}`);
         }
       }
-      return `tabs=[${tabs.join(" | ")}] columns=[${columns.join(", ")}] comments=[${comments.join(" ; ") || "none"}]`;
+      const av = page.querySelector("ytmusic-av-toggle");
+      const avText = av ? `mode=${av.getAttribute("playback-mode") || "-"} disabled=${av.hasAttribute("toggle-disabled")} buttons=${[...av.querySelectorAll(".song-button, .video-button")].map(b => `${describe(b)}[pressed=${b.getAttribute("aria-pressed") || "-"}] in ${describe(b.parentElement)}`).join(" , ")}` : "none";
+      return `tabs=[${tabs.join(" | ")}] columns=[${columns.join(", ")}] comments=[${comments.join(" ; ") || "none"}] av=[${avText}]`;
     } catch (_) {
       return "error";
     }
@@ -9026,6 +9028,43 @@ function ensureYtmTabGlassSegment() {
  });
 }
 
+// ---------- YouTube Music's 曲 / 動画 switch (ytmusic-av-toggle) ----------
+// Restyled as the same segmented control as the tabs (liquid-glass.css), with the draggable bead.
+// The chosen side comes from the toggle's playback-mode (ATV = song, OMV = video); without it,
+// from a pressed/selected mark on the buttons.
+function ytmAvSelected(button) {
+ const toggle = button.closest('ytmusic-av-toggle');
+ const mode = String(toggle?.getAttribute('playback-mode') || '').toUpperCase();
+ if (mode.startsWith('ATV') || mode.startsWith('OMV')) return button.classList.contains('song-button') ? mode.startsWith('ATV') : mode.startsWith('OMV');
+ return button.getAttribute('aria-pressed') === 'true' || button.getAttribute('aria-selected') === 'true' ||
+  button.classList.contains('selected') || button.classList.contains('active') || button.hasAttribute('selected');
+}
+function ensureYtmAvToggleGlass() {
+ if (!document.documentElement?.classList.contains('music-glass')) return null;
+ const toggle = document.querySelector('ytmusic-player-page ytmusic-av-toggle');
+ const song = toggle?.querySelector('.song-button');
+ const video = toggle?.querySelector('.video-button');
+ const group = song?.parentElement;
+ if (!group || !video || video.parentElement !== group) return null;
+ if (group.glassSegment) return group.glassSegment;
+ toggle.classList.add('ytmls-av-glass');
+ group.classList.add('ytmls-av-segment');
+ const segment = attachGlassSegment(group, {
+  items: () => [...group.children].filter(el => el.classList.contains('song-button') || el.classList.contains('video-button')),
+  isSelected: ytmAvSelected,
+  isDisabled: button => button.disabled || toggle.hasAttribute('toggle-disabled'),
+  activate: button => button.click(),
+  watch: ['class', 'aria-pressed', 'aria-selected', 'selected', 'disabled'],
+  settleMs: 400,
+  enabled: () => document.documentElement.classList.contains('music-glass'),
+ });
+ // playback-mode lives on the toggle, above the group the segment watches.
+ if (typeof MutationObserver === 'function') {
+  new MutationObserver(() => segment.sync()).observe(toggle, {attributes: true, attributeFilter: ['playback-mode', 'toggle-disabled']});
+ }
+ return segment;
+}
+
 // Feature: glass-morph.js
 // Glass surfaces grow out of the button that opens them and shrink back into it when closed,
 // like Liquid Glass: the window starts as the button's capsule, then stretches to full size on
@@ -9195,6 +9234,7 @@ function ensureEnhancementControls(){
     ensureVideoListener();
     ensurePlayerBarTimingControl();
     if (typeof ensureYtmTabGlassSegment === "function") ensureYtmTabGlassSegment();
+    if (typeof ensureYtmAvToggleGlass === "function") ensureYtmAvToggleGlass();
     maintainLyricsAutoOpen();
 
     if (STATE.enabled) {
