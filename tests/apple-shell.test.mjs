@@ -42,7 +42,7 @@ function runShell({nav = null, bar = null, stored = {}} = {}) {
   }};
   let built = false;
   try {
-    vm.runInNewContext(read('apple-shell.js'), {document, chrome, navigator: {platform: 'Win32'}, location: {pathname: '/'}, setInterval() {}, setTimeout() {}, requestAnimationFrame: fn => fn(), addEventListener() {}, window: {addEventListener() {}}});
+    vm.runInNewContext(read('apple-shell.js'), {document, chrome, performance: {now: () => 0}, navigator: {platform: 'Win32'}, location: {pathname: '/'}, setInterval() {}, setTimeout() {}, requestAnimationFrame: fn => fn(), addEventListener() {}, window: {addEventListener() {}}});
   } catch (error) { if (error.message === 'built') built = true; else throw error; }
   return {classes, props, built};
 }

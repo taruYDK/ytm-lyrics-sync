@@ -692,7 +692,7 @@
     sideToggle.innerHTML = ICONS.sidebar;
     sideToggle.addEventListener('click', () => {
       press(guideButton());
-      setTimeout(queueRefresh, 120); setTimeout(queueRefresh, 450);
+      followLayout(900);
     });
     ui.sideToggle = sideToggle;
     sideHead.append(sideToggle);
@@ -779,10 +779,26 @@
     return settingsLoaded && wanted && extensionEnabled && !document.fullscreenElement && !layoutEl()?.hasAttribute('player-fullscreened');
   }
 
+  let lastSide = 0;
+  let sideGoneSince = 0;
+  // Follow the side menu every frame for a short while (after the sidebar switch).
+  function followLayout(ms) {
+    const until = performance.now() + ms;
+    const step = () => { refresh(); if (performance.now() < until) requestAnimationFrame(step); };
+    requestAnimationFrame(step);
+  }
   function refresh() {
     if (!active()) { root.classList.remove('ytmls-am', 'ytmls-am-compact', 'ytmls-am-no-side'); return; }
     const layout = measure();
     if (!layout) { root.classList.remove('ytmls-am'); return; }
+    // While YouTube Music switches its side menu, for a moment neither the wide nor the narrow one
+    // is there: keep the last width until the gap has lasted a while (no flash of a missing sidebar).
+    const now = performance.now();
+    if (layout.side < 40 && lastSide >= 40) {
+      if (!sideGoneSince) sideGoneSince = now;
+      if (now - sideGoneSince < 700) { layout.side = lastSide; setTimeout(queueRefresh, 120); }
+    } else sideGoneSince = 0;
+    lastSide = layout.side;
     build();
     const key = `${layout.top}:${layout.side}`;
     if (key !== lastLayout) {

@@ -655,3 +655,19 @@ html.ytmls-lyrics-motion-lightweight .ytmls-side-line { filter: none !important;
 .ytmls-am-side-toggle svg { width: 17px; height: 17px; }
 .ytmls-am-side-toggle[hidden] { display: none; }
 html.ytmls-am-compact:not(.ytmls-am-drawer-open) .ytmls-am-side-head { justify-content: center; margin: -2px 0 4px; }
+
+/* Widening / narrowing the sidebar: the panel and the toolbar glide to the new width, and the
+   labels fade in and out instead of jumping. */
+.ytmls-am-sidebar { transition: width .42s cubic-bezier(.2, .9, .25, 1), padding .42s cubic-bezier(.2, .9, .25, 1); overflow: hidden; }
+.ytmls-am-toolbar { transition: left .42s cubic-bezier(.2, .9, .25, 1); }
+.ytmls-am-item { transition: background-color .15s, padding .42s cubic-bezier(.2, .9, .25, 1), gap .42s cubic-bezier(.2, .9, .25, 1); }
+.ytmls-am-item-label { transition: opacity .25s ease .08s; }
+.ytmls-am-search, .ytmls-am-heading { transition: opacity .25s ease .08s; }
+html.ytmls-am-compact:not(.ytmls-am-drawer-open) .ytmls-am-item { gap: 0; }
+html.ytmls-am-compact:not(.ytmls-am-drawer-open) .ytmls-am-item-label { display: block !important; width: 0; opacity: 0; transition: opacity .12s ease; }
+/* The narrow window's search field opens beside the sidebar, so it may not be clipped there. */
+html.ytmls-am-compact:not(.ytmls-am-drawer-open) .ytmls-am-sidebar { overflow: visible; }
+@media (prefers-reduced-motion: reduce) {
+  .ytmls-am-sidebar, .ytmls-am-toolbar, .ytmls-am-item, .ytmls-am-item-label, .ytmls-am-search, .ytmls-am-heading { transition: none !important; }
+}
+html.ytmls-lyrics-motion-lightweight :is(.ytmls-am-sidebar, .ytmls-am-toolbar, .ytmls-am-item, .ytmls-am-item-label) { transition: none !important; }
