@@ -241,7 +241,32 @@ html.ytmls-am-drawer-open .ytmls-am-scrim { display: block; position: fixed; ins
 .ytmls-am-btn[hidden] { display: none; }
 .ytmls-am-play svg { width: 22px; height: 22px; }
 .ytmls-am-prev svg, .ytmls-am-next svg { width: 21px; height: 21px; }
-.ytmls-am-shuffle, .ytmls-am-repeat { color: rgb(var(--am-ink) / .6) !important; }
+.ytmls-am-shuffle, .ytmls-am-repeat { position: relative; color: rgb(var(--am-ink) / .6) !important; }
+/* On (repeat all / one, shuffle on): accent colour and a soft pill behind, like the Mac. */
+.ytmls-am-shuffle.is-active, .ytmls-am-repeat.is-active { color: var(--am-accent, #fa2d48) !important; background: rgb(250 45 72 / .16); }
+.ytmls-am-repeat[data-mode="one"]::after {
+  content: "1";
+  position: absolute;
+  right: 4px;
+  top: 4px;
+  min-width: 11px;
+  height: 11px;
+  border-radius: 999px;
+  background: var(--am-accent, #fa2d48);
+  color: #fff;
+  font-size: 8px;
+  font-weight: 800;
+  line-height: 11px;
+  text-align: center;
+}
+/* A press gives a short pulse, so it is clear the button was taken. */
+.ytmls-am-btn.is-flash { animation: ytmls-am-flash .6s ease-out; }
+@keyframes ytmls-am-flash {
+  0% { transform: scale(.82); background: rgb(255 255 255 / .28); }
+  45% { transform: scale(1.08); }
+  100% { transform: none; }
+}
+@media (prefers-reduced-motion: reduce) { .ytmls-am-btn.is-flash { animation: none; } }
 .ytmls-am-shuffle svg, .ytmls-am-repeat svg { width: 16px; height: 16px; }
 .ytmls-am-menu, .ytmls-am-account { width: 40px; height: 40px; overflow: hidden; }
 .ytmls-am-menu { display: none; }

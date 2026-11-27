@@ -198,3 +198,13 @@ test('toolbar playback buttons: nothing of YouTube Music\'s hidden chrome can ta
   assert.match(shell, /new CustomEvent\('tap'/, 'falls back to the button\'s tap event when the click did nothing');
   assert.match(fs.readFileSync(new URL('../src/content/lyrics-panel.js', import.meta.url), 'utf8'), /`Mac toolbar: \$\{macToolbarDiagnostics\(\)\}`/);
 });
+
+test('shuffle and repeat show what they did: repeat mode on the button, a pulse and a note for shuffle', () => {
+  const shell = read('apple-shell.js');
+  assert.match(shell, /function repeatMode\(\)/);
+  assert.match(shell, /\{off: 'リピート：オフ', all: 'リピート：すべて', one: 'リピート：1曲'\}/);
+  assert.match(shell, /showToast\('シャッフルしました'/);
+  const css = read('apple-shell.css');
+  assert.match(css, /\.ytmls-am-repeat\[data-mode="one"\]::after \{\s*content: "1";/);
+  assert.match(css, /\.ytmls-am-btn\.is-flash \{ animation: ytmls-am-flash/);
+});

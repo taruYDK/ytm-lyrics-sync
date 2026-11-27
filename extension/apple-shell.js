@@ -80,6 +80,57 @@
     }
     return true;
   }
+  // ---------- shuffle / repeat state shown on our buttons ----------
+  function nativeLabel(el) {
+    return el ? (el.getAttribute('title') || el.getAttribute('aria-label') || el.querySelector?.('button')?.getAttribute('aria-label') || '') : '';
+  }
+  // Repeat: off / all / one, from the player bar's mode attribute or the button's label
+  // (YouTube Music labels it with the current mode, e.g. リピートオフ / すべてリピート / 1 曲リピート).
+  function repeatMode() {
+    const bar = playerBar();
+    const attr = (bar?.getAttribute('repeat-mode') || bar?.getAttribute('repeat-mode_') || '').toUpperCase();
+    if (attr === 'NONE' || attr === 'OFF') return 'off';
+    if (attr === 'ALL') return 'all';
+    if (attr === 'ONE') return 'one';
+    const label = nativeLabel(barButton('.repeat'));
+    if (!label) return 'off';
+    if (/1|one|１/i.test(label)) return 'one';
+    if (/オフ|off|なし|無効/i.test(label)) return 'off';
+    return 'all';
+  }
+  // Shuffle: on/off only if YouTube Music shows a pressed state; otherwise it is a one-time action.
+  function shuffleState() {
+    const el = barButton('.shuffle');
+    const pressed = el?.getAttribute('aria-pressed') ?? el?.querySelector?.('button')?.getAttribute('aria-pressed');
+    if (pressed === 'true' || pressed === 'false') return {toggle: true, on: pressed === 'true'};
+    if (el?.classList.contains('active') || el?.hasAttribute('active')) return {toggle: true, on: true};
+    return {toggle: false, on: false};
+  }
+  function syncShuffleRepeat() {
+    if (!ui.repeat) return;
+    const mode = repeatMode();
+    if (ui.repeat.dataset.mode !== mode) {
+      ui.repeat.dataset.mode = mode;
+      ui.repeat.classList.toggle('is-active', mode !== 'off');
+      ui.repeat.setAttribute('aria-pressed', String(mode !== 'off'));
+    }
+    const repeatLabel = {off: 'リピート：オフ', all: 'リピート：すべて', one: 'リピート：1曲'}[mode];
+    if (ui.repeat.title !== repeatLabel) { ui.repeat.title = repeatLabel; ui.repeat.setAttribute('aria-label', repeatLabel); }
+    const shuffle = shuffleState();
+    ui.shuffle.classList.toggle('is-active', shuffle.toggle && shuffle.on);
+    if (shuffle.toggle) ui.shuffle.setAttribute('aria-pressed', String(shuffle.on));
+    else ui.shuffle.removeAttribute('aria-pressed');
+    const shuffleLabel = shuffle.toggle ? `シャッフル：${shuffle.on ? 'オン' : 'オフ'}` : 'シャッフル（曲順を並べ替え）';
+    if (ui.shuffle.title !== shuffleLabel) { ui.shuffle.title = shuffleLabel; ui.shuffle.setAttribute('aria-label', shuffleLabel); }
+  }
+  function flashButton(el) {
+    if (!el) return;
+    el.classList.remove('is-flash');
+    void el.offsetWidth;
+    el.classList.add('is-flash');
+    setTimeout(() => el.classList.remove('is-flash'), 650);
+  }
+
   // What a press of a button should change: used to tell whether the click was taken.
   function stateOf(el) {
     return el ? [el.getAttribute('title'), el.getAttribute('aria-label'), el.getAttribute('aria-pressed'), el.className,
@@ -160,8 +211,18 @@
     },
     prev: () => pressChanging(barButton('.previous-button'), trackState),
     next: () => pressChanging(barButton('.next-button'), trackState),
-    shuffle: () => pressChanging(barButton('.shuffle'), stateOf),
-    repeat: () => pressChanging(barButton('.repeat'), stateOf),
+    shuffle: () => {
+      const pressed = pressChanging(barButton('.shuffle'), stateOf);
+      flashButton(ui.shuffle);
+      // YouTube Music's shuffle reorders the queue once (no on/off), so say what happened.
+      if (pressed && !shuffleState().toggle) showToast('シャッフルしました', '次に再生する曲の順番を並べ替えました', '', 'シャッフル');
+      setTimeout(syncShuffleRepeat, 300); setTimeout(syncShuffleRepeat, 900);
+    },
+    repeat: () => {
+      pressChanging(barButton('.repeat'), stateOf);
+      flashButton(ui.repeat);
+      setTimeout(syncShuffleRepeat, 150); setTimeout(syncShuffleRepeat, 500); setTimeout(syncShuffleRepeat, 1000);
+    },
   };
 
   // A volume control: speaker button (mute) and a slider. Any number can be made; all stay in step.
@@ -380,7 +441,7 @@
   // A small "now playing" banner when the song changes (not on the first song after the page opens).
   let lastToastTitle = null;
   let toastTimer = 0;
-  function showToast(title, subtitle, art) {
+  function showToast(title, subtitle, art, label = '再生中') {
     if (!shell || document.hidden) return;
     let toast = ui.toast;
     if (!toast) {
@@ -393,6 +454,7 @@
     const img = toast.querySelector('img');
     if (art) img.setAttribute('src', art); else img.removeAttribute('src');
     img.hidden = !art;
+    toast.querySelector('.ytmls-am-toast-label').textContent = label;
     toast.querySelector('.ytmls-am-toast-title').textContent = title;
     toast.querySelector('.ytmls-am-toast-sub').textContent = subtitle;
     toast.classList.remove('is-shown');
@@ -430,10 +492,9 @@
     ui.art.hidden = !art || !title;
     for (const [name, selector] of [['shuffle', '.shuffle'], ['repeat', '.repeat']]) {
       const native = barButton(selector);
-      const label = native?.getAttribute('title') || native?.getAttribute('aria-label') || '';
-      if (label) ui[name].title = label;
       ui[name].hidden = !native;
     }
+    syncShuffleRepeat();
     const avatar = q('ytmusic-nav-bar ytmusic-settings-button img');
     const avatarSrc = avatar?.currentSrc || avatar?.src || '';
     if (avatarSrc && /^https:/.test(avatarSrc)) {
@@ -508,7 +569,7 @@
   }
   function toggleMiniPlayer() {
     const mini = globalThis.ytmlsMiniPlayer;
-    if (!mini?.supported()) { showToast('ミニプレーヤーを使えません', 'Chrome 116 以降で使えます', ''); return; }
+    if (!mini?.supported()) { showToast('ミニプレーヤーを使えません', 'Chrome 116 以降で使えます', '', 'ミニプレーヤー'); return; }
     Promise.resolve(mini.toggle()).finally(syncViewButtons);
   }
   function syncViewButtons() {
