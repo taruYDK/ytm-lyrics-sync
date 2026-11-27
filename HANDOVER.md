@@ -9,7 +9,7 @@ YT Music 歌詞シンクロの開発内容をまとめた引き継ぎ用のメ�
 | 公開中のバージョン | **v3.2.1**（GitHub Releases に公開済み。`main` の `0c67969` にタグ `v3.2.1`） |
 | 作業ブランチ | `claude/github-content-review-ub7w55`（push 済み） |
 | `main` への取り込み | **まだ**。大きなアップデートのときにまとめて取り込む方針 |
-| テスト | `npm run check` で 224 件すべて成功 |
+| テスト | `npm run check` で 231 件すべて成功 |
 | 開発版 ZIP | `npm run package` で作成し、`manifest.json` の `version_name` を `3.2.1-dev` に書き換えて配布（リポジトリのバージョンは 3.2.1 のまま） |
 
 ## 決定事項
@@ -166,4 +166,11 @@ v3.2.1 より前からある部分も含めて全体を確認し、見つかっ�
 - YouTube Music 自体の部品（`liquid-glass.css` の末尾、`html.music-glass` のときだけ）：再生画面のタブは iPhone 風の切り替え（下線を消し、選択中はガラスの粒）、再生位置のバーは白く細く（ポインターを乗せると 6px）、検索欄はガラス、左メニューの選択中の項目はガラスの粒、歌詞の出典（`.ytmls-source-badge`）は小さな文字、ジャケット画像は角丸 14px と影。実機の YouTube Music の DOM（`#progressContainer`、`#selectionBar`、`#song-image img` など）は仮ページで似せて確認しただけなので、実機で崩れたら要調整。ジャケットの影は、親要素が `overflow: hidden` だと切れる可能性がある。
 - 再生画面のタブも「小・中・大」と同じガラスの粒でスライドできる（`glass-segment.js` の `ensureYtmTabGlassSegment`、`main.js` の tick から呼ぶ）。`attachGlassSegment(group, opts)` は `items`／`isSelected`／`isDisabled`／`activate`／`watch`／`settleMs`／`enabled` で、ボタン以外にも使えるようにした。タブは `click()`（選ばれなければ `tap` イベント）で切り替える。押している間は YouTube Music 自身の mousedown／mouseup を止める（離した位置と押した位置の両方が選ばれないように）。テーマを切ると何もしない。
 - Mac のミュージック風レイアウト（ユーザーの依頼で段階的に作成中。順番：1 左メニュー → 2 右の歌詞欄 → 3 下の再生バー → 4 全画面歌詞ビュー → 5 上のバー）。
+  - **方針変更（2026-11-27）：** ユーザーから「YouTube Music の雰囲気は無くして、全部 Apple Music にしていい」。YouTube Music の部品に CSS を当てるのをやめ、**拡張自身の画面を上に重ねる**方式にした（`extension/apple-shell.js`／`apple-shell.css`、設定「背景 → Mac 版ミュージック風の画面」＝ `chrome.storage.local` の `appleShellEnabled`、初期値オン）。
+    - YouTube Music の上のバー（`ytmusic-nav-bar`）・左メニュー（`tp-yt-app-drawer#guide`、`#mini-guide`／`div#mini-col`／`#mini-guide-renderer`）・再生バー（`ytmusic-player-bar`）は `visibility: hidden` で隠すだけ（場所は残るのでページの配置は変わらない）。その場所を実際に測って（上のバーの下端・左メニューの右端）、同じ場所に自前のサイドバーと上部バーを重ねる。測れないとき（上のバーか再生バーが無い）は何もしない。
+    - 左：浮いたガラスのサイドバー。検索欄（YouTube Music の検索欄に文字を入れて Enter を送る。1.5 秒で検索ページに移らなければ `/search?q=` を開く）、YouTube Music の左メニューの項目をそのまま並べる（名前・選択中は YouTube Music から読む。押すと隠れた本物の項目を押す）。アイコンは名前から自作の線画を選び、2 つ目以降のまとまりは「プレイリスト」。細いウインドウ（幅 160px 未満）はアイコンだけ＋検索は横に出る。左メニューの場所が無いときは上部の「メニュー」ボタンで引き出しとして出す。
+    - 上：シャッフル・前へ・再生・次へ・リピート（隠れた再生バーのボタンを押す）、中央に Mac の「LCD」（ジャケット・曲名・アーティスト — アルバム・細い再生位置の線。乗せると経過／残り時間、押す・ドラッグで移動＝`video.currentTime`）、右に「歌詞」「次に再生」（再生中の画面を開いてタブを選ぶ。同じタブなら閉じる）とアカウント。曲名かジャケットを押すと再生中の画面を開く。
+    - 再生バーが隠れるので、「歌詞を再取得・再同期」「歌詞 0.0秒（同期タイミング）」は狭いウインドウと同じく「その他」メニューの「再生・同期」に入る（`timing-offset.js` の `ensurePlayerBarTimingControl`）。
+    - 全画面（ブラウザの全画面・YouTube Music の全画面）中は出さない。軽量モード・透明度を下げる設定ではぼかしなし。
+    - 次の候補：再生中の画面（ジャケット＋タブ＋歌詞）を Mac の再生中画面／右の歌詞パネル風にする、全画面歌詞ビューを Mac 風にする。
   - 1（取りやめ）：左メニューを Mac のサイドバー風にする試みは、実機で揃わずユーザーの判断で戻した（`liquid-glass.css` から全部削除）。左メニューは「選択中の項目がガラスの粒」だけの状態。実機の構造：広いメニュー＝`ytmusic-guide-renderer#guide-renderer`、細いメニュー＝同じ要素の `#mini-guide-renderer`。診断情報の `Guide layout:` は残してある。

@@ -1,0 +1,332 @@
+/* Mac Music-style screen (apple-shell.js). Only active while html.ytmls-am is set. */
+#ytmls-am { display: none; }
+
+/* YouTube Music's own chrome keeps its space (so the page layout stays the same) but is not shown. */
+html.ytmls-am ytmusic-nav-bar,
+html.ytmls-am tp-yt-app-drawer#guide,
+html.ytmls-am #mini-guide,
+html.ytmls-am div#mini-col,
+html.ytmls-am ytmusic-guide-renderer#mini-guide-renderer,
+html.ytmls-am ytmusic-player-bar {
+  visibility: hidden !important;
+}
+
+html.ytmls-am #ytmls-am {
+  --am-ink: 255 255 255;
+  --am-accent: #fa2d48;
+  --am-glass: rgb(40 40 44 / .58);
+  --am-glass-soft: rgb(255 255 255 / .08);
+  --am-hairline: inset 0 0 0 1px rgb(255 255 255 / .1);
+  --am-blur: blur(30px) saturate(170%);
+  display: block;
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  pointer-events: none;
+  color: rgb(var(--am-ink));
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Yu Gothic UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+#ytmls-am button { font: inherit; color: inherit; }
+#ytmls-am svg { display: block; width: 18px; height: 18px; }
+
+/* ---------- sidebar: a floating glass panel ---------- */
+.ytmls-am-sidebar {
+  position: fixed;
+  left: 8px;
+  top: 8px;
+  bottom: 8px;
+  width: calc(var(--ytmls-am-side, 240px) - 14px);
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 8px 10px;
+  border-radius: 18px;
+  background: var(--am-glass);
+  -webkit-backdrop-filter: var(--am-blur);
+  backdrop-filter: var(--am-blur);
+  box-shadow: var(--am-hairline), 0 10px 32px rgb(0 0 0 / .32);
+  clip-path: inset(0 round 18px);
+  pointer-events: auto;
+  z-index: 2; /* above the toolbar, so the narrow-window search field shows */
+}
+.ytmls-am-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 30px;
+  margin: 0 2px 6px;
+  border-radius: 9px;
+  background: var(--am-glass-soft);
+  box-shadow: var(--am-hairline);
+}
+.ytmls-am-search-icon { position: absolute; left: 8px; opacity: .55; pointer-events: none; }
+.ytmls-am-search-icon svg { width: 15px; height: 15px; }
+.ytmls-am-search input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  padding: 0 10px 0 29px;
+  border: 0;
+  outline: none;
+  background: none;
+  color: rgb(var(--am-ink));
+  font: inherit;
+  font-size: 13px;
+}
+.ytmls-am-search input::placeholder { color: rgb(var(--am-ink) / .45); }
+.ytmls-am-search:focus-within { box-shadow: inset 0 0 0 1px rgb(255 255 255 / .1), 0 0 0 3px rgb(250 45 72 / .45); }
+.ytmls-am-search input::-webkit-search-cancel-button { filter: invert(1); opacity: .5; }
+.ytmls-am-search-toggle { display: none !important; }
+
+.ytmls-am-nav {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: none;
+  margin: 0 -2px;
+  padding: 0 2px;
+}
+.ytmls-am-nav::-webkit-scrollbar { display: none; }
+.ytmls-am-group + .ytmls-am-group { margin-top: 14px; }
+.ytmls-am-heading {
+  padding: 0 10px 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: rgb(var(--am-ink) / .45);
+}
+.ytmls-am-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  height: 32px;
+  padding: 0 9px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+.ytmls-am-item:hover { background: rgb(255 255 255 / .06); }
+.ytmls-am-item.is-active { background: rgb(255 255 255 / .13); }
+.ytmls-am-item-icon { flex: none; color: var(--am-accent); }
+.ytmls-am-item-icon svg { width: 18px; height: 18px; }
+.ytmls-am-item-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: rgb(var(--am-ink) / .92);
+}
+
+/* Narrow window: an icon-only sidebar; search opens beside it. */
+html.ytmls-am-compact:not(.ytmls-am-drawer-open) .ytmls-am-sidebar { padding: 12px 6px; overflow: visible; clip-path: none; }
+html.ytmls-am-compact:not(.ytmls-am-drawer-open) .ytmls-am-item { justify-content: center; padding: 0; height: 40px; }
+html.ytmls-am-compact:not(.ytmls-am-drawer-open) .ytmls-am-item-icon svg { width: 21px; height: 21px; }
+html.ytmls-am-compact:not(.ytmls-am-drawer-open) .ytmls-am-item-label,
+html.ytmls-am-compact:not(.ytmls-am-drawer-open) .ytmls-am-heading { display: none; }
+html.ytmls-am-compact:not(.ytmls-am-drawer-open) .ytmls-am-group + .ytmls-am-group { margin-top: 6px; padding-top: 6px; box-shadow: inset 0 1px rgb(255 255 255 / .08); }
+html.ytmls-am-compact:not(.ytmls-am-drawer-open) .ytmls-am-search-toggle { display: flex !important; }
+html.ytmls-am-compact:not(.ytmls-am-drawer-open) .ytmls-am-search {
+  display: none;
+  position: absolute;
+  left: calc(100% + 8px);
+  top: 10px;
+  width: 260px;
+  height: 36px;
+  margin: 0;
+  /* Inside the sidebar's glass its own blur cannot see the page, so it is nearly solid. */
+  background: rgb(38 38 42 / .97);
+  -webkit-backdrop-filter: var(--am-blur);
+  backdrop-filter: var(--am-blur);
+  box-shadow: var(--am-hairline), 0 10px 30px rgb(0 0 0 / .35);
+}
+html.ytmls-am-compact:not(.ytmls-am-drawer-open) .ytmls-am-search.is-open { display: flex; }
+
+/* Very narrow window: no sidebar space; the menu button opens it as a drawer. */
+html.ytmls-am-no-side .ytmls-am-sidebar { display: none; }
+html.ytmls-am-no-side.ytmls-am-drawer-open .ytmls-am-sidebar { display: flex; width: 250px; }
+.ytmls-am-scrim { display: none; }
+html.ytmls-am-drawer-open .ytmls-am-scrim { display: block; position: fixed; inset: 0; pointer-events: auto; background: rgb(0 0 0 / .25); }
+
+/* ---------- toolbar: playback, now playing, views ---------- */
+.ytmls-am-toolbar {
+  position: fixed;
+  top: 0;
+  left: var(--ytmls-am-side, 0px);
+  right: 0;
+  height: var(--ytmls-am-top, 64px);
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(240px, 600px) minmax(0, 1fr);
+  align-items: center;
+  gap: 14px;
+  padding: 0 16px 0 12px;
+  pointer-events: auto;
+  isolation: isolate;
+  z-index: 1;
+}
+/* The page scrolls under the toolbar: soften it like the Mac's scroll edge. */
+.ytmls-am-toolbar::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 -18px;
+  z-index: -1;
+  background: linear-gradient(rgb(0 0 0 / .42), rgb(0 0 0 / .18) 70%, transparent);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  -webkit-mask-image: linear-gradient(#000 60%, transparent);
+  mask-image: linear-gradient(#000 60%, transparent);
+  pointer-events: none;
+}
+.ytmls-am-cluster { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.ytmls-am-left { justify-self: start; }
+.ytmls-am-right { justify-self: end; }
+.ytmls-am-capsule,
+.ytmls-am-menu,
+.ytmls-am-account {
+  background: var(--am-glass-soft);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  backdrop-filter: blur(20px) saturate(160%);
+  box-shadow: var(--am-hairline), 0 4px 16px rgb(0 0 0 / .22);
+}
+.ytmls-am-capsule {
+  display: flex;
+  align-items: center;
+  height: 40px;
+  padding: 0 4px;
+  border-radius: 999px;
+  clip-path: inset(0 round 999px);
+}
+.ytmls-am-btn {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: rgb(var(--am-ink) / .88) !important;
+  cursor: pointer;
+  transition: background-color .15s, transform .12s;
+}
+.ytmls-am-btn:hover { background: rgb(255 255 255 / .1); }
+.ytmls-am-btn:active { transform: scale(.92); }
+.ytmls-am-btn[hidden] { display: none; }
+.ytmls-am-play svg { width: 22px; height: 22px; }
+.ytmls-am-prev svg, .ytmls-am-next svg { width: 21px; height: 21px; }
+.ytmls-am-shuffle, .ytmls-am-repeat { color: rgb(var(--am-ink) / .6) !important; }
+.ytmls-am-shuffle svg, .ytmls-am-repeat svg { width: 16px; height: 16px; }
+.ytmls-am-menu, .ytmls-am-account { width: 40px; height: 40px; overflow: hidden; }
+.ytmls-am-menu { display: none; }
+html.ytmls-am-no-side .ytmls-am-menu { display: grid; }
+.ytmls-am-account img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
+
+/* The "LCD": artwork, title, artist and a thin progress line. */
+.ytmls-am-lcd {
+  position: relative;
+  justify-self: stretch;
+  min-width: 0;
+  height: 46px;
+  display: grid;
+  grid-template-columns: 46px minmax(0, 1fr);
+  align-items: center;
+  border-radius: 11px;
+  background: rgb(255 255 255 / .07);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  backdrop-filter: blur(20px) saturate(160%);
+  box-shadow: var(--am-hairline), 0 4px 16px rgb(0 0 0 / .22);
+  clip-path: inset(0 round 11px);
+}
+.ytmls-am-art,
+.ytmls-am-placeholder { grid-row: 1; grid-column: 1; width: 46px; height: 46px; }
+.ytmls-am-art { object-fit: cover; cursor: pointer; }
+.ytmls-am-art[hidden] { display: none; }
+.ytmls-am-placeholder { display: none; place-items: center; background: rgb(255 255 255 / .06); color: rgb(var(--am-ink) / .35); }
+.ytmls-am-lcd.is-empty .ytmls-am-placeholder { display: grid; }
+.ytmls-am-placeholder svg { width: 20px; height: 20px; }
+.ytmls-am-info {
+  grid-row: 1;
+  grid-column: 2;
+  min-width: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  padding: 0 56px 3px;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+.ytmls-am-title,
+.ytmls-am-subtitle { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1.25; }
+.ytmls-am-title { font-size: 13px; font-weight: 600; color: rgb(var(--am-ink) / .95); }
+.ytmls-am-subtitle { font-size: 12px; color: rgb(var(--am-ink) / .58); }
+.ytmls-am-time {
+  position: absolute;
+  bottom: 6px;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  color: rgb(var(--am-ink) / .5);
+  opacity: 0;
+  transition: opacity .2s;
+  pointer-events: none;
+}
+.ytmls-am-elapsed { left: 54px; }
+.ytmls-am-remaining { right: 9px; }
+.ytmls-am-lcd:hover .ytmls-am-time,
+.ytmls-am-lcd:has(.is-seeking) .ytmls-am-time { opacity: 1; }
+.ytmls-am-lcd.is-empty .ytmls-am-time,
+.ytmls-am-lcd.is-empty .ytmls-am-progress { display: none; }
+.ytmls-am-progress {
+  position: absolute;
+  left: 46px;
+  right: 0;
+  bottom: 0;
+  height: 9px;
+  cursor: pointer;
+  touch-action: none;
+}
+.ytmls-am-progress-track {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 3px;
+  background: rgb(255 255 255 / .14);
+  transition: height .15s;
+  overflow: hidden;
+}
+.ytmls-am-progress:hover .ytmls-am-progress-track,
+.ytmls-am-progress.is-seeking .ytmls-am-progress-track { height: 5px; }
+.ytmls-am-progress-fill {
+  position: absolute;
+  inset: 0;
+  background: rgb(255 255 255 / .78);
+  transform-origin: left center;
+  transform: scaleX(0);
+}
+
+/* Lightweight mode and "reduce transparency": solid surfaces, no blur. */
+html.ytmls-lyrics-motion-lightweight #ytmls-am *,
+html.ytmls-lyrics-motion-lightweight .ytmls-am-toolbar::before {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+html.ytmls-lyrics-motion-lightweight .ytmls-am-sidebar { background: #232327; }
+html.ytmls-lyrics-motion-lightweight .ytmls-am-toolbar::before { background: #111; -webkit-mask-image: none; mask-image: none; inset: 0; }
+@media (prefers-reduced-transparency: reduce) {
+  html.ytmls-am .ytmls-am-sidebar { background: #232327; -webkit-backdrop-filter: none; backdrop-filter: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ytmls-am-btn, .ytmls-am-progress-track, .ytmls-am-time { transition: none; }
+}

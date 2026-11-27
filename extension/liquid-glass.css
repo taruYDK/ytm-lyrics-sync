@@ -515,6 +515,8 @@ html.ytmls-lyrics-motion-lightweight :is(#ytmls-tools > .ytmls-tool-button, #ytm
 #ytmls-more #ytmls-playback-menu > :is(#ytmls-resync-button, #ytmls-track-offset-button)::after { display: none !important; }
 #ytmls-more #ytmls-playback-menu :is(.ytmls-resync-icon, .ytmls-track-offset-icon) { width: 18px !important; height: 18px !important; flex: 0 0 18px !important; opacity: .9 !important; fill: currentColor; }
 /* The status dot sits on the clock icon's corner instead of taking its own column. */
+#ytmls-more #ytmls-playback-menu > :is(#ytmls-resync-button, #ytmls-track-offset-button) { justify-content: flex-start !important; max-width: none !important; min-width: 0 !important; }
+#ytmls-more #ytmls-playback-menu :is(.ytmls-resync-label, .ytmls-track-offset-label) { display: inline !important; }
 #ytmls-more #ytmls-playback-menu #ytmls-track-offset-button { position: relative; }
 #ytmls-more #ytmls-playback-menu #ytmls-track-offset-button .ytmls-track-health { position: absolute; left: 24px; top: 9px; margin: 0 !important; }
 

@@ -83,12 +83,14 @@
         "lyrics-panel-lift.css",
         "player-depth-clean.css",
         "player-depth-surface-guard.css",
+        "apple-shell.css",
         "liquid-glass.css"
       ],
       "js": [
         "music-glass.js",
         "player-depth-scroll-guard.js",
-        "liquid-glass.js"
+        "liquid-glass.js",
+        "apple-shell.js"
       ],
       "run_at": "document_idle"
     }

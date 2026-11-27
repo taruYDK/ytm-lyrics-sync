@@ -424,7 +424,9 @@
   function ensurePlayerBarTimingControl() {
     const playerBar = document.querySelector('ytmusic-player-bar');
     if (!playerBar) return;
-    const compactMenu = window.innerWidth <= 1100 ? document.querySelector('#ytmls-playback-menu') : null;
+    // In the Mac Music-style screen (apple-shell.js) YouTube Music's player bar is hidden, so use the menu.
+    const useMenu = window.innerWidth <= 1100 || document.documentElement.classList.contains('ytmls-am');
+    const compactMenu = useMenu ? document.querySelector('#ytmls-playback-menu') : null;
     const host = compactMenu || playerBar.querySelector('.middle-controls .middle-controls-buttons') ||
       playerBar.querySelector('.middle-controls-buttons');
     if (!host) return;

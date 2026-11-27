@@ -99,11 +99,11 @@ function page(light) {
  #sliderKnobInner{width:100%;height:100%;border-radius:50%;background:var(--paper-slider-knob-color,red)}
  ytmusic-player-bar .title{font-weight:500}.byline{color:#aaa;font-size:14px}
 </style></head><body><ytmusic-app>
-<ytmusic-nav-bar>YouTube Music<ytmusic-search-box><div class="search-box"><input id="input" placeholder="曲、アルバム、アーティスト、ポッドキャストを検索"></div></ytmusic-search-box></ytmusic-nav-bar>
+<ytmusic-nav-bar>YouTube Music<ytmusic-settings-button style="margin-left:auto"><button id="button">A</button></ytmusic-settings-button><ytmusic-search-box><div class="search-box"><input id="input" placeholder="曲、アルバム、アーティスト、ポッドキャストを検索"></div></ytmusic-search-box></ytmusic-nav-bar>
 ${FULL ? FULL_GUIDE : MINI_GUIDE}
 <ytmusic-player-page player-page-open_ player-ui-state="PLAYER_PAGE_OPEN">
  <div id="player"><ytmusic-player><div id="song-image"><img src="https://i.ytimg.com/vi/${VIDEO_ID}/cover.svg"></div>
-  <div id="movie_player"><video class="html5-main-video" muted></video></div></ytmusic-player></div>
+  <div id="movie_player"><video class="html5-main-video" muted autoplay src="/preview.wav"></video></div></ytmusic-player></div>
  <div id="side-panel"><tp-yt-paper-tabs id="tabs">
   <tp-yt-paper-tab role="tab" aria-selected="false"><div class="tab-content">次のコンテンツ</div></tp-yt-paper-tab>
   <tp-yt-paper-tab role="tab" aria-selected="true"><div class="tab-content">歌詞</div></tp-yt-paper-tab>
@@ -112,7 +112,9 @@ ${FULL ? FULL_GUIDE : MINI_GUIDE}
 </ytmusic-player-page>
 <ytmusic-player-bar class="ytmusic-app"><tp-yt-paper-slider id="progress-bar"><div id="sliderContainer"><tp-yt-paper-progress id="sliderBar"><div id="progressContainer"><div id="secondaryProgress"></div><div id="primaryProgress"></div></div></tp-yt-paper-progress><div id="sliderKnob"><div id="sliderKnobInner"></div></div></div></tp-yt-paper-slider><div class="thumbnail-image-wrapper"><img class="image" src="https://i.ytimg.com/vi/${VIDEO_ID}/cover.svg"></div>
  <div class="middle-controls"><div class="content-info-wrapper"><div class="title ytmusic-player-bar">夜明けのうた</div><div class="byline ytmusic-player-bar">Preview Artist • Preview Album • 2026</div></div>
- <div class="middle-controls-buttons"></div></div></ytmusic-player-bar>
+ <div class="middle-controls-buttons"></div></div>
+ <div class="left-controls"><tp-yt-paper-icon-button class="previous-button" title="前の曲"></tp-yt-paper-icon-button><tp-yt-paper-icon-button id="play-pause-button" title="一時停止"></tp-yt-paper-icon-button><tp-yt-paper-icon-button class="next-button" title="次の曲"></tp-yt-paper-icon-button></div>
+ <div id="right-controls"><tp-yt-paper-icon-button class="shuffle" title="シャッフル"></tp-yt-paper-icon-button><tp-yt-paper-icon-button class="repeat" title="リピートオフ"></tp-yt-paper-icon-button><tp-yt-paper-icon-button class="toggle-player-page-button"></tp-yt-paper-icon-button></div></ytmusic-player-bar>
 </ytmusic-app>
 <script>
  const start = performance.now() - ${'${START}'} * 1000;
@@ -124,6 +126,9 @@ ${FULL ? FULL_GUIDE : MINI_GUIDE}
  for (const t of document.querySelectorAll('tp-yt-paper-tab')) for (const type of ['click', 'tap']) t.addEventListener(type, () => {
   for (const o of document.querySelectorAll('tp-yt-paper-tab')) o.setAttribute('aria-selected', String(o === t));
  });
+ const v = document.querySelector('video'); v.addEventListener('loadedmetadata', () => { v.currentTime = ${'${START}'}; v.play().catch(() => {}); }, {once: true});
+ document.getElementById('play-pause-button').addEventListener('click', () => v.paused ? v.play() : v.pause());
+ document.querySelector('.toggle-player-page-button').addEventListener('click', () => { const pg = document.querySelector('ytmusic-player-page'); pg.hidden = !pg.hidden; });
  navigator.mediaSession.metadata = new MediaMetadata({title: '夜明けのうた', artist: 'Preview Artist'});
 </script></body></html>`;
 }
@@ -134,7 +139,16 @@ const context = await chromium.launchPersistentContext(userData, {
   args: [`--disable-extensions-except=${extDir}`, `--load-extension=${extDir}`],
 });
 let light = false;
-await context.route('https://music.youtube.com/**', route => route.fulfill({contentType: 'text/html', body: page(light).replace('${START}', '19.2')}));
+// 200 seconds of silence, so the page has a real <video> clock (8 kHz, 8-bit mono WAV).
+const WAV = (() => {
+  const n = 8000 * 200, b = Buffer.alloc(44 + n, 128);
+  b.write('RIFF', 0); b.writeUInt32LE(36 + n, 4); b.write('WAVEfmt ', 8); b.writeUInt32LE(16, 16); b.writeUInt16LE(1, 20); b.writeUInt16LE(1, 22);
+  b.writeUInt32LE(8000, 24); b.writeUInt32LE(8000, 28); b.writeUInt16LE(1, 32); b.writeUInt16LE(8, 34); b.write('data', 36); b.writeUInt32LE(n, 40);
+  return b;
+})();
+await context.route('https://music.youtube.com/**', route => route.request().url().endsWith('/preview.wav')
+  ? route.fulfill({contentType: 'audio/wav', body: WAV})
+  : route.fulfill({contentType: 'text/html', body: page(light).replaceAll('${START}', '19.2')}));
 await context.route('https://i.ytimg.com/**', route => route.fulfill({contentType: 'image/svg+xml', headers: {'access-control-allow-origin': '*'}, body: light ? LIGHT_COVER : COVER}));
 await context.route(url => !/^(https:\/\/(music\.youtube\.com|i\.ytimg\.com)|chrome-extension:|data:|blob:)/.test(url.href), route => route.abort());
 
