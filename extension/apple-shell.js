@@ -651,7 +651,9 @@
       byline: text('.byline'),
       duration: text('.duration'),
       art: [img?.currentSrc, img?.src].find(src => /^https:\/\//.test(src || '')) || queueThumbAt(index),
-      current: item.hasAttribute('selected') || state === 'playing' || state === 'paused',
+      selected: item.hasAttribute('selected'),
+      playingState: state === 'playing' || state === 'paused',
+      current: false,
     };
   }
   function playQueueItem(item) {
@@ -680,6 +682,13 @@
     if (!queuePanel || queuePanel.hidden) return;
     const items = queueItems();
     const infos = items.map((item, index) => queueItemInfo(item, index));
+    // Exactly one song is the current one: the one whose video id is playing (the queue can hold a
+    // second marked item, e.g. in the automix part); without ids, the first marked item.
+    const playingId = lastSnapshot.videoId;
+    let currentIndex = playingId && queueThumbs.length === items.length ? queueThumbs.findIndex(info => info?.videoId === playingId) : -1;
+    if (currentIndex < 0) currentIndex = infos.findIndex(info => info.selected);
+    if (currentIndex < 0) currentIndex = infos.findIndex(info => info.playingState);
+    if (currentIndex >= 0) infos[currentIndex].current = true;
     // A new or changed list: ask the player for its pictures.
     const listKey = infos.map(info => info.title).join('\n');
     if (listKey !== queueThumbsFor && bridge) { queueThumbsFor = listKey; bridge.send({type: 'queue-info'}); }

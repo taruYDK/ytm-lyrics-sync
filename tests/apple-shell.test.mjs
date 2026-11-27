@@ -261,3 +261,9 @@ test('曲/動画 switch looks unavailable (darker, no bead) when YouTube Music d
   assert.match(src, /toggle\.classList\.toggle\('ytmls-av-unavailable'/);
   assert.match(read('liquid-glass.css'), /\.ytmls-av-unavailable \.ytmls-av-segment \{[^}]*cursor: not-allowed;/);
 });
+
+test('Up Next panel marks exactly one song as playing: the one whose video id is playing', () => {
+  const shell = read('apple-shell.js');
+  assert.match(shell, /queueThumbs\.findIndex\(info => info\?\.videoId === playingId\)/);
+  assert.match(shell, /if \(currentIndex >= 0\) infos\[currentIndex\]\.current = true;/);
+});
