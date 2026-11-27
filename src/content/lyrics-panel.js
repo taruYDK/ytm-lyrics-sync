@@ -1001,7 +1001,31 @@
       `Glass lens: ${typeof glassLensDiagnostics === "function" ? glassLensDiagnostics() : "n/a"}`,
       `Guide layout: ${guideLayoutDiagnostics()}`,
       `Player page layout: ${playerPageLayoutDiagnostics()}`,
+      `Mac toolbar: ${macToolbarDiagnostics()}`,
     ].join("\n");
+  }
+
+  // Mac-style screen (apple-shell.js): for each playback button, whether YouTube Music's own button
+  // was found, and what is actually under our button (something on top would take the clicks).
+  function macToolbarDiagnostics() {
+    try {
+      if (!document.getElementById("ytmls-am")) return "off";
+      const bar = document.querySelector("ytmusic-player-bar");
+      const describe = (el) => el ? `${el.localName}${el.id ? "#" + el.id : ""}${el.classList.length ? "." + [...el.classList].slice(0, 2).join(".") : ""}` : "none";
+      return [["play", "#play-pause-button"], ["prev", ".previous-button"], ["next", ".next-button"], ["shuffle", ".shuffle"], ["repeat", ".repeat"]].map(([name, selector]) => {
+        const ours = document.querySelector(`#ytmls-am .ytmls-am-${name}`);
+        const native = bar?.querySelector(selector);
+        let hit = "hidden";
+        const rect = ours?.getBoundingClientRect();
+        if (rect?.width) {
+          const top = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
+          hit = top && (top === ours || ours.contains(top)) ? "ok" : describe(top);
+        }
+        return `${name}: native=${native ? describe(native) : "missing"} hit=${hit}`;
+      }).join("; ");
+    } catch (_) {
+      return "error";
+    }
   }
 
   // How the Now Playing page is built (to find the comments): tab labels, the page's columns, and

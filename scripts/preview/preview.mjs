@@ -128,6 +128,7 @@ ${FULL ? FULL_GUIDE : MINI_GUIDE}
  });
  const v = document.querySelector('video'); v.addEventListener('loadedmetadata', () => { v.currentTime = ${'${START}'}; v.play().catch(() => {}); }, {once: true});
  document.querySelector('#button-shape-like button').addEventListener('click', () => { const r = document.querySelector('ytmusic-like-button-renderer'); r.setAttribute('like-status', r.getAttribute('like-status') === 'LIKE' ? 'INDIFFERENT' : 'LIKE'); });
+ p.pauseVideo = () => v.pause(); p.playVideo = () => v.play(); p.getPlayerState = () => v.paused ? 2 : 1;
  document.getElementById('play-pause-button').addEventListener('click', () => v.paused ? v.play() : v.pause());
  document.querySelector('.toggle-player-page-button').addEventListener('click', () => { const pg = document.querySelector('ytmusic-player-page'); pg.hidden = !pg.hidden; });
  navigator.mediaSession.metadata = new MediaMetadata({title: '夜明けのうた', artist: 'Preview Artist'});

@@ -188,3 +188,13 @@ test('Mac-style shortcuts: Ctrl (⌘ on Mac) with arrows, F, Shift+L and Shift+P
   assert.match(shell, /if \(!shortcut\.text && editableTarget\(event\)\) return;/);
   assert.match(shell, /isMac \? event\.metaKey && !event\.ctrlKey : event\.ctrlKey && !event\.metaKey/);
 });
+
+test('toolbar playback buttons: nothing of YouTube Music\'s hidden chrome can take their clicks; play goes through the player', () => {
+  const css = read('apple-shell.css');
+  assert.match(css, /html\.ytmls-am ytmusic-nav-bar \*,[\s\S]*?\{\s*visibility: hidden !important;/);
+  assert.match(css, /html\.ytmls-am ytmusic-player-bar \* \{\s*pointer-events: none !important;/);
+  const shell = read('apple-shell.js');
+  assert.match(shell, /bridge\.send\(\{type: 'toggle-playback', payload: \{videoId: lastSnapshot\.videoId\}\}\)/);
+  assert.match(shell, /new CustomEvent\('tap'/, 'falls back to the button\'s tap event when the click did nothing');
+  assert.match(fs.readFileSync(new URL('../src/content/lyrics-panel.js', import.meta.url), 'utf8'), /`Mac toolbar: \$\{macToolbarDiagnostics\(\)\}`/);
+});

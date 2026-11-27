@@ -66,11 +66,32 @@
     const bar = playerBar();
     return bar ? bar.querySelector(selector) : null;
   }
-  function press(el) {
+  // Press one of YouTube Music's (hidden) buttons. If `changed` is given and nothing changed shortly
+  // after the click, the button's own "tap" event is sent as well (its Polymer buttons listen for it).
+  function press(el, changed) {
     if (!el) return false;
     const target = el.querySelector?.('button') || el;
     target.click();
+    if (changed) {
+      setTimeout(() => {
+        if (changed()) return;
+        try { el.dispatchEvent(new CustomEvent('tap', {bubbles: true, cancelable: true, composed: true})); } catch (_) {}
+      }, 600);
+    }
     return true;
+  }
+  // What a press of a button should change: used to tell whether the click was taken.
+  function stateOf(el) {
+    return el ? [el.getAttribute('title'), el.getAttribute('aria-label'), el.getAttribute('aria-pressed'), el.className,
+      el.querySelector?.('button')?.getAttribute('aria-pressed'), el.querySelector?.('button')?.getAttribute('aria-label')].join('|') : '';
+  }
+  function trackState() {
+    const media = currentVideo();
+    return [lastSnapshot.videoId, playerBar()?.querySelector('.title')?.textContent || '', media ? media.currentTime < 2 : ''].join('|');
+  }
+  function pressChanging(el, read) {
+    const before = read(el);
+    return press(el, () => read(el) !== before);
   }
   function currentVideo() {
     return q('#movie_player video.html5-main-video') || q('ytmusic-player video') || q('video');
@@ -79,9 +100,13 @@
   // ---------- shared controls (also used by the Now Playing screen in content.js) ----------
   const bridge = globalThis.ytmlsBridge;
   const volumeState = {volume: null, muted: false, holdUntil: 0};
+  const lastSnapshot = {videoId: '', at: 0};
   bridge?.listen?.(message => {
-    if (message?.type !== 'snapshot' || performance.now() < volumeState.holdUntil) return;
+    if (message?.type !== 'snapshot') return;
     const payload = message.payload || {};
+    lastSnapshot.videoId = String(payload.videoId || '');
+    lastSnapshot.at = performance.now();
+    if (performance.now() < volumeState.holdUntil) return;
     if (Number.isFinite(payload.volume)) volumeState.volume = payload.volume;
     if (typeof payload.muted === 'boolean') volumeState.muted = payload.muted;
   });
@@ -121,12 +146,22 @@
     return (button?.querySelector?.('button') || button)?.getAttribute?.('aria-pressed') === 'true';
   }
   function toggleLike() { return press(likeButton()); }
+  // Play / pause goes through the player itself (the bridge), like the Space key; without a recent
+  // player sample, the <video>. Previous / next / shuffle / repeat press YouTube Music's buttons.
   const transport = {
-    play: () => { if (!press(barButton('#play-pause-button'))) { const media = currentVideo(); if (media) media.paused ? media.play() : media.pause(); } },
-    prev: () => press(barButton('.previous-button')),
-    next: () => press(barButton('.next-button')),
-    shuffle: () => press(barButton('.shuffle')),
-    repeat: () => press(barButton('.repeat')),
+    play: () => {
+      if (bridge && lastSnapshot.videoId && performance.now() - lastSnapshot.at < 1500) {
+        bridge.send({type: 'toggle-playback', payload: {videoId: lastSnapshot.videoId}});
+        return;
+      }
+      const media = currentVideo();
+      if (media) media.paused ? media.play() : media.pause();
+      else press(barButton('#play-pause-button'));
+    },
+    prev: () => pressChanging(barButton('.previous-button'), trackState),
+    next: () => pressChanging(barButton('.next-button'), trackState),
+    shuffle: () => pressChanging(barButton('.shuffle'), stateOf),
+    repeat: () => pressChanging(barButton('.repeat'), stateOf),
   };
 
   // A volume control: speaker button (mute) and a slider. Any number can be made; all stay in step.

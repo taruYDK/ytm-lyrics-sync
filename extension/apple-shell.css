@@ -10,6 +10,25 @@ html.ytmls-am ytmusic-guide-renderer#mini-guide-renderer,
 html.ytmls-am ytmusic-player-bar {
   visibility: hidden !important;
 }
+/* A part inside them that sets its own visibility would still show and take clicks meant for the
+   toolbar above it: hide every descendant too, and let clicks pass through. */
+html.ytmls-am ytmusic-nav-bar *,
+html.ytmls-am tp-yt-app-drawer#guide *,
+html.ytmls-am #mini-guide *,
+html.ytmls-am div#mini-col *,
+html.ytmls-am ytmusic-player-bar * {
+  visibility: hidden !important;
+}
+html.ytmls-am ytmusic-nav-bar,
+html.ytmls-am tp-yt-app-drawer#guide,
+html.ytmls-am #mini-guide,
+html.ytmls-am div#mini-col,
+html.ytmls-am ytmusic-player-bar,
+html.ytmls-am ytmusic-nav-bar *,
+html.ytmls-am tp-yt-app-drawer#guide *,
+html.ytmls-am ytmusic-player-bar * {
+  pointer-events: none !important;
+}
 
 html.ytmls-am #ytmls-am {
   --am-ink: 255 255 255;
