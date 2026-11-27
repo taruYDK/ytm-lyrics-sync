@@ -609,10 +609,25 @@
   let queuePanel = null;
   let queueSignature = '';
   function queueItems() {
-    return [...document.querySelectorAll('ytmusic-player-page ytmusic-player-queue-item, ytmusic-player-queue ytmusic-player-queue-item')]
-      .filter((item, index, all) => all.indexOf(item) === index);
+    // The same list, in the same order, as the bridge's queue-info.
+    return [...document.querySelectorAll('ytmusic-player-queue-item')];
   }
-  function queueItemInfo(item) {
+  // Pictures from the bridge (index → {videoId, thumb}); asked for again when the list changes.
+  let queueThumbs = [];
+  let queueThumbsFor = '';
+  bridge?.listen?.(message => {
+    if (message?.type !== 'queue-info' || !Array.isArray(message.payload)) return;
+    queueThumbs = message.payload;
+    queueSignature = '';
+    renderQueuePanel();
+  });
+  function queueThumbAt(index) {
+    const info = queueThumbs[index];
+    if (!info) return '';
+    if (/^https:\/\//.test(info.thumb)) return info.thumb;
+    return /^[\w-]{6,20}$/.test(info.videoId) ? `https://i.ytimg.com/vi/${info.videoId}/default.jpg` : '';
+  }
+  function queueItemInfo(item, index) {
     const text = selector => item.querySelector(selector)?.textContent.replace(/\s+/g, ' ').trim() || '';
     const img = item.querySelector('img');
     const state = item.getAttribute('play-button-state') || '';
@@ -620,7 +635,7 @@
       title: text('.song-title') || text('.title'),
       byline: text('.byline'),
       duration: text('.duration'),
-      art: img?.currentSrc || img?.src || '',
+      art: [img?.currentSrc, img?.src].find(src => /^https:\/\//.test(src || '')) || queueThumbAt(index),
       current: item.hasAttribute('selected') || state === 'playing' || state === 'paused',
     };
   }
@@ -649,7 +664,10 @@
   function renderQueuePanel() {
     if (!queuePanel || queuePanel.hidden) return;
     const items = queueItems();
-    const infos = items.map(queueItemInfo);
+    const infos = items.map((item, index) => queueItemInfo(item, index));
+    // A new or changed list: ask the player for its pictures.
+    const listKey = infos.map(info => info.title).join('\n');
+    if (listKey !== queueThumbsFor && bridge) { queueThumbsFor = listKey; bridge.send({type: 'queue-info'}); }
     const signature = JSON.stringify(infos.map(info => [info.title, info.byline, info.current, info.art]));
     if (signature === queueSignature) return;
     queueSignature = signature;

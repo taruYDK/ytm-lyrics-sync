@@ -92,6 +92,20 @@
     try { message = parse(detailOf.call(event)); } catch (_) { return; }
     if (!message || typeof message !== 'object') return;
     if (message.type === 'tracking-config') {enabled=message.enabled===true;if(enabled){publish(true);schedule();}else{clearTimeout(timer);timer=null;}return;}
+    // The queue's songs (the Mac-style Up Next panel): YouTube Music loads their pictures only when
+    // the queue is on screen, so the picture addresses and video ids come from its own item data.
+    if (message.type === 'queue-info') {
+      const list = [...document.querySelectorAll('ytmusic-player-queue-item')].map(item => {
+        let data = null;
+        try { data = item.data || item.__data?.data || null; } catch (_) {}
+        const thumbs = Array.isArray(data?.thumbnail?.thumbnails) ? data.thumbnail.thumbnails : [];
+        const small = thumbs.filter(t => t && typeof t.url === 'string').sort((a, b) => (a.width || 0) - (b.width || 0));
+        const pick = small.find(t => (t.width || 0) >= 88) || small.at(-1) || null;
+        return {videoId: typeof data?.videoId === 'string' ? data.videoId : '', thumb: pick ? String(pick.url) : ''};
+      });
+      post({type: 'queue-info', payload: list});
+      return;
+    }
     // Volume (the Mac-style toolbar and Now Playing screen): 0-100, through the player itself so
     // YouTube Music's own volume stays in step. Not tied to a song.
     if (message.type === 'set-volume' || message.type === 'toggle-mute') {

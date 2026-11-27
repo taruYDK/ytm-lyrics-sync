@@ -219,7 +219,10 @@ test('sidebar switch (wide / icons) presses YouTube Music\'s hidden ≡ button',
 
 test('Up Next panel reads YouTube Music\'s queue and plays an item by pressing it; it and the lyrics panel take turns', () => {
   const shell = read('apple-shell.js');
-  assert.match(shell, /querySelectorAll\('ytmusic-player-page ytmusic-player-queue-item/);
+  assert.match(shell, /querySelectorAll\('ytmusic-player-queue-item'\)/);
+  assert.match(shell, /bridge\.send\(\{type: 'queue-info'\}\)/, 'pictures asked from the player (the hidden queue does not load them)');
+  assert.match(read('player-bridge.js'), /message\.type === 'queue-info'/);
+  assert.match(read('player-bridge.js'), /querySelectorAll\('ytmusic-player-queue-item'\)/);
   assert.match(shell, /button\('queue', '次に再生', 'queue', toggleQueueView\)/);
   assert.match(shell, /globalThis\.ytmlsSideLyrics\?\.toggle\(false\);/);
   assert.match(shell, /if \(side\.toggle\(\)\) toggleQueuePanel\(false\);/);
