@@ -203,7 +203,8 @@ test('shuffle and repeat show what they did: repeat mode on the button, a pulse 
   const shell = read('apple-shell.js');
   assert.match(shell, /function repeatMode\(\)/);
   assert.match(shell, /\{off: 'リピート：オフ', all: 'リピート：すべて', one: 'リピート：1曲'\}/);
-  assert.match(shell, /showToast\('シャッフルしました'/);
+  assert.match(shell, /showToast\(wasOn \? 'シャッフル：オフ' : 'シャッフル：オン'/);
+  assert.match(shell, /function shuffleOn\(\)/);
   const css = read('apple-shell.css');
   assert.match(css, /\.ytmls-am-repeat\[data-mode="one"\]::after \{\s*content: "1";/);
   assert.match(css, /\.ytmls-am-btn\.is-flash \{ animation: ytmls-am-flash/);

@@ -128,6 +128,7 @@ ${FULL ? FULL_GUIDE : MINI_GUIDE}
  });
  const v = document.querySelector('video'); v.addEventListener('loadedmetadata', () => { v.currentTime = ${'${START}'}; v.play().catch(() => {}); }, {once: true});
  document.querySelector('#button-shape-like button').addEventListener('click', () => { const r = document.querySelector('ytmusic-like-button-renderer'); r.setAttribute('like-status', r.getAttribute('like-status') === 'LIKE' ? 'INDIFFERENT' : 'LIKE'); });
+ { const sh = document.querySelector('.shuffle'); sh.addEventListener('click', () => sh.classList.toggle('on')); }
  { const r = document.querySelector('.repeat'), modes = ['リピートオフ', 'すべてリピート', '1 曲リピート']; let m = 0; r.addEventListener('click', () => { m = (m + 1) % 3; r.title = modes[m]; }); }
  document.querySelector('.song-button').addEventListener('click', () => document.querySelector('ytmusic-av-toggle').setAttribute('playback-mode', 'ATV_PREFERRED'));
  document.querySelector('.video-button').addEventListener('click', () => document.querySelector('ytmusic-av-toggle').setAttribute('playback-mode', 'OMV_PREFERRED'));

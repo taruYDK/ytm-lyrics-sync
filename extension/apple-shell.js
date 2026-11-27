@@ -107,6 +107,25 @@
     if (el?.classList.contains('active') || el?.hasAttribute('active')) return {toggle: true, on: true};
     return {toggle: false, on: false};
   }
+  // How the shuffle button looks: its labels, pressed marks, classes and icon shape.
+  function shuffleSignature() {
+    const el = barButton('.shuffle');
+    if (!el) return '';
+    const inner = el.querySelector('button');
+    const icon = el.querySelector('path');
+    return [el.getAttribute('title'), el.getAttribute('aria-label'), el.getAttribute('aria-pressed'), el.getAttribute('class'),
+      inner?.getAttribute('title'), inner?.getAttribute('aria-label'), inner?.getAttribute('aria-pressed'), icon?.getAttribute('d')].join('|');
+  }
+  // on / off looks, once seen; until then (or if the button looks the same either way), our own count.
+  const shuffleLearned = {on: '', off: '', local: false};
+  function shuffleOn() {
+    const state = shuffleState();
+    if (state.toggle) return state.on;
+    const signature = shuffleSignature();
+    if (shuffleLearned.on && signature === shuffleLearned.on) return true;
+    if (shuffleLearned.off && signature === shuffleLearned.off) return false;
+    return shuffleLearned.local;
+  }
   function syncShuffleRepeat() {
     if (!ui.repeat) return;
     const mode = repeatMode();
@@ -117,11 +136,10 @@
     }
     const repeatLabel = {off: 'リピート：オフ', all: 'リピート：すべて', one: 'リピート：1曲'}[mode];
     if (ui.repeat.title !== repeatLabel) { ui.repeat.title = repeatLabel; ui.repeat.setAttribute('aria-label', repeatLabel); }
-    const shuffle = shuffleState();
-    ui.shuffle.classList.toggle('is-active', shuffle.toggle && shuffle.on);
-    if (shuffle.toggle) ui.shuffle.setAttribute('aria-pressed', String(shuffle.on));
-    else ui.shuffle.removeAttribute('aria-pressed');
-    const shuffleLabel = shuffle.toggle ? `シャッフル：${shuffle.on ? 'オン' : 'オフ'}` : 'シャッフル（曲順を並べ替え）';
+    const shuffleIsOn = shuffleOn();
+    ui.shuffle.classList.toggle('is-active', shuffleIsOn);
+    ui.shuffle.setAttribute('aria-pressed', String(shuffleIsOn));
+    const shuffleLabel = `シャッフル：${shuffleIsOn ? 'オン' : 'オフ'}`;
     if (ui.shuffle.title !== shuffleLabel) { ui.shuffle.title = shuffleLabel; ui.shuffle.setAttribute('aria-label', shuffleLabel); }
   }
   function flashButton(el) {
@@ -212,18 +230,25 @@
     },
     prev: () => pressChanging(barButton('.previous-button'), trackState),
     next: () => pressChanging(barButton('.next-button'), trackState),
+    // YouTube Music's shuffle is on/off (press again to stop). Its button may not say which, so
+    // what changes on it between the two is learned from our own presses (see shuffleOn).
     shuffle: () => {
-      const pressed = pressChanging(barButton('.shuffle'), stateOf);
+      const el = barButton('.shuffle');
+      if (!el) return;
+      const before = shuffleSignature(), wasOn = shuffleOn();
+      pressChanging(el, stateOf);
+      shuffleLearned.local = !wasOn;
       flashButton(ui.shuffle);
-      // YouTube Music's shuffle reorders the queue once (no on/off): the button glows for a moment
-      // and a note says what happened.
-      if (pressed) {
-        ui.shuffle.classList.add('is-recent');
-        clearTimeout(ui.shuffle.recentTimer);
-        ui.shuffle.recentTimer = setTimeout(() => ui.shuffle.classList.remove('is-recent'), 2500);
-        showToast('シャッフルしました', '次に再生する曲の順番を並べ替えました', '', 'シャッフル');
-      }
-      setTimeout(syncShuffleRepeat, 300); setTimeout(syncShuffleRepeat, 900);
+      syncShuffleRepeat();
+      showToast(wasOn ? 'シャッフル：オフ' : 'シャッフル：オン', wasOn ? '曲順を元に戻しました' : '曲順を並べ替えて再生します', '', 'シャッフル');
+      setTimeout(() => {
+        const after = shuffleSignature();
+        if (after && after !== before) {
+          shuffleLearned.on = wasOn ? before : after;
+          shuffleLearned.off = wasOn ? after : before;
+        }
+        syncShuffleRepeat();
+      }, 700);
     },
     repeat: () => {
       pressChanging(barButton('.repeat'), stateOf);

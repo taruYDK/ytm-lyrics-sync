@@ -1022,7 +1022,13 @@
           hit = top && (top === ours || ours.contains(top)) ? "ok" : describe(top);
         }
         return `${name}: native=${native ? describe(native) : "missing"} hit=${hit}`;
-      }).join("; ") + "; gap: " + (() => {
+      }).join("; ") + "; shuffle: " + (() => {
+        // How YouTube Music's shuffle button shows on / off (attribute names and values; no titles of songs).
+        const el = bar?.querySelector(".shuffle");
+        if (!el) return "missing";
+        const attrs = el2 => el2 ? [...el2.attributes].filter(a => a.name !== "style").map(a => `${a.name}=${String(a.value).slice(0, 40)}`).join(" ") : "-";
+        return `[${attrs(el)}] inner[${attrs(el.querySelector("button"))}]`;
+      })() + "; gap: " + (() => {
         // What sits in the space between the sidebar and the toolbar (a strip was reported there).
         const side = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--ytmls-am-side")) || 0;
         return [-10, -4, 2, 8].map(dx => `${dx}=${describe(document.elementFromPoint(Math.max(0, side + dx), 30))}`).join(",");
