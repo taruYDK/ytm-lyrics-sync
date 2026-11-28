@@ -301,6 +301,15 @@ html.ytmls-am-no-side .ytmls-am-menu { display: grid; }
 }
 .ytmls-am-title,
 .ytmls-am-subtitle { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1.25; }
+/* Long text: cut off with "…" at rest, glides to its end and back under the pointer (setScrollingText). */
+.ytmls-am-scroll { display: inline-block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; vertical-align: top; }
+.ytmls-am-lcd:hover :is(.ytmls-am-title, .ytmls-am-subtitle).is-long { text-overflow: clip; -webkit-mask-image: linear-gradient(90deg, transparent, #000 10px, #000 calc(100% - 10px), transparent); mask-image: linear-gradient(90deg, transparent, #000 10px, #000 calc(100% - 10px), transparent); }
+.ytmls-am-lcd:hover :is(.ytmls-am-title, .ytmls-am-subtitle).is-long > .ytmls-am-scroll {
+  max-width: none; overflow: visible; text-overflow: clip; padding-inline: 10px;
+  animation: ytmls-am-glide var(--ytmls-am-scroll-time, 6s) ease-in-out .6s infinite alternate;
+}
+@keyframes ytmls-am-glide { 0%, 12% { transform: translateX(0); } 88%, 100% { transform: translateX(calc(var(--ytmls-am-scroll, 0px) - 20px)); } }
+@media (prefers-reduced-motion: reduce) { .ytmls-am-lcd:hover :is(.ytmls-am-title, .ytmls-am-subtitle).is-long > .ytmls-am-scroll { animation: none; } }
 .ytmls-am-title { font-size: 13px; font-weight: 600; color: rgb(var(--am-ink) / .95); }
 .ytmls-am-subtitle { font-size: 12px; color: rgb(var(--am-ink) / .58); }
 .ytmls-am-time {
@@ -477,6 +486,11 @@ ytmusic-player-page .ytmls-comments-hidden { display: none !important; }
   padding: 0 clamp(28px, 6vw, 120px);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Yu Gothic UI", Roboto, sans-serif;
 }
+/* Still for a few seconds (fullscreen-now.js): the controls and the pointer fade away, the artwork,
+   title and lyrics stay. */
+#ytmls-fullscreen.ytmls-full-mac :is(.ytmls-full-size, .ytmls-full-progress, .ytmls-full-transport, .ytmls-full-volume) { transition: opacity .5s ease; }
+#ytmls-fullscreen.ytmls-full-mac.ytmls-full-idle :is(.ytmls-full-size, .ytmls-full-progress, .ytmls-full-transport, .ytmls-full-volume) { opacity: 0; pointer-events: none; transition-duration: .9s; }
+#ytmls-fullscreen.ytmls-full-mac.ytmls-full-idle, #ytmls-fullscreen.ytmls-full-mac.ytmls-full-idle * { cursor: none !important; }
 #ytmls-fullscreen.ytmls-full-mac > .ytmls-full-list { grid-column: 2; grid-row: 1; height: 100%; box-sizing: border-box; padding: 22vh 0; }
 .ytmls-full-now {
   grid-column: 1;

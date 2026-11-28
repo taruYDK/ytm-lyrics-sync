@@ -509,6 +509,21 @@
     toastTimer = setTimeout(() => toast.classList.remove('is-shown'), 3600);
   }
 
+  // Long titles and artist lines glide sideways under the pointer, like the Mac's now-playing
+  // display (the full text, then back), instead of staying cut off with "…".
+  function setScrollingText(holder, text) {
+    let inner = holder.firstElementChild;
+    if (!inner) { inner = document.createElement('span'); inner.className = 'ytmls-am-scroll'; holder.replaceChildren(inner); }
+    if (inner.textContent === text && holder.dataset.measuredWidth === String(holder.clientWidth)) return;
+    inner.textContent = text;
+    requestAnimationFrame(() => {
+      holder.dataset.measuredWidth = String(holder.clientWidth);
+      const over = inner.scrollWidth - holder.clientWidth;
+      holder.classList.toggle('is-long', over > 2);
+      holder.style.setProperty('--ytmls-am-scroll', `${-Math.ceil(Math.max(0, over))}px`);
+      holder.style.setProperty('--ytmls-am-scroll-time', `${Math.min(14, Math.max(4, over / 28 + 3)).toFixed(1)}s`);
+    });
+  }
   function updateNowPlaying() {
     if (!ui.lcd) return;
     const bar = playerBar();
@@ -527,8 +542,8 @@
       ui.star.setAttribute('aria-pressed', String(liked));
     }
     syncVolumeControls();
-    if (ui.title.textContent !== title) ui.title.textContent = title;
-    if (ui.subtitle.textContent !== subtitle) ui.subtitle.textContent = subtitle;
+    setScrollingText(ui.title, title);
+    setScrollingText(ui.subtitle, subtitle);
     if (art && ui.art.getAttribute('src') !== art) ui.art.setAttribute('src', art);
     ui.art.hidden = !art || !title;
     for (const [name, selector] of [['shuffle', '.shuffle'], ['repeat', '.repeat']]) {

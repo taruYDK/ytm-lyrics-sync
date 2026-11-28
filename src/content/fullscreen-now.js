@@ -85,6 +85,19 @@ function buildFullscreenNowPlaying(box) {
  now.append(progress, transport);
  const volume = fullscreenNowControls()?.createVolumeControl?.('ytmls-full-volume');
  if (volume) now.append(volume);
+ // Like the Mac's full screen player: the controls (and the pointer) fade away after a few still
+ // seconds and come back as soon as the mouse moves or a key is pressed. Not while one is in use.
+ let idleTimer = 0;
+ const wake = () => {
+  box.classList.remove('ytmls-full-idle');
+  clearTimeout(idleTimer);
+  idleTimer = setTimeout(() => {
+   if (practiceFullscreen !== box || seeking || box.matches(':has(.ytmls-full-size:hover, .ytmls-full-now:hover, .ytmls-full-corner:hover, :focus-visible)')) { wake(); return; }
+   box.classList.add('ytmls-full-idle');
+  }, 3000);
+ };
+ for (const type of ['pointermove', 'pointerdown', 'keydown', 'wheel']) box.addEventListener(type, wake, {passive: true});
+ wake();
  updateFullscreenNowPlaying(box);
  const loop = () => {
   if (practiceFullscreen !== box || box.inert) return;
