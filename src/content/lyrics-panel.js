@@ -1089,7 +1089,15 @@
       }
       const av = page.querySelector("ytmusic-av-toggle");
       const avText = av ? `mode=${av.getAttribute("playback-mode") || "-"} disabled=${av.hasAttribute("toggle-disabled")} buttons=${[...av.querySelectorAll(".song-button, .video-button")].map(b => `${describe(b)}[pressed=${b.getAttribute("aria-pressed") || "-"} disabled=${b.disabled || b.hasAttribute("disabled")} aria-disabled=${b.getAttribute("aria-disabled") || "-"}] in ${describe(b.parentElement)}`).join(" , ")}` : "none";
-      return `tabs=[${tabs.join(" | ")}] columns=[${columns.join(", ")}] comments=[${comments.join(" ; ") || "none"}] av=[${avText}]`;
+      // The glass bead on the tabs: which tab is chosen, which one the bead is over, and how many tab bars exist.
+      const bars = [...page.querySelectorAll("tp-yt-paper-tabs")];
+      const thumb = page.querySelector(".ytmls-tabs-segment .ytmls-seg-thumb");
+      const tabEls = [...page.querySelectorAll("tp-yt-paper-tab")];
+      const chosen = tabEls.map((tab, i) => (tab.getAttribute("aria-selected") === "true" ? "a" : "") + (tab.classList.contains("iron-selected") ? "i" : "") ? i : -1).filter(i => i >= 0);
+      let beadAt = "-";
+      if (thumb && !thumb.hidden) { const t = thumb.getBoundingClientRect(), mid = t.left + t.width / 2; let best = Infinity; tabEls.forEach((tab, i) => { const r = tab.getBoundingClientRect(), d = Math.abs(r.left + r.width / 2 - mid); if (d < best) { best = d; beadAt = i; } }); }
+      const bead = `bars=${bars.length}(${bars.map(b => (typeof b.checkVisibility === "function" ? (b.checkVisibility() ? "v" : "h") : "?") + (b.classList.contains("ytmls-tabs-glass") ? "g" : "")).join(",")}) chosen=${chosen.join("+") || "none"} beadAt=${beadAt} thumb=${thumb ? (thumb.hidden ? "hidden" : "shown") : "none"}`;
+      return `tabs=[${tabs.join(" | ")}] bead=[${bead}] columns=[${columns.join(", ")}] comments=[${comments.join(" ; ") || "none"}] av=[${avText}]`;
     } catch (_) {
       return "error";
     }
