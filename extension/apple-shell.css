@@ -1037,10 +1037,18 @@ html.ytmls-am :is(ytmusic-browse-response, ytmusic-search-page) ytmusic-responsi
 html.ytmls-am :is(ytmusic-browse-response, ytmusic-search-page) ytmusic-responsive-list-item-renderer ytmusic-item-thumbnail-overlay-renderer:has(ytmusic-play-button-renderer[play-button-state="playing"]):not(:hover)::before {
   content: ""; position: absolute; inset: 0; border-radius: 6px; background: rgb(0 0 0 / .5); pointer-events: none;
 }
-/* On the Now Playing page the moving background fills the whole window (behind the sidebar and the
-   toolbar glass too), not only the page's box: no plain strips above and below it. */
-html.ytmls-am ytmusic-player-page > .ytmls-am-ambient { position: fixed; inset: 0; }
 /* The whole window: behind every page (home, albums, search …), a little darker so lists stay readable. */
 html.ytmls-am body > .ytmls-am-ambient { position: fixed; inset: 0; z-index: -1; }
 html.ytmls-am body > .ytmls-am-ambient::after { background: rgb(0 0 0 / .4); }
-html.ytmls-am:has(ytmusic-app-layout[player-page-open]) body > .ytmls-am-ambient .ytmls-am-ambient-blobs i { animation-play-state: paused; }
+
+/* ---------- Now Playing page without a frame ----------
+   The page keeps its place, but its own backing (Music Glass's dark fill and still artwork slice) is
+   dropped, so the window's moving background shows edge to edge with no box around the page.
+   The pages behind it are hidden once it has opened (and shown again the moment it starts to close),
+   so nothing shows through. */
+html.ytmls-am.ytmls-am ytmusic-player-page { background: transparent !important; }
+html.ytmls-am ytmusic-player-page > .music-glass-surface { visibility: hidden !important; }
+html.ytmls-am ytmusic-app-layout[player-page-open]:not([player-fullscreened]) :is(ytmusic-browse-response, ytmusic-search-page, ytmusic-app-layout > #content, ytmusic-app-layout > [slot="content"]) {
+  visibility: hidden !important;
+  transition: visibility 0s linear 360ms;
+}

@@ -1055,9 +1055,10 @@
     return url.replace(/=w\d+-h\d+(-[^/?#]*)?$/, '=w544-h544-l90-rj').replace(/\/(?:default|mqdefault|sddefault)\.jpg/, '/hqdefault.jpg');
   }
   function ambientHosts() {
-    // The whole window (behind every page, like the Mac app's background), and again on the Now
-    // Playing page and the fullscreen lyrics, which cover the window with their own backing.
-    return [document.body, document.querySelector('ytmusic-player-page'), document.getElementById('ytmls-fullscreen')].filter(Boolean);
+    // The whole window (behind every page, like the Mac app's background; the Now Playing page is
+    // see-through here, so it shows the same one), and again in the fullscreen lyrics, which cover
+    // the window with their own backing.
+    return [document.body, document.getElementById('ytmls-fullscreen')].filter(Boolean);
   }
   function placeAmbient(host, art) {
     const layers = [...host.querySelectorAll(':scope > .ytmls-am-ambient')];
