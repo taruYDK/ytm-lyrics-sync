@@ -691,3 +691,37 @@ html.music-glass ytmusic-player-page ytmusic-av-toggle.ytmls-av-glass.ytmls-av-u
 }
 html.music-glass ytmusic-player-page ytmusic-av-toggle.ytmls-av-glass.ytmls-av-unavailable :is(.song-button, .video-button).ytmls-av-on { color: rgb(255 255 255 / .55) !important; }
 html.music-glass ytmusic-player-page ytmusic-av-toggle.ytmls-av-glass.ytmls-av-unavailable .ytmls-av-segment > .ytmls-seg-thumb { opacity: .4; box-shadow: none; }
+
+/* ---------- Lyrics candidates pane: easy to read over bright artwork ----------
+   The clear glass let a light cover wash the text out. This pane is all text, so it gets a nearly
+   solid dark glass (like the Mac's popovers), separate rows, a clearly marked chosen row, and
+   badges and pin buttons with full-strength text. */
+:root:not([data-ytmls-theme="light"]) #ytmls-panel #ytmls-tools-pane {
+  background: linear-gradient(rgb(30 30 34 / .86), rgb(30 30 34 / .86)) padding-box, var(--lg-rim) border-box !important;
+  text-shadow: none !important;
+}
+:root:not([data-ytmls-theme="light"]) #ytmls-tools-pane :is(.ytmls-tools-heading) { color: #fff !important; font-size: 16px; font-weight: 700; }
+:root:not([data-ytmls-theme="light"]) #ytmls-tools-pane .ytmls-recommendation-note { color: rgb(255 255 255 / .62) !important; }
+:root:not([data-ytmls-theme="light"]) #ytmls-tools-pane .ytmls-candidate-row {
+  background: rgb(255 255 255 / .05) !important;
+  border-color: transparent !important;
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / .06) !important;
+}
+:root:not([data-ytmls-theme="light"]) #ytmls-tools-pane .ytmls-candidate-row:hover { background: rgb(255 255 255 / .08) !important; }
+:root:not([data-ytmls-theme="light"]) #ytmls-tools-pane .ytmls-candidate-label { color: #fff !important; font-weight: 650 !important; }
+:root:not([data-ytmls-theme="light"]) #ytmls-tools-pane .ytmls-candidate-meta { color: rgb(255 255 255 / .6) !important; }
+/* The lyrics in use: an accent outline and tint around its row. */
+:root:not([data-ytmls-theme="light"]) #ytmls-tools-pane .ytmls-candidate-row:has(.ytmls-candidate-item[data-active="true"]) {
+  background: color-mix(in srgb, var(--lg-accent) 14%, rgb(255 255 255 / .04)) !important;
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--lg-accent) 70%, transparent) !important;
+}
+:root:not([data-ytmls-theme="light"]) #ytmls-tools-pane .ytmls-candidate-item[data-active="true"] { background: transparent !important; box-shadow: none !important; }
+:root:not([data-ytmls-theme="light"]) #ytmls-panel #ytmls-tools-pane .ytmls-recommendation-badge {
+  background: rgb(255 255 255 / .1) !important; color: #fff !important;
+}
+:root:not([data-ytmls-theme="light"]) #ytmls-tools-pane .ytmls-candidate-pin {
+  background: rgb(255 255 255 / .12) !important; color: #fff !important;
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / .1) !important; text-shadow: none !important;
+}
+:root:not([data-ytmls-theme="light"]) #ytmls-tools-pane .ytmls-candidate-pin:hover { background: rgb(255 255 255 / .18) !important; }
+:root:not([data-ytmls-theme="light"]) #ytmls-tools-pane .ytmls-tools-close { background: rgb(255 255 255 / .12) !important; color: #fff !important; }
