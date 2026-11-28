@@ -297,3 +297,26 @@ test('Now Playing page opens out of and closes back into the toolbar, without Yo
   assert.match(css, /ytmls-depth-animation-disabled ytmusic-app-layout > ytmusic-player-page\[slot="player-page"\],/, 'the animation setting still turns it off');
   assert.match(css, /ytmusic-app-layout\[no-animation\] > ytmusic-player-page/);
 });
+
+test('moving artwork background, Up Next history / autoplay, album capsules and playing-row bars are in place', () => {
+  const js = read('apple-shell.js'), css = read('apple-shell.css');
+  assert.match(js, /function updateAmbient\(\)/);
+  assert.match(css, /\.ytmls-am-ambient-blobs \{[^}]*transform: scale\(4\);/, 'blurred at a quarter size, scaled up');
+  assert.match(css, /html:is\(\.ytmls-lyrics-motion-lightweight, \.ytmls-extra-motion-disabled\)\.ytmls-am \.ytmls-am-ambient-blobs i \{ animation: none; \}/);
+  assert.match(js, /data-view="history"/);
+  assert.match(js, /function autoplayToggle\(\)/);
+  assert.match(js, /index < currentIndex/, 'history is the songs before the playing one');
+  assert.match(js, /function ensureAlbumActions\(\)/);
+  assert.match(css, /html\.ytmls-am \.ytmls-am-native-hidden \{ display: none !important; \}/);
+  assert.match(css, /@keyframes ytmls-am-list-bars/);
+});
+
+test('lyrics share card: a menu entry, up to four lines, copy and save', () => {
+  const src = fs.readFileSync(new URL('../src/content/share-card.js', import.meta.url), 'utf8');
+  assert.match(src, /SHARE_MAX_LINES = 4/);
+  assert.match(src, /new ClipboardItem\(\{'image\/png': image\}\)/);
+  assert.match(src, /image\.crossOrigin = 'anonymous'/, 'only a readable cover is drawn, so the card can always be exported');
+  const order = JSON.parse(fs.readFileSync(new URL('../src/content-order.json', import.meta.url), 'utf8'));
+  assert.ok(order.indexOf('share-card.js') > order.indexOf('side-lyrics.js'));
+  assert.match(fs.readFileSync(new URL('../src/content/lyrics-panel.js', import.meta.url), 'utf8'), /openShareCard\(\)/);
+});

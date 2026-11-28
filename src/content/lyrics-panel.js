@@ -1024,6 +1024,8 @@
         `headers=${["ytmusic-responsive-header-renderer", "ytmusic-detail-header-renderer", "ytmusic-immersive-header-renderer", "ytmusic-visual-header-renderer"].map(n => `${n.replace(/^ytmusic-|-header-renderer$/g, "")}:${count(n)}`).join(",")}`,
         `pageButtons=[filled:${count(":is(ytmusic-browse-response, ytmusic-search-page) .yt-spec-button-shape-next--filled")} tonal:${count(":is(ytmusic-browse-response, ytmusic-search-page) .yt-spec-button-shape-next--tonal")} outline:${count(":is(ytmusic-browse-response, ytmusic-search-page) .yt-spec-button-shape-next--outline")}]`,
         `cardShelf=${count("ytmusic-card-shelf-renderer")}`,
+        `autoplay=${(() => { const t = [...document.querySelectorAll('ytmusic-player-page tp-yt-paper-toggle-button, ytmusic-player-page [role="switch"]')]; return t.length ? `${t.length}:${t.map(x => (x.hasAttribute('checked') || x.getAttribute('aria-pressed') === 'true') ? 'on' : 'off').join('/')}` : 'none'; })()}`,
+        `albumPills=${document.querySelectorAll('.ytmls-am-album-actions').length}`,
         `menu=${menu ? `${menu.parentElement?.localName || "-"} items:${[...new Set([...menu.querySelectorAll("[class], *")].map(el => el.localName).filter(n => /^ytmusic-.*item/.test(n)))].join("/")}` : "closed"}`,
       ].join(" ");
     } catch (_) {
@@ -1273,7 +1275,14 @@
     const lyricsGroup = menuGroup('歌詞の検索・編集', 'ytmls-lyrics-menu');
     lyricsGroup.append(manualSearchButtonEl, localLyricsButtonEl, editLyricsButtonEl);
     const storageGroup = menuGroup('保存・診断', 'ytmls-storage-menu');
-    storageGroup.append(exportLyricsButtonEl);
+    const shareLyricsButtonEl = document.createElement("button");
+    shareLyricsButtonEl.type = "button";
+    shareLyricsButtonEl.className = "ytmls-tool-button";
+    shareLyricsButtonEl.id = "ytmls-share-lyrics";
+    shareLyricsButtonEl.textContent = "歌詞を共有";
+    shareLyricsButtonEl.title = "選んだ行を、ジャケットの色のカード画像にしてコピー・保存";
+    shareLyricsButtonEl.addEventListener("click", () => { closeMoreMenu(more); openShareCard(); });
+    storageGroup.append(shareLyricsButtonEl, exportLyricsButtonEl);
     // The menu draws the glass and its rim; the body inside scrolls (so the rim never scrolls away).
     const menuBody = document.createElement("div");
     menuBody.className = "ytmls-more-body";

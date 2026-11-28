@@ -668,6 +668,49 @@
       try { item.dispatchEvent(new CustomEvent('tap', {bubbles: true, cancelable: true, composed: true})); } catch (_) {}
     }, 700);
   }
+  // 次に再生 (the playing song and what follows) or 履歴 (the songs before it, latest at the bottom).
+  let queueView = 'next';
+  // YouTube Music's 自動再生 switch above its queue (adds similar songs at the end).
+  function autoplayToggle() {
+    const toggles = [...document.querySelectorAll('ytmusic-player-page tp-yt-paper-toggle-button, ytmusic-player-page [role="switch"]')];
+    return toggles.find(toggle => /自動再生|autoplay/i.test(toggle.closest('#automix-container, .autoplay, #autoplay, ytmusic-tab-renderer > *, div')?.textContent || '') || /自動再生|autoplay/i.test(toggle.getAttribute('aria-label') || '')) || null;
+  }
+  function autoplayOn(toggle = autoplayToggle()) {
+    if (!toggle) return false;
+    return toggle.hasAttribute('checked') || toggle.hasAttribute('active') || toggle.getAttribute('aria-pressed') === 'true' || toggle.getAttribute('aria-checked') === 'true';
+  }
+  function pressAutoplay() {
+    const toggle = autoplayToggle();
+    if (!toggle) return;
+    const before = autoplayOn(toggle);
+    toggle.click();
+    setTimeout(() => {
+      if (autoplayOn(toggle) === before) { try { toggle.dispatchEvent(new CustomEvent('tap', {bubbles: true, cancelable: true, composed: true})); } catch (_) {} }
+      queueSignature = '';
+      renderQueuePanel();
+    }, 400);
+  }
+  function queueSectionHead(text, withAutoplay) {
+    const head = document.createElement('div');
+    head.className = 'ytmls-queue-section';
+    const label = document.createElement('span');
+    label.textContent = text;
+    head.append(label);
+    const toggle = withAutoplay ? autoplayToggle() : null;
+    if (toggle) {
+      const on = autoplayOn(toggle);
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'ytmls-queue-autoplay';
+      button.classList.toggle('is-on', on);
+      button.setAttribute('aria-pressed', String(on));
+      button.title = on ? '自動再生：オン（似た曲を最後に追加）' : '自動再生：オフ';
+      button.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 12c-2-2.6-3.6-4-5.5-4a4 4 0 0 0 0 8c1.9 0 3.5-1.4 5.5-4Zm0 0c2 2.6 3.6 4 5.5 4a4 4 0 0 0 0-8c-1.9 0-3.5 1.4-5.5 4Z"/></svg><span>自動再生</span>';
+      button.addEventListener('click', event => { event.stopPropagation(); pressAutoplay(); });
+      head.append(button);
+    }
+    return head;
+  }
   function buildQueuePanel() {
     if (queuePanel) return queuePanel;
     queuePanel = document.createElement('aside');
@@ -675,8 +718,18 @@
     queuePanel.className = 'ytmls-side-panel';
     queuePanel.setAttribute('aria-label', '次に再生');
     queuePanel.hidden = true;
-    queuePanel.innerHTML = '<div class="ytmls-side-head"><span class="ytmls-side-title">次に再生</span><button type="button" class="ytmls-side-close" title="閉じる" aria-label="閉じる"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="m7 7 10 10M17 7 7 17"/></svg></button></div><p class="ytmls-side-message"></p><div class="ytmls-queue-list" role="list"></div>';
+    queuePanel.innerHTML = '<div class="ytmls-side-head"><span class="ytmls-side-title">次に再生</span><button type="button" class="ytmls-side-close" title="閉じる" aria-label="閉じる"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="m7 7 10 10M17 7 7 17"/></svg></button></div><div class="ytmls-queue-tabs" role="tablist" aria-label="表示"><button type="button" role="tab" data-view="next" aria-selected="true">次に再生</button><button type="button" role="tab" data-view="history" aria-selected="false">履歴</button></div><p class="ytmls-side-message"></p><div class="ytmls-queue-list" role="list"></div>';
     queuePanel.querySelector('.ytmls-side-close').addEventListener('click', () => toggleQueuePanel(false));
+    for (const tab of queuePanel.querySelectorAll('.ytmls-queue-tabs [data-view]')) {
+      tab.addEventListener('click', () => {
+        if (queueView === tab.dataset.view) return;
+        queueView = tab.dataset.view;
+        for (const other of queuePanel.querySelectorAll('.ytmls-queue-tabs [data-view]')) other.setAttribute('aria-selected', String(other === tab));
+        queueSignature = '';
+        delete queuePanel.dataset.scrolled;
+        renderQueuePanel();
+      });
+    }
     queuePanel.addEventListener('keydown', event => { if (event.key === 'Escape') { event.stopPropagation(); toggleQueuePanel(false); } });
     document.body.append(queuePanel);
     return queuePanel;
@@ -695,18 +748,29 @@
     // A new or changed list: ask the player for its pictures.
     const listKey = infos.map(info => info.title).join('\n');
     if (listKey !== queueThumbsFor && bridge) { queueThumbsFor = listKey; bridge.send({type: 'queue-info'}); }
-    const signature = JSON.stringify(infos.map(info => [info.title, info.byline, info.current, info.art]));
+    const autoplay = autoplayToggle();
+    const signature = JSON.stringify([queueView, Boolean(autoplay), autoplayOn(autoplay), infos.map(info => [info.title, info.byline, info.current, info.art])]);
     if (signature === queueSignature) return;
     queueSignature = signature;
+    // Which songs this view shows: history is everything before the playing song.
+    const start = currentIndex >= 0 ? currentIndex : 0;
+    const shown = queueView === 'history'
+      ? items.map((item, index) => index).filter(index => currentIndex >= 0 && index < currentIndex)
+      : items.map((item, index) => index).filter(index => index >= start);
     const message = queuePanel.querySelector('.ytmls-side-message');
-    message.textContent = items.length ? '' : '再生待ちの曲はありません。曲を再生すると、ここに並びます。';
-    message.hidden = Boolean(items.length);
+    message.textContent = shown.length ? '' : queueView === 'history' ? 'このキューで、まだ前に再生した曲はありません。' : '再生待ちの曲はありません。曲を再生すると、ここに並びます。';
+    message.hidden = Boolean(shown.length);
     const list = queuePanel.querySelector('.ytmls-queue-list');
     const scroll = list.scrollTop;
     list.replaceChildren();
     let currentRow = null;
-    items.forEach((item, index) => {
+    if (queueView === 'next' && shown.length) {
+      if (currentIndex >= 0) list.append(queueSectionHead('再生中', false));
+    }
+    shown.forEach((index, position) => {
+      const item = items[index];
       const info = infos[index];
+      if (queueView === 'next' && (currentIndex < 0 ? position === 0 : index === currentIndex + 1)) list.append(queueSectionHead('次に再生', true));
       const row = document.createElement('button');
       row.type = 'button';
       row.className = 'ytmls-queue-row';
@@ -735,10 +799,12 @@
       row.addEventListener('click', () => playQueueItem(item));
       list.append(row);
     });
+    // The 次に再生 head (with 自動再生) even when nothing follows the playing song.
+    if (queueView === 'next' && currentIndex >= 0 && currentIndex === items.length - 1) list.append(queueSectionHead('次に再生', true));
     list.scrollTop = scroll;
-    if (currentRow && !queuePanel.dataset.scrolled) {
+    if (!queuePanel.dataset.scrolled) {
       queuePanel.dataset.scrolled = '1';
-      list.scrollTop = Math.max(0, currentRow.offsetTop - 12);
+      list.scrollTop = queueView === 'history' ? list.scrollHeight : 0;
     }
   }
   function toggleQueuePanel(force) {
@@ -980,9 +1046,104 @@
     const step = () => { refresh(); if (performance.now() < until) requestAnimationFrame(step); };
     requestAnimationFrame(step);
   }
+  // ---------- Moving artwork background (Now Playing page and fullscreen lyrics) ----------
+  // Like the Mac's and iPhone's lyrics screen: the cover, blurred into a few large soft shapes that
+  // drift slowly. Drawn with CSS backgrounds (no pixels are read), at a quarter size and scaled up so
+  // the blur stays cheap. A new song fades in over the old one.
+  function largeArtwork(url) {
+    if (!/^https:\/\//.test(url || '')) return '';
+    return url.replace(/=w\d+-h\d+(-[^/?#]*)?$/, '=w544-h544-l90-rj').replace(/\/(?:default|mqdefault|sddefault)\.jpg/, '/hqdefault.jpg');
+  }
+  function ambientHosts() {
+    return [document.querySelector('ytmusic-player-page'), document.getElementById('ytmls-fullscreen')].filter(Boolean);
+  }
+  function placeAmbient(host, art) {
+    const layers = [...host.querySelectorAll(':scope > .ytmls-am-ambient')];
+    const top = layers.at(-1);
+    if (top?.dataset.art === art) return;
+    const layer = document.createElement('div');
+    layer.className = 'ytmls-am-ambient';
+    layer.setAttribute('aria-hidden', 'true');
+    layer.dataset.art = art;
+    layer.style.setProperty('--ytmls-am-ambient-art', `url("${art.replace(/["\\]/g, '')}")`);
+    layer.innerHTML = '<div class="ytmls-am-ambient-blobs"><i></i><i></i><i></i><i></i></div>';
+    // Behind the page's content, above Music Glass's still backdrop (the same back layer).
+    const after = top || host.querySelector(':scope > .music-glass-surface, :scope > .ytmls-full-backdrop, :scope > .ytmls-full-aurora');
+    host.insertBefore(layer, after ? after.nextSibling : host.firstChild);
+    const image = new Image();
+    image.onload = () => requestAnimationFrame(() => layer.classList.add('is-ready'));
+    image.src = art;
+    for (const old of layers) {
+      old.classList.add('is-leaving');
+      setTimeout(() => old.remove(), 1400);
+    }
+  }
+  function updateAmbient() {
+    const img = playerBar()?.querySelector('img.image, .thumbnail-image-wrapper img, img');
+    const art = largeArtwork(img?.currentSrc || img?.src || '');
+    for (const host of ambientHosts()) {
+      if (art) placeAmbient(host, art);
+      else host.querySelectorAll(':scope > .ytmls-am-ambient').forEach(layer => layer.remove());
+    }
+  }
+
+  // ---------- Album and playlist pages: red 再生 / シャッフル capsules, like the Mac ----------
+  // In front of YouTube Music's round play button (which is then hidden); 再生 presses it.
+  // シャッフル uses the header's own シャッフル menu entry, else plays and turns shuffle on.
+  function albumHeader() {
+    return document.querySelector('ytmusic-browse-response:not([hidden]) :is(ytmusic-responsive-header-renderer, ytmusic-detail-header-renderer)');
+  }
+  function menuEntry(pattern) {
+    return [...document.querySelectorAll('ytmusic-menu-popup-renderer :is(ytmusic-menu-navigation-item-renderer, ytmusic-menu-service-item-renderer)')]
+      .find(item => item.offsetParent !== null && pattern.test(item.textContent || '')) || null;
+  }
+  function shuffleAlbum(header, nativePlay) {
+    const menuButton = header.querySelector('ytmusic-menu-renderer :is(yt-button-shape button, button, tp-yt-paper-icon-button), ytmusic-menu-renderer yt-icon-button');
+    const fallback = () => {
+      const before = trackState();
+      press(nativePlay, () => trackState() !== before);
+      setTimeout(() => { if (!shuffleOn()) transport.shuffle(); }, 1400);
+    };
+    if (!menuButton) { fallback(); return; }
+    menuButton.click();
+    setTimeout(() => {
+      const entry = menuEntry(/シャッフル|shuffle/i);
+      if (entry) { (entry.querySelector('a, tp-yt-paper-item, #navigation-endpoint') || entry).click(); return; }
+      document.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape', code: 'Escape', bubbles: true}));
+      fallback();
+    }, 260);
+  }
+  function ensureAlbumActions() {
+    const header = albumHeader();
+    const nativePlay = header?.querySelector('ytmusic-play-button-renderer');
+    document.querySelectorAll('.ytmls-am-album-actions').forEach(box => { if (!header || !header.contains(box)) box.remove(); });
+    if (!header || !nativePlay) return;
+    let box = header.querySelector('.ytmls-am-album-actions');
+    if (!box) {
+      box = document.createElement('div');
+      box.className = 'ytmls-am-album-actions';
+      const make = (name, label, icon, onClick) => {
+        const el = document.createElement('button');
+        el.type = 'button';
+        el.className = `ytmls-am-pill ytmls-am-pill-${name}`;
+        el.innerHTML = `${icon}<span>${label}</span>`;
+        el.addEventListener('click', event => { event.preventDefault(); event.stopPropagation(); onClick(); });
+        return el;
+      };
+      box.append(
+        make('play', '再生', ICONS.play, () => { const before = trackState(); press(nativePlay, () => trackState() !== before); }),
+        make('shuffle', 'シャッフル', ICONS.shuffle, () => shuffleAlbum(albumHeader() || header, nativePlay)),
+      );
+      nativePlay.parentElement.insertBefore(box, nativePlay);
+    }
+    nativePlay.classList.add('ytmls-am-native-hidden');
+  }
+
   function refresh() {
     if (!active()) {
       root.classList.remove('ytmls-am', 'ytmls-am-compact', 'ytmls-am-no-side');
+      document.querySelectorAll('.ytmls-am-album-actions').forEach(box => box.remove());
+      document.querySelectorAll('.ytmls-am-native-hidden').forEach(el => el.classList.remove('ytmls-am-native-hidden'));
       if (queuePanel && !queuePanel.hidden) toggleQueuePanel(false);
       return;
     }
@@ -1021,6 +1182,8 @@
     syncViewButtons();
     bindVideo();
     updateNowPlaying();
+    updateAmbient();
+    ensureAlbumActions();
     updatePlayState();
   }
 
