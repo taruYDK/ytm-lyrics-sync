@@ -769,6 +769,17 @@ html.ytmls-am ytmusic-menu-popup-renderer :is(#header, ytmusic-menu-title-render
 html.ytmls-am tp-yt-iron-dropdown:has(ytmusic-menu-popup-renderer) #contentWrapper,
 html.ytmls-am tp-yt-iron-dropdown:has(ytmusic-menu-popup-renderer) .dropdown-content { background: transparent !important; border-radius: 14px; }
 html.ytmls-lyrics-motion-lightweight.ytmls-am ytmusic-menu-popup-renderer { -webkit-backdrop-filter: none; backdrop-filter: none; background: #26262a !important; }
+/* Compact like the sort menu and a Mac menu: 30px rows, 16px icons, 13px text, no extra space
+   (YouTube Music's rows were 48px tall with big icons, so the ⋮ menu looked unlike the others). */
+html.ytmls-am ytmusic-menu-popup-renderer { padding: 5px !important; min-width: 0 !important; }
+html.ytmls-am ytmusic-menu-popup-renderer :is(tp-yt-paper-listbox, #items, [role="listbox"], [role="menu"]) { padding: 0 !important; margin: 0 !important; background: transparent !important; }
+html.ytmls-am ytmusic-menu-popup-renderer :is(ytmusic-menu-navigation-item-renderer, ytmusic-menu-service-item-renderer, ytmusic-toggle-menu-service-item-renderer, ytmusic-menu-service-item-download-renderer) :is(a, tp-yt-paper-item, #navigation-endpoint, .yt-simple-endpoint) {
+  min-height: 30px !important; height: 30px !important; padding: 0 12px 0 8px !important; margin: 0 !important;
+  align-items: center !important;
+}
+html.ytmls-am ytmusic-menu-popup-renderer tp-yt-paper-item { min-height: 30px !important; height: 30px !important; }
+html.ytmls-am ytmusic-menu-popup-renderer yt-icon { width: 16px !important; height: 16px !important; margin: 0 10px 0 0 !important; padding: 0 !important; flex: 0 0 16px; }
+html.ytmls-am ytmusic-menu-popup-renderer :is(.text, yt-formatted-string) { font-size: 13px !important; line-height: 1.3 !important; margin: 0 !important; white-space: nowrap; }
 /* The play button on song artwork shows only under the pointer (or while that song plays), like the
    Mac; YouTube Music keeps it on songs all the time. */
 html.ytmls-am :is(ytmusic-two-row-item-renderer, ytmusic-responsive-list-item-renderer) ytmusic-item-thumbnail-overlay-renderer ytmusic-play-button-renderer:not([play-button-state="playing"]):not([play-button-state="paused"]):not([play-button-state="loading"]) {

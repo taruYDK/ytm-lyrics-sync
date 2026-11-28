@@ -237,7 +237,9 @@ test('home shelves and song menus get Apple-style looks only in the Mac-style sc
     assert.ok(rules.length, part);
     for (const rule of rules) {
       assert.match(rule.split('{')[0], /html(\.ytmls-lyrics-motion-lightweight)?\.ytmls-am /, `${part} only in the Mac-style screen`);
-      assert.doesNotMatch(rule, /(^|[;{\s])(width|height|display|position|margin)\s*:/, `${part} keeps YouTube Music's sizes`);
+      // The ⋮ menu's rows are made compact like the sort menu (asked for); still never shown, hidden or moved.
+      if (part === 'ytmusic-menu-popup-renderer') assert.doesNotMatch(rule, /(^|[;{\s])(display|position)\s*:/, `${part} keeps YouTube Music's layout`);
+      else assert.doesNotMatch(rule, /(^|[;{\s])(width|height|display|position|margin)\s*:/, `${part} keeps YouTube Music's sizes`);
     }
   }
   assert.match(fs.readFileSync(new URL('../src/content/lyrics-panel.js', import.meta.url), 'utf8'), /`Mac pages: \$\{macPagesDiagnostics\(\)\}`/);
