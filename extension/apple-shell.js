@@ -1055,7 +1055,9 @@
     return url.replace(/=w\d+-h\d+(-[^/?#]*)?$/, '=w544-h544-l90-rj').replace(/\/(?:default|mqdefault|sddefault)\.jpg/, '/hqdefault.jpg');
   }
   function ambientHosts() {
-    return [document.querySelector('ytmusic-player-page'), document.getElementById('ytmls-fullscreen')].filter(Boolean);
+    // The whole window (behind every page, like the Mac app's background), and again on the Now
+    // Playing page and the fullscreen lyrics, which cover the window with their own backing.
+    return [document.body, document.querySelector('ytmusic-player-page'), document.getElementById('ytmls-fullscreen')].filter(Boolean);
   }
   function placeAmbient(host, art) {
     const layers = [...host.querySelectorAll(':scope > .ytmls-am-ambient')];
@@ -1068,7 +1070,7 @@
     layer.style.setProperty('--ytmls-am-ambient-art', `url("${art.replace(/["\\]/g, '')}")`);
     layer.innerHTML = '<div class="ytmls-am-ambient-blobs"><i></i><i></i><i></i><i></i></div>';
     // Behind the page's content, above Music Glass's still backdrop (the same back layer).
-    const after = top || host.querySelector(':scope > .music-glass-surface, :scope > .ytmls-full-backdrop, :scope > .ytmls-full-aurora');
+    const after = top || host.querySelector(':scope > #music-glass-backdrop, :scope > .music-glass-surface, :scope > .ytmls-full-backdrop, :scope > .ytmls-full-aurora');
     host.insertBefore(layer, after ? after.nextSibling : host.firstChild);
     const image = new Image();
     image.onload = () => requestAnimationFrame(() => layer.classList.add('is-ready'));
@@ -1143,6 +1145,7 @@
     if (!active()) {
       root.classList.remove('ytmls-am', 'ytmls-am-compact', 'ytmls-am-no-side');
       document.querySelectorAll('.ytmls-am-album-actions').forEach(box => box.remove());
+      document.querySelectorAll('.ytmls-am-ambient').forEach(layer => layer.remove());
       document.querySelectorAll('.ytmls-am-native-hidden').forEach(el => el.classList.remove('ytmls-am-native-hidden'));
       if (queuePanel && !queuePanel.hidden) toggleQueuePanel(false);
       return;

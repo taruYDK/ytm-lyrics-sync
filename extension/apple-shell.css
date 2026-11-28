@@ -1040,3 +1040,7 @@ html.ytmls-am :is(ytmusic-browse-response, ytmusic-search-page) ytmusic-responsi
 /* On the Now Playing page the moving background fills the whole window (behind the sidebar and the
    toolbar glass too), not only the page's box: no plain strips above and below it. */
 html.ytmls-am ytmusic-player-page > .ytmls-am-ambient { position: fixed; inset: 0; }
+/* The whole window: behind every page (home, albums, search …), a little darker so lists stay readable. */
+html.ytmls-am body > .ytmls-am-ambient { position: fixed; inset: 0; z-index: -1; }
+html.ytmls-am body > .ytmls-am-ambient::after { background: rgb(0 0 0 / .4); }
+html.ytmls-am:has(ytmusic-app-layout[player-page-open]) body > .ytmls-am-ambient .ytmls-am-ambient-blobs i { animation-play-state: paused; }
