@@ -348,3 +348,11 @@ test('popovers share the readable glass; library, lyrics and mini player get the
   assert.match(side, /add\('lyrics', '歌詞を隠す'/);
   assert.match(side, /set\('\.remaining'/);
 });
+
+test('every page: the sidebar stays out of the way and comes over the page from the button or the left edge', () => {
+  const js = read('apple-shell.js'), css = read('apple-shell.css');
+  assert.match(css, /html\.ytmls-am:not\(\.ytmls-am-side-peek\) \.ytmls-am-sidebar \{/);
+  assert.match(css, /html\.ytmls-am:not\(\.ytmls-am-side-peek\) \.ytmls-am-edge \{/);
+  assert.match(css, /html\.ytmls-am \.ytmls-am-toolbar \{ left: 0; \}/);
+  assert.match(js, /layout\.side >= 160 && !layoutEl\(\)\?\.hasAttribute\('player-page-open'\) && now - lastGuideNarrowAt > 4000/, 'YouTube Music\'s side menu kept narrow, at most every 4 s');
+});

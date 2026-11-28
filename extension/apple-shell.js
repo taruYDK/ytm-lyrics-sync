@@ -958,7 +958,7 @@
     const edge = document.createElement('div');
     edge.className = 'ytmls-am-edge';
     edge.setAttribute('aria-hidden', 'true');
-    edge.addEventListener('pointerenter', () => { if (root.classList.contains('ytmls-am-page-open') && !root.classList.contains('ytmls-am-side-peek')) toggleSidePeek(true, true); });
+    edge.addEventListener('pointerenter', () => { if (!root.classList.contains('ytmls-am-side-peek')) toggleSidePeek(true, true); });
 
     // Toolbar
     const toolbar = document.createElement('div');
@@ -975,8 +975,8 @@
       button('next', '次へ', 'next', transport.next),
       button('repeat', 'リピート', 'repeat', transport.repeat),
     );
-    // While the Now Playing page is open the sidebar steps away (like the Mac's full screen player);
-    // this button brings it back over the page (the page stays open), and hides it again.
+    // The sidebar stays out of the way (like the Mac's full screen player); this button brings it
+    // over the page (the page stays as it is), and hides it again.
     const collapse = button('collapse', 'サイドバーを表示', 'sidebar', () => toggleSidePeek());
     left.append(collapse, menu, controls);
 
@@ -1256,6 +1256,7 @@
     pageObserver.observe(layout, {attributes: true, attributeFilter: ['player-page-open', 'player-fullscreened']});
   }
 
+  let lastGuideNarrowAt = -Infinity;
   function refresh() {
     if (!active()) {
       root.classList.remove('ytmls-am', 'ytmls-am-compact', 'ytmls-am-no-side');
@@ -1277,6 +1278,13 @@
     } else sideGoneSince = 0;
     lastSide = layout.side;
     build();
+    // The sidebar is shown only over the page now, so YouTube Music's own side menu is kept narrow:
+    // its column is then a small margin instead of a wide empty strip on the left of every page.
+    if (layout.side >= 160 && !layoutEl()?.hasAttribute('player-page-open') && now - lastGuideNarrowAt > 4000 && guideButton()) {
+      lastGuideNarrowAt = now;
+      press(guideButton());
+      followLayout?.(700);
+    }
     const key = `${layout.top}:${layout.side}`;
     if (key !== lastLayout) {
       lastLayout = key;
