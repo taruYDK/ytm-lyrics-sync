@@ -483,8 +483,10 @@
   function progressLoopMeasured() {
     progressFrame = 0;
     updateProgress();
+    // Five times a second is enough: the bar moves about a pixel a second and the times change once a
+    // second. Every frame (60 times a second) was work that happened only while a song played.
     if (video && !video.paused && !document.hidden && root.classList.contains('ytmls-am')) {
-      progressFrame = requestAnimationFrame(progressLoop);
+      progressFrame = setTimeout(() => requestAnimationFrame(progressLoop), 200);
     }
   }
   function startProgress() {
@@ -494,9 +496,14 @@
   function updatePlayState() {
     if (!ui.play) return;
     const playing = Boolean(video && !video.paused);
-    ui.play.innerHTML = playing ? ICONS.pause : ICONS.play;
-    ui.play.setAttribute('aria-label', playing ? '一時停止' : '再生');
-    ui.play.title = playing ? '一時停止' : '再生';
+    // Only when it changes: refresh() calls this every 700ms, and replacing the icon each time
+    // rebuilt the SVG and made the browser recheck styles and layout of the toolbar.
+    if (ui.play.dataset.playing !== String(playing)) {
+      ui.play.dataset.playing = String(playing);
+      ui.play.innerHTML = playing ? ICONS.pause : ICONS.play;
+      ui.play.setAttribute('aria-label', playing ? '一時停止' : '再生');
+      ui.play.title = playing ? '一時停止' : '再生';
+    }
     if (playing) startProgress(); else updateProgress();
   }
 

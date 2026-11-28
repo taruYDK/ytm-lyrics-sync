@@ -101,7 +101,14 @@
   }).observe(document.documentElement, {childList:true, subtree:true, attributes:true, attributeFilter:['player-page-open','player-fullscreened','hidden']});
   attachPanel();
   window.addEventListener('resize',schedule,{passive:true});
-  window.addEventListener('scroll',schedule,{passive:true,capture:true});
+  // The lyrics list scrolls by itself on every line while a song plays: those scrolls do not move
+  // the empty/searching message, so they must not make it measure the page again each frame.
+  window.addEventListener('scroll',event=>{
+    if(!source)return;
+    const target=event.target&&event.target.nodeType===1?event.target:null;
+    if(target&&target.closest&&target.closest('#ytmls-list, .ytmls-side-list, #ytmls-fullscreen'))return;
+    schedule();
+  },{passive:true,capture:true});
   schedule();
 })();
 

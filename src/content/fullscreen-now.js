@@ -102,7 +102,8 @@ function buildFullscreenNowPlaying(box) {
  const loop = () => {
   if (practiceFullscreen !== box || box.inert) return;
   updateFullscreenNowPlaying(box);
-  box.nowFrame = requestAnimationFrame(loop);
+  // Five times a second, not every frame: the bar and the times barely move between frames.
+  box.nowTimer = setTimeout(() => { box.nowFrame = requestAnimationFrame(loop); }, 200);
  };
  box.nowFrame = requestAnimationFrame(loop);
 }
@@ -113,13 +114,17 @@ function updateFullscreenNowPlaying(box) {
  const duration = getAuthoritativeDuration(media);
  const time = getAuthoritativePlaybackTime(media);
  const known = Number.isFinite(duration) && duration > 0 && Number.isFinite(time);
- if (!box.nowSeeking?.()) progress.style.setProperty('--progress', String(known ? Math.min(1, Math.max(0, time / duration)) : 0));
+ if (!box.nowSeeking?.()) {
+  const ratio = (known ? Math.min(1, Math.max(0, time / duration)) : 0).toFixed(4);
+  if (progress.style.getPropertyValue('--progress') !== ratio) progress.style.setProperty('--progress', ratio);
+ }
  const elapsed = known ? fullscreenNowTime(time) : '0:00';
  const remaining = known ? `-${fullscreenNowTime(duration - time)}` : '';
  const elapsedEl = progress.querySelector('.ytmls-full-elapsed'), remainingEl = progress.querySelector('.ytmls-full-remaining');
  if (elapsedEl.textContent !== elapsed) elapsedEl.textContent = elapsed;
  if (remainingEl.textContent !== remaining) remainingEl.textContent = remaining;
- progress.setAttribute('aria-valuetext', known ? `${elapsed} / ${fullscreenNowTime(duration)}` : '');
+ const valueText = known ? `${elapsed} / ${fullscreenNowTime(duration)}` : '';
+ if (progress.getAttribute('aria-valuetext') !== valueText) progress.setAttribute('aria-valuetext', valueText);
  const playing = Boolean(media && !media.paused);
  const button = box.nowPlayButton;
  if (button && button.dataset.playing !== String(playing)) {

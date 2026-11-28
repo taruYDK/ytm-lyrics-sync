@@ -217,7 +217,7 @@ function closePracticeFullscreen(animate = true) {
  document.removeEventListener('keyup', handlePracticeFullscreenSpace, true);
  clearTimeout(box.closeTimer);
  box.resizeObserver?.disconnect();
- cancelAnimationFrame(box.nowFrame||0);
+ cancelAnimationFrame(box.nowFrame||0); clearTimeout(box.nowTimer||0);
  const finish = () => {
   practiceFullscreen = null;
   const exiting = document.fullscreenElement === box ? document.exitFullscreen() : Promise.resolve();

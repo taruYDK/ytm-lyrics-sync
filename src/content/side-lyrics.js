@@ -86,7 +86,7 @@ function renderSideLyrics() {
  const message = sideLyricsMessage();
  const messageEl = pane.querySelector('.ytmls-side-message');
  if (messageEl.textContent !== message) messageEl.textContent = message;
- messageEl.hidden = !message;
+ if (messageEl.hidden !== !message) messageEl.hidden = !message;
  const title = pane.querySelector('.ytmls-side-title');
  const titleText = STATE.lastDisplayedTitle || '歌詞';
  if (title.textContent !== titleText) title.textContent = titleText;
