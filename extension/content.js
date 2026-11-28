@@ -2779,6 +2779,13 @@ function readingTokensToRomaji(tokens) {
     document.addEventListener("click", event => {
       if (more.open && !more.contains(event.target)) closeMoreMenu(more);
     });
+    // As tall as the window allows below it, so the whole menu shows (it scrolls only when it cannot).
+    more.addEventListener("toggle", () => {
+      if (!more.open) return;
+      menu.style.maxHeight = "";
+      const top = menu.getBoundingClientRect().top;
+      if (top > 0) menu.style.maxHeight = `${Math.max(240, Math.floor(window.innerHeight - top - 12))}px`;
+    });
     more.addEventListener("keydown", event => {
       if (event.key === "Escape") { closeMoreMenu(more); moreToggle.focus(); event.stopPropagation(); }
     });

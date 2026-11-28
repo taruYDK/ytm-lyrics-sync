@@ -737,3 +737,13 @@ html.music-glass #ytmls-external-tab { color: rgb(255 255 255 / .62) !important;
 html.music-glass #ytmls-external-tab:hover { color: rgb(255 255 255 / .86) !important; }
 html.music-glass #ytmls-external-tab[aria-expanded="true"] { color: #fff !important; }
 html.music-glass.ytmls-external-lyrics-open ytmusic-player-page tp-yt-paper-tabs.ytmls-tabs-glass tp-yt-paper-tab:is([aria-selected="true"], .iron-selected):not(.ytmls-external-native-label) { color: rgb(255 255 255 / .62) !important; }
+/* その他: compact rows, so the whole menu fits on screen (the "only after loading" notes stay as
+   small lines under their rows, closer). */
+#ytmls-more .ytmls-menu-group > .ytmls-tool-button, #ytmls-more .ytmls-diagnostic-details > summary { min-height: 32px; font-size: 13.5px !important; gap: 10px; }
+#ytmls-more .ytmls-menu-label { padding: 4px 12px 2px !important; }
+#ytmls-more .ytmls-menu-hint { margin: -3px 0 2px; padding-left: 40px; font-size: 10.5px; line-height: 1.3; }
+#ytmls-more .ytmls-menu-group + .ytmls-menu-group { margin-top: 4px; padding-top: 4px; }
+#ytmls-more .ytmls-size-presets { margin: 2px 4px 4px !important; }
+/* A song without YouTube Music lyrics: the extension's 歌詞 button lets presses through to the tab
+   underneath, so the bead can be dragged from 歌詞 too (choosing it there opens those lyrics). */
+html.music-glass #ytmls-external-tab { pointer-events: none; }
