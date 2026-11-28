@@ -446,9 +446,15 @@
     const duration = Number(media.duration);
     const time = Number(media.currentTime);
     const ratio = Number.isFinite(duration) && duration > 0 ? Math.min(1, Math.max(0, time / duration)) : 0;
-    if (!seeking) ui.progressFill.style.transform = `scaleX(${ratio})`;
-    ui.elapsed.textContent = formatTime(time);
-    ui.remaining.textContent = Number.isFinite(duration) && duration > 0 ? `-${formatTime(duration - time)}` : '';
+    // Written only when it changes: this runs every frame while a song plays, and setting even the
+    // same text replaces the text and makes the browser lay the page out again on every frame
+    // (a big YouTube Music page made that the main cost of playing).
+    const transform = `scaleX(${ratio.toFixed(4)})`;
+    if (!seeking && ui.progressFill.style.transform !== transform) ui.progressFill.style.transform = transform;
+    const elapsed = formatTime(time);
+    if (ui.elapsed.textContent !== elapsed) ui.elapsed.textContent = elapsed;
+    const remaining = Number.isFinite(duration) && duration > 0 ? `-${formatTime(duration - time)}` : '';
+    if (ui.remaining.textContent !== remaining) ui.remaining.textContent = remaining;
   }
 
   function progressLoop(...args) {
