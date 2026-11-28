@@ -286,3 +286,14 @@ test('album, playlist, artist and search pages get Apple-style looks only in the
   assert.match(autoOpen, /classList\.contains\('ytmls-am'\) \? AUTO_LYRICS_MAC_DELAY_MS : AUTO_LYRICS_IDLE_DELAY_MS/);
   assert.match(fs.readFileSync(new URL('../src/content/lyrics-panel.js', import.meta.url), 'utf8'), /`headers=\$\{/);
 });
+
+test('Now Playing page opens out of and closes back into the toolbar, without YouTube Music\'s drop-down', () => {
+  const css = read('apple-shell.css').replace(/\/\*[\s\S]*?\*\//g, '');
+  const closed = css.match(/html\.ytmls-am\.ytmls-am\.ytmls-am ytmusic-app-layout:not\(\[is-mweb-modernization-enabled\]\):not\(\[player-fullscreened\]\) > ytmusic-player-page\[slot="player-page"\] \{([^}]*)\}/);
+  assert.ok(closed, 'closed state');
+  assert.match(closed[1], /transform-origin: 50% 0 !important;/, 'shrinks toward the now-playing display at the top');
+  assert.match(closed[1], /opacity: 0 !important;[\s\S]*visibility: hidden !important;[\s\S]*pointer-events: none !important;/);
+  assert.match(css, /\[player-page-open\] > ytmusic-player-page\[slot="player-page"\] \{\s*transform: none !important;/);
+  assert.match(css, /ytmls-depth-animation-disabled ytmusic-app-layout > ytmusic-player-page\[slot="player-page"\],/, 'the animation setting still turns it off');
+  assert.match(css, /ytmusic-app-layout\[no-animation\] > ytmusic-player-page/);
+});

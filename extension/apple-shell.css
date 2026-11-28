@@ -893,3 +893,46 @@ html.ytmls-am ytmusic-player-page #ytmls-panel .ytmls-line {
 @media (prefers-reduced-motion: reduce) {
   html.ytmls-am ytmusic-player-page #ytmls-panel .ytmls-line { filter: none !important; }
 }
+
+/* ---------- Now Playing page: open and close like the Mac ----------
+   YouTube Music drops the page down and away, with the home page showing through it. Here the page
+   grows out of the now-playing display in the toolbar and, on closing, shrinks back up into it
+   while fading, so it reads as one motion. Video fullscreen and YouTube Music's own "no animation"
+   moments are left alone. (Three classes: wins over the player-bar animation in player-depth-clean.css.) */
+html.ytmls-am.ytmls-am.ytmls-am ytmusic-app-layout:not([is-mweb-modernization-enabled]):not([player-fullscreened]) > ytmusic-player-page[slot="player-page"] {
+  transform-origin: 50% 0 !important;
+  transform: translateY(-18px) scale(.93) !important;
+  filter: blur(8px);
+  clip-path: none !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  transition: transform 300ms cubic-bezier(.45, 0, .55, 1), filter 260ms ease-in 40ms, opacity 170ms ease-in 120ms, visibility 0s linear 300ms !important;
+}
+html.ytmls-am.ytmls-am.ytmls-am ytmusic-app-layout:not([is-mweb-modernization-enabled]):not([player-fullscreened])[player-page-open] > ytmusic-player-page[slot="player-page"] {
+  transform: none !important;
+  filter: none;
+  opacity: 1 !important;
+  visibility: visible !important;
+  pointer-events: auto !important;
+  transition: transform 420ms cubic-bezier(.2, .9, .25, 1), filter 260ms ease-out, opacity 200ms ease-out, visibility 0s !important;
+}
+/* The artwork settles a beat after the page, like the Mac's Now Playing. */
+html.ytmls-am.ytmls-am.ytmls-am ytmusic-app-layout:not([player-fullscreened]) > ytmusic-player-page[slot="player-page"] #main-panel > ytmusic-player:not([video-mode]):not([player-ui-state="FULLSCREEN"]):not([player-ui-state="MINIPLAYER"]) {
+  transform: scale(.9) !important;
+  transition: transform 240ms cubic-bezier(.4, 0, .7, .2) !important;
+}
+html.ytmls-am.ytmls-am.ytmls-am ytmusic-app-layout:not([player-fullscreened])[player-page-open] > ytmusic-player-page[slot="player-page"] #main-panel > ytmusic-player:not([video-mode]):not([player-ui-state="FULLSCREEN"]):not([player-ui-state="MINIPLAYER"]) {
+  transform: none !important;
+  transition: transform 560ms cubic-bezier(.18, 1.25, .4, 1) 40ms !important;
+}
+html.ytmls-am.ytmls-am.ytmls-am.ytmls-depth-animation-disabled ytmusic-app-layout > ytmusic-player-page[slot="player-page"],
+html.ytmls-am.ytmls-am.ytmls-am.ytmls-depth-animation-disabled ytmusic-app-layout > ytmusic-player-page[slot="player-page"] #main-panel > ytmusic-player,
+html.ytmls-am.ytmls-am.ytmls-am ytmusic-app-layout[no-animation] > ytmusic-player-page[slot="player-page"],
+html.ytmls-am.ytmls-am.ytmls-am ytmusic-app-layout[no-animation] > ytmusic-player-page[slot="player-page"] #main-panel > ytmusic-player { transition: none !important; }
+/* Lightweight mode: no blur while it moves. */
+html.ytmls-am.ytmls-am.ytmls-am.ytmls-lyrics-motion-lightweight ytmusic-app-layout > ytmusic-player-page[slot="player-page"] { filter: none !important; }
+@media (prefers-reduced-motion: reduce) {
+  html.ytmls-am.ytmls-am.ytmls-am ytmusic-app-layout > ytmusic-player-page[slot="player-page"],
+  html.ytmls-am.ytmls-am.ytmls-am ytmusic-app-layout > ytmusic-player-page[slot="player-page"] #main-panel > ytmusic-player { transition: opacity 160ms ease !important; transform: none !important; }
+}
