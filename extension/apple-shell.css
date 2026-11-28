@@ -204,6 +204,18 @@ html.ytmls-am-drawer-open .ytmls-am-scrim { display: block; position: fixed; ins
   mask-image: linear-gradient(#000 60%, transparent);
   pointer-events: none;
 }
+/* While the Now Playing page is open the toolbar sits over the moving background, which is already
+   a soft blur: blurring it again made no visible difference but had to be redone for every frame
+   of a scroll or a slide (each capsule, the display and the strip). A touch more tint instead. The
+   sidebar, out of sight while it is hidden, does not blur either. */
+html.ytmls-am.ytmls-am-page-open :is(.ytmls-am-capsule, .ytmls-am-menu, .ytmls-am-account, .ytmls-am-lcd, .ytmls-am-volume, .ytmls-am-btn),
+html.ytmls-am.ytmls-am-page-open .ytmls-am-toolbar::before,
+html.ytmls-am.ytmls-am-autohide:not(.ytmls-am-side-peek) .ytmls-am-sidebar {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+html.ytmls-am.ytmls-am-page-open :is(.ytmls-am-capsule, .ytmls-am-menu, .ytmls-am-account) { background: rgb(255 255 255 / .1); }
+html.ytmls-am.ytmls-am-page-open .ytmls-am-lcd { background: rgb(255 255 255 / .09); }
 .ytmls-am-cluster { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .ytmls-am-left { justify-self: start; }
 .ytmls-am-right { justify-self: end; }
