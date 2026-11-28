@@ -1065,14 +1065,14 @@ html.ytmls-am ytmusic-app-layout > ytmusic-player-page[style*="--ytmls-am-page-s
 /* On every page the sidebar stays out of the way (as on the Now Playing page, like the Mac's full
    screen player) and the toolbar runs from the window's edge; the pointer at the window's left edge
    shows it over the page (the page keeps its size). */
-html.ytmls-am:not(.ytmls-am-side-peek) .ytmls-am-sidebar {
+html.ytmls-am.ytmls-am-autohide:not(.ytmls-am-side-peek) .ytmls-am-sidebar {
   transform: translateX(calc(-100% - 20px));
   opacity: 0;
   pointer-events: none;
 }
-html.ytmls-am .ytmls-am-toolbar { left: 0; }
-html.ytmls-am .ytmls-am-toolbar::before { inset: 0 0 -18px 0; }
-html.ytmls-am .ytmls-am-menu { display: none !important; }
+html.ytmls-am.ytmls-am-autohide .ytmls-am-toolbar { left: 0; }
+html.ytmls-am.ytmls-am-autohide .ytmls-am-toolbar::before { inset: 0 0 -18px 0; }
+html.ytmls-am.ytmls-am-autohide .ytmls-am-menu { display: none !important; }
 /* Shown over the page: in front of the toolbar too, with a deeper shadow. */
 html.ytmls-am.ytmls-am-side-peek .ytmls-am-sidebar { z-index: 3; box-shadow: var(--am-hairline), 0 18px 50px rgb(0 0 0 / .5); }
 /* Shown over the page it is always the wide sidebar (with labels), even in the icon-only or no-sidebar
@@ -1172,6 +1172,6 @@ html.ytmls-lyrics-motion-lightweight.ytmls-am :is(ytmusic-browse-response, ytmus
 }
 
 /* The sidebar is shown only over the page, always wide: its own wide / icon switch is not needed. */
-html.ytmls-am .ytmls-am-side-toggle { display: none !important; }
+html.ytmls-am.ytmls-am-autohide .ytmls-am-side-toggle { display: none !important; }
 /* The banner is centred in the window (no sidebar column any more). */
-html.ytmls-am .ytmls-am-toast { left: 50vw; }
+html.ytmls-am.ytmls-am-autohide .ytmls-am-toast { left: 50vw; }

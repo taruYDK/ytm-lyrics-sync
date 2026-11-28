@@ -6,8 +6,15 @@
 (() => {
   'use strict';
   const root = document.documentElement;
-  const defaults = {appleShellEnabled: true};
+  const defaults = {appleShellEnabled: true, appleAmbientEnabled: true, appleSideAutohide: true, appleAlbumButtons: true};
   let wanted = true;
+  // Parts of the screen that can be switched off in the settings.
+  const options = {ambient: true, autohide: true, album: true};
+  function readOptions(stored) {
+    if ('appleAmbientEnabled' in stored) options.ambient = stored.appleAmbientEnabled !== false;
+    if ('appleSideAutohide' in stored) options.autohide = stored.appleSideAutohide !== false;
+    if ('appleAlbumButtons' in stored) options.album = stored.appleAlbumButtons !== false;
+  }
   let settingsLoaded = false; // stay off until the saved switch is known (no flash when it is off)
   let extensionEnabled = true;
   let shell = null;
@@ -1113,6 +1120,7 @@
     }
   }
   function updateAmbient() {
+    if (!options.ambient) { document.querySelectorAll('.ytmls-am-ambient').forEach(layer => layer.remove()); return; }
     const img = playerBar()?.querySelector('img.image, .thumbnail-image-wrapper img, img');
     const art = largeArtwork(img?.currentSrc || img?.src || '');
     for (const host of ambientHosts()) {
@@ -1148,6 +1156,11 @@
     }, 260);
   }
   function ensureAlbumActions() {
+    if (!options.album) {
+      document.querySelectorAll('.ytmls-am-album-actions').forEach(box => box.remove());
+      document.querySelectorAll('.ytmls-am-native-hidden').forEach(el => el.classList.remove('ytmls-am-native-hidden'));
+      return;
+    }
     const header = albumHeader();
     const nativePlay = header?.querySelector('ytmusic-play-button-renderer');
     document.querySelectorAll('.ytmls-am-album-actions').forEach(box => { if (!header || !header.contains(box)) box.remove(); });
@@ -1195,7 +1208,7 @@
     root.classList.toggle('ytmls-am-side-peek', on);
   }
   function sidePeekPointer(event) {
-    if (event.pointerType === 'touch' || !root.classList.contains('ytmls-am') || document.fullscreenElement) return;
+    if (event.pointerType === 'touch' || !options.autohide || !root.classList.contains('ytmls-am') || document.fullscreenElement) return;
     const x = event.clientX, shown = root.classList.contains('ytmls-am-side-peek');
     if (!shown) {
       clearTimeout(peekHideTimer);
@@ -1261,7 +1274,7 @@
   let lastGuideNarrowAt = -Infinity;
   function refresh() {
     if (!active()) {
-      root.classList.remove('ytmls-am', 'ytmls-am-compact', 'ytmls-am-no-side');
+      root.classList.remove('ytmls-am', 'ytmls-am-compact', 'ytmls-am-no-side', 'ytmls-am-autohide', 'ytmls-am-side-peek');
       document.querySelectorAll('.ytmls-am-album-actions').forEach(box => box.remove());
       document.querySelectorAll('.ytmls-am-ambient').forEach(layer => layer.remove());
       fitPlayerPage();
@@ -1282,7 +1295,8 @@
     build();
     // The sidebar is shown only over the page now, so YouTube Music's own side menu is kept narrow:
     // its column is then a small margin instead of a wide empty strip on the left of every page.
-    if (layout.side >= 160 && !layoutEl()?.hasAttribute('player-page-open') && now - lastGuideNarrowAt > 4000 && guideButton()) {
+    root.classList.toggle('ytmls-am-autohide', options.autohide);
+    if (options.autohide && layout.side >= 160 && !layoutEl()?.hasAttribute('player-page-open') && now - lastGuideNarrowAt > 4000 && guideButton()) {
       lastGuideNarrowAt = now;
       press(guideButton());
       followLayout?.(700);
@@ -1335,10 +1349,19 @@
   }
 
   chrome.storage.sync?.get({enabled: true}, stored => { extensionEnabled = stored.enabled !== false; queueRefresh(); });
-  chrome.storage.local.get(defaults, stored => { wanted = stored.appleShellEnabled !== false; settingsLoaded = true; queueRefresh(); });
+  chrome.storage.local.get(defaults, stored => { wanted = stored.appleShellEnabled !== false; readOptions(stored); settingsLoaded = true; queueRefresh(); });
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area === 'sync' && changes.enabled) extensionEnabled = changes.enabled.newValue !== false;
     if (area === 'local' && changes.appleShellEnabled) wanted = changes.appleShellEnabled.newValue !== false;
+    if (area === 'local') {
+      const changed = {};
+      for (const key of ['appleAmbientEnabled', 'appleSideAutohide', 'appleAlbumButtons']) if (changes[key]) changed[key] = changes[key].newValue;
+      if (Object.keys(changed).length) {
+        readOptions(changed);
+        if (!options.autohide) toggleSidePeek(false);
+        queueRefresh();
+      }
+    }
     if (changes.enabled || changes.appleShellEnabled) queueRefresh();
   });
 

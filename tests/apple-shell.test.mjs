@@ -328,7 +328,7 @@ test('Now Playing page spans the window; the sidebar steps away and its button s
   assert.match(js, /function fitPlayerPage\(\)/);
   assert.match(js, /attributeFilter: \['player-page-open', 'player-fullscreened'\]/, 'fitted before the page is drawn open');
   assert.match(css, /ytmusic-player-page\[style\*="--ytmls-am-page-shift"\] \{\s*margin-left: calc\(-1 \* var\(--ytmls-am-page-shift, 0px\)\) !important;/);
-  assert.match(css, /:not\(\.ytmls-am-side-peek\) \.ytmls-am-sidebar \{\s*transform: translateX/, 'steps away unless shown over the page');
+  assert.match(css, /\.ytmls-am-autohide:not\(\.ytmls-am-side-peek\) \.ytmls-am-sidebar \{\s*transform: translateX/, 'steps away unless shown over the page');
   assert.doesNotMatch(js, /button\('collapse'/, 'no sidebar button: the left edge shows it');
   assert.match(js, /document\.addEventListener\('pointermove', sidePeekPointer, \{passive: true\}\)/, 'the window\'s left edge shows it, by position');
   assert.doesNotMatch(js, /sidebar\.addEventListener\('pointerleave'/, 'no enter / leave flicker');
@@ -353,13 +353,24 @@ test('popovers share the readable glass; library, lyrics and mini player get the
 
 test('every page: the sidebar stays out of the way and comes over the page from the button or the left edge', () => {
   const js = read('apple-shell.js'), css = read('apple-shell.css');
-  assert.match(css, /html\.ytmls-am:not\(\.ytmls-am-side-peek\) \.ytmls-am-sidebar \{/);
-  assert.match(css, /html\.ytmls-am \.ytmls-am-toolbar \{ left: 0; \}/);
-  assert.match(js, /layout\.side >= 160 && !layoutEl\(\)\?\.hasAttribute\('player-page-open'\) && now - lastGuideNarrowAt > 4000/, 'YouTube Music\'s side menu kept narrow, at most every 4 s');
+  assert.match(css, /html\.ytmls-am\.ytmls-am-autohide:not\(\.ytmls-am-side-peek\) \.ytmls-am-sidebar \{/);
+  assert.match(css, /html\.ytmls-am\.ytmls-am-autohide \.ytmls-am-toolbar \{ left: 0; \}/);
+  assert.match(js, /options\.autohide && layout\.side >= 160 && !layoutEl\(\)\?\.hasAttribute\('player-page-open'\) && now - lastGuideNarrowAt > 4000/, 'YouTube Music\'s side menu kept narrow, at most every 4 s');
 });
 
 test('no banner when the song changes (only when the mini player cannot open)', () => {
   const js = read('apple-shell.js');
   assert.doesNotMatch(js, /lastToastTitle/);
   assert.equal((js.match(/showToast\(/g) || []).length, 2, 'the function and the mini player note');
+});
+
+test('settings: moving background, sidebar auto-hide and album buttons can each be switched off', () => {
+  const html = read('popup.html'), popup = read('apple-shell-popup.js'), js = read('apple-shell.js');
+  for (const [id, key] of [['appleAmbientToggle', 'appleAmbientEnabled'], ['appleSideAutohideToggle', 'appleSideAutohide'], ['appleAlbumButtonsToggle', 'appleAlbumButtons']]) {
+    assert.match(html, new RegExp(`id="${id}"`));
+    assert.match(popup, new RegExp(`bind\\('${id}', '${key}'\\)`));
+    assert.match(js, new RegExp(`${key}: true`));
+  }
+  assert.match(js, /if \(!options\.ambient\) \{ document\.querySelectorAll\('\.ytmls-am-ambient'\)\.forEach\(layer => layer\.remove\(\)\); return; \}/);
+  assert.match(js, /root\.classList\.toggle\('ytmls-am-autohide', options\.autohide\)/);
 });

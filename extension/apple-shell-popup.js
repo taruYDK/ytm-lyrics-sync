@@ -27,5 +27,8 @@
     });
   }
   bind('appleShellToggle', 'appleShellEnabled');
+  bind('appleAmbientToggle', 'appleAmbientEnabled');
+  bind('appleSideAutohideToggle', 'appleSideAutohide');
+  bind('appleAlbumButtonsToggle', 'appleAlbumButtons');
   bind('ytmCommentsToggle', 'hideYtmComments', true);
 })();
