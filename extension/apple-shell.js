@@ -1164,7 +1164,7 @@
   function ensureAlbumActions() {
     if (!options.album) {
       document.querySelectorAll('.ytmls-am-album-actions').forEach(box => box.remove());
-      document.querySelectorAll('.ytmls-am-native-hidden').forEach(el => el.classList.remove('ytmls-am-native-hidden'));
+      document.querySelectorAll('.ytmls-am-native-hidden').forEach(el => el.classList.remove('ytmls-am-native-hidden')); document.querySelectorAll('.ytmls-am-album-row').forEach(el => el.classList.remove('ytmls-am-album-row'));
       return;
     }
     const header = albumHeader();
@@ -1192,6 +1192,8 @@
       nativePlay.parentElement.insertBefore(box, nativePlay);
     }
     nativePlay.classList.add('ytmls-am-native-hidden');
+    // The capsules get a row of their own above the round buttons (they did not fit beside them).
+    box.parentElement?.classList.add('ytmls-am-album-row');
   }
 
   // ---------- Now Playing page across the whole window (the sidebar floats over it) ----------
@@ -1296,7 +1298,7 @@
       if (settingsLoaded && wanted && extensionEnabled && document.fullscreenElement) updateAmbient();
       else document.querySelectorAll('.ytmls-am-ambient').forEach(layer => layer.remove());
       fitPlayerPage();
-      document.querySelectorAll('.ytmls-am-native-hidden').forEach(el => el.classList.remove('ytmls-am-native-hidden'));
+      document.querySelectorAll('.ytmls-am-native-hidden').forEach(el => el.classList.remove('ytmls-am-native-hidden')); document.querySelectorAll('.ytmls-am-album-row').forEach(el => el.classList.remove('ytmls-am-album-row'));
       if (queuePanel && !queuePanel.hidden) toggleQueuePanel(false);
       return;
     }
