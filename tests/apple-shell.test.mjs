@@ -301,8 +301,10 @@ test('Now Playing page opens out of and closes back into the toolbar, without Yo
 test('moving artwork background, Up Next history / autoplay, album capsules and playing-row bars are in place', () => {
   const js = read('apple-shell.js'), css = read('apple-shell.css');
   assert.match(js, /function updateAmbient\(\)/);
-  assert.match(css, /\.ytmls-am-ambient-blobs \{[^}]*transform: scale\(4\);/, 'blurred at a quarter size, scaled up');
-  assert.match(css, /html:is\(\.ytmls-lyrics-motion-lightweight, \.ytmls-extra-motion-disabled\)\.ytmls-am \.ytmls-am-ambient-blobs i \{ animation: none; \}/);
+  assert.match(js, /function paintAmbientShape\(canvas, image/, 'each shape is blurred once per song into a canvas');
+  assert.match(css, /\.ytmls-am-ambient-blobs canvas \{[^}]*will-change: transform;[^}]*animation-timing-function: steps\(560\) !important;/, 'only transform moves, in small steps');
+  assert.doesNotMatch(css.replace(/\/\*[\s\S]*?\*\//g, ''), /\.ytmls-am-ambient[^{]*\{[^}]*filter:/, 'no live blur on the moving background');
+  assert.match(css, /html:is\(\.ytmls-lyrics-motion-lightweight, \.ytmls-extra-motion-disabled\)\.ytmls-am \.ytmls-am-ambient-blobs canvas \{ animation: none; \}/);
   assert.match(js, /data-view="history"/);
   assert.match(js, /function autoplayToggle\(\)/);
   assert.match(js, /index < currentIndex/, 'history is the songs before the playing one');

@@ -1046,10 +1046,11 @@
     const step = () => { refresh(); if (performance.now() < until) requestAnimationFrame(step); };
     requestAnimationFrame(step);
   }
-  // ---------- Moving artwork background (Now Playing page and fullscreen lyrics) ----------
+  // ---------- Moving artwork background (whole window and fullscreen lyrics) ----------
   // Like the Mac's and iPhone's lyrics screen: the cover, blurred into a few large soft shapes that
-  // drift slowly. Drawn with CSS backgrounds (no pixels are read), at a quarter size and scaled up so
-  // the blur stays cheap. A new song fades in over the old one.
+  // drift slowly. Light on the machine: each shape is blurred once per song into a small canvas
+  // (drawing only, no pixels are read), then only moved and turned (the compositor's work, no
+  // re-blurring while it moves). A new song fades in over the old one.
   function largeArtwork(url) {
     if (!/^https:\/\//.test(url || '')) return '';
     return url.replace(/=w\d+-h\d+(-[^/?#]*)?$/, '=w544-h544-l90-rj').replace(/\/(?:default|mqdefault|sddefault)\.jpg/, '/hqdefault.jpg');
@@ -1060,6 +1061,31 @@
     // the window with their own backing.
     return [document.body, document.getElementById('ytmls-fullscreen')].filter(Boolean);
   }
+  // Which part of the cover each shape shows (x, y of the crop's centre, 0–1).
+  const AMBIENT_CROPS = [[.5, .5], [.8, .2], [.2, .8], [.5, .5]];
+  function paintAmbientShape(canvas, image, [cx, cy]) {
+    const size = 208, radius = 64, side = Math.min(image.naturalWidth, image.naturalHeight) * .7;
+    canvas.width = size; canvas.height = size;
+    const ctx = canvas.getContext('2d');
+    const sx = Math.max(0, Math.min(image.naturalWidth - side, image.naturalWidth * cx - side / 2));
+    const sy = Math.max(0, Math.min(image.naturalHeight - side, image.naturalHeight * cy - side / 2));
+    ctx.filter = 'blur(10px) saturate(1.8) brightness(.9)';
+    ctx.beginPath();
+    ctx.arc(size / 2, size / 2, radius, 0, Math.PI * 2);
+    ctx.save();
+    ctx.clip();
+    ctx.drawImage(image, sx, sy, side, side, size / 2 - radius - 14, size / 2 - radius - 14, (radius + 14) * 2, (radius + 14) * 2);
+    ctx.restore();
+    // The clip's hard edge, softened by drawing the clipped shape again through the blur.
+    const soft = document.createElement('canvas');
+    soft.width = size; soft.height = size;
+    const softCtx = soft.getContext('2d');
+    softCtx.filter = 'blur(12px)';
+    softCtx.drawImage(canvas, 0, 0);
+    ctx.filter = 'none';
+    ctx.clearRect(0, 0, size, size);
+    ctx.drawImage(soft, 0, 0);
+  }
   function placeAmbient(host, art) {
     const layers = [...host.querySelectorAll(':scope > .ytmls-am-ambient')];
     const top = layers.at(-1);
@@ -1068,13 +1094,20 @@
     layer.className = 'ytmls-am-ambient';
     layer.setAttribute('aria-hidden', 'true');
     layer.dataset.art = art;
-    layer.style.setProperty('--ytmls-am-ambient-art', `url("${art.replace(/["\\]/g, '')}")`);
-    layer.innerHTML = '<div class="ytmls-am-ambient-blobs"><i></i><i></i><i></i><i></i></div>';
+    const blobs = document.createElement('div');
+    blobs.className = 'ytmls-am-ambient-blobs';
+    const shapes = AMBIENT_CROPS.map(() => document.createElement('canvas'));
+    blobs.append(...shapes);
+    layer.append(blobs);
     // Behind the page's content, above Music Glass's still backdrop (the same back layer).
     const after = top || host.querySelector(':scope > #music-glass-backdrop, :scope > .music-glass-surface, :scope > .ytmls-full-backdrop, :scope > .ytmls-full-aurora');
     host.insertBefore(layer, after ? after.nextSibling : host.firstChild);
     const image = new Image();
-    image.onload = () => requestAnimationFrame(() => layer.classList.add('is-ready'));
+    image.onload = () => {
+      if (!layer.isConnected) return;
+      shapes.forEach((canvas, index) => paintAmbientShape(canvas, image, AMBIENT_CROPS[index]));
+      requestAnimationFrame(() => layer.classList.add('is-ready'));
+    };
     image.src = art;
     for (const old of layers) {
       old.classList.add('is-leaving');
