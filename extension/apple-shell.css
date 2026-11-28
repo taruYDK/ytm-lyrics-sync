@@ -1037,3 +1037,6 @@ html.ytmls-am :is(ytmusic-browse-response, ytmusic-search-page) ytmusic-responsi
 html.ytmls-am :is(ytmusic-browse-response, ytmusic-search-page) ytmusic-responsive-list-item-renderer ytmusic-item-thumbnail-overlay-renderer:has(ytmusic-play-button-renderer[play-button-state="playing"]):not(:hover)::before {
   content: ""; position: absolute; inset: 0; border-radius: 6px; background: rgb(0 0 0 / .5); pointer-events: none;
 }
+/* On the Now Playing page the moving background fills the whole window (behind the sidebar and the
+   toolbar glass too), not only the page's box: no plain strips above and below it. */
+html.ytmls-am ytmusic-player-page > .ytmls-am-ambient { position: fixed; inset: 0; }
