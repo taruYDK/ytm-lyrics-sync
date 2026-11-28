@@ -912,10 +912,11 @@ function perfProbeFramesText() {
     if (!el || !(el instanceof Element)) return false;
     // 拡張自身の「歌詞 ±秒」ボタンやポップオーバーを、歌詞タブとして再検出しない。
     if (el.closest && el.closest('#ytmls-panel, #ytmls-track-offset-popover, [id^="ytmls-"]')) return false;
-    try {
-      const style = getComputedStyle(el);
-      if (style.display === 'none' || style.visibility === 'hidden') return false;
-    } catch (_) {}
+    // Hidden tabs are marked in the page (YouTube Music's hidden attribute, the extension's class):
+    // read those instead of the computed style, which made the browser work out the whole page's
+    // styles several times a second.
+    if (el.closest && el.closest('[hidden], .ytmls-tab-hidden')) return false;
+    if (el.style && (el.style.display === 'none' || el.style.visibility === 'hidden')) return false;
     return true;
   }
 
@@ -1070,6 +1071,15 @@ function perfProbeFramesText() {
     if (externalLyricsOpen && externalLyricsHost && !externalLyricsHost.hidden) return true;
     const renderer = findLyricsRenderer();
     if (!renderer) return false;
+    // From the page's own marks first (no style or layout work): the lyrics renderer is hidden
+    // with the hidden attribute while another tab shows, and the lyrics tab says it is chosen.
+    if (renderer.closest('[hidden]')) return false;
+    // Not while the Now Playing page is closed (it stays in the page, out of sight).
+    const layout = document.querySelector('ytmusic-app-layout');
+    if (layout && !layout.hasAttribute('player-page-open') && !layout.hasAttribute('player-fullscreened') && !renderer.closest('#ytmls-fullscreen')) return false;
+    const tabs = getPlayerPageTabs();
+    const chosen = tabs.find(tab => tab.getAttribute('aria-selected') === 'true');
+    if (chosen) return isLyricsLabelText(normalizedTabText(chosen)) || chosen.getAttribute('aria-controls')?.split(/\s+/).includes(renderer.id) || false;
     try {
       const style = getComputedStyle(renderer);
       return renderer.getClientRects().length > 0 && style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0';
@@ -1410,7 +1420,11 @@ function perfProbeFramesText() {
     // クリックが1回取りこぼされても、次tickで再試行する。
     if (STATE.lyricsAutoOpenLastClickAt && now - STATE.lyricsAutoOpenLastClickAt < AUTO_LYRICS_RETRY_MS) return;
     STATE.lyricsAutoOpenLastClickAt = now;
+    // Timed on its own in the diagnostics: the click makes YouTube Music build the lyrics tab
+    // right away, which can be most of a slow moment after a song change.
+    const clickStarted = performance.now();
     clickLyricsTab(lyricsTab);
+    globalThis.ytmlsPerfAdd?.('auto-open: click to 歌詞', performance.now() - clickStarted);
 
     setTimeout(() => {
       const latestLyricsTab = findLyricsTabButton();
@@ -3047,7 +3061,9 @@ function perfProbeFramesText() {
     }
 
     // 歌詞タブを開き直した時、古いスクロール位置（特に最下部）をそのまま使わない。
-    const isVisible = isLyricsPanelActive() && renderer.getClientRects().length > 0 && getComputedStyle(renderer).display !== "none";
+    // From the page's marks (no style or layout work every 300ms): the panel is active and the
+    // renderer is not hidden.
+    const isVisible = isLyricsPanelActive() && !renderer.closest("[hidden]") && (renderer === externalLyricsHost || isLyricsViewVisible());
     if (isVisible && !lyricsWasVisible) {
       // Give the next animation frame time to restart before the watchdog checks.
       trackingDisplayResumedAt = performance.now();
@@ -9138,7 +9154,7 @@ function attachGlassSegment(group, opts = {}) {
  let layout = null;
  function measure() {
   const list = buttons(), rect = group.getBoundingClientRect();
-  layout = {left: rect.left, top: rect.top, height: group.offsetHeight, list, slots: list.map(button => ({x: button.offsetLeft, w: button.offsetWidth}))};
+  layout = {left: rect.left, top: rect.top, height: group.offsetHeight, list, slots: list.map(button => ({x: button.offsetLeft, w: button.offsetWidth})), pressable: canPress()};
   return layout;
  }
  const slot = button => {
@@ -9166,7 +9182,7 @@ function attachGlassSegment(group, opts = {}) {
  // wall like the bead, instead of shrinking toward its own middle and leaving the wall).
  function placeLens(sx = 1, sy = 1, side = 'center') {
   if (!lens) return;
-  if (!canPress()) { hideLens(); return; }
+  if (!(layout ? layout.pressable : canPress())) { hideLens(); return; }
   const rect = groupRect(), track = Math.max(0, groupHeight() - 6);
   const {min, max} = bounds();
   const trackLeft = rect.left + min, trackRight = rect.left + max + state.w;
@@ -9305,6 +9321,10 @@ function attachGlassSegment(group, opts = {}) {
    paint();
    return;
   }
+  // Measured once for the whole glide (each frame then only writes the bead's transform; reading
+  // positions after that write made the browser lay the page out again on every frame, 60ms each
+  // on a big YouTube Music page).
+  if (!layout) measure();
   if (!state.frame) state.frame = requestAnimationFrame(step);
  }
  function sync(animate = true) {
@@ -9426,6 +9446,8 @@ function attachGlassSegment(group, opts = {}) {
   glassLensReport.lastEnd = `${how} ${from}->${to}`;
  }
  group.addEventListener('pointerdown', event => {
+  // Only a real press lifts the drop: the automatic switch to 歌詞 sends made-up pointer events.
+  if (event.isTrusted === false) return;
   if (event.button !== 0 || !enabled() || !canPress() || buttons().every(isDisabled)) return;
   press = {id: event.pointerId, type: event.pointerType || 'pointer', startX: event.clientX, lastX: event.clientX, button: itemOf(event.target) || buttonAt(event.clientX)};
   try { group.setPointerCapture(event.pointerId); } catch (_) {}

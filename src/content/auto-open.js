@@ -11,10 +11,11 @@
     if (!el || !(el instanceof Element)) return false;
     // 拡張自身の「歌詞 ±秒」ボタンやポップオーバーを、歌詞タブとして再検出しない。
     if (el.closest && el.closest('#ytmls-panel, #ytmls-track-offset-popover, [id^="ytmls-"]')) return false;
-    try {
-      const style = getComputedStyle(el);
-      if (style.display === 'none' || style.visibility === 'hidden') return false;
-    } catch (_) {}
+    // Hidden tabs are marked in the page (YouTube Music's hidden attribute, the extension's class):
+    // read those instead of the computed style, which made the browser work out the whole page's
+    // styles several times a second.
+    if (el.closest && el.closest('[hidden], .ytmls-tab-hidden')) return false;
+    if (el.style && (el.style.display === 'none' || el.style.visibility === 'hidden')) return false;
     return true;
   }
 
@@ -169,6 +170,15 @@
     if (externalLyricsOpen && externalLyricsHost && !externalLyricsHost.hidden) return true;
     const renderer = findLyricsRenderer();
     if (!renderer) return false;
+    // From the page's own marks first (no style or layout work): the lyrics renderer is hidden
+    // with the hidden attribute while another tab shows, and the lyrics tab says it is chosen.
+    if (renderer.closest('[hidden]')) return false;
+    // Not while the Now Playing page is closed (it stays in the page, out of sight).
+    const layout = document.querySelector('ytmusic-app-layout');
+    if (layout && !layout.hasAttribute('player-page-open') && !layout.hasAttribute('player-fullscreened') && !renderer.closest('#ytmls-fullscreen')) return false;
+    const tabs = getPlayerPageTabs();
+    const chosen = tabs.find(tab => tab.getAttribute('aria-selected') === 'true');
+    if (chosen) return isLyricsLabelText(normalizedTabText(chosen)) || chosen.getAttribute('aria-controls')?.split(/\s+/).includes(renderer.id) || false;
     try {
       const style = getComputedStyle(renderer);
       return renderer.getClientRects().length > 0 && style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0';
@@ -509,7 +519,11 @@
     // クリックが1回取りこぼされても、次tickで再試行する。
     if (STATE.lyricsAutoOpenLastClickAt && now - STATE.lyricsAutoOpenLastClickAt < AUTO_LYRICS_RETRY_MS) return;
     STATE.lyricsAutoOpenLastClickAt = now;
+    // Timed on its own in the diagnostics: the click makes YouTube Music build the lyrics tab
+    // right away, which can be most of a slow moment after a song change.
+    const clickStarted = performance.now();
     clickLyricsTab(lyricsTab);
+    globalThis.ytmlsPerfAdd?.('auto-open: click to 歌詞', performance.now() - clickStarted);
 
     setTimeout(() => {
       const latestLyricsTab = findLyricsTabButton();

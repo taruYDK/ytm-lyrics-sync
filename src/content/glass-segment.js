@@ -56,7 +56,7 @@ function attachGlassSegment(group, opts = {}) {
  let layout = null;
  function measure() {
   const list = buttons(), rect = group.getBoundingClientRect();
-  layout = {left: rect.left, top: rect.top, height: group.offsetHeight, list, slots: list.map(button => ({x: button.offsetLeft, w: button.offsetWidth}))};
+  layout = {left: rect.left, top: rect.top, height: group.offsetHeight, list, slots: list.map(button => ({x: button.offsetLeft, w: button.offsetWidth})), pressable: canPress()};
   return layout;
  }
  const slot = button => {
@@ -84,7 +84,7 @@ function attachGlassSegment(group, opts = {}) {
  // wall like the bead, instead of shrinking toward its own middle and leaving the wall).
  function placeLens(sx = 1, sy = 1, side = 'center') {
   if (!lens) return;
-  if (!canPress()) { hideLens(); return; }
+  if (!(layout ? layout.pressable : canPress())) { hideLens(); return; }
   const rect = groupRect(), track = Math.max(0, groupHeight() - 6);
   const {min, max} = bounds();
   const trackLeft = rect.left + min, trackRight = rect.left + max + state.w;
@@ -223,6 +223,10 @@ function attachGlassSegment(group, opts = {}) {
    paint();
    return;
   }
+  // Measured once for the whole glide (each frame then only writes the bead's transform; reading
+  // positions after that write made the browser lay the page out again on every frame, 60ms each
+  // on a big YouTube Music page).
+  if (!layout) measure();
   if (!state.frame) state.frame = requestAnimationFrame(step);
  }
  function sync(animate = true) {
@@ -344,6 +348,8 @@ function attachGlassSegment(group, opts = {}) {
   glassLensReport.lastEnd = `${how} ${from}->${to}`;
  }
  group.addEventListener('pointerdown', event => {
+  // Only a real press lifts the drop: the automatic switch to 歌詞 sends made-up pointer events.
+  if (event.isTrusted === false) return;
   if (event.button !== 0 || !enabled() || !canPress() || buttons().every(isDisabled)) return;
   press = {id: event.pointerId, type: event.pointerType || 'pointer', startX: event.clientX, lastX: event.clientX, button: itemOf(event.target) || buttonAt(event.clientX)};
   try { group.setPointerCapture(event.pointerId); } catch (_) {}

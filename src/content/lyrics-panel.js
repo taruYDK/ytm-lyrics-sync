@@ -1459,7 +1459,9 @@
     }
 
     // 歌詞タブを開き直した時、古いスクロール位置（特に最下部）をそのまま使わない。
-    const isVisible = isLyricsPanelActive() && renderer.getClientRects().length > 0 && getComputedStyle(renderer).display !== "none";
+    // From the page's marks (no style or layout work every 300ms): the panel is active and the
+    // renderer is not hidden.
+    const isVisible = isLyricsPanelActive() && !renderer.closest("[hidden]") && (renderer === externalLyricsHost || isLyricsViewVisible());
     if (isVisible && !lyricsWasVisible) {
       // Give the next animation frame time to restart before the watchdog checks.
       trackingDisplayResumedAt = performance.now();

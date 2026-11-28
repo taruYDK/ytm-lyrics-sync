@@ -305,7 +305,8 @@ test('曲 / 動画 switch gets the same glass segmented control (selection from 
 test('YouTube Music\'s tabs and 曲/動画 switch take presses only while the Now Playing page is open and visible', () => {
   const src = fs.readFileSync(new URL('../src/content/glass-segment.js', import.meta.url), 'utf8');
   assert.match(src, /if \(event\.button !== 0 \|\| !enabled\(\) \|\| !canPress\(\) \|\|/);
-  assert.match(src, /if \(!canPress\(\)\) \{ hideLens\(\); return; \}/);
+  assert.match(src, /if \(!\(layout \? layout\.pressable : canPress\(\)\)\) \{ hideLens\(\); return; \}/, 'checked once per glide (measure), not every frame');
+  assert.match(src, /pressable: canPress\(\)/);
   assert.equal((src.match(/canPress: \(\) => ytmPlayerControlShown\(group\)/g) || []).length, 2);
   assert.match(src, /checkVisibility\(\{opacityProperty: true, visibilityProperty: true\}\)/);
 });
