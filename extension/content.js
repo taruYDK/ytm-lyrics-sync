@@ -1269,6 +1269,12 @@ function readingTokensToRomaji(tokens) {
     }
 
     const now = performance.now();
+    // While the glass bead on the tabs is held, the person is choosing: wait, and count the
+    // idle time from the release.
+    if (document.querySelector('.ytmls-tabs-segment[data-dragging]')) {
+      STATE.lastUserInteractionAt = now;
+      return;
+    }
     const activeVideoId = String(getAuthoritativeVideoId() || '');
     if (STATE.lyricsAutoOpenExpectedVideoId && activeVideoId && activeVideoId !== STATE.lyricsAutoOpenExpectedVideoId) {
       STATE.lyricsAutoOpenExpectedVideoId = activeVideoId;
