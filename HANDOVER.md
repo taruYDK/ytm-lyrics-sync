@@ -199,7 +199,7 @@ v3.2.1 より前からある部分も含めて全体を確認し、見つかっ�
       - 中身のボタン：塗りのボタン（`.yt-spec-button-shape-next--filled`）は赤、その他（tonal／outline）はガラスのカプセル。
       - 検索：トップの結果（`ytmusic-card-shelf-renderer`）を角丸 18px のガラスのカードに。棚の見出しを太く。
       - アーティスト（`ytmusic-immersive-header-renderer`／`ytmusic-visual-header-renderer`）：名前を太く影付きに、登録ボタンをガラスのカプセルに、再生ボタンを赤。
-      - 再生中の画面：Mac 風の画面のときは「次のコンテンツ」から歌詞タブへの自動切り替えを無操作 2 秒→0.7 秒に（`AUTO_LYRICS_MAC_DELAY_MS`）。歌っていない行を少しぼかす（軽量表示・動きを減らす設定ではしない）。
+      - 再生中の画面：Mac 風の画面のときは「次のコンテンツ」から歌詞タブへの自動切り替えを無操作 2 秒→0.7 秒に（`AUTO_LYRICS_MAC_DELAY_MS`。早すぎるとのことで 1.5 秒に変更、設定画面の説明も更新）。歌っていない行を少しぼかす（軽量表示・動きを減らす設定ではしない）。
       - 実機の作りは未確認。診断情報の `Mac pages:` に `headers=`（どの上部が何個あるか）、`pageButtons=`（塗り／tonal／outline の数）、`cardShelf=` を足した。
     - **再生中の画面の閉じる動き（2026-11-28、動画で報告）：** YouTube Music 自身の、下へ落ちて透けるだけの閉じ方が雑に見えた。Mac 風の画面のときは `apple-shell.css` の末尾で置き換え：閉じるとき上のバーの再生中表示（上中央）へ向かって少し縮み（0.93、上へ 18px）、ぼけながら消える。開くときはそこから育つように戻り、ジャケットが少し遅れて弾む。`ytmls-depth-animation-disabled`（開閉アニメーション OFF）・`[no-animation]`・動きを減らす設定・軽量表示（ぼかし無し）に従う。player-depth-clean.css に勝つようにクラスを 3 回重ねている。実機未確認。
     - **Apple Music の残り 4 つ（2026-11-28）：**
