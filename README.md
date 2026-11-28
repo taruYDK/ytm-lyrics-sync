@@ -1,6 +1,6 @@
 # YT Music 歌詞シンクロ
 
-YouTube Musicの画面を、Mac版ミュージックのような見た目と操作に変えられるようになった3.3.0です。
+3.3.1は、3.3.0で再生中の画面のスクロールがカクつく問題を修正した版です。
 
 <div align="center">
 
@@ -8,7 +8,7 @@ YouTube Musicの画面を、Mac版ミュージックのような見た目と操�
 
 **YouTube Musicに、追いかけやすい歌詞と読み仮名を。**
 
-![Version 3.3.0](https://img.shields.io/badge/version-3.3.0-f59e0b?style=flat-square)
+![Version 3.3.1](https://img.shields.io/badge/version-3.3.1-f59e0b?style=flat-square)
 ![Edge / Chrome](https://img.shields.io/badge/browser-Edge%20%2F%20Chrome-3b82f6?style=flat-square)
 ![Manifest V3](https://img.shields.io/badge/extension-Manifest%20V3-8b5cf6?style=flat-square)
 [![MIT License](https://img.shields.io/badge/license-MIT-f59e0b?style=flat-square)](LICENSE)
@@ -115,6 +115,12 @@ YouTube Musicの画面を、Mac版ミュージックのような見た目と操�
 再生バーの角丸・開閉位置調整は「再生バー・演出 → 再生バーの変更」で切り替えます。初期値はONで、Music GlassがONのときに適用されます。
 
 設定画面の読み仮名OFFは、保存済みの曲別ON設定より優先されます。共通設定をONへ戻すと、その曲の設定を再び適用します。
+
+## v3.3.1の更新内容
+
+Mac版ミュージック風の画面で、再生中の画面の「次のコンテンツ」や歌詞をスクロールするとカクつく問題を修正しました。
+
+[3.3.1の更新内容・更新方法](docs/releases/v3.3.1.md)
 
 ## v3.3.0の更新内容
 
