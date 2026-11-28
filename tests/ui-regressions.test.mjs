@@ -120,7 +120,7 @@ test('word glow applies only while its setting is on (panel and fullscreen)',()=
  const style=read('style.css'),panel=read('src/content/lyrics-panel.js'),practice=read('src/content/practice.js');
  assert.match(style,/#ytmls-panel\[data-tracking-mode="auto"\]\[data-word-glow="on"\][^{]*ytmls-word-current/);
  assert.match(style,/#ytmls-fullscreen\[data-tracking-mode="auto"\]\[data-word-glow="on"\][^{]*ytmls-word-current/);
- assert.match(panel,/panelEl\.dataset\.wordGlow = STATE\.wordGlow === false \? "off" : "on"/);
+ assert.match(panel,/setData\(panelEl, "wordGlow", STATE\.wordGlow === false \? "off" : "on"\)/);
  assert.match(practice,/box\.dataset\.wordGlow=STATE\.wordGlow===false\?'off':'on'/);
 });
 

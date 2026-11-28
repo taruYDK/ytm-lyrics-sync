@@ -104,10 +104,9 @@
 
     // 2) 現行UIではラベルがyt-formatted-string等の子要素にだけ入ることがある。
     //    「歌詞 / Lyrics」という実テキストを探して、クリック可能な親タブまで戻る。
-    const roots = [
-      document.querySelector('ytmusic-player-page'),
-      document.querySelector('#side-panel')
-    ].filter(Boolean);
+    //    Only inside the tab bars: over the whole page (thousands of parts, the queue and the lyrics)
+    //    reading every block's text took a third of a second while a new song's tabs were rebuilt.
+    const roots = [...document.querySelectorAll('ytmusic-player-page tp-yt-paper-tabs, ytmusic-player-page paper-tabs, ytmusic-player-page #tabs, #side-panel [role="tablist"]')];
     const labelSelectors = [
       'yt-formatted-string', '.tab-content', '[aria-label]', '[title]',
       'span', 'div'
@@ -156,7 +155,17 @@
       tab.classList.contains('active');
   }
 
+  // Asked several times in one tick; the answer is kept for a moment (each look makes the browser
+  // work out styles and layout).
+  let lyricsViewVisibleCache = null;
   function isLyricsViewVisible() {
+    const now = typeof performance === 'object' ? performance.now() : 0;
+    if (now && lyricsViewVisibleCache && now - lyricsViewVisibleCache.at < 60) return lyricsViewVisibleCache.value;
+    const value = isLyricsViewVisibleNow();
+    if (now) lyricsViewVisibleCache = {at: now, value};
+    return value;
+  }
+  function isLyricsViewVisibleNow() {
     if (externalLyricsOpen && externalLyricsHost && !externalLyricsHost.hidden) return true;
     const renderer = findLyricsRenderer();
     if (!renderer) return false;

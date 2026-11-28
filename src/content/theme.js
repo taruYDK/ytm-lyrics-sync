@@ -34,7 +34,7 @@
       force = true;
     }
     const now = performance.now();
-    if (!force && now - lastThemeCheck < 1000) return;
+    if (!force && now - lastThemeCheck < 5000) return;
     lastThemeCheck = now;
     // Read the site's rendered surface, not the extension's own colors.
     // No dependency on undocumented theme class names.

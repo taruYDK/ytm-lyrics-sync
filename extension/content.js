@@ -548,7 +548,7 @@ function perfProbeFramesText() {
       force = true;
     }
     const now = performance.now();
-    if (!force && now - lastThemeCheck < 1000) return;
+    if (!force && now - lastThemeCheck < 5000) return;
     lastThemeCheck = now;
     // Read the site's rendered surface, not the extension's own colors.
     // No dependency on undocumented theme class names.
@@ -1005,10 +1005,9 @@ function perfProbeFramesText() {
 
     // 2) 現行UIではラベルがyt-formatted-string等の子要素にだけ入ることがある。
     //    「歌詞 / Lyrics」という実テキストを探して、クリック可能な親タブまで戻る。
-    const roots = [
-      document.querySelector('ytmusic-player-page'),
-      document.querySelector('#side-panel')
-    ].filter(Boolean);
+    //    Only inside the tab bars: over the whole page (thousands of parts, the queue and the lyrics)
+    //    reading every block's text took a third of a second while a new song's tabs were rebuilt.
+    const roots = [...document.querySelectorAll('ytmusic-player-page tp-yt-paper-tabs, ytmusic-player-page paper-tabs, ytmusic-player-page #tabs, #side-panel [role="tablist"]')];
     const labelSelectors = [
       'yt-formatted-string', '.tab-content', '[aria-label]', '[title]',
       'span', 'div'
@@ -1057,7 +1056,17 @@ function perfProbeFramesText() {
       tab.classList.contains('active');
   }
 
+  // Asked several times in one tick; the answer is kept for a moment (each look makes the browser
+  // work out styles and layout).
+  let lyricsViewVisibleCache = null;
   function isLyricsViewVisible() {
+    const now = typeof performance === 'object' ? performance.now() : 0;
+    if (now && lyricsViewVisibleCache && now - lyricsViewVisibleCache.at < 60) return lyricsViewVisibleCache.value;
+    const value = isLyricsViewVisibleNow();
+    if (now) lyricsViewVisibleCache = {at: now, value};
+    return value;
+  }
+  function isLyricsViewVisibleNow() {
     if (externalLyricsOpen && externalLyricsHost && !externalLyricsHost.hidden) return true;
     const renderer = findLyricsRenderer();
     if (!renderer) return false;
@@ -1643,11 +1652,15 @@ function perfProbeFramesText() {
     updateLyricsToolsUi();
   }
 
+  // Writes a property only when it changes (writing the same value still made the browser recheck styles).
+  function setIfChanged(el, prop, value) {
+    if (el && el[prop] !== value) el[prop] = value;
+  }
   function updateLyricsToolsUi() {
     if (typeof ensureReadingEditButton === 'function') ensureReadingEditButton();
     if (exportLyricsButtonEl) {
-      exportLyricsButtonEl.disabled = !STATE.hasSync || !STATE.lines.length || STATE.contextInvalidated;
-      exportLyricsButtonEl.title = exportLyricsButtonEl.disabled ? '同期歌詞が表示されると保存できます' : '表示中の歌詞を書き出す';
+      setIfChanged(exportLyricsButtonEl, 'disabled', !STATE.hasSync || !STATE.lines.length || STATE.contextInvalidated);
+      setIfChanged(exportLyricsButtonEl, 'title', exportLyricsButtonEl.disabled ? '同期歌詞が表示されると保存できます' : '表示中の歌詞を書き出す');
     }
     if (candidateButtonEl) {
       const count = STATE.lyricCandidates.length;
@@ -1661,23 +1674,23 @@ function perfProbeFramesText() {
         candidateButtonEl.replaceChildren("歌詞候補 ", badge);
         candidateButtonEl.setAttribute("aria-label", `歌詞候補 ${count}件`);
       }
-      candidateButtonEl.disabled = count === 0;
-      candidateButtonEl.title = count ? "取得した同期歌詞から選択" : "候補を検索中です";
+      setIfChanged(candidateButtonEl, 'disabled', count === 0);
+      setIfChanged(candidateButtonEl, 'title', count ? "取得した同期歌詞から選択" : "候補を検索中です");
     }
     if (editLyricsButtonEl) {
-      editLyricsButtonEl.disabled = !STATE.hasLyricsResult || !Array.isArray(STATE.lines) || !STATE.lines.length;
-      editLyricsButtonEl.title = editLyricsButtonEl.disabled
+      setIfChanged(editLyricsButtonEl, 'disabled', !STATE.hasLyricsResult || !Array.isArray(STATE.lines) || !STATE.lines.length);
+      setIfChanged(editLyricsButtonEl, 'title', editLyricsButtonEl.disabled
         ? "同期歌詞を表示すると編集できます"
-        : "歌詞の文章をタイミングを変えずに編集";
+        : "歌詞の文章をタイミングを変えずに編集");
     }
     if (localLyricsButtonEl) {
       const info = STATE.activeBaseInfo || STATE.activeSearchInfo;
       const videoId = String((info && info.videoId) || getAuthoritativeVideoId() || "");
       const ready = Boolean(videoId && STATE.lastTrackKey);
-      localLyricsButtonEl.disabled = !ready;
-      localLyricsButtonEl.title = ready ? "LRCの追加・読み込み・同期歌詞作成" : "曲の読み込みが完了すると使用できます";
+      setIfChanged(localLyricsButtonEl, 'disabled', !ready);
+      setIfChanged(localLyricsButtonEl, 'title', ready ? "LRCの追加・読み込み・同期歌詞作成" : "曲の読み込みが完了すると使用できます");
     }
-    if (lyricsToolsEl) lyricsToolsEl.hidden = !STATE.enabled;
+    if (lyricsToolsEl) setIfChanged(lyricsToolsEl, 'hidden', !STATE.enabled);
     updateDiagnosticsSummary();
     if (typeof updateHelpfulUi === "function") updateHelpfulUi();
   }
@@ -3085,32 +3098,38 @@ function perfProbeFramesText() {
       bridgeEnabledSetting = STATE.enabled;
       sendToPlayerBridge({type:'tracking-config',enabled:STATE.enabled===true});
     }
-    if (listEl) listEl.style.fontSize = STATE.fontSize + "px";
+    // Only what changed is written: this runs every 300ms, and writing even the same value (above
+    // all the attribute on <html>, which many style rules depend on) made the browser recheck the
+    // styles of the whole page each time — tens of milliseconds on a big YouTube Music page.
+    const setStyle = (el, prop, value) => { if (el && el.style[prop] !== value) el.style[prop] = value; };
+    const setData = (el, key, value) => { if (el && el.dataset[key] !== value) el.dataset[key] = value; };
+    setStyle(listEl, "fontSize", STATE.fontSize + "px");
     if (panelEl) {
-      panelEl.dataset.sync = STATE.syncLevel || "none";
-      panelEl.dataset.trackingMode = STATE.trackingEnabled ? "auto" : "off";
-      panelEl.dataset.wordTracking = STATE.wordTrackingStyle || "smooth";
-      panelEl.dataset.wordGlow = STATE.wordGlow === false ? "off" : "on";
-      panelEl.dataset.focusFade = STATE.focusFade ? "on" : "off";
+      setData(panelEl, "sync", STATE.syncLevel || "none");
+      setData(panelEl, "trackingMode", STATE.trackingEnabled ? "auto" : "off");
+      setData(panelEl, "wordTracking", STATE.wordTrackingStyle || "smooth");
+      setData(panelEl, "wordGlow", STATE.wordGlow === false ? "off" : "on");
+      setData(panelEl, "focusFade", STATE.focusFade ? "on" : "off");
     }
 
     // v1.8.0: 拡張が有効な間はYouTube Music標準歌詞へフォールバックしない。
     // 外部同期歌詞が見つからない場合も、標準歌詞を露出させず拡張パネルに状態を表示する。
     const shouldReplaceNative = STATE.enabled && isLyricsPanelActive();
 
-    if (panelEl) panelEl.style.display = shouldReplaceNative ? "flex" : "none";
+    setStyle(panelEl, "display", shouldReplaceNative ? "flex" : "none");
     if (!shouldReplaceNative) {
       const more = panelEl?.querySelector("#ytmls-more");
-      if (more) more.open = false;
+      if (more?.open) more.open = false;
     }
-    if (lyricsRendererEl) {
+    if (lyricsRendererEl && lyricsRendererEl.classList.contains("ytmls-replaced") !== shouldReplaceNative) {
       lyricsRendererEl.classList.toggle("ytmls-replaced", shouldReplaceNative);
     }
-    if (document.documentElement) {
-      document.documentElement.setAttribute("data-ytmls-enabled", STATE.enabled ? "true" : "false");
+    const enabledValue = STATE.enabled ? "true" : "false";
+    if (document.documentElement && document.documentElement.getAttribute("data-ytmls-enabled") !== enabledValue) {
+      document.documentElement.setAttribute("data-ytmls-enabled", enabledValue);
     }
-    if (resyncButtonEl) resyncButtonEl.hidden = !STATE.enabled;
-    if (trackTimingButtonEl) trackTimingButtonEl.hidden = !STATE.enabled;
+    if (resyncButtonEl && resyncButtonEl.hidden !== !STATE.enabled) resyncButtonEl.hidden = !STATE.enabled;
+    if (trackTimingButtonEl && trackTimingButtonEl.hidden !== !STATE.enabled) trackTimingButtonEl.hidden = !STATE.enabled;
     updateLyricsToolsUi();
     if (!STATE.enabled) {
       closeExternalLyrics();
