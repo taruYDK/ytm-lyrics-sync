@@ -1061,20 +1061,10 @@ html.ytmls-am ytmusic-app-layout > ytmusic-player-page[style*="--ytmls-am-page-s
   max-width: none !important;
 }
 .ytmls-am-sidebar { transition: width .42s cubic-bezier(.2, .9, .25, 1), padding .42s cubic-bezier(.2, .9, .25, 1), transform .42s cubic-bezier(.2, .9, .25, 1), opacity .3s ease; }
-/* The sidebar button at the toolbar's left end. */
-.ytmls-am-collapse { display: none; }
-html.ytmls-am .ytmls-am-collapse {
-  display: grid; width: 40px; height: 40px; border-radius: 999px;
-  background: var(--am-glass-soft); -webkit-backdrop-filter: blur(20px) saturate(160%); backdrop-filter: blur(20px) saturate(160%);
-  box-shadow: var(--am-hairline), 0 4px 16px rgb(0 0 0 / .22);
-  animation: ytmls-am-collapse-in .32s cubic-bezier(.2, .9, .25, 1.2);
-}
-.ytmls-am-collapse svg { width: 20px; height: 20px; }
-@keyframes ytmls-am-collapse-in { from { opacity: 0; transform: translateX(-8px) scale(.9); } to { opacity: 1; transform: none; } }
-@media (prefers-reduced-motion: reduce) { .ytmls-am-collapse { animation: none !important; } }
+
 /* On every page the sidebar stays out of the way (as on the Now Playing page, like the Mac's full
-   screen player) and the toolbar runs from the window's edge; the button at the toolbar's left end,
-   or the pointer at the window's left edge, shows it over the page (the page keeps its size). */
+   screen player) and the toolbar runs from the window's edge; the pointer at the window's left edge
+   shows it over the page (the page keeps its size). */
 html.ytmls-am:not(.ytmls-am-side-peek) .ytmls-am-sidebar {
   transform: translateX(calc(-100% - 20px));
   opacity: 0;
@@ -1085,7 +1075,6 @@ html.ytmls-am .ytmls-am-toolbar::before { inset: 0 0 -18px 0; }
 html.ytmls-am .ytmls-am-menu { display: none !important; }
 /* Shown over the page: in front of the toolbar too, with a deeper shadow. */
 html.ytmls-am.ytmls-am-side-peek .ytmls-am-sidebar { z-index: 3; box-shadow: var(--am-hairline), 0 18px 50px rgb(0 0 0 / .5); }
-html.ytmls-am.ytmls-am-side-peek .ytmls-am-collapse { color: var(--am-accent, #fa2d48) !important; }
 /* Shown over the page it is always the wide sidebar (with labels), even in the icon-only or no-sidebar
    layouts. The strip at the window's left edge shows it when the pointer reaches it. */
 html.ytmls-am.ytmls-am-side-peek .ytmls-am-sidebar { display: flex; width: 226px; }

@@ -40,7 +40,6 @@
     // Repeat one: the same arrows with a small 1 in the middle, like Apple Music.
     repeatOne: svg('<path d="M4.5 11V9.5a2.5 2.5 0 0 1 2.5-2.5h12.5M17 4.5 19.5 7 17 9.5M19.5 13v1.5A2.5 2.5 0 0 1 17 17H4.5M7 19.5 4.5 17 7 14.5"/><path d="M10.9 10.5 12.5 9.3V14.7" stroke-width="1.8"/>'),
     lyrics: svg('<path d="M5 5.5h14a1.5 1.5 0 0 1 1.5 1.5v8.5A1.5 1.5 0 0 1 19 17h-8l-4.5 3.5V17H5a1.5 1.5 0 0 1-1.5-1.5V7A1.5 1.5 0 0 1 5 5.5z"/><path d="M8.5 10h1M8.5 12.8h1M12 10h3.5M12 12.8h3.5"/>'),
-    collapse: svg('<path d="m6 9.5 6 6 6-6"/>'),
     queue: svg('<path d="M4.5 6.5h15M4.5 11h15M4.5 15.5h8"/><path d="m15.5 14 4 2.5-4 2.5z"/>'),
     note: svg('<path d="M9 18V6.5l10-2V16"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="16.5" cy="16" r="2.5"/>'),
     star: svg('<path d="M12 3.8 14.5 9l5.7.6-4.3 3.9 1.2 5.7L12 16.3l-5.1 2.9 1.2-5.7-4.3-3.9L9.5 9z"/>'),
@@ -975,10 +974,9 @@
       button('next', '次へ', 'next', transport.next),
       button('repeat', 'リピート', 'repeat', transport.repeat),
     );
-    // The sidebar stays out of the way (like the Mac's full screen player); this button brings it
-    // over the page (the page stays as it is), and hides it again.
-    const collapse = button('collapse', 'サイドバーを表示', 'sidebar', () => toggleSidePeek());
-    left.append(collapse, menu, controls);
+    // The sidebar stays out of the way (like the Mac's full screen player); the pointer at the
+    // window's left edge brings it over the page.
+    left.append(menu, controls);
 
     const lcd = document.createElement('div');
     lcd.className = 'ytmls-am-lcd is-empty';
@@ -1210,12 +1208,10 @@
     peekByHover = on && byHover;
     clearTimeout(peekHideTimer);
     root.classList.toggle('ytmls-am-side-peek', on);
-    const el = document.querySelector('#ytmls-am .ytmls-am-collapse');
-    if (el) { const label = on ? 'サイドバーを隠す' : 'サイドバーを表示'; el.title = label; el.setAttribute('aria-label', label); el.setAttribute('aria-pressed', String(on)); }
   }
   document.addEventListener('pointerdown', event => {
     if (!root.classList.contains('ytmls-am-side-peek')) return;
-    if (event.target?.closest?.('.ytmls-am-sidebar, .ytmls-am-collapse, ytmusic-menu-popup-renderer, tp-yt-iron-dropdown')) return;
+    if (event.target?.closest?.('.ytmls-am-sidebar, ytmusic-menu-popup-renderer, tp-yt-iron-dropdown')) return;
     toggleSidePeek(false);
   }, true);
   let pageFitTimer = 0;
