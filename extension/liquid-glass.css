@@ -629,6 +629,17 @@ html.music-glass ytmusic-player-page ytmusic-player:not([video-mode]) :is(#playe
   background: transparent !important; background-color: transparent !important; box-shadow: none !important;
 }
 html.music-glass ytmusic-player-page ytmusic-player:not([video-mode]) .ytp-cued-thumbnail-overlay { display: none !important; }
+/* Whatever else in the player paints behind the artwork in song mode (a box, its ::before/::after,
+   a frosted backdrop): cleared too. The picture, the video and the 曲/動画 switch keep their looks. */
+html.music-glass ytmusic-player-page ytmusic-player:not([video-mode]),
+html.music-glass ytmusic-player-page ytmusic-player:not([video-mode]) *:not(img, video, ytmusic-av-toggle, ytmusic-av-toggle *, [class*="ytmls-seg"]),
+html.music-glass ytmusic-player-page ytmusic-player:not([video-mode])::before,
+html.music-glass ytmusic-player-page ytmusic-player:not([video-mode])::after,
+html.music-glass ytmusic-player-page ytmusic-player:not([video-mode]) *:not(img, video, ytmusic-av-toggle, ytmusic-av-toggle *, [class*="ytmls-seg"])::before,
+html.music-glass ytmusic-player-page ytmusic-player:not([video-mode]) *:not(img, video, ytmusic-av-toggle, ytmusic-av-toggle *, [class*="ytmls-seg"])::after {
+  background-color: transparent !important; background-image: none !important;
+  -webkit-backdrop-filter: none !important; backdrop-filter: none !important;
+}
 
 /* The tabs' glass bead can be dragged like the size control (glass-segment.js, .ytmls-tabs-glass).
    The bead is drawn by .ytmls-seg-thumb under the labels, so the chosen tab itself goes clear. */
