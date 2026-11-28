@@ -698,10 +698,11 @@ html.music-glass ytmusic-player-page ytmusic-av-toggle.ytmls-av-glass.ytmls-av-u
    under a strong blur, so the cover's colours still come through), light glass rows like the tabs,
    and the chosen row as brighter glass with a check, like the selected tab. */
 :root:not([data-ytmls-theme="light"]) #ytmls-panel #ytmls-tools-pane {
-  background: var(--lg-sheen) padding-box, linear-gradient(rgb(16 14 18 / .38), rgb(16 14 18 / .38)) padding-box, var(--lg-rim) border-box !important;
+  /* No top sheen here: it brightened the heading area just where the title and note sit. */
+  background: linear-gradient(rgb(16 14 18 / .52), rgb(16 14 18 / .52)) padding-box, var(--lg-rim) border-box !important;
   -webkit-backdrop-filter: blur(28px) saturate(170%) !important;
   backdrop-filter: blur(28px) saturate(170%) !important;
-  text-shadow: 0 1px 2px rgb(0 0 0 / .25) !important;
+  text-shadow: 0 1px 2px rgb(0 0 0 / .35) !important;
 }
 :root:not([data-ytmls-theme="light"]) #ytmls-tools-pane .ytmls-tools-heading { color: #fff !important; font-size: 16px; font-weight: 700; }
 :root:not([data-ytmls-theme="light"]) #ytmls-tools-pane .ytmls-recommendation-note { color: rgb(255 255 255 / .7) !important; }
