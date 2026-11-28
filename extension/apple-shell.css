@@ -1227,3 +1227,15 @@ html.ytmls-am :is(ytmusic-multi-select-menu-renderer, ytmusic-sort-filter-menu-r
 html.ytmls-am.ytmls-am :is(ytmusic-multi-select-menu-renderer, ytmusic-sort-filter-menu-renderer) :is(ytmusic-multi-select-menu-item-renderer, tp-yt-paper-item, [role="option"], [role="menuitem"], [role="menuitemradio"]):hover {
   background-color: rgb(255 255 255 / .12) !important;
 }
+/* Compact, like a Mac menu: small title, 30px rows, a narrow check column, no extra space. */
+html.ytmls-am :is(ytmusic-multi-select-menu-renderer, ytmusic-sort-filter-menu-renderer) { padding: 5px !important; min-width: 0 !important; width: auto !important; }
+html.ytmls-am :is(ytmusic-multi-select-menu-renderer, ytmusic-sort-filter-menu-renderer) :is(tp-yt-paper-listbox, #container, #items, [role="listbox"], [role="menu"]) { padding: 0 !important; margin: 0 !important; }
+html.ytmls-am :is(ytmusic-multi-select-menu-renderer, ytmusic-sort-filter-menu-renderer) :is([id*="header" i], [class*="header" i]):not(:is(ytmusic-multi-select-menu-item-renderer, tp-yt-paper-item) *) {
+  padding: 4px 10px 6px !important; margin: 0 0 4px !important; min-height: 0 !important; height: auto !important;
+}
+html.ytmls-am :is(ytmusic-multi-select-menu-renderer, ytmusic-sort-filter-menu-renderer) :is(ytmusic-multi-select-menu-item-renderer, tp-yt-paper-item, [role="option"], [role="menuitem"], [role="menuitemradio"]) {
+  min-height: 30px !important; height: auto !important; padding-top: 0 !important; padding-bottom: 0 !important; margin: 0 !important;
+}
+html.ytmls-am :is(ytmusic-multi-select-menu-renderer, ytmusic-sort-filter-menu-renderer) tp-yt-paper-item { padding-left: 8px !important; padding-right: 12px !important; gap: 6px; }
+html.ytmls-am :is(ytmusic-multi-select-menu-renderer, ytmusic-sort-filter-menu-renderer) yt-icon { width: 16px !important; height: 16px !important; margin: 0 6px 0 0 !important; padding: 0 !important; flex: 0 0 16px; }
+html.ytmls-am :is(ytmusic-multi-select-menu-renderer, ytmusic-sort-filter-menu-renderer) :is(.text, yt-formatted-string) { font-size: 13px !important; line-height: 1.3 !important; margin: 0 !important; }
