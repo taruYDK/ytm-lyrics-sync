@@ -310,11 +310,12 @@ test('YouTube Music\'s tabs and 曲/動画 switch take presses only while the No
   assert.match(src, /checkVisibility\(\{opacityProperty: true, visibilityProperty: true\}\)/);
 });
 
-test('songs without YouTube Music lyrics: the extension\'s own 歌詞 button carries the bead while open', () => {
+test('songs without YouTube Music lyrics: the tabs\' bead moves to 歌詞 while the extension\'s lyrics are open', () => {
   const css = fs.readFileSync(new URL('../extension/liquid-glass.css', import.meta.url), 'utf8');
+  const seg = fs.readFileSync(new URL('../src/content/glass-segment.js', import.meta.url), 'utf8');
   const tab = fs.readFileSync(new URL('../src/content/external-tab.js', import.meta.url), 'utf8');
   assert.match(tab, /classList\.add\('ytmls-external-lyrics-open'\)/);
-  assert.match(tab, /classList\.remove\('ytmls-external-lyrics-open'\)/);
-  assert.match(css, /html\.music-glass\.ytmls-external-lyrics-open \.ytmls-tabs-segment > \.ytmls-seg-thumb \{ opacity: 0 !important; \}/);
-  assert.match(css, /html\.music-glass #ytmls-external-tab\[aria-expanded="true"\] \{\s*border-bottom: 0 !important;/);
+  assert.match(seg, /if \(ytmExternalLyricsOpen\(\) && tab\.parentElement\?\.querySelector\(':scope > \.ytmls-external-native-label'\)\) return ytmExternalLyricsTab\(tab\);/);
+  assert.match(seg, /if \(ytmExternalLyricsTab\(tab\)\) return false;/, 'that tab can be chosen with the bead');
+  assert.match(css, /html\.music-glass #ytmls-external-tab, html\.music-glass #ytmls-external-tab\[aria-expanded="true"\] \{ border-bottom: 0 !important; background: transparent !important;/, 'no second pill: the bead shows it');
 });

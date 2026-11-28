@@ -1393,7 +1393,10 @@ function readingTokensToRomaji(tokens) {
 
   function closeExternalLyrics() {
     externalLyricsOpen = false;
-    document.documentElement.classList.remove('ytmls-external-lyrics-open');
+    if (document.documentElement.classList.contains('ytmls-external-lyrics-open')) {
+      document.documentElement.classList.remove('ytmls-external-lyrics-open');
+      document.querySelector('.ytmls-tabs-segment')?.glassSegment?.sync();
+    }
     if (externalLyricsHost) externalLyricsHost.hidden = true;
     restoreExternalBackdrop();
   }
@@ -1403,6 +1406,7 @@ function readingTokensToRomaji(tokens) {
     externalLyricsOpen = true;
     // The tabs' glass bead marks this 歌詞 (YouTube Music's own lyrics tab stays unselectable).
     document.documentElement.classList.add('ytmls-external-lyrics-open');
+    document.querySelector('.ytmls-tabs-segment')?.glassSegment?.sync();
     ensureLyricsMount();
     checkTrackChange();
     return true;
@@ -9303,13 +9307,29 @@ function attachGlassSegment(group, opts = {}) {
 // The same draggable glass bead as the size control, on the tabs restyled as a segmented control
 // (liquid-glass.css). Only while the theme is on (html.music-glass); otherwise the tabs are untouched.
 function ytmTabSelected(tab) {
+ if (ytmExternalLyricsOpen() && tab.parentElement?.querySelector(':scope > .ytmls-external-native-label')) return ytmExternalLyricsTab(tab);
  return tab.getAttribute('aria-selected') === 'true' || tab.classList.contains('iron-selected');
 }
 function ytmTabDisabled(tab) {
+ if (ytmExternalLyricsTab(tab)) return false;
  return tab.hasAttribute('disabled') || tab.getAttribute('aria-disabled') === 'true';
 }
 // YouTube Music selects a tab on a click (its tap gesture); a plain tap event is the fallback.
+// A song without YouTube Music lyrics: its 歌詞 tab is disabled and the extension shows its own lyrics
+// in its place (external-tab.js marks that tab .ytmls-external-native-label). The bead treats it as a
+// normal tab: chosen while those lyrics are open, and choosing it opens them.
+function ytmExternalLyricsTab(tab) {
+ return tab.classList.contains('ytmls-external-native-label');
+}
+function ytmExternalLyricsOpen() {
+ return document.documentElement.classList.contains('ytmls-external-lyrics-open');
+}
 function activateYtmTab(tab) {
+ if (ytmExternalLyricsTab(tab)) {
+  if (typeof openExternalLyrics === 'function') openExternalLyrics();
+  return;
+ }
+ if (ytmExternalLyricsOpen() && typeof closeExternalLyrics === 'function') { closeExternalLyrics(); if (typeof ensureLyricsMount === 'function') ensureLyricsMount(); }
  try { tab.click(); } catch (_) {}
  if (!ytmTabSelected(tab)) {
   try { tab.dispatchEvent(new CustomEvent('tap', {bubbles: true, cancelable: true, composed: true})); } catch (_) {}
