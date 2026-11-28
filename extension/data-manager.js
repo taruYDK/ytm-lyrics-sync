@@ -40,6 +40,12 @@ async function refreshSavedTracks() {
     });
   })));
   document.getElementById("storageUsage").textContent = `保存済み ${savedTracks.length}曲 / ユーザーデータ ${formatBytes(sizes[0])} / ローカル保存全体 ${formatBytes(sizes[1])}（キャッシュ等を含む）`;
+  // Summary at the top: the number of songs, their data, and how much of all local storage it is.
+  const setText = (id, text) => { const el = document.getElementById(id); if (el) el.textContent = text; };
+  setText("savedCount", String(savedTracks.length));
+  setText("savedBytes", formatBytes(sizes[0]));
+  setText("storageUsage", `曲のデータ ${formatBytes(sizes[0])} ／ 拡張の保存全体 ${formatBytes(sizes[1])}（歌詞のキャッシュなどを含む）`);
+  document.getElementById("storageMeter")?.style.setProperty("--fill", `${sizes[1] ? Math.max(2, Math.min(100, sizes[0] / sizes[1] * 100)) : 0}%`);
   renderSavedTracks();
 }
 function updateSelectionCount() {
@@ -150,6 +156,16 @@ document.getElementById("trackFilter").addEventListener("input", () => {
   renderSavedTracks();
 });
 document.getElementById('trackView').addEventListener('change', () => { selectedTracks.clear(); displayedLimit = 50; renderSavedTracks(); });
+// 最近 / お気に入り / 曲名順: a segmented control in front of the (hidden) select.
+for (const button of document.querySelectorAll(".segmented [data-view]")) {
+  button.addEventListener("click", () => {
+    const select = document.getElementById("trackView");
+    if (select.value === button.dataset.view) return;
+    select.value = button.dataset.view;
+    for (const other of document.querySelectorAll(".segmented [data-view]")) other.setAttribute("aria-checked", String(other === button));
+    select.dispatchEvent(new Event("change"));
+  });
+}
 document.getElementById("loadMoreTracks").addEventListener("click", () => { displayedLimit += 50; renderSavedTracks(); });
 document.getElementById("refreshTracks").addEventListener("click", async () => {
   setBusy(true);
