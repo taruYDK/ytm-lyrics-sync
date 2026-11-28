@@ -451,7 +451,11 @@
     ui.remaining.textContent = Number.isFinite(duration) && duration > 0 ? `-${formatTime(duration - time)}` : '';
   }
 
-  function progressLoop() {
+  function progressLoop(...args) {
+   const started = typeof performance === 'object' ? performance.now() : 0;
+   try { return progressLoopMeasured(...args); } finally { if (started) globalThis.ytmlsPerfAdd?.('toolbar progress frames', performance.now() - started); }
+  }
+  function progressLoopMeasured() {
     progressFrame = 0;
     updateProgress();
     if (video && !video.paused && !document.hidden && root.classList.contains('ytmls-am')) {
@@ -1159,7 +1163,11 @@
     ctx.fillStyle = `rgb(0 0 0 / ${layer.parentElement === document.body ? .4 : .28})`;
     ctx.fillRect(0, 0, width, height);
   }
-  function ambientTick() {
+  function ambientTick(...args) {
+   const started = typeof performance === 'object' ? performance.now() : 0;
+   try { return ambientTickMeasured(...args); } finally { if (started) globalThis.ytmlsPerfAdd?.('moving background', performance.now() - started); }
+  }
+  function ambientTickMeasured() {
     ambientTimer = 0;
     for (const layer of ambientLayers) if (!layer.isConnected) ambientLayers.delete(layer);
     if (!ambientLayers.size) return;
@@ -1385,7 +1393,11 @@
   }
 
   let lastGuideNarrowAt = -Infinity;
-  function refresh() {
+  function refresh(...args) {
+   const started = typeof performance === 'object' ? performance.now() : 0;
+   try { return refreshMeasured(...args); } finally { if (started) globalThis.ytmlsPerfAdd?.('Mac screen refresh (700ms)', performance.now() - started); }
+  }
+  function refreshMeasured() {
     if (!active()) {
       root.classList.remove('ytmls-am', 'ytmls-am-compact', 'ytmls-am-no-side', 'ytmls-am-autohide', 'ytmls-am-side-peek');
       document.querySelectorAll('.ytmls-am-album-actions').forEach(box => box.remove());
@@ -1456,7 +1468,8 @@
 
   function start() {
     refresh();
-    setInterval(() => { if (!document.hidden) refresh(); }, 700);
+    // At the start of a frame, like the content script's tick (reads there seldom force a layout).
+    setInterval(() => { if (!document.hidden) queueRefresh(); }, 700);
     addEventListener('resize', queueRefresh);
     document.addEventListener('fullscreenchange', queueRefresh);
     document.addEventListener('visibilitychange', () => { if (!document.hidden) { queueRefresh(); startProgress(); } });

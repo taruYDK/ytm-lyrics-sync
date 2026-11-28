@@ -296,7 +296,7 @@ test('曲 / 動画 switch gets the same glass segmented control (selection from 
   assert.match(src, /function ensureYtmAvToggleGlass\(\)/);
   assert.match(src, /mode\.startsWith\('ATV'\)/);
   assert.match(src, /observe\(toggle, \{attributes: true, attributeFilter: \['playback-mode', 'toggle-disabled'\]\}\)/);
-  assert.match(fs.readFileSync(new URL('../src/content/main.js', import.meta.url), 'utf8'), /ensureYtmAvToggleGlass\(\)/);
+  assert.match(fs.readFileSync(new URL('../src/content/main.js', import.meta.url), 'utf8'), /tickPart\("ensureYtmAvToggleGlass", ensureYtmAvToggleGlass\)/);
   const css = fs.readFileSync(new URL('../extension/liquid-glass.css', import.meta.url), 'utf8');
   assert.match(css, /ytmusic-av-toggle\.ytmls-av-glass \.ytmls-av-segment \{/);
   assert.match(css, /\.ytmls-av-segment > \.ytmls-seg-thumb \{/);

@@ -33,18 +33,26 @@
       'ytmusic-player-page paper-tab',
       'ytmusic-tab-renderer [role="tab"]',
     ];
+    // Asked several times in one tick (auto-open, the lyrics mount, the external tab): the answer is
+    // kept for a moment. Each tab is looked at once (its computed style made the browser work out
+    // the page's styles, once per matching selector).
+    const now = typeof performance === 'object' ? performance.now() : 0;
+    if (playerPageTabsCache && now && now - playerPageTabsCache.at < 120 && playerPageTabsCache.tabs.every(el => el.isConnected)) return playerPageTabsCache.tabs.slice();
     const out = [];
     const seen = new Set();
     for (const selector of selectors) {
       for (const el of document.querySelectorAll(selector)) {
-        if (!isUsableTabElement(el) || seen.has(el)) continue;
-        if (el.closest && el.closest('[page-type="MUSIC_PAGE_TYPE_TRACK_LYRICS"]')) continue;
+        if (seen.has(el)) continue;
         seen.add(el);
+        if (!isUsableTabElement(el)) continue;
+        if (el.closest && el.closest('[page-type="MUSIC_PAGE_TYPE_TRACK_LYRICS"]')) continue;
         out.push(el);
       }
     }
+    if (now) playerPageTabsCache = {at: now, tabs: out.slice()};
     return out;
   }
+  let playerPageTabsCache = null;
 
   function normalizedTabText(el) {
     if (!el) return '';

@@ -303,6 +303,10 @@
     if (trackingRaf) return;
 
       const frame = () => {
+        const started = typeof performance === 'object' ? performance.now() : 0;
+        try { trackingFrame(); } finally { if (started) globalThis.ytmlsPerfAdd?.('lyrics tracking frames', performance.now() - started); }
+      };
+      const trackingFrame = () => {
         if (STATE.contextInvalidated) { trackingRaf = 0; return; }
         trackingRaf = requestAnimationFrame(frame);
       if (!STATE.enabled || !STATE.hasSync) return;

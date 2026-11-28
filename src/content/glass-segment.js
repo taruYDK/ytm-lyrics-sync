@@ -159,7 +159,11 @@ function attachGlassSegment(group, opts = {}) {
   thumb.style.transform = `translateX(${Number(state.x.toFixed(3))}px) scale(${sx.toFixed(4)}, ${sy.toFixed(4)})`;
   placeLens(sx, sy, side);
  }
- function step(now) {
+ function step(...args) {
+  const started = typeof performance === 'object' ? performance.now() : 0;
+  try { return stepMeasured(...args); } finally { if (started) globalThis.ytmlsPerfAdd?.('glass bead frames', performance.now() - started); }
+ }
+ function stepMeasured(now) {
   state.frame = 0;
   const dt = Math.min(.05, Math.max(.001, (now - (state.last || now)) / 1000 || .016));
   state.last = now;
@@ -435,7 +439,9 @@ function ensureYtmTabGlassSegment() {
  if (!root?.classList.contains('music-glass')) return null;
  // YouTube Music can leave an old tab bar in the page next to a new one: use the one that shows.
  const all = [...document.querySelectorAll('ytmusic-player-page tp-yt-paper-tabs')];
- const tabs = all.find(el => typeof el.checkVisibility !== 'function' || el.checkVisibility()) || all[0];
+ // (Only asked when there are several: checkVisibility makes the browser work out the page's
+ // styles, and this runs every 300ms.)
+ const tabs = all.length === 1 ? all[0] : all.find(el => typeof el.checkVisibility !== 'function' || el.checkVisibility()) || all[0];
  if (!tabs) return null;
  // The tabs sit in #tabsContent inside paper-tabs (the bead must share their offset parent).
  const first = tabs.querySelector('tp-yt-paper-tab');

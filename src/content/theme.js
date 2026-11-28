@@ -9,7 +9,20 @@
       updateLyricsTheme(true);
     });
   }
-  const lyricsThemeObserver = new MutationObserver(scheduleLyricsThemeRefresh);
+  // The extension changes classes and CSS variables on these elements itself (often, while things
+  // move); those changes are not a theme change, and reading the colours again for each of them
+  // made the browser work out the page's styles on every frame.
+  const ownThemeTokens = value => String(value || '').split(/\s+/).filter(name => name && !/^ytmls|^music-glass/.test(name)).sort().join(' ');
+  const ownStyle = value => String(value || '').replace(/--ytmls[\w-]*\s*:[^;]*;?/g, '').trim();
+  const lyricsThemeObserver = new MutationObserver(records => {
+    const real = !Array.isArray(records) || records.some(record => {
+      const now = record.target.getAttribute(record.attributeName);
+      if (record.attributeName === 'class') return ownThemeTokens(record.oldValue) !== ownThemeTokens(now);
+      if (record.attributeName === 'style') return ownStyle(record.oldValue) !== ownStyle(now);
+      return true;
+    });
+    if (real) scheduleLyricsThemeRefresh();
+  });
   const lyricsThemeMedia = matchMedia('(prefers-color-scheme: light)');
   lyricsThemeMedia.addEventListener('change', scheduleLyricsThemeRefresh);
   function updateLyricsTheme(force = false) {
@@ -17,7 +30,7 @@
     for (const root of roots) {
       if (!root || observedThemeRoots.has(root)) continue;
       observedThemeRoots.add(root);
-      lyricsThemeObserver.observe(root, {attributes:true, attributeFilter:['class','style','dark','theme','data-theme','is-dark-theme','color-scheme']});
+      lyricsThemeObserver.observe(root, {attributes:true, attributeOldValue:true, attributeFilter:['class','style','dark','theme','data-theme','is-dark-theme','color-scheme']});
       force = true;
     }
     const now = performance.now();

@@ -3,6 +3,26 @@
 // (which file and function) and the time spent on style and layout. The last 20 seconds are kept,
 // so "全体が重い" reports can say whether this extension, YouTube Music or the drawing is the cause.
 const perfProbeFrames = [];
+// Time this extension's own regular work takes (per second over the last 20 seconds), measured
+// around each loop: apple-shell.js and the content script add to it through ytmlsPerfAdd.
+const perfProbeOwn = new Map();
+globalThis.ytmlsPerfAdd = (name, ms) => {
+ const now = performance.now(), slot = Math.floor(now / 1000);
+ let entry = perfProbeOwn.get(name);
+ if (!entry) { entry = {slots: new Map(), max: 0}; perfProbeOwn.set(name, entry); }
+ entry.slots.set(slot, (entry.slots.get(slot) || 0) + ms);
+ if (ms > entry.max) entry.max = ms;
+ for (const key of entry.slots.keys()) if (key < slot - 20) entry.slots.delete(key);
+};
+function perfProbeOwnText() {
+ const slot = Math.floor(performance.now() / 1000);
+ const rows = [...perfProbeOwn].map(([name, entry]) => {
+  let total = 0;
+  for (const [key, ms] of entry.slots) if (key >= slot - 20) total += ms;
+  return [name, total / 20, entry.max];
+ }).filter(row => row[1] > 0).sort((a, b) => b[1] - a[1]);
+ return `own=[${rows.map(([name, perSecond, max]) => `${name}: ${perSecond.toFixed(1)}ms/s max ${Math.round(max)}ms`).join(' ; ') || 'none'}]`;
+}
 (() => {
  if (typeof PerformanceObserver !== 'function') return;
  const keep = entry => {
@@ -30,7 +50,7 @@ setInterval(() => {
  try { const id = typeof getAuthoritativeVideoId === 'function' ? getAuthoritativeVideoId() : ''; if (id) perfProbeSongs.add(id); } catch (_) {}
 }, 4000);
 function perfProbeDiagnostics() {
- return `${perfProbeFramesText()} ${perfProbeCounts()}`;
+ return `${perfProbeFramesText()} ${perfProbeOwnText()} ${perfProbeCounts()}`;
 }
 function perfProbeFramesText() {
  const cutoff = performance.now() - 20000;

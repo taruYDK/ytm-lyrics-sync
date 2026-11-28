@@ -112,7 +112,11 @@ function renderSideLyrics() {
   pane.dataset.synced = STATE.hasSync ? 'true' : 'false';
  }
 }
-function followSideLyrics() {
+function followSideLyrics(...args) {
+ const started = typeof performance === 'object' ? performance.now() : 0;
+ try { return followSideLyricsMeasured(...args); } finally { if (started) globalThis.ytmlsPerfAdd?.('right lyrics panel frames', performance.now() - started); }
+}
+function followSideLyricsMeasured() {
  sideLyricsFrame = 0;
  if (!sideLyricsOpen()) return;
  if (!document.documentElement.classList.contains('ytmls-am')) { toggleSideLyrics(false); return; }

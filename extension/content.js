@@ -438,6 +438,26 @@ function readingTokensToRomaji(tokens) {
 // (which file and function) and the time spent on style and layout. The last 20 seconds are kept,
 // so "全体が重い" reports can say whether this extension, YouTube Music or the drawing is the cause.
 const perfProbeFrames = [];
+// Time this extension's own regular work takes (per second over the last 20 seconds), measured
+// around each loop: apple-shell.js and the content script add to it through ytmlsPerfAdd.
+const perfProbeOwn = new Map();
+globalThis.ytmlsPerfAdd = (name, ms) => {
+ const now = performance.now(), slot = Math.floor(now / 1000);
+ let entry = perfProbeOwn.get(name);
+ if (!entry) { entry = {slots: new Map(), max: 0}; perfProbeOwn.set(name, entry); }
+ entry.slots.set(slot, (entry.slots.get(slot) || 0) + ms);
+ if (ms > entry.max) entry.max = ms;
+ for (const key of entry.slots.keys()) if (key < slot - 20) entry.slots.delete(key);
+};
+function perfProbeOwnText() {
+ const slot = Math.floor(performance.now() / 1000);
+ const rows = [...perfProbeOwn].map(([name, entry]) => {
+  let total = 0;
+  for (const [key, ms] of entry.slots) if (key >= slot - 20) total += ms;
+  return [name, total / 20, entry.max];
+ }).filter(row => row[1] > 0).sort((a, b) => b[1] - a[1]);
+ return `own=[${rows.map(([name, perSecond, max]) => `${name}: ${perSecond.toFixed(1)}ms/s max ${Math.round(max)}ms`).join(' ; ') || 'none'}]`;
+}
 (() => {
  if (typeof PerformanceObserver !== 'function') return;
  const keep = entry => {
@@ -465,7 +485,7 @@ setInterval(() => {
  try { const id = typeof getAuthoritativeVideoId === 'function' ? getAuthoritativeVideoId() : ''; if (id) perfProbeSongs.add(id); } catch (_) {}
 }, 4000);
 function perfProbeDiagnostics() {
- return `${perfProbeFramesText()} ${perfProbeCounts()}`;
+ return `${perfProbeFramesText()} ${perfProbeOwnText()} ${perfProbeCounts()}`;
 }
 function perfProbeFramesText() {
  const cutoff = performance.now() - 20000;
@@ -503,7 +523,20 @@ function perfProbeFramesText() {
       updateLyricsTheme(true);
     });
   }
-  const lyricsThemeObserver = new MutationObserver(scheduleLyricsThemeRefresh);
+  // The extension changes classes and CSS variables on these elements itself (often, while things
+  // move); those changes are not a theme change, and reading the colours again for each of them
+  // made the browser work out the page's styles on every frame.
+  const ownThemeTokens = value => String(value || '').split(/\s+/).filter(name => name && !/^ytmls|^music-glass/.test(name)).sort().join(' ');
+  const ownStyle = value => String(value || '').replace(/--ytmls[\w-]*\s*:[^;]*;?/g, '').trim();
+  const lyricsThemeObserver = new MutationObserver(records => {
+    const real = !Array.isArray(records) || records.some(record => {
+      const now = record.target.getAttribute(record.attributeName);
+      if (record.attributeName === 'class') return ownThemeTokens(record.oldValue) !== ownThemeTokens(now);
+      if (record.attributeName === 'style') return ownStyle(record.oldValue) !== ownStyle(now);
+      return true;
+    });
+    if (real) scheduleLyricsThemeRefresh();
+  });
   const lyricsThemeMedia = matchMedia('(prefers-color-scheme: light)');
   lyricsThemeMedia.addEventListener('change', scheduleLyricsThemeRefresh);
   function updateLyricsTheme(force = false) {
@@ -511,7 +544,7 @@ function perfProbeFramesText() {
     for (const root of roots) {
       if (!root || observedThemeRoots.has(root)) continue;
       observedThemeRoots.add(root);
-      lyricsThemeObserver.observe(root, {attributes:true, attributeFilter:['class','style','dark','theme','data-theme','is-dark-theme','color-scheme']});
+      lyricsThemeObserver.observe(root, {attributes:true, attributeOldValue:true, attributeFilter:['class','style','dark','theme','data-theme','is-dark-theme','color-scheme']});
       force = true;
     }
     const now = performance.now();
@@ -901,18 +934,26 @@ function perfProbeFramesText() {
       'ytmusic-player-page paper-tab',
       'ytmusic-tab-renderer [role="tab"]',
     ];
+    // Asked several times in one tick (auto-open, the lyrics mount, the external tab): the answer is
+    // kept for a moment. Each tab is looked at once (its computed style made the browser work out
+    // the page's styles, once per matching selector).
+    const now = typeof performance === 'object' ? performance.now() : 0;
+    if (playerPageTabsCache && now && now - playerPageTabsCache.at < 120 && playerPageTabsCache.tabs.every(el => el.isConnected)) return playerPageTabsCache.tabs.slice();
     const out = [];
     const seen = new Set();
     for (const selector of selectors) {
       for (const el of document.querySelectorAll(selector)) {
-        if (!isUsableTabElement(el) || seen.has(el)) continue;
-        if (el.closest && el.closest('[page-type="MUSIC_PAGE_TYPE_TRACK_LYRICS"]')) continue;
+        if (seen.has(el)) continue;
         seen.add(el);
+        if (!isUsableTabElement(el)) continue;
+        if (el.closest && el.closest('[page-type="MUSIC_PAGE_TYPE_TRACK_LYRICS"]')) continue;
         out.push(el);
       }
     }
+    if (now) playerPageTabsCache = {at: now, tabs: out.slice()};
     return out;
   }
+  let playerPageTabsCache = null;
 
   function normalizedTabText(el) {
     if (!el) return '';
@@ -7478,6 +7519,10 @@ function perfProbeFramesText() {
     if (trackingRaf) return;
 
       const frame = () => {
+        const started = typeof performance === 'object' ? performance.now() : 0;
+        try { trackingFrame(); } finally { if (started) globalThis.ytmlsPerfAdd?.('lyrics tracking frames', performance.now() - started); }
+      };
+      const trackingFrame = () => {
         if (STATE.contextInvalidated) { trackingRaf = 0; return; }
         trackingRaf = requestAnimationFrame(frame);
       if (!STATE.enabled || !STATE.hasSync) return;
@@ -8602,7 +8647,11 @@ function renderSideLyrics() {
   pane.dataset.synced = STATE.hasSync ? 'true' : 'false';
  }
 }
-function followSideLyrics() {
+function followSideLyrics(...args) {
+ const started = typeof performance === 'object' ? performance.now() : 0;
+ try { return followSideLyricsMeasured(...args); } finally { if (started) globalThis.ytmlsPerfAdd?.('right lyrics panel frames', performance.now() - started); }
+}
+function followSideLyricsMeasured() {
  sideLyricsFrame = 0;
  if (!sideLyricsOpen()) return;
  if (!document.documentElement.classList.contains('ytmls-am')) { toggleSideLyrics(false); return; }
@@ -9173,7 +9222,11 @@ function attachGlassSegment(group, opts = {}) {
   thumb.style.transform = `translateX(${Number(state.x.toFixed(3))}px) scale(${sx.toFixed(4)}, ${sy.toFixed(4)})`;
   placeLens(sx, sy, side);
  }
- function step(now) {
+ function step(...args) {
+  const started = typeof performance === 'object' ? performance.now() : 0;
+  try { return stepMeasured(...args); } finally { if (started) globalThis.ytmlsPerfAdd?.('glass bead frames', performance.now() - started); }
+ }
+ function stepMeasured(now) {
   state.frame = 0;
   const dt = Math.min(.05, Math.max(.001, (now - (state.last || now)) / 1000 || .016));
   state.last = now;
@@ -9449,7 +9502,9 @@ function ensureYtmTabGlassSegment() {
  if (!root?.classList.contains('music-glass')) return null;
  // YouTube Music can leave an old tab bar in the page next to a new one: use the one that shows.
  const all = [...document.querySelectorAll('ytmusic-player-page tp-yt-paper-tabs')];
- const tabs = all.find(el => typeof el.checkVisibility !== 'function' || el.checkVisibility()) || all[0];
+ // (Only asked when there are several: checkVisibility makes the browser work out the page's
+ // styles, and this runs every 300ms.)
+ const tabs = all.length === 1 ? all[0] : all.find(el => typeof el.checkVisibility !== 'function' || el.checkVisibility()) || all[0];
  if (!tabs) return null;
  // The tabs sit in #tabsContent inside paper-tabs (the bead must share their offset parent).
  const first = tabs.querySelector('tp-yt-paper-tab');
@@ -9694,19 +9749,28 @@ function ensureEnhancementControls(){
 
 // Feature: main.js
   // ---------- メイン ----------
-  function tick() {
+  function tick(...args) {
+   const started = typeof performance === 'object' ? performance.now() : 0;
+   try { return tickMeasured(...args); } finally { if (started) globalThis.ytmlsPerfAdd?.('content tick (300ms)', performance.now() - started); }
+  }
+  // Each step of the regular tick is timed for the diagnostics (Perf: own=[tick:…]).
+  function tickPart(name, fn) {
+    const started = typeof performance === 'object' ? performance.now() : 0;
+    try { return fn(); } finally { if (started) globalThis.ytmlsPerfAdd?.(`tick:${name}`, performance.now() - started); }
+  }
+  function tickMeasured() {
     if (document.hidden || !runtimeAvailable()) return;
-    if (typeof practiceTick === "function") practiceTick();
-    updateLyricsTheme();
-    ensureLyricsMount();
-    ensureVideoListener();
-    ensurePlayerBarTimingControl();
-    if (typeof ensureYtmTabGlassSegment === "function") ensureYtmTabGlassSegment();
-    if (typeof ensureYtmAvToggleGlass === "function") ensureYtmAvToggleGlass();
-    maintainLyricsAutoOpen();
+    if (typeof practiceTick === "function") tickPart("practiceTick", practiceTick);
+    tickPart("updateLyricsTheme", updateLyricsTheme);
+    tickPart("ensureLyricsMount", ensureLyricsMount);
+    tickPart("ensureVideoListener", ensureVideoListener);
+    tickPart("ensurePlayerBarTimingControl", ensurePlayerBarTimingControl);
+    if (typeof ensureYtmTabGlassSegment === "function") tickPart("ensureYtmTabGlassSegment", ensureYtmTabGlassSegment);
+    if (typeof ensureYtmAvToggleGlass === "function") tickPart("ensureYtmAvToggleGlass", ensureYtmAvToggleGlass);
+    tickPart("maintainLyricsAutoOpen", maintainLyricsAutoOpen);
 
     if (STATE.enabled) {
-      detectImmediateTrackTransition();
+      tickPart("detectImmediateTrackTransition", detectImmediateTrackTransition);
 
       // 歌詞取得前(hasSync=false)でも遷移ガードを必ず進める。
       // v1.6.3はここがRAF側のhasSync判定に阻まれ、endedVideoIdを
@@ -9715,17 +9779,17 @@ function ensureEnhancementControls(){
         canTrackCurrentPlayback(getVideoElement());
       }
 
-      checkTrackChange();
+      tickPart("checkTrackChange", checkTrackChange);
       if (STATE.pendingInitialHighlight && STATE.hasSync && trackingDisplayVisible()) {
         updateHighlight(getAuthoritativePlaybackTime(getVideoElement()), true);
       }
-      runAutoRecoveryWatchdog();
-      updatePlayerBarHealth();
-      updateDiagnosticsSummary();
+      tickPart("runAutoRecoveryWatchdog", runAutoRecoveryWatchdog);
+      tickPart("updatePlayerBarHealth", updatePlayerBarHealth);
+      tickPart("updateDiagnosticsSummary", updateDiagnosticsSummary);
     } else {
-      applySettings();
-      updatePlayerBarHealth();
-      updateDiagnosticsSummary();
+      tickPart("applySettings", applySettings);
+      tickPart("updatePlayerBarHealth", updatePlayerBarHealth);
+      tickPart("updateDiagnosticsSummary", updateDiagnosticsSummary);
     }
   }
 
@@ -9756,7 +9820,15 @@ function ensureEnhancementControls(){
     loadPinnedLyrics();
     loadLocalLyrics();
     document.addEventListener("visibilitychange", () => { if (!document.hidden) tick(); });
-    setInterval(tick, 300);
+    // Run at the start of a frame: the page's styles and layout from the last frame are usually still
+    // valid then, so the tick's reads do not make the browser work them out again in the middle of
+    // other work (on a big YouTube Music page that was a pause of tens of milliseconds every 300ms).
+    let tickQueued = false;
+    setInterval(() => {
+      if (tickQueued || typeof requestAnimationFrame !== "function") { if (!tickQueued) tick(); return; }
+      tickQueued = true;
+      requestAnimationFrame(() => { tickQueued = false; tick(); });
+    }, 300);
     tick();
     // ページを開いた時点ですでに「次のコンテンツ」なら、無操作時だけ歌詞へ移動する。
     setTimeout(() => {
