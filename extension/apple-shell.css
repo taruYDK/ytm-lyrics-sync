@@ -1144,3 +1144,43 @@ html.ytmls-am ytmusic-player-page #ytmls-panel#ytmls-panel .ytmls-line.ytmls-asi
 @media (prefers-reduced-motion: reduce) {
   html.ytmls-am ytmusic-player-page #ytmls-panel#ytmls-panel .ytmls-line { transition: color 160ms ease, opacity 160ms ease !important; }
 }
+
+/* ---------- Library / search tab strip (ライブラリ・オフライン …) ----------
+   Music Glass paints this sticky strip as an opaque box with a still slice of the artwork, which
+   showed as a frame that did not match the moving background or reach the window's edge. Here it
+   is the same glass as the toolbar's scroll edge: see-through, blurring whatever scrolls under it,
+   from the window's left edge (under the sidebar) and fading out at the bottom, so it looks the same
+   at rest and while stuck under the toolbar. The tabs are glass capsules like the other tab bars. */
+html.ytmls-am :is(ytmusic-browse-response, ytmusic-search-page, ytmusic-tabbed-search-results-renderer) ytmusic-tabs {
+  background: transparent !important;
+  --ytmusic-tabs-background: transparent;
+  isolation: isolate;
+}
+html.ytmls-am :is(ytmusic-browse-response, ytmusic-search-page, ytmusic-tabbed-search-results-renderer) ytmusic-tabs > :is(.music-glass-surface, .music-glass-aurora) { visibility: hidden !important; }
+html.ytmls-am :is(ytmusic-browse-response, ytmusic-search-page, ytmusic-tabbed-search-results-renderer) ytmusic-tabs::before {
+  content: ""; position: absolute; z-index: -1; pointer-events: none;
+  inset: 0 0 -14px calc(-1 * var(--ytmls-am-side, 0px));
+  -webkit-backdrop-filter: blur(22px) saturate(160%);
+  backdrop-filter: blur(22px) saturate(160%);
+  background: linear-gradient(rgb(0 0 0 / .16), rgb(0 0 0 / .06));
+  -webkit-mask-image: linear-gradient(#000 70%, transparent);
+  mask-image: linear-gradient(#000 70%, transparent);
+}
+html.ytmls-am :is(ytmusic-browse-response, ytmusic-search-page, ytmusic-tabbed-search-results-renderer) ytmusic-tabs tp-yt-paper-tabs {
+  background: transparent !important;
+  --ytmusic-tabs-background: transparent;
+  --paper-tabs-selection-bar-color: transparent;
+}
+html.ytmls-am :is(ytmusic-browse-response, ytmusic-search-page, ytmusic-tabbed-search-results-renderer) ytmusic-tabs tp-yt-paper-tabs #selectionBar { opacity: 0 !important; }
+html.ytmls-am :is(ytmusic-browse-response, ytmusic-search-page, ytmusic-tabbed-search-results-renderer) ytmusic-tabs tp-yt-paper-tab {
+  border-radius: 999px; color: rgb(255 255 255 / .62) !important; transition: background-color .2s, color .2s;
+}
+html.ytmls-am :is(ytmusic-browse-response, ytmusic-search-page, ytmusic-tabbed-search-results-renderer) ytmusic-tabs tp-yt-paper-tab:hover { color: rgb(255 255 255 / .88) !important; background: rgb(255 255 255 / .06); }
+html.ytmls-am :is(ytmusic-browse-response, ytmusic-search-page, ytmusic-tabbed-search-results-renderer) ytmusic-tabs tp-yt-paper-tab:is(.iron-selected, [aria-selected="true"]) {
+  color: #fff !important;
+  background: rgb(255 255 255 / .14);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / .12), 0 2px 8px rgb(0 0 0 / .18);
+}
+html.ytmls-lyrics-motion-lightweight.ytmls-am :is(ytmusic-browse-response, ytmusic-search-page, ytmusic-tabbed-search-results-renderer) ytmusic-tabs::before {
+  -webkit-backdrop-filter: none; backdrop-filter: none; background: rgb(30 28 34 / .92);
+}
