@@ -162,3 +162,48 @@ input[type=range]:active::-webkit-slider-thumb { transform: scale(1.15) !importa
 
 /* A section folding shut already shows the closed marker (details-motion.js). */
 details[data-closing="true"] > summary { list-style-type: disclosure-closed; }
+
+/* ---------- Apple-style window (overrides the colour field above) ----------
+   Like macOS System Settings and apple.com: a plain window colour, flat grouped cards with a
+   hairline edge and a soft shadow, and glass only where something floats (header, sidebar, the
+   delete bar). */
+:root { --window: #1e1e20; --surface: #2a2a2d; --surface-edge: rgb(255 255 255 / .07); --surface-shadow: 0 1px 2px rgb(0 0 0 / .3); }
+@media (prefers-color-scheme: light) {
+  :root { --window: #f5f5f7; --surface: #ffffff; --surface-edge: rgb(0 0 0 / .06); --surface-shadow: 0 1px 2px rgb(0 0 0 / .05), 0 4px 14px rgb(0 0 0 / .04); }
+}
+html { background: var(--window) !important; }
+body::before { display: none !important; }
+.settings-group, .help-details, .glass-details, .provider-list, .provider-test, #savedDataSummary, .data-button,
+.card, .note, .hero, .tile, .library {
+  border: 0 !important;
+  background: var(--surface) !important;
+  box-shadow: 0 0 0 1px var(--surface-edge), var(--surface-shadow) !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+.hero, .tile, .library { border-radius: 18px !important; }
+.card.danger { background: var(--surface) !important; box-shadow: 0 0 0 1px color-mix(in srgb, var(--danger, #ff6b81) 40%, transparent), var(--surface-shadow) !important; }
+/* Floating parts stay glass over the page. */
+.header, .settings-sidebar { background: color-mix(in srgb, var(--window) 72%, transparent) !important; }
+.settings-sidebar { background: color-mix(in srgb, var(--surface) 55%, var(--window)) !important; }
+.action-bar {
+  border: 0 !important;
+  background: color-mix(in srgb, var(--surface) 78%, transparent) !important;
+  box-shadow: 0 0 0 1px var(--surface-edge), 0 10px 30px rgb(0 0 0 / .22) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(180%); backdrop-filter: blur(24px) saturate(180%);
+}
+/* Buttons: plain Apple pills, no glass rim. */
+:is(.card, .settings-group, .tile, .library-head, .tools) button:not(.primary):not(.danger):not(.track-open) {
+  border: 0 !important;
+  background: var(--control) !important;
+  box-shadow: none !important;
+}
+button.primary { border: 0 !important; background: var(--accent) !important; box-shadow: none !important; }
+.data-button:not(:disabled):hover, button:not(.provider-move):not(.track-open):not(:disabled):hover { transform: none; filter: brightness(1.08); }
+.settings-nav a[aria-selected=true] {
+  border: 0 !important; background: color-mix(in srgb, var(--text) 10%, transparent) !important; box-shadow: none !important;
+}
+.nav-icon { box-shadow: inset 0 0 0 .5px rgb(0 0 0 / .12); }
+@media (prefers-color-scheme: light) {
+  :root { --control: #e8e8ed; }
+}
