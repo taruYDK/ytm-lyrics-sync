@@ -1098,6 +1098,11 @@ html.ytmls-am :is(ytmusic-browse-response, ytmusic-search-page) ytmusic-responsi
 }
 /* The whole window: behind every page (home, albums, search …), a little darker so lists stay readable. */
 body > .ytmls-am-ambient { position: fixed; inset: 0; z-index: -1; }
+/* Music Glass's drifting haze (.music-glass-aurora) sits in the Now Playing page over this moving
+   background and animated every frame (60 times a second): each of those frames made every glass
+   part on screen (bars, tabs, buttons) blur its backdrop again, and scrolling the queue or lyrics
+   stuttered. The window's background already moves, so the haze is not drawn while it is on. */
+html.ytmls-am.ytmls-am-ambient-on .music-glass-aurora { display: none !important; }
 
 /* ---------- Now Playing page without a frame ----------
    The page keeps its place, but its own backing (Music Glass's dark fill and still artwork slice) is

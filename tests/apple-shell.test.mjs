@@ -388,3 +388,11 @@ test('settings: moving background, sidebar auto-hide and album buttons can each 
   assert.match(js, /if \(!options\.ambient\) \{ document\.querySelectorAll\('\.ytmls-am-ambient'\)\.forEach\(layer => layer\.remove\(\)\); return; \}/);
   assert.match(js, /root\.classList\.toggle\('ytmls-am-autohide', options\.autohide\)/);
 });
+
+test('the moving background replaces Music Glass\'s drifting haze, so scrolling stays smooth', () => {
+  const css = read('apple-shell.css').replace(/\/\*[\s\S]*?\*\//g, '');
+  assert.match(css, /html\.ytmls-am\.ytmls-am-ambient-on \.music-glass-aurora \{ display: none !important; \}/);
+  const js = read('apple-shell.js');
+  assert.match(js, /root\.classList\.toggle\('ytmls-am-ambient-on', options\.ambient\)/);
+  assert.match(js, /root\.classList\.remove\('ytmls-am', 'ytmls-am-ambient-on'/);
+});
