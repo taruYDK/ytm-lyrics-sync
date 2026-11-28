@@ -1128,7 +1128,8 @@
   function drawAmbient(layer, seconds) {
     const canvas = layer.ambientCanvas, shapes = layer.ambientShapes;
     if (!canvas || !shapes) return;
-    const rect = layer.getBoundingClientRect();
+    // Both hosts cover the window: its size, without asking the page for a layout 12 times a second.
+    const rect = {width: innerWidth, height: innerHeight};
     if (!rect.width || !rect.height) return;
     const width = Math.max(64, Math.round(rect.width * AMBIENT_SCALE)), height = Math.max(36, Math.round(rect.height * AMBIENT_SCALE));
     if (canvas.width !== width || canvas.height !== height) { canvas.width = width; canvas.height = height; }
@@ -1182,6 +1183,7 @@
     if (!ambientTimer) ambientTick();
   }
   addEventListener('resize', () => { for (const layer of ambientLayers) layer.ambientDrawn = false; });
+  globalThis.ytmlsAmbientStats = () => `ambientLayers=${ambientLayers.size}/${document.querySelectorAll('.ytmls-am-ambient').length}`;
   function placeAmbient(host, art) {
     const layers = [...host.querySelectorAll(':scope > .ytmls-am-ambient')];
     const top = layers.at(-1);

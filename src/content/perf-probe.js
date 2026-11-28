@@ -15,7 +15,24 @@ const perfProbeFrames = [];
   try { new PerformanceObserver(list => list.getEntries().forEach(keep)).observe({type: 'longtask', buffered: true}); } catch (__) {}
  }
 })();
+// Things that could pile up song after song (a report said it gets heavier after changing songs).
+function perfProbeCounts() {
+ const q = selector => document.querySelectorAll(selector).length;
+ const heap = performance.memory ? `${Math.round(performance.memory.usedJSHeapSize / 1048576)}MB` : '-';
+ const segments = typeof glassSegmentAttachCount === 'number' ? glassSegmentAttachCount : '-';
+ const ambient = typeof globalThis.ytmlsAmbientStats === 'function' ? globalThis.ytmlsAmbientStats() : 'ambient=-';
+ return `counts=[nodes=${q('*')} ours=${q('[id^="ytmls"], [class*="ytmls"]')} canvases=${q('canvas')} imgs=${q('img')} lyricLines=${q('.ytmls-line')} thumbs=${q('.ytmls-seg-thumb')} lenses=${q('.ytmls-seg-lens')} segmentsAttached=${segments} ${ambient} heap=${heap} songs=${perfProbeSongs.size}]`;
+}
+const perfProbeSongs = new Set();
+// Songs played in this tab (one cheap look every few seconds), to compare the counts after several songs.
+setInterval(() => {
+ if (document.hidden) return;
+ try { const id = typeof getAuthoritativeVideoId === 'function' ? getAuthoritativeVideoId() : ''; if (id) perfProbeSongs.add(id); } catch (_) {}
+}, 4000);
 function perfProbeDiagnostics() {
+ return `${perfProbeFramesText()} ${perfProbeCounts()}`;
+}
+function perfProbeFramesText() {
  const cutoff = performance.now() - 20000;
  const frames = perfProbeFrames.filter(entry => entry.startTime >= cutoff);
  if (!frames.length) return 'slowFrames20s=0';

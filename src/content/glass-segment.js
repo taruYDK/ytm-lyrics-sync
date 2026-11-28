@@ -1,3 +1,4 @@
+let glassSegmentAttachCount = 0;
 // Glass segmented control (Small / Medium / Large): a glass bead marks the chosen button.
 // Pressing lifts it at once (like iOS): it becomes a clear lens and goes under the finger. Slide
 // to move it: it follows the pointer on a spring,
@@ -381,6 +382,7 @@ function attachGlassSegment(group, opts = {}) {
  }
  if (typeof ResizeObserver === 'function') new ResizeObserver(() => sync(false)).observe(group);
  sync(false);
+ glassSegmentAttachCount += 1;
  group.glassSegment = {sync, state, thumb};
  return group.glassSegment;
 }
