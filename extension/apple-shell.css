@@ -780,6 +780,24 @@ html.ytmls-am ytmusic-menu-popup-renderer :is(ytmusic-menu-navigation-item-rende
 }
 html.ytmls-am ytmusic-menu-popup-renderer yt-icon { width: 18px !important; height: 18px !important; }
 html.ytmls-am ytmusic-menu-popup-renderer :is(.text, yt-formatted-string) { font-size: 13.5px !important; line-height: 1.3 !important; }
+/* Finished like a Mac menu: snug rows, small dim icons, regular-weight text, and the row under the
+   pointer filled with the accent colour (white text and icon), as the Mac highlights menu items. */
+html.ytmls-am ytmusic-menu-popup-renderer { padding: 5px !important; border-radius: 12px !important; --paper-item-min-height: 30px; }
+html.ytmls-am ytmusic-menu-popup-renderer :is(ytmusic-menu-navigation-item-renderer, ytmusic-menu-service-item-renderer, ytmusic-toggle-menu-service-item-renderer, ytmusic-menu-service-item-download-renderer),
+html.ytmls-am ytmusic-menu-popup-renderer :is(ytmusic-menu-navigation-item-renderer, ytmusic-menu-service-item-renderer, ytmusic-toggle-menu-service-item-renderer, ytmusic-menu-service-item-download-renderer) :is(a, tp-yt-paper-item, #navigation-endpoint, .yt-simple-endpoint) {
+  min-height: 30px !important; border-radius: 7px !important;
+}
+html.ytmls-am ytmusic-menu-popup-renderer :is(ytmusic-menu-navigation-item-renderer, ytmusic-menu-service-item-renderer, ytmusic-toggle-menu-service-item-renderer, ytmusic-menu-service-item-download-renderer) :is(tp-yt-paper-item, a.yt-simple-endpoint) {
+  padding-left: 10px !important; padding-right: 16px !important;
+}
+html.ytmls-am ytmusic-menu-popup-renderer yt-icon { width: 16px !important; height: 16px !important; margin-right: 12px !important; color: rgb(255 255 255 / .62) !important; }
+html.ytmls-am ytmusic-menu-popup-renderer :is(.text, yt-formatted-string) { font-size: 13px !important; font-weight: 400 !important; letter-spacing: .01em; color: rgb(255 255 255 / .92) !important; }
+html.ytmls-am ytmusic-menu-popup-renderer :is(ytmusic-menu-navigation-item-renderer, ytmusic-menu-service-item-renderer, ytmusic-toggle-menu-service-item-renderer, ytmusic-menu-service-item-download-renderer):is(:hover, :focus-within) {
+  background: var(--am-accent, #fa2d48) !important;
+}
+html.ytmls-am ytmusic-menu-popup-renderer :is(ytmusic-menu-navigation-item-renderer, ytmusic-menu-service-item-renderer, ytmusic-toggle-menu-service-item-renderer, ytmusic-menu-service-item-download-renderer):is(:hover, :focus-within) :is(.text, yt-formatted-string, yt-icon) {
+  color: #fff !important;
+}
 /* The play button on song artwork shows only under the pointer (or while that song plays), like the
    Mac; YouTube Music keeps it on songs all the time. */
 html.ytmls-am :is(ytmusic-two-row-item-renderer, ytmusic-responsive-list-item-renderer) ytmusic-item-thumbnail-overlay-renderer ytmusic-play-button-renderer:not([play-button-state="playing"]):not([play-button-state="paused"]):not([play-button-state="loading"]) {
