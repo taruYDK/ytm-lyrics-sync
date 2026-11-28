@@ -6,11 +6,11 @@ YT Music 歌詞シンクロの開発内容をまとめた引き継ぎ用のメ�
 
 | 項目 | 状態 |
 | --- | --- |
-| 公開中のバージョン | **v3.2.1**（GitHub Releases に公開済み。`main` の `0c67969` にタグ `v3.2.1`）。**v3.3.0 正式版を作業ブランチで準備済み**（バージョン・CHANGELOG・README・`docs/releases/v3.3.0.md`・配布 ZIP）。`main` への取り込み・タグ・Release は未実施 |
+| 公開中のバージョン | **v3.3.0**（2026-11-28 に GitHub Releases に公開。PR #3 で `main` に取り込み、タグ `v3.3.0`） |
 | 作業ブランチ | `claude/github-content-review-ub7w55`（push 済み） |
-| `main` への取り込み | **まだ**。大きなアップデートのときにまとめて取り込む方針 |
+| `main` への取り込み | v3.3.0 までは取り込み済み（PR #3）。以後の開発版の修正は、次の大きなアップデートでまとめて取り込む方針 |
 | テスト | `npm run check` で 250 件すべて成功 |
-| 開発版 ZIP | `npm run package` で作成し、`manifest.json` の `version_name` を `3.2.1-dev` に書き換えて配布（リポジトリのバージョンは 3.2.1 のまま） |
+| 開発版 ZIP | `npm run package` で作成し、`manifest.json` の `version_name` を `3.3.0-dev` などに書き換えて配布（リポジトリのバージョンは公開中のまま） |
 
 ## 決定事項
 
