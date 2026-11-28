@@ -940,38 +940,39 @@ html.ytmls-am.ytmls-am.ytmls-am.ytmls-lyrics-motion-lightweight ytmusic-app-layo
 /* ---------- Moving artwork background (apple-shell.js, updateAmbient) ----------
    The cover blurred into large soft shapes that drift slowly behind the Now Playing page and the
    fullscreen lyrics. The shapes are drawn at a quarter size and scaled up, so the blur stays cheap. */
-.ytmls-am-ambient { display: none; }
+/* Shown wherever apple-shell.js placed one (it removes them when the screen is off), also in the
+   fullscreen lyrics while the browser's own fullscreen has the rest of the screen switched off. */
 html.ytmls-am ytmusic-player-page { isolation: isolate; }
-html.ytmls-am .ytmls-am-ambient {
+.ytmls-am-ambient {
   display: block; position: absolute; inset: 0; z-index: -1; overflow: hidden; pointer-events: none;
   opacity: 0; transition: opacity 1.2s ease;
 }
-html.ytmls-am .ytmls-am-ambient.is-ready { opacity: 1; }
-html.ytmls-am .ytmls-am-ambient.is-leaving { opacity: 0; }
+.ytmls-am-ambient.is-ready { opacity: 1; }
+.ytmls-am-ambient.is-leaving { opacity: 0; }
 /* A soft veil keeps the lyrics and controls readable over bright covers. */
-html.ytmls-am .ytmls-am-ambient::after { content: ""; position: absolute; inset: 0; background: rgb(0 0 0 / .28); }
-html.ytmls-am .ytmls-am-ambient-blobs { position: absolute; inset: 0; }
+.ytmls-am-ambient::after { content: ""; position: absolute; inset: 0; background: rgb(0 0 0 / .28); }
+.ytmls-am-ambient-blobs { position: absolute; inset: 0; }
 /* Each shape is an already blurred canvas; only transform moves it (no repainting). The motion runs
    in small steps (about 12 a second), too small to see at this speed, so the glass over it (sidebar,
    toolbar, tabs) is not redrawn every frame. */
-html.ytmls-am .ytmls-am-ambient-blobs canvas {
+.ytmls-am-ambient-blobs canvas {
   position: absolute; width: 100vw; height: 100vw; max-width: 1800px; max-height: 1800px;
   will-change: transform;
   animation-timing-function: steps(560) !important;
 }
-html.ytmls-am .ytmls-am-ambient-blobs canvas:nth-child(1) { left: -15vw; top: -25vw; animation: ytmls-am-drift-a 46s infinite alternate; }
-html.ytmls-am .ytmls-am-ambient-blobs canvas:nth-child(2) { right: -25vw; top: -10vw; animation: ytmls-am-drift-b 58s infinite alternate; }
-html.ytmls-am .ytmls-am-ambient-blobs canvas:nth-child(3) { left: 5vw; bottom: -45vw; animation: ytmls-am-drift-c 52s infinite alternate; }
-html.ytmls-am .ytmls-am-ambient-blobs canvas:nth-child(4) { right: -10vw; bottom: -30vw; width: 80vw; height: 80vw; opacity: .8; animation: ytmls-am-drift-a 64s infinite alternate-reverse; }
+.ytmls-am-ambient-blobs canvas:nth-child(1) { left: -15vw; top: -25vw; animation: ytmls-am-drift-a 46s infinite alternate; }
+.ytmls-am-ambient-blobs canvas:nth-child(2) { right: -25vw; top: -10vw; animation: ytmls-am-drift-b 58s infinite alternate; }
+.ytmls-am-ambient-blobs canvas:nth-child(3) { left: 5vw; bottom: -45vw; animation: ytmls-am-drift-c 52s infinite alternate; }
+.ytmls-am-ambient-blobs canvas:nth-child(4) { right: -10vw; bottom: -30vw; width: 80vw; height: 80vw; opacity: .8; animation: ytmls-am-drift-a 64s infinite alternate-reverse; }
 @keyframes ytmls-am-drift-a { from { transform: translate(0, 0) rotate(0deg) scale(1); } to { transform: translate(24vw, 14vw) rotate(140deg) scale(1.25); } }
 @keyframes ytmls-am-drift-b { from { transform: translate(0, 0) rotate(0deg) scale(1.1); } to { transform: translate(-22vw, 19vw) rotate(-160deg) scale(.9); } }
 @keyframes ytmls-am-drift-c { from { transform: translate(0, 0) rotate(0deg) scale(.95); } to { transform: translate(16vw, -24vw) rotate(120deg) scale(1.2); } }
 /* Fullscreen lyrics: over its own still backdrop. */
-html.ytmls-am #ytmls-fullscreen > .ytmls-am-ambient { position: absolute; z-index: -1; }
+#ytmls-fullscreen > .ytmls-am-ambient { position: absolute; z-index: -1; }
 /* Still when motion is reduced or the lightweight / no-extra-motion settings are on. */
-html:is(.ytmls-lyrics-motion-lightweight, .ytmls-extra-motion-disabled).ytmls-am .ytmls-am-ambient-blobs canvas { animation: none; }
+html:is(.ytmls-lyrics-motion-lightweight, .ytmls-extra-motion-disabled) .ytmls-am-ambient-blobs canvas { animation: none; }
 @media (prefers-reduced-motion: reduce) {
-  html.ytmls-am .ytmls-am-ambient-blobs canvas { animation: none; }
+  .ytmls-am-ambient-blobs canvas { animation: none; }
 }
 
 /* ---------- Up Next panel: 次に再生 / 履歴 and 自動再生 ---------- */
@@ -1037,8 +1038,8 @@ html.ytmls-am :is(ytmusic-browse-response, ytmusic-search-page) ytmusic-responsi
   content: ""; position: absolute; inset: 0; border-radius: 6px; background: rgb(0 0 0 / .5); pointer-events: none;
 }
 /* The whole window: behind every page (home, albums, search …), a little darker so lists stay readable. */
-html.ytmls-am body > .ytmls-am-ambient { position: fixed; inset: 0; z-index: -1; }
-html.ytmls-am body > .ytmls-am-ambient::after { background: rgb(0 0 0 / .4); }
+body > .ytmls-am-ambient { position: fixed; inset: 0; z-index: -1; }
+body > .ytmls-am-ambient::after { background: rgb(0 0 0 / .4); }
 
 /* ---------- Now Playing page without a frame ----------
    The page keeps its place, but its own backing (Music Glass's dark fill and still artwork slice) is
@@ -1047,7 +1048,7 @@ html.ytmls-am body > .ytmls-am-ambient::after { background: rgb(0 0 0 / .4); }
    so nothing shows through. */
 html.ytmls-am.ytmls-am ytmusic-player-page { background: transparent !important; }
 html.ytmls-am ytmusic-player-page > .music-glass-surface { visibility: hidden !important; }
-html.ytmls-am ytmusic-app-layout[player-page-open]:not([player-fullscreened]) :is(ytmusic-browse-response, ytmusic-search-page, ytmusic-app-layout > #content, ytmusic-app-layout > [slot="content"]) {
+html.ytmls-am ytmusic-app-layout[player-page-open]:not([player-fullscreened]) :is(ytmusic-browse-response, ytmusic-search-page, ytmusic-app-layout > #content, ytmusic-app-layout > [slot="content"]):not(ytmusic-player-page *) {
   visibility: hidden !important;
   transition: visibility 0s linear 360ms;
 }

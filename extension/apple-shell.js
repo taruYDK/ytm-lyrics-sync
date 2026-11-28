@@ -764,7 +764,6 @@
     const list = queuePanel.querySelector('.ytmls-queue-list');
     const scroll = list.scrollTop;
     list.replaceChildren();
-    let currentRow = null;
     if (queueView === 'next' && shown.length) {
       if (currentIndex >= 0) list.append(queueSectionHead('再生中', false));
     }
@@ -776,7 +775,7 @@
       row.type = 'button';
       row.className = 'ytmls-queue-row';
       row.setAttribute('role', 'listitem');
-      if (info.current) { row.classList.add('is-current'); row.setAttribute('aria-current', 'true'); currentRow = row; }
+      if (info.current) { row.classList.add('is-current'); row.setAttribute('aria-current', 'true'); }
       const art = document.createElement('img');
       art.className = 'ytmls-queue-art';
       art.alt = '';
@@ -1123,10 +1122,9 @@
     if (!options.ambient) { document.querySelectorAll('.ytmls-am-ambient').forEach(layer => layer.remove()); return; }
     const img = playerBar()?.querySelector('img.image, .thumbnail-image-wrapper img, img');
     const art = largeArtwork(img?.currentSrc || img?.src || '');
-    for (const host of ambientHosts()) {
-      if (art) placeAmbient(host, art);
-      else host.querySelectorAll(':scope > .ytmls-am-ambient').forEach(layer => layer.remove());
-    }
+    // No picture for a moment (while the next song loads): keep the last one instead of flashing.
+    if (!art) return;
+    for (const host of ambientHosts()) placeAmbient(host, art);
   }
 
   // ---------- Album and playlist pages: red 再生 / シャッフル capsules, like the Mac ----------
@@ -1178,8 +1176,10 @@
         return el;
       };
       box.append(
-        make('play', '再生', ICONS.play, () => { const before = trackState(); press(nativePlay, () => trackState() !== before); }),
-        make('shuffle', 'シャッフル', ICONS.shuffle, () => shuffleAlbum(albumHeader() || header, nativePlay)),
+        // The header's own button at the moment of the press (YouTube Music may replace it when it
+        // reuses the header for another album).
+        make('play', '再生', ICONS.play, () => { const native = albumHeader()?.querySelector('ytmusic-play-button-renderer') || nativePlay; const before = trackState(); press(native, () => trackState() !== before); }),
+        make('shuffle', 'シャッフル', ICONS.shuffle, () => { const current = albumHeader() || header; shuffleAlbum(current, current.querySelector('ytmusic-play-button-renderer') || nativePlay); }),
       );
       nativePlay.parentElement.insertBefore(box, nativePlay);
     }
@@ -1276,7 +1276,9 @@
     if (!active()) {
       root.classList.remove('ytmls-am', 'ytmls-am-compact', 'ytmls-am-no-side', 'ytmls-am-autohide', 'ytmls-am-side-peek');
       document.querySelectorAll('.ytmls-am-album-actions').forEach(box => box.remove());
-      document.querySelectorAll('.ytmls-am-ambient').forEach(layer => layer.remove());
+      // Only the browser's fullscreen (the fullscreen lyrics): keep its moving background.
+      if (settingsLoaded && wanted && extensionEnabled && document.fullscreenElement) updateAmbient();
+      else document.querySelectorAll('.ytmls-am-ambient').forEach(layer => layer.remove());
       fitPlayerPage();
       document.querySelectorAll('.ytmls-am-native-hidden').forEach(el => el.classList.remove('ytmls-am-native-hidden'));
       if (queuePanel && !queuePanel.hidden) toggleQueuePanel(false);
