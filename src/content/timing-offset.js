@@ -455,6 +455,9 @@
       host.appendChild(resyncButtonEl);
     }
 
+    // Only one of each: a copy left behind when the lyrics panel was rebuilt showed twice in the menu.
+    document.querySelectorAll('#ytmls-resync-button').forEach(el => { if (el !== resyncButtonEl) el.remove(); });
+
     if (!trackTimingButtonEl || !trackTimingButtonEl.isConnected) {
       const button = document.createElement('button');
       button.id = 'ytmls-track-offset-button';
@@ -480,6 +483,7 @@
     } else if (trackTimingButtonEl.parentElement !== host) {
       host.appendChild(trackTimingButtonEl);
     }
+    document.querySelectorAll('#ytmls-track-offset-button').forEach(el => { if (el !== trackTimingButtonEl) el.remove(); });
 
     ensureTrackTimingPopover();
     // tick()から300msごとに呼ばれるため、一覧DOMは変更せず現在値だけ更新する。
