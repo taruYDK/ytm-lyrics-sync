@@ -201,7 +201,7 @@
   // page-type renderer・タブ並びの4経路で現在タブを判定する。
   const AUTO_LYRICS_IDLE_DELAY_MS = 2000;
   // Mac-style screen: the Now Playing page is lyrics-first, so the lyrics come up sooner.
-  const AUTO_LYRICS_MAC_DELAY_MS = 1500;
+  const AUTO_LYRICS_MAC_DELAY_MS = 2500;
   const AUTO_LYRICS_RETRY_MS = 450;
 
   function isTabActive(tab) {
