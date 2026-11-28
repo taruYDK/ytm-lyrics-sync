@@ -1207,3 +1207,23 @@ html.ytmls-am :is(ytmusic-multi-select-menu-renderer, ytmusic-sort-filter-menu-r
 html.ytmls-am :is(ytmusic-multi-select-menu-renderer, ytmusic-sort-filter-menu-renderer) yt-icon { color: rgb(255 255 255 / .85) !important; }
 html.ytmls-am tp-yt-iron-dropdown:has(:is(ytmusic-multi-select-menu-renderer, ytmusic-sort-filter-menu-renderer)) :is(#contentWrapper, .dropdown-content) { background: transparent !important; border-radius: 14px; }
 html.ytmls-lyrics-motion-lightweight.ytmls-am :is(ytmusic-multi-select-menu-renderer, ytmusic-sort-filter-menu-renderer) { -webkit-backdrop-filter: none; backdrop-filter: none; background: #26262a !important; }
+/* Inside the menu every part of YouTube Music's own box goes clear (it drew a second dark box with
+   a border inside the glass); only the rows' pointer tint stays. The title, whatever YouTube Music
+   calls it, is small and quiet; rows are a little more compact. */
+html.ytmls-am :is(ytmusic-multi-select-menu-renderer, ytmusic-sort-filter-menu-renderer) *:not(yt-icon):not(svg):not(path) {
+  background-color: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+html.ytmls-am :is(ytmusic-multi-select-menu-renderer, ytmusic-sort-filter-menu-renderer) :is([id*="header" i], [class*="header" i], [id*="title" i], [class*="title" i]):not(:is(ytmusic-multi-select-menu-item-renderer, tp-yt-paper-item, [role="option"], [role="menuitem"], [role="menuitemradio"]) *):not(ytmusic-multi-select-menu-item-renderer) {
+  font-size: 12px !important; font-weight: 600 !important; color: rgb(255 255 255 / .55) !important;
+}
+html.ytmls-am :is(ytmusic-multi-select-menu-renderer, ytmusic-sort-filter-menu-renderer) :is([id*="header" i], [class*="header" i]):not(:is(ytmusic-multi-select-menu-item-renderer, tp-yt-paper-item) *) {
+  border-bottom: 1px solid rgb(255 255 255 / .08) !important;
+}
+html.ytmls-am :is(ytmusic-multi-select-menu-renderer, ytmusic-sort-filter-menu-renderer) :is(tp-yt-paper-item, [role="option"], [role="menuitem"], [role="menuitemradio"]) {
+  min-height: 36px !important; border-radius: 8px !important;
+}
+html.ytmls-am.ytmls-am :is(ytmusic-multi-select-menu-renderer, ytmusic-sort-filter-menu-renderer) :is(ytmusic-multi-select-menu-item-renderer, tp-yt-paper-item, [role="option"], [role="menuitem"], [role="menuitemradio"]):hover {
+  background-color: rgb(255 255 255 / .12) !important;
+}
