@@ -1,34 +1,69 @@
-/* Backup page in the same system-settings style as the popup. */
+/* Backup page in the same system-settings style as the popup (popup-readable.css + popup-apple.css):
+   the same header bar, big section titles outside, and grouped inset lists with the controls on the right. */
 :root {
-  --bg:#1c1c1e; --card:#2c2c2e; --control:#3a3a3c; --border:rgba(255,255,255,.08);
+  --bg:#1c1c1e; --card:#2c2c2e; --group:#2c2c2e; --control:#3a3a3c; --border:rgba(255,255,255,.07);
   --text:#f5f5f7; --sub:#98989d; --accent:#ff4f6d; --danger:#ff6b81; --separator:rgba(255,255,255,.09);
 }
 @media (prefers-color-scheme:light) {
-  :root { --bg:#f2f2f7; --card:#fff; --control:#e5e5ea; --border:rgba(0,0,0,.06); --text:#1c1c1e; --sub:#6c6c70; --accent:#e0244a; --danger:#d70f3c; --separator:rgba(60,60,67,.14); }
+  :root { --bg:#f2f2f7; --card:#fff; --group:#fff; --control:#e5e5ea; --border:rgba(0,0,0,.06); --text:#1c1c1e; --sub:#6c6c70; --accent:#e0244a; --danger:#d70f3c; --separator:rgba(60,60,67,.14); }
 }
-body { font-family: system-ui, "Segoe UI Variable Text", "Segoe UI", "Hiragino Sans", "Noto Sans JP", sans-serif; background:var(--bg); color:var(--text); -webkit-font-smoothing:antialiased; }
-h1 { font-size:26px; font-weight:700; letter-spacing:-.015em; }
-h2 { font-size:15px; font-weight:650; }
-.lead, p { color:var(--sub); }
-.card { border:0; border-radius:14px; background:var(--card); box-shadow:0 0 0 1px var(--border); padding:18px 20px; }
-.card.danger { box-shadow:0 0 0 1px color-mix(in srgb, var(--danger) 45%, transparent); }
-button { min-width:0; padding:9px 18px; border:0; border-radius:999px; background:var(--control); color:var(--text); font-weight:600; box-shadow:0 .5px 1px rgba(0,0,0,.2); }
+body { margin:0; padding:0; font-family: system-ui, "Segoe UI Variable Text", "Segoe UI", "Hiragino Sans", "Noto Sans JP", sans-serif; background:var(--bg); color:var(--text); -webkit-font-smoothing:antialiased; }
+
+/* Header: the popup's bar (title, then the app name in grey). */
+.header { position:sticky; top:0; z-index:5; display:flex; align-items:center; min-height:82px; margin:0; padding:16px max(22px, calc((100% - 580px) / 2)); box-sizing:border-box; border-bottom:1px solid var(--separator); }
+h1 { margin:0; font-size:19px; line-height:1.4; font-weight:700; letter-spacing:-.01em; }
+.header-meta { display:flex; align-items:center; gap:10px; margin-top:5px; }
+.header-meta > span { font-size:12px; color:var(--sub); }
+
+main.page-content { width:min(620px, 100%); margin:0 auto; padding:22px 20px 48px; box-sizing:border-box; }
+.lead { margin:0 0 22px; font-size:12.5px; line-height:1.7; color:var(--sub); }
+
+/* Sections: big title and description outside, the rows in one grouped list. */
+.section { margin:0; padding:0; border:0; background:transparent; }
+.section + .section { margin-top:28px; }
+.section-title { margin:0; font-size:22px; line-height:1.4; font-weight:700; letter-spacing:-.015em; color:var(--text); }
+.section-description { margin:4px 0 10px; font-size:12px; line-height:1.7; color:var(--sub); }
+.section.danger .section-title { color:var(--danger); }
+
+.settings-group { margin-top:10px; border-radius:12px; background:var(--group); overflow:hidden; box-shadow:0 0 0 1px var(--border); }
+.settings-group > .setting-row {
+  position:relative; display:flex; align-items:center; justify-content:space-between; gap:18px;
+  min-height:46px; margin:0; padding:11px 14px; box-sizing:border-box;
+}
+.settings-group > .setting-row + .setting-row::before { content:""; position:absolute; top:0; left:14px; right:0; height:1px; background:var(--separator); }
+.label-block { min-width:0; }
+.label { display:block; font-size:13.5px; line-height:1.5; font-weight:500; color:var(--text); }
+.hint { margin-top:2px; font-size:11.5px; line-height:1.55; color:var(--sub); }
+.setting-row > button, .setting-row > select, .setting-row > input[type=search] { flex:0 0 auto; }
+p.usage { margin:8px 14px 12px; }
+
+/* Controls: the popup's pop-up buttons and fields, and pill buttons. */
+#trackView { width:auto; min-width:200px; min-height:40px; padding:8px 12px; border:0; border-radius:10px; background:var(--control); color:var(--text); font-size:13px; box-shadow:0 .5px 1px rgba(0,0,0,.25); }
+#trackFilter { width:220px; min-height:40px; margin:0; padding:8px 12px; border:0; border-radius:10px; background:var(--control); color:var(--text); font:inherit; font-size:13px; }
+button { min-width:0; padding:7px 16px; border:0; border-radius:999px; background:var(--control); color:var(--text); font:600 13px/1.4 inherit; font-family:inherit; cursor:pointer; box-shadow:0 .5px 1px rgba(0,0,0,.2); }
 button:hover { filter:none; background:color-mix(in srgb, var(--text) 12%, var(--control)); }
 button.primary { background:var(--accent); color:#fff; }
 button.primary:hover { background:color-mix(in srgb, #fff 12%, var(--accent)); }
 button.danger { background:transparent; color:var(--danger); box-shadow:inset 0 0 0 1px var(--danger); }
 button.danger:not(:disabled):hover { background:color-mix(in srgb, var(--danger) 12%, transparent); }
-#trackFilter { border:0; border-radius:10px; background:var(--control); padding:9px 12px; }
-#trackView { border:0; border-radius:10px; background:var(--control); }
-.list-head { border-color:var(--separator); background:color-mix(in srgb, var(--text) 3%, transparent); }
+button:disabled { opacity:.5; cursor:default; }
+
+/* Saved songs: the header row and the list as one block under the grouped list. */
+.list-head { margin-top:0; border-color:var(--separator); background:color-mix(in srgb, var(--text) 3%, transparent); }
 #savedTracks { border-color:var(--separator); }
 .saved-track { border-bottom-color:var(--separator); }
 .track-open { border:0; background:var(--control); }
-.note { border-radius:12px; background:var(--card); box-shadow:0 0 0 1px var(--border); }
+.tools { margin-top:12px; }
+#status { margin-top:18px; }
+
 #trackView { --chevrons:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 16' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M3 6l3-3 3 3M3 10l3 3 3-3'/></svg>"); }
 @supports (appearance:base-select) {
   #trackView::picker-icon { content:""; width:10px; height:14px; background:var(--sub); -webkit-mask:var(--chevrons) center/contain no-repeat; mask:var(--chevrons) center/contain no-repeat; transform:none !important; }
 }
 @supports not (appearance:base-select) {
-  #trackView { -webkit-appearance:none; appearance:none; padding-right:28px; background-image:var(--chevrons); background-repeat:no-repeat; background-position:right 12px center; background-size:10px 14px; }
+  #trackView { -webkit-appearance:none; appearance:none; padding-right:28px; background-image:var(--chevrons); background-repeat:no-repeat; background-position:right 10px center; background-size:10px 14px; }
+}
+@media (max-width:560px) {
+  .settings-group > .setting-row { flex-wrap:wrap; }
+  #trackFilter, #trackView { width:100%; }
 }

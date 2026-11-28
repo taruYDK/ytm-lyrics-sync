@@ -111,7 +111,7 @@ input:disabled + .slider { opacity: .5; }
 }
 .data-button:not(:disabled):hover, button:not(.provider-move):not(.track-open):not(:disabled):hover { transform: scale(1.03); filter: brightness(1.1); }
 .data-button:not(:disabled):active, button:not(.provider-move):not(.track-open):not(:disabled):active { transform: scale(.97); transition-duration: .1s !important; }
-.card button:not(.primary):not(.danger):not(.track-open) {
+:is(.card, .settings-group, .tools) button:not(.primary):not(.danger):not(.track-open) {
   border: 1px solid transparent !important;
   background: linear-gradient(var(--glass-chip), var(--glass-chip)) padding-box, var(--glass-rim) border-box !important;
   box-shadow: var(--glass-inner), 0 2px 6px rgb(0 0 0 / .12) !important;

@@ -59,29 +59,42 @@
 <link rel="stylesheet" href="pages-glass.css">
 </head>
 <body>
-<main>
-  <h1>データ保護・管理</h1>
+<header class="header page-header">
+  <div class="header-copy"><h1>データ保護・管理</h1><div class="header-meta"><span>YT Music 歌詞シンクロ</span></div></div>
+</header>
+<main class="page-content">
   <p class="lead">設定と曲ごとの保存データ（補正・固定した歌詞・ローカル歌詞・歌詞の編集・表示設定など）をファイルに保存し、復元できます。歌詞のキャッシュや認証情報は含みません。</p>
 
-  <section class="card">
-    <h2>バックアップ</h2>
-    <p>設定と曲ごとの保存データを1つのファイルに書き出します。</p>
-    <button type="button" id="exportButton" class="primary">バックアップを書き出す</button>
+  <section class="section" aria-labelledby="backupHeading">
+    <h2 class="section-title" id="backupHeading">バックアップと復元</h2>
+    <p class="section-description">設定と曲ごとの保存データを、1つのファイルに書き出したり読み込んだりします。</p>
+    <div class="settings-group">
+      <div class="setting-row">
+        <div class="label-block"><div class="label">バックアップ</div><div class="hint">設定と曲ごとの保存データを1つのファイルに書き出します。</div></div>
+        <button type="button" id="exportButton" class="primary">バックアップを書き出す</button>
+      </div>
+      <div class="setting-row">
+        <div class="label-block"><div class="label">復元</div><div class="hint">書き出したファイルを読み込み、現在のデータを上書きします。</div></div>
+        <button type="button" id="importButton">バックアップを読み込む</button>
+        <input type="file" id="importFile" accept="application/json,.json" />
+      </div>
+    </div>
   </section>
 
-  <section class="card">
-    <h2>復元</h2>
-    <p>書き出したファイルを読み込み、現在のデータを上書きします。</p>
-    <button type="button" id="importButton">バックアップを読み込む</button>
-    <input type="file" id="importFile" accept="application/json,.json" />
-  </section>
-
-  <section class="card" id="dataManager">
-    <h2>保存した曲</h2>
-    <p>固定した歌詞はお気に入りとして表示します。並び順は保存・編集した順です（再生履歴ではありません）。</p>
-    <label class="track-view-field">表示する曲<select id="trackView"><option value="recent">最近保存・編集した曲</option><option value="pinned">お気に入り（固定した曲）</option><option value="name">すべて・曲名順</option></select></label>
-    <p id="storageUsage" role="status">使用量を確認中…</p>
-    <label>曲名・アーティスト・曲IDで検索 <input type="search" id="trackFilter" /></label>
+  <section class="section" id="dataManager" aria-labelledby="savedHeading">
+    <h2 class="section-title" id="savedHeading">保存した曲</h2>
+    <p class="section-description">固定した歌詞はお気に入りとして表示します。並び順は保存・編集した順です（再生履歴ではありません）。</p>
+    <div class="settings-group">
+      <div class="setting-row">
+        <div class="label-block"><label class="label" for="trackView">表示する曲</label></div>
+        <select id="trackView"><option value="recent">最近保存・編集した曲</option><option value="pinned">お気に入り（固定した曲）</option><option value="name">すべて・曲名順</option></select>
+      </div>
+      <div class="setting-row search-row">
+        <div class="label-block"><label class="label" for="trackFilter">検索</label><div class="hint">曲名・アーティスト・曲IDで絞り込み</div></div>
+        <input type="search" id="trackFilter" placeholder="検索" />
+      </div>
+    </div>
+    <p id="storageUsage" class="hint usage" role="status">使用量を確認中…</p>
     <div class="list-head">
       <label class="select-all"><input type="checkbox" id="selectAllTracks"> 表示中の曲をすべて選択</label>
       <span class="list-meta"><span id="listSelectionCount"></span><span id="visibleTrackCount"></span></span>
@@ -93,13 +106,16 @@
     </div>
   </section>
 
-  <section class="card danger" aria-labelledby="deleteHeading">
-    <h2 id="deleteHeading">選択した曲のデータを削除</h2>
-    <p>上の一覧でチェックした曲の、補正・歌詞の編集・固定歌詞・ローカル歌詞・手動検索条件・手動ふりがな・曲別表示設定を削除します。元に戻すにはバックアップが必要です。</p>
-    <p id="selectionCount" aria-live="polite">0曲選択</p>
-    <button type="button" id="deleteTracks" class="danger" disabled>選択した曲のデータを削除</button>
+  <section class="section danger" aria-labelledby="deleteHeading">
+    <h2 class="section-title" id="deleteHeading">選択した曲のデータを削除</h2>
+    <p class="section-description">上の一覧でチェックした曲の、補正・歌詞の編集・固定歌詞・ローカル歌詞・手動検索条件・手動ふりがな・曲別表示設定を削除します。元に戻すにはバックアップが必要です。</p>
+    <div class="settings-group">
+      <div class="setting-row">
+        <div class="label-block"><div class="label" id="selectionCount" aria-live="polite">0曲選択</div><div class="hint">削除・復元の後は、開いているYouTube Musicのタブを再読み込みしてください。</div></div>
+        <button type="button" id="deleteTracks" class="danger" disabled>選択した曲のデータを削除</button>
+      </div>
+    </div>
   </section>
-  <div class="note">削除・復元の後は、開いているYouTube Musicのタブを再読み込みしてください。</div>
   <div id="status" role="status" aria-live="polite"></div>
 <p id="backupReminder" role="status" hidden></p>
 </main>
