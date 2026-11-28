@@ -40,6 +40,7 @@
     // Repeat one: the same arrows with a small 1 in the middle, like Apple Music.
     repeatOne: svg('<path d="M4.5 11V9.5a2.5 2.5 0 0 1 2.5-2.5h12.5M17 4.5 19.5 7 17 9.5M19.5 13v1.5A2.5 2.5 0 0 1 17 17H4.5M7 19.5 4.5 17 7 14.5"/><path d="M10.9 10.5 12.5 9.3V14.7" stroke-width="1.8"/>'),
     lyrics: svg('<path d="M5 5.5h14a1.5 1.5 0 0 1 1.5 1.5v8.5A1.5 1.5 0 0 1 19 17h-8l-4.5 3.5V17H5a1.5 1.5 0 0 1-1.5-1.5V7A1.5 1.5 0 0 1 5 5.5z"/><path d="M8.5 10h1M8.5 12.8h1M12 10h3.5M12 12.8h3.5"/>'),
+    collapse: svg('<path d="m6 9.5 6 6 6-6"/>'),
     queue: svg('<path d="M4.5 6.5h15M4.5 11h15M4.5 15.5h8"/><path d="m15.5 14 4 2.5-4 2.5z"/>'),
     note: svg('<path d="M9 18V6.5l10-2V16"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="16.5" cy="16" r="2.5"/>'),
     star: svg('<path d="M12 3.8 14.5 9l5.7.6-4.3 3.9 1.2 5.7L12 16.3l-5.1 2.9 1.2-5.7-4.3-3.9L9.5 9z"/>'),
@@ -963,7 +964,10 @@
       button('next', '次へ', 'next', transport.next),
       button('repeat', 'リピート', 'repeat', transport.repeat),
     );
-    left.append(menu, controls);
+    // While the Now Playing page is open the sidebar steps away (like the Mac's full screen player);
+    // this chevron closes the page again (as do Esc and the now-playing display).
+    const collapse = button('collapse', '再生中の画面を閉じる（Esc）', 'collapse', closePlayerPage);
+    left.append(collapse, menu, controls);
 
     const lcd = document.createElement('div');
     lcd.className = 'ytmls-am-lcd is-empty';
@@ -1175,11 +1179,59 @@
     nativePlay.classList.add('ytmls-am-native-hidden');
   }
 
+  // ---------- Now Playing page across the whole window (the sidebar steps away) ----------
+  // YouTube Music starts the page at its side menu's right edge, so a wider menu made the page, and
+  // the artwork sized to it, smaller. Here the page is pulled back to the window's left edge and
+  // given the window's width while it is open; the sidebar slides away meanwhile (CSS). The shift
+  // stays until the closing motion is over, so the page shrinks away in place.
+  function layoutLeft(el) {
+    let x = 0;
+    for (let node = el; node; node = node.offsetParent) x += node.offsetLeft || 0;
+    return x;
+  }
+  let pageFitTimer = 0;
+  function fitPlayerPage() {
+    const layout = layoutEl();
+    const page = layout?.querySelector(':scope > ytmusic-player-page');
+    if (!page) return;
+    const open = active() && root.classList.contains('ytmls-am') && layout.hasAttribute('player-page-open') && !layout.hasAttribute('player-fullscreened');
+    clearTimeout(pageFitTimer);
+    root.classList.toggle('ytmls-am-page-open', open);
+    if (!open) {
+      const clear = () => { page.style.removeProperty('--ytmls-am-page-shift'); page.style.removeProperty('--ytmls-am-page-width'); };
+      if (!active() || !root.classList.contains('ytmls-am')) { clear(); return; }
+      if (page.style.getPropertyValue('--ytmls-am-page-shift')) {
+        pageFitTimer = setTimeout(() => {
+          if (layout.hasAttribute('player-page-open')) return;
+          page.style.removeProperty('--ytmls-am-page-shift');
+          page.style.removeProperty('--ytmls-am-page-width');
+        }, 340);
+      }
+      return;
+    }
+    const shift = parseFloat(page.style.getPropertyValue('--ytmls-am-page-shift')) || 0;
+    const next = Math.max(0, shift + layoutLeft(page));
+    if (Math.abs(next - shift) > .5) page.style.setProperty('--ytmls-am-page-shift', `${Math.round(next)}px`);
+    const width = `${document.documentElement.clientWidth}px`;
+    if (page.style.getPropertyValue('--ytmls-am-page-width') !== width) page.style.setProperty('--ytmls-am-page-width', width);
+  }
+  let pageObserver = null, observedLayout = null;
+  function watchPlayerPage() {
+    const layout = layoutEl();
+    if (!layout || layout === observedLayout || typeof MutationObserver === 'undefined') return;
+    pageObserver?.disconnect();
+    observedLayout = layout;
+    // Before the page is drawn open (a mutation callback runs ahead of the next paint).
+    pageObserver = new MutationObserver(fitPlayerPage);
+    pageObserver.observe(layout, {attributes: true, attributeFilter: ['player-page-open', 'player-fullscreened']});
+  }
+
   function refresh() {
     if (!active()) {
       root.classList.remove('ytmls-am', 'ytmls-am-compact', 'ytmls-am-no-side');
       document.querySelectorAll('.ytmls-am-album-actions').forEach(box => box.remove());
       document.querySelectorAll('.ytmls-am-ambient').forEach(layer => layer.remove());
+      fitPlayerPage();
       document.querySelectorAll('.ytmls-am-native-hidden').forEach(el => el.classList.remove('ytmls-am-native-hidden'));
       if (queuePanel && !queuePanel.hidden) toggleQueuePanel(false);
       return;
@@ -1221,6 +1273,8 @@
     updateNowPlaying();
     updateAmbient();
     ensureAlbumActions();
+    watchPlayerPage();
+    fitPlayerPage();
     updatePlayState();
   }
 

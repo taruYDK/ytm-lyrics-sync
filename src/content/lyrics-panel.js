@@ -1026,6 +1026,7 @@
         `cardShelf=${count("ytmusic-card-shelf-renderer")}`,
         `autoplay=${(() => { const t = [...document.querySelectorAll('ytmusic-player-page tp-yt-paper-toggle-button, ytmusic-player-page [role="switch"]')]; return t.length ? `${t.length}:${t.map(x => (x.hasAttribute('checked') || x.getAttribute('aria-pressed') === 'true') ? 'on' : 'off').join('/')}` : 'none'; })()}`,
         `albumPills=${document.querySelectorAll('.ytmls-am-album-actions').length}`,
+        `page=${(() => { const pg = document.querySelector('ytmusic-app-layout > ytmusic-player-page'); if (!pg) return 'none'; const cs = getComputedStyle(pg), r = pg.getBoundingClientRect(); return `[${cs.position} left:${cs.left} ml:${cs.marginLeft} pl:${cs.paddingLeft} x:${Math.round(r.left)} w:${Math.round(r.width)} shift:${pg.style.getPropertyValue('--ytmls-am-page-shift') || '-'}]`; })()}`,
         `menu=${menu ? `${menu.parentElement?.localName || "-"} items:${[...new Set([...menu.querySelectorAll("[class], *")].map(el => el.localName).filter(n => /^ytmusic-.*item/.test(n)))].join("/")}` : "closed"}`,
       ].join(" ");
     } catch (_) {
