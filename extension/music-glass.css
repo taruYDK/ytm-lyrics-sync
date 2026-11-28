@@ -191,6 +191,18 @@ html.music-glass {
   border-radius: 10px;
   transition: background-color .16s ease;
 }
+/* YouTube Music draws a 1px divider under each queue row; with the rounded
+   rows it showed up as a faint, curled half-line. Rows already separate by
+   hover/selected tint, so drop the divider entirely. */
+.music-glass ytmusic-player-queue-item,
+.music-glass ytmusic-player-queue-item > *,
+html.ytmls-am ytmusic-player-queue-item,
+html.ytmls-am ytmusic-player-queue-item > *,
+.music-glass ytmusic-playlist-panel-video-wrapper-renderer,
+html.ytmls-am ytmusic-playlist-panel-video-wrapper-renderer {
+  border-top: 0 !important;
+  border-bottom: 0 !important;
+}
 .music-glass ytmusic-responsive-list-item-renderer:hover,
 .music-glass ytmusic-responsive-list-item-renderer:focus-within,
 .music-glass ytmusic-player-queue-item:hover,
