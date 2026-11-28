@@ -330,4 +330,7 @@ test('Now Playing page spans the window; the sidebar steps away and its button s
   assert.match(css, /ytmusic-player-page\[style\*="--ytmls-am-page-shift"\] \{\s*margin-left: calc\(-1 \* var\(--ytmls-am-page-shift, 0px\)\) !important;/);
   assert.match(css, /:not\(\.ytmls-am-side-peek\) \.ytmls-am-sidebar \{\s*transform: translateX/, 'steps away unless shown over the page');
   assert.match(js, /button\('collapse', 'サイドバーを表示', 'sidebar', \(\) => toggleSidePeek\(\)\)/, 'shows the sidebar instead of closing the page');
+  assert.match(js, /edge\.addEventListener\('pointerenter'/, 'the window\'s left edge shows it too');
+  assert.match(css, /html\.ytmls-am\.ytmls-am-side-peek \.ytmls-am-sidebar \{ display: flex; width: 226px; \}/, 'always the wide sidebar when shown over the page');
+  assert.match(css, /html\.ytmls-am-compact:not\(\.ytmls-am-drawer-open\):not\(\.ytmls-am-side-peek\) \.ytmls-am-item-label/);
 });

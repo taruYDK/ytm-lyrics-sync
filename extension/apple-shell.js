@@ -948,6 +948,17 @@
     ui.sideToggle = sideToggle;
     sideHead.append(sideToggle);
     sidebar.append(sideHead, searchBox, searchToggle, ui.nav);
+    sidebar.addEventListener('pointerenter', () => clearTimeout(peekHideTimer));
+    sidebar.addEventListener('pointerleave', () => {
+      if (!peekByHover || !root.classList.contains('ytmls-am-side-peek')) return;
+      clearTimeout(peekHideTimer);
+      // Not while a search is being typed or one of its menus is open.
+      peekHideTimer = setTimeout(() => { if (peekByHover && !sidebar.contains(document.activeElement)) toggleSidePeek(false); }, 380);
+    });
+    const edge = document.createElement('div');
+    edge.className = 'ytmls-am-edge';
+    edge.setAttribute('aria-hidden', 'true');
+    edge.addEventListener('pointerenter', () => { if (root.classList.contains('ytmls-am-page-open') && !root.classList.contains('ytmls-am-side-peek')) toggleSidePeek(true, true); });
 
     // Toolbar
     const toolbar = document.createElement('div');
@@ -1022,7 +1033,7 @@
     const scrim = document.createElement('div');
     scrim.className = 'ytmls-am-scrim';
     scrim.addEventListener('click', closeDrawer);
-    shell.append(scrim, sidebar, toolbar);
+    shell.append(scrim, sidebar, toolbar, edge);
     document.body.append(shell);
     document.addEventListener('keydown', event => {
       if (event.key !== 'Escape') return;
@@ -1191,8 +1202,13 @@
   }
   // The sidebar shown over the open Now Playing page (until it is hidden again, the page closes or
   // something outside the sidebar is clicked).
-  function toggleSidePeek(force) {
+  // Also shown by moving the pointer to the window's left edge; one shown that way hides again when
+  // the pointer leaves it. Always in its wide form (labels), whatever the sidebar's width otherwise.
+  let peekByHover = false, peekHideTimer = 0;
+  function toggleSidePeek(force, byHover = false) {
     const on = typeof force === 'boolean' ? force : !root.classList.contains('ytmls-am-side-peek');
+    peekByHover = on && byHover;
+    clearTimeout(peekHideTimer);
     root.classList.toggle('ytmls-am-side-peek', on);
     const el = document.querySelector('#ytmls-am .ytmls-am-collapse');
     if (el) { const label = on ? 'サイドバーを隠す' : 'サイドバーを表示'; el.title = label; el.setAttribute('aria-label', label); el.setAttribute('aria-pressed', String(on)); }
