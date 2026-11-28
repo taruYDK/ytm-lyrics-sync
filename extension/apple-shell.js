@@ -243,7 +243,6 @@
       shuffleLearned.local = !wasOn;
       flashButton(ui.shuffle);
       syncShuffleRepeat();
-      showToast(wasOn ? 'シャッフル：オフ' : 'シャッフル：オン', wasOn ? '曲順を元に戻しました' : '曲順を並べ替えて再生します', '', 'シャッフル');
       setTimeout(() => {
         const after = shuffleSignature();
         if (after && after !== before) {
