@@ -477,7 +477,7 @@
   }
 
   function progressLoop(...args) {
-   const started = typeof performance === 'object' ? performance.now() : 0;
+   const started = globalThis.ytmlsPerfOn ? performance.now() : 0;
    try { return progressLoopMeasured(...args); } finally { if (started) globalThis.ytmlsPerfAdd?.('toolbar progress frames', performance.now() - started); }
   }
   function progressLoopMeasured() {
@@ -1200,7 +1200,7 @@
     ctx.fillRect(0, 0, width, height);
   }
   function ambientTick(...args) {
-   const started = typeof performance === 'object' ? performance.now() : 0;
+   const started = globalThis.ytmlsPerfOn ? performance.now() : 0;
    try { return ambientTickMeasured(...args); } finally { if (started) globalThis.ytmlsPerfAdd?.('moving background', performance.now() - started); }
   }
   function ambientTickMeasured() {
@@ -1430,7 +1430,7 @@
 
   let lastGuideNarrowAt = -Infinity;
   function refresh(...args) {
-   const started = typeof performance === 'object' ? performance.now() : 0;
+   const started = globalThis.ytmlsPerfOn ? performance.now() : 0;
    try { return refreshMeasured(...args); } finally { if (started) globalThis.ytmlsPerfAdd?.('Mac screen refresh (700ms)', performance.now() - started); }
   }
   function refreshMeasured() {

@@ -1,11 +1,11 @@
   // ---------- メイン ----------
   function tick(...args) {
-   const started = typeof performance === 'object' ? performance.now() : 0;
+   const started = globalThis.ytmlsPerfOn ? performance.now() : 0;
    try { return tickMeasured(...args); } finally { if (started) globalThis.ytmlsPerfAdd?.('content tick (300ms)', performance.now() - started); }
   }
   // Each step of the regular tick is timed for the diagnostics (Perf: own=[tick:…]).
   function tickPart(name, fn) {
-    const started = typeof performance === 'object' ? performance.now() : 0;
+    const started = globalThis.ytmlsPerfOn ? performance.now() : 0;
     try { return fn(); } finally { if (started) globalThis.ytmlsPerfAdd?.(`tick:${name}`, performance.now() - started); }
   }
   function tickMeasured() {

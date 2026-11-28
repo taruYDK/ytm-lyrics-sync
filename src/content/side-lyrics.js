@@ -113,7 +113,7 @@ function renderSideLyrics() {
  }
 }
 function followSideLyrics(...args) {
- const started = typeof performance === 'object' ? performance.now() : 0;
+ const started = globalThis.ytmlsPerfOn ? performance.now() : 0;
  try { return followSideLyricsMeasured(...args); } finally { if (started) globalThis.ytmlsPerfAdd?.('right lyrics panel frames', performance.now() - started); }
 }
 function followSideLyricsMeasured() {

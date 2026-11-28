@@ -303,7 +303,7 @@
     if (trackingRaf) return;
 
       const frame = () => {
-        const started = typeof performance === 'object' ? performance.now() : 0;
+        const started = globalThis.ytmlsPerfOn ? performance.now() : 0;
         try { trackingFrame(); } finally { if (started) globalThis.ytmlsPerfAdd?.('lyrics tracking frames', performance.now() - started); }
       };
       const trackingFrame = () => {

@@ -437,7 +437,10 @@ function readingTokensToRomaji(tokens) {
 // Chrome reports every animation frame that took longer than 50ms, with the scripts that ran in it
 // (which file and function) and the time spent on style and layout. The last 20 seconds are kept,
 // so "全体が重い" reports can say whether this extension, YouTube Music or the drawing is the cause.
+// Nothing is measured until 診断情報 is opened (perfProbeStart): normal playback pays nothing.
+// Chrome keeps the recent slow frames itself, so the first copy still shows them.
 const perfProbeFrames = [];
+globalThis.ytmlsPerfOn = false;
 // Time this extension's own regular work takes (per second over the last 20 seconds), measured
 // around each loop: apple-shell.js and the content script add to it through ytmlsPerfAdd.
 const perfProbeOwn = new Map();
@@ -458,7 +461,9 @@ function perfProbeOwnText() {
  }).filter(row => row[1] > 0).sort((a, b) => b[1] - a[1]);
  return `own=[${rows.map(([name, perSecond, max]) => `${name}: ${perSecond.toFixed(1)}ms/s max ${Math.round(max)}ms`).join(' ; ') || 'none'}]`;
 }
-(() => {
+function perfProbeStart() {
+ if (globalThis.ytmlsPerfOn) return;
+ globalThis.ytmlsPerfOn = true;
  if (typeof PerformanceObserver !== 'function') return;
  const keep = entry => {
   perfProbeFrames.push(entry);
@@ -469,7 +474,7 @@ function perfProbeOwnText() {
  catch (_) {
   try { new PerformanceObserver(list => list.getEntries().forEach(keep)).observe({type: 'longtask', buffered: true}); } catch (__) {}
  }
-})();
+}
 // Things that could pile up song after song (a report said it gets heavier after changing songs).
 function perfProbeCounts() {
  const q = selector => document.querySelectorAll(selector).length;
@@ -481,10 +486,11 @@ function perfProbeCounts() {
 const perfProbeSongs = new Set();
 // Songs played in this tab (one cheap look every few seconds), to compare the counts after several songs.
 setInterval(() => {
- if (document.hidden) return;
+ if (document.hidden || !globalThis.ytmlsPerfOn) return;
  try { const id = typeof getAuthoritativeVideoId === 'function' ? getAuthoritativeVideoId() : ''; if (id) perfProbeSongs.add(id); } catch (_) {}
 }, 4000);
 function perfProbeDiagnostics() {
+ if (!globalThis.ytmlsPerfOn) { perfProbeStart(); return `measuring=started (診断情報を開いたまま 20 秒ほど使ってからもう一度コピー) ${perfProbeFramesText()} ${perfProbeCounts()}`; }
  return `${perfProbeFramesText()} ${perfProbeOwnText()} ${perfProbeCounts()}`;
 }
 function perfProbeFramesText() {
@@ -1422,9 +1428,9 @@ function perfProbeFramesText() {
     STATE.lyricsAutoOpenLastClickAt = now;
     // Timed on its own in the diagnostics: the click makes YouTube Music build the lyrics tab
     // right away, which can be most of a slow moment after a song change.
-    const clickStarted = performance.now();
+    const clickStarted = globalThis.ytmlsPerfOn ? performance.now() : 0;
     clickLyricsTab(lyricsTab);
-    globalThis.ytmlsPerfAdd?.('auto-open: click to 歌詞', performance.now() - clickStarted);
+    if (clickStarted) globalThis.ytmlsPerfAdd?.('auto-open: click to 歌詞', performance.now() - clickStarted);
 
     setTimeout(() => {
       const latestLyricsTab = findLyricsTabButton();
@@ -2954,6 +2960,8 @@ function perfProbeFramesText() {
     diagnosticToggle.dataset.icon = "info";
     diagnosticDetails.append(diagnosticToggle, diagnosticsEl);
     storageGroup.append(diagnosticDetails);
+    // The Perf: timings only run while someone is looking at the diagnostics.
+    diagnosticDetails.addEventListener("toggle", () => { if (diagnosticDetails.open && typeof perfProbeStart === "function") perfProbeStart(); });
     more.addEventListener("toggle", () => {
       if (more.open) { fitMoreMenu(more, menu); if (typeof updateHelpfulUi === "function") updateHelpfulUi(); }
       else diagnosticDetails.open = false;
@@ -7561,7 +7569,7 @@ function perfProbeFramesText() {
     if (trackingRaf) return;
 
       const frame = () => {
-        const started = typeof performance === 'object' ? performance.now() : 0;
+        const started = globalThis.ytmlsPerfOn ? performance.now() : 0;
         try { trackingFrame(); } finally { if (started) globalThis.ytmlsPerfAdd?.('lyrics tracking frames', performance.now() - started); }
       };
       const trackingFrame = () => {
@@ -8697,7 +8705,7 @@ function renderSideLyrics() {
  }
 }
 function followSideLyrics(...args) {
- const started = typeof performance === 'object' ? performance.now() : 0;
+ const started = globalThis.ytmlsPerfOn ? performance.now() : 0;
  try { return followSideLyricsMeasured(...args); } finally { if (started) globalThis.ytmlsPerfAdd?.('right lyrics panel frames', performance.now() - started); }
 }
 function followSideLyricsMeasured() {
@@ -9272,7 +9280,7 @@ function attachGlassSegment(group, opts = {}) {
   placeLens(sx, sy, side);
  }
  function step(...args) {
-  const started = typeof performance === 'object' ? performance.now() : 0;
+  const started = globalThis.ytmlsPerfOn ? performance.now() : 0;
   try { return stepMeasured(...args); } finally { if (started) globalThis.ytmlsPerfAdd?.('glass bead frames', performance.now() - started); }
  }
  function stepMeasured(now) {
@@ -9805,12 +9813,12 @@ function ensureEnhancementControls(){
 // Feature: main.js
   // ---------- メイン ----------
   function tick(...args) {
-   const started = typeof performance === 'object' ? performance.now() : 0;
+   const started = globalThis.ytmlsPerfOn ? performance.now() : 0;
    try { return tickMeasured(...args); } finally { if (started) globalThis.ytmlsPerfAdd?.('content tick (300ms)', performance.now() - started); }
   }
   // Each step of the regular tick is timed for the diagnostics (Perf: own=[tick:…]).
   function tickPart(name, fn) {
-    const started = typeof performance === 'object' ? performance.now() : 0;
+    const started = globalThis.ytmlsPerfOn ? performance.now() : 0;
     try { return fn(); } finally { if (started) globalThis.ytmlsPerfAdd?.(`tick:${name}`, performance.now() - started); }
   }
   function tickMeasured() {

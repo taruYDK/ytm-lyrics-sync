@@ -160,7 +160,7 @@ function attachGlassSegment(group, opts = {}) {
   placeLens(sx, sy, side);
  }
  function step(...args) {
-  const started = typeof performance === 'object' ? performance.now() : 0;
+  const started = globalThis.ytmlsPerfOn ? performance.now() : 0;
   try { return stepMeasured(...args); } finally { if (started) globalThis.ytmlsPerfAdd?.('glass bead frames', performance.now() - started); }
  }
  function stepMeasured(now) {

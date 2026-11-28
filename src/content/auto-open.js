@@ -521,9 +521,9 @@
     STATE.lyricsAutoOpenLastClickAt = now;
     // Timed on its own in the diagnostics: the click makes YouTube Music build the lyrics tab
     // right away, which can be most of a slow moment after a song change.
-    const clickStarted = performance.now();
+    const clickStarted = globalThis.ytmlsPerfOn ? performance.now() : 0;
     clickLyricsTab(lyricsTab);
-    globalThis.ytmlsPerfAdd?.('auto-open: click to 歌詞', performance.now() - clickStarted);
+    if (clickStarted) globalThis.ytmlsPerfAdd?.('auto-open: click to 歌詞', performance.now() - clickStarted);
 
     setTimeout(() => {
       const latestLyricsTab = findLyricsTabButton();

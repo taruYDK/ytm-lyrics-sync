@@ -2,7 +2,10 @@
 // Chrome reports every animation frame that took longer than 50ms, with the scripts that ran in it
 // (which file and function) and the time spent on style and layout. The last 20 seconds are kept,
 // so "全体が重い" reports can say whether this extension, YouTube Music or the drawing is the cause.
+// Nothing is measured until 診断情報 is opened (perfProbeStart): normal playback pays nothing.
+// Chrome keeps the recent slow frames itself, so the first copy still shows them.
 const perfProbeFrames = [];
+globalThis.ytmlsPerfOn = false;
 // Time this extension's own regular work takes (per second over the last 20 seconds), measured
 // around each loop: apple-shell.js and the content script add to it through ytmlsPerfAdd.
 const perfProbeOwn = new Map();
@@ -23,7 +26,9 @@ function perfProbeOwnText() {
  }).filter(row => row[1] > 0).sort((a, b) => b[1] - a[1]);
  return `own=[${rows.map(([name, perSecond, max]) => `${name}: ${perSecond.toFixed(1)}ms/s max ${Math.round(max)}ms`).join(' ; ') || 'none'}]`;
 }
-(() => {
+function perfProbeStart() {
+ if (globalThis.ytmlsPerfOn) return;
+ globalThis.ytmlsPerfOn = true;
  if (typeof PerformanceObserver !== 'function') return;
  const keep = entry => {
   perfProbeFrames.push(entry);
@@ -34,7 +39,7 @@ function perfProbeOwnText() {
  catch (_) {
   try { new PerformanceObserver(list => list.getEntries().forEach(keep)).observe({type: 'longtask', buffered: true}); } catch (__) {}
  }
-})();
+}
 // Things that could pile up song after song (a report said it gets heavier after changing songs).
 function perfProbeCounts() {
  const q = selector => document.querySelectorAll(selector).length;
@@ -46,10 +51,11 @@ function perfProbeCounts() {
 const perfProbeSongs = new Set();
 // Songs played in this tab (one cheap look every few seconds), to compare the counts after several songs.
 setInterval(() => {
- if (document.hidden) return;
+ if (document.hidden || !globalThis.ytmlsPerfOn) return;
  try { const id = typeof getAuthoritativeVideoId === 'function' ? getAuthoritativeVideoId() : ''; if (id) perfProbeSongs.add(id); } catch (_) {}
 }, 4000);
 function perfProbeDiagnostics() {
+ if (!globalThis.ytmlsPerfOn) { perfProbeStart(); return `measuring=started (診断情報を開いたまま 20 秒ほど使ってからもう一度コピー) ${perfProbeFramesText()} ${perfProbeCounts()}`; }
  return `${perfProbeFramesText()} ${perfProbeOwnText()} ${perfProbeCounts()}`;
 }
 function perfProbeFramesText() {

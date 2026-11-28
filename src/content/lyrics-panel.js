@@ -1345,6 +1345,8 @@
     diagnosticToggle.dataset.icon = "info";
     diagnosticDetails.append(diagnosticToggle, diagnosticsEl);
     storageGroup.append(diagnosticDetails);
+    // The Perf: timings only run while someone is looking at the diagnostics.
+    diagnosticDetails.addEventListener("toggle", () => { if (diagnosticDetails.open && typeof perfProbeStart === "function") perfProbeStart(); });
     more.addEventListener("toggle", () => {
       if (more.open) { fitMoreMenu(more, menu); if (typeof updateHelpfulUi === "function") updateHelpfulUi(); }
       else diagnosticDetails.open = false;
