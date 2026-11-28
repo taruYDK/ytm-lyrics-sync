@@ -1346,7 +1346,7 @@
     diagnosticDetails.append(diagnosticToggle, diagnosticsEl);
     storageGroup.append(diagnosticDetails);
     more.addEventListener("toggle", () => {
-      if (more.open) fitMoreMenu(more, menu);
+      if (more.open) { fitMoreMenu(more, menu); if (typeof updateHelpfulUi === "function") updateHelpfulUi(); }
       else diagnosticDetails.open = false;
     });
     // Grow out of the button as soon as it opens (a mutation runs before the next paint).

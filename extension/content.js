@@ -2955,7 +2955,7 @@ function perfProbeFramesText() {
     diagnosticDetails.append(diagnosticToggle, diagnosticsEl);
     storageGroup.append(diagnosticDetails);
     more.addEventListener("toggle", () => {
-      if (more.open) fitMoreMenu(more, menu);
+      if (more.open) { fitMoreMenu(more, menu); if (typeof updateHelpfulUi === "function") updateHelpfulUi(); }
       else diagnosticDetails.open = false;
     });
     // Grow out of the button as soon as it opens (a mutation runs before the next paint).
@@ -8009,7 +8009,7 @@ function perfProbeFramesText() {
     const text = helpfulStatus();
     const badge = bar.querySelector('.ytmls-source-badge');
     const source = STATE.enabled && !STATE.contextInvalidated && STATE.hasLyricsResult ? STATE.source || '' : '';
-    badge.hidden = !source;
+    if (badge.hidden !== !source) badge.hidden = !source;
     if (badge.textContent !== source) badge.textContent = source;
     const badgeTitle = source && STATE.hasSync ? `${source}・${syncLevelShortLabel(STATE.syncLevel)}ごとに同期` : source;
     if (badge.title !== badgeTitle) badge.title = badgeTitle;
@@ -8019,11 +8019,13 @@ function perfProbeFramesText() {
     const browsing = Boolean(STATE.trackingEnabled && isManualScrollPaused());
     // Reading by manual scroll: other lines are shown unblurred.
     if (panelEl.dataset.browsing !== String(browsing)) panelEl.dataset.browsing = String(browsing);
-    bar.lastChild.hidden = !(STATE.enabled && STATE.trackingEnabled && STATE.hasSync && browsing);
+    const backHidden = !(STATE.enabled && STATE.trackingEnabled && STATE.hasSync && browsing);
+    if (bar.lastChild.hidden !== backHidden) bar.lastChild.hidden = backHidden;
     const more = lyricsToolsEl.querySelector('#ytmls-more');
     const menu = more?.querySelector('.ytmls-more-menu');
     if (menu) fitMoreMenu(more, menu);
-    if (menu) for (const button of menu.querySelectorAll('button')) updateHelpfulMenuHint(button);
+    // The hints matter only while the menu is open (it runs twice a second).
+    if (menu && more.open) for (const button of menu.querySelectorAll('button')) updateHelpfulMenuHint(button);
     if (helpfulTimer === null) helpfulTimer = setTimeout(() => { helpfulTimer = null; updateHelpfulUi(); }, 500);
   }
 
@@ -8037,7 +8039,7 @@ function perfProbeFramesText() {
     if (!hint?.classList.contains('ytmls-menu-hint')) {
       hint = document.createElement('small'); hint.className = 'ytmls-menu-hint'; button.after(hint);
     }
-    hint.hidden = !button.disabled;
+    if (hint.hidden !== !button.disabled) hint.hidden = !button.disabled;
     const reason = button.disabled ? button.title || '曲と歌詞の読み込み後に使用できます' : '';
     if (hint.textContent !== reason) hint.textContent = reason;
   }

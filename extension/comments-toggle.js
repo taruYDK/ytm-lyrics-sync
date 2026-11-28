@@ -27,8 +27,14 @@
     }
   }
 
+  // Walking the whole Now Playing page (thousands of parts) is done again only every few seconds,
+  // or at once when the page itself is replaced; the tabs are checked on every run (cheap).
+  let lastWalk = 0, walkedPage = null;
   function applyPanels() {
     const page = document.querySelector('ytmusic-player-page');
+    const now = Date.now();
+    if (page === walkedPage && now - lastWalk < 6000) return;
+    walkedPage = page; lastWalk = now;
     document.querySelectorAll(`.${PANEL_HIDDEN}`).forEach(el => { if (!hide || !page?.contains(el)) el.classList.remove(PANEL_HIDDEN); });
     if (!hide || !page) return;
     const walker = document.createTreeWalker(page, NodeFilter.SHOW_ELEMENT, {
@@ -51,7 +57,7 @@
 
   chrome.storage.local.get({hideYtmComments: true}, data => { hide = data.hideYtmComments !== false; loaded = true; apply(); });
   chrome.storage.onChanged.addListener((changes, area) => {
-    if (area === 'local' && changes.hideYtmComments) { hide = changes.hideYtmComments.newValue !== false; apply(); }
+    if (area === 'local' && changes.hideYtmComments) { hide = changes.hideYtmComments.newValue !== false; lastWalk = 0; apply(); }
   });
   setInterval(apply, 800);
   document.addEventListener('visibilitychange', apply);

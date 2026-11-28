@@ -97,8 +97,14 @@
     if (tabsOnly !== true) ensureAurora();
   }
   let tabsFrame = false;
-  document.addEventListener('scroll', () => {
+  document.addEventListener('scroll', event => {
     if (tabsFrame || !themeEnabled() || document.hidden || typeof requestAnimationFrame !== 'function') return;
+    // Only scrolling of a page that has these tabs matters. The lyrics scroll by themselves on every
+    // line while a song plays: measuring the tabs on each of those frames made the browser lay the
+    // page out every frame (the main reason playing felt heavier than paused).
+    const target = event.target?.nodeType === 1 ? event.target : null;
+    if (target?.closest?.('ytmusic-player-page, [id^="ytmls-"], ytmusic-player-bar')) return;
+    if (document.querySelector('ytmusic-app-layout[player-page-open]')) return;
     tabsFrame = true;
     requestAnimationFrame(() => { tabsFrame = false; paintSurfaces(true); });
   }, {capture:true, passive:true});
@@ -257,7 +263,8 @@
   }
   document.addEventListener('yt-navigate-finish', trimGuideAtPlayer);
   globalThis.addEventListener?.('resize', trimGuideAtPlayer);
-  setInterval(trimGuideAtPlayer, 2000);
+  // A fallback only (resize and page changes call it): each run measures the page.
+  setInterval(trimGuideAtPlayer, 10000);
   let watchedMenu;
   let menuObserver;
   function syncExpandedControls() {
@@ -278,7 +285,8 @@
     }
     root.classList.toggle('music-glass-controls-open', open);
   }
-  setInterval(syncExpandedControls, 1000);
+  // The menu's own attribute changes call it at once; this is only a fallback (it reads styles).
+  setInterval(syncExpandedControls, 5000);
   document.addEventListener('yt-navigate-finish', syncExpandedControls);
   function apply() {
     root.classList.toggle('music-glass', themeEnabled());
@@ -315,7 +323,9 @@
     document.addEventListener(type, blockArtworkActivation, true);
   }
   // A bounded check avoids observing every lyrics/list DOM mutation.
-  setInterval(() => { if (!document.hidden && settings.musicGlassArtwork) update(); }, 2000);
+  // The player bar's picture is watched (load events, src changes); this is only a fallback, and each
+  // run measures where the glass surfaces sit.
+  setInterval(() => { if (!document.hidden && settings.musicGlassArtwork) update(); }, 8000);
   document.addEventListener('visibilitychange', schedule);
   document.addEventListener('yt-navigate-finish', schedule);
 
