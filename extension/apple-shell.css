@@ -1176,3 +1176,34 @@ html.ytmls-lyrics-motion-lightweight.ytmls-am :is(ytmusic-browse-response, ytmus
 html.ytmls-am.ytmls-am-autohide .ytmls-am-side-toggle { display: none !important; }
 /* The banner is centred in the window (no sidebar column any more). */
 html.ytmls-am.ytmls-am-autohide .ytmls-am-toast { left: 50vw; }
+
+/* ---------- Sort menu (並べ替え) and other choice menus: the same glass as the song menus ----------
+   YouTube Music draws these with its multi-select menu (a title, then rows with a check). */
+html.ytmls-am :is(ytmusic-multi-select-menu-renderer, ytmusic-sort-filter-menu-renderer) {
+  border: 0 !important;
+  border-radius: 14px !important;
+  padding: 6px !important;
+  background: rgb(38 38 42 / .9) !important;
+  -webkit-backdrop-filter: blur(30px) saturate(170%);
+  backdrop-filter: blur(30px) saturate(170%);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / .1), 0 18px 48px rgb(0 0 0 / .42), 0 2px 8px rgb(0 0 0 / .2) !important;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", Roboto, sans-serif;
+  overflow: hidden;
+}
+html.ytmls-am :is(ytmusic-multi-select-menu-renderer, ytmusic-sort-filter-menu-renderer) :is(tp-yt-paper-listbox, #container, #items, .dropdown-content) { background: transparent !important; }
+/* The title (並べ替え): small and quiet, with a thin line under it. */
+html.ytmls-am :is(ytmusic-multi-select-menu-renderer, ytmusic-sort-filter-menu-renderer) :is(#header, #title, .title, yt-formatted-string#title):not(:is(ytmusic-multi-select-menu-item-renderer, tp-yt-paper-item) *) {
+  font-size: 12px !important; font-weight: 600 !important; color: rgb(255 255 255 / .55) !important;
+}
+html.ytmls-am :is(ytmusic-multi-select-menu-renderer, ytmusic-sort-filter-menu-renderer) #header { border-bottom: 1px solid rgb(255 255 255 / .08) !important; }
+/* Rows: rounded, a light tint under the pointer. */
+html.ytmls-am :is(ytmusic-multi-select-menu-renderer, ytmusic-sort-filter-menu-renderer) :is(ytmusic-multi-select-menu-item-renderer, tp-yt-paper-item, ytmusic-menu-service-item-renderer) {
+  border-radius: 8px !important;
+  background: transparent !important;
+  transition: background-color .12s;
+}
+html.ytmls-am :is(ytmusic-multi-select-menu-renderer, ytmusic-sort-filter-menu-renderer) :is(ytmusic-multi-select-menu-item-renderer, tp-yt-paper-item, ytmusic-menu-service-item-renderer):hover { background: rgb(255 255 255 / .12) !important; }
+html.ytmls-am :is(ytmusic-multi-select-menu-renderer, ytmusic-sort-filter-menu-renderer) :is(.text, yt-formatted-string) { font-size: 13.5px; font-weight: 500 !important; color: rgb(255 255 255 / .94) !important; }
+html.ytmls-am :is(ytmusic-multi-select-menu-renderer, ytmusic-sort-filter-menu-renderer) yt-icon { color: rgb(255 255 255 / .85) !important; }
+html.ytmls-am tp-yt-iron-dropdown:has(:is(ytmusic-multi-select-menu-renderer, ytmusic-sort-filter-menu-renderer)) :is(#contentWrapper, .dropdown-content) { background: transparent !important; border-radius: 14px; }
+html.ytmls-lyrics-motion-lightweight.ytmls-am :is(ytmusic-multi-select-menu-renderer, ytmusic-sort-filter-menu-renderer) { -webkit-backdrop-filter: none; backdrop-filter: none; background: #26262a !important; }
