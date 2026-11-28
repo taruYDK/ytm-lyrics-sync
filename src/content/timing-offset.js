@@ -653,6 +653,9 @@
       div.dataset.index = String(i);
       if (line.agent) div.dataset.agent = line.agent;
       if (line.dir) div.dir = line.dir;
+      // A line that is all in brackets (a chorus or an aside, e.g. "（いえーい）") is shown smaller
+      // and quieter in the Mac-style screen, like Apple Music's background vocals.
+      if (/^\s*[（(][^（()）]*[)）]\s*$/.test(String(line.text || ''))) div.classList.add("ytmls-aside-line");
 
       if (Array.isArray(line.words) && line.words.length) {
         div.classList.add("ytmls-rich-line");

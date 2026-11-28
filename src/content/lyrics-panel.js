@@ -1280,6 +1280,7 @@
     shareLyricsButtonEl.type = "button";
     shareLyricsButtonEl.className = "ytmls-tool-button";
     shareLyricsButtonEl.id = "ytmls-share-lyrics";
+    shareLyricsButtonEl.dataset.icon = "share";
     shareLyricsButtonEl.textContent = "歌詞を共有";
     shareLyricsButtonEl.title = "選んだ行を、ジャケットの色のカード画像にしてコピー・保存";
     shareLyricsButtonEl.addEventListener("click", () => { closeMoreMenu(more); openShareCard(); });

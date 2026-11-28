@@ -134,6 +134,7 @@ html.music-glass-hide-scrollbar #ytmls-more .ytmls-more-body { scrollbar-width: 
 #ytmls-more [data-icon="pencil"] { --lg-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 20l1.2-4.2L15.8 5.2a2 2 0 0 1 2.9 0l.1.1a2 2 0 0 1 0 2.9L8.2 18.8z'/%3E%3Cpath d='m14 7 3 3'/%3E%3C/svg%3E"); }
 #ytmls-more [data-icon="ruby"] { --lg-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 19l4.5-11L12 19M4.7 15h5.6'/%3E%3Cpath d='M14 19l3-7.5 3 7.5M15 16.8h4'/%3E%3C/svg%3E"); }
 #ytmls-more [data-icon="download"] { --lg-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 4v11M7.5 10.5 12 15l4.5-4.5M5 20h14'/%3E%3C/svg%3E"); }
+#ytmls-more [data-icon="share"] { --lg-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 15V4M8 7.5 12 3.5l4 4M6 11v7.5A1.5 1.5 0 0 0 7.5 20h9a1.5 1.5 0 0 0 1.5-1.5V11'/%3E%3C/svg%3E"); }
 #ytmls-more [data-icon="info"] { --lg-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='8.5'/%3E%3Cpath d='M12 11v5.5'/%3E%3Cpath d='M12 7.8v.1' stroke-width='2.4'/%3E%3C/svg%3E"); }
 
 /* They grow out of their button instead (glass-morph.js), so the older fade/scale-in animations are off. */
@@ -697,7 +698,9 @@ html.music-glass ytmusic-player-page ytmusic-av-toggle.ytmls-av-glass.ytmls-av-u
    tabs and capsules around it. Middle ground: the same glass, a little deeper (a soft dark tint
    under a strong blur, so the cover's colours still come through), light glass rows like the tabs,
    and the chosen row as brighter glass with a check, like the selected tab. */
-:root:not([data-ytmls-theme="light"]) #ytmls-panel #ytmls-tools-pane {
+/* The その他 menu, the timing popover and the reload notice use the same glass (the manual search,
+   edit and reading panes open in the same pane as the candidates). */
+:root:not([data-ytmls-theme="light"]) :is(#ytmls-panel #ytmls-tools-pane, #ytmls-more > .ytmls-more-menu, #ytmls-track-offset-popover, #ytmls-reload-notice) {
   /* No top sheen here: it brightened the heading area just where the title and note sit. */
   background: linear-gradient(rgb(16 14 18 / .52), rgb(16 14 18 / .52)) padding-box, var(--lg-rim) border-box !important;
   -webkit-backdrop-filter: blur(28px) saturate(170%) !important;
@@ -705,6 +708,8 @@ html.music-glass ytmusic-player-page ytmusic-av-toggle.ytmls-av-glass.ytmls-av-u
   text-shadow: 0 1px 2px rgb(0 0 0 / .35) !important;
 }
 :root:not([data-ytmls-theme="light"]) #ytmls-tools-pane .ytmls-tools-heading { color: #fff !important; font-size: 16px; font-weight: 700; }
+:root:not([data-ytmls-theme="light"]) :is(#ytmls-more > .ytmls-more-menu, #ytmls-track-offset-popover) .ytmls-menu-label { color: rgb(255 255 255 / .62) !important; }
+:root:not([data-ytmls-theme="light"]) :is(#ytmls-tools-pane, #ytmls-track-offset-popover) :is(.hint, .ytmls-local-message, p) { color: rgb(255 255 255 / .72); }
 :root:not([data-ytmls-theme="light"]) #ytmls-tools-pane .ytmls-recommendation-note { color: rgb(255 255 255 / .7) !important; }
 :root:not([data-ytmls-theme="light"]) #ytmls-tools-pane .ytmls-candidate-row {
   background: rgb(255 255 255 / .07) !important;
@@ -721,3 +726,5 @@ html.music-glass ytmusic-player-page ytmusic-av-toggle.ytmls-av-glass.ytmls-av-u
 :root:not([data-ytmls-theme="light"]) #ytmls-tools-pane .ytmls-candidate-item[data-active="true"] { background: transparent !important; box-shadow: none !important; }
 :root:not([data-ytmls-theme="light"]) #ytmls-panel #ytmls-tools-pane .ytmls-recommendation-badge { background: rgb(255 255 255 / .12) !important; color: #fff !important; }
 :root:not([data-ytmls-theme="light"]) #ytmls-tools-pane .ytmls-candidate-pin { color: #fff !important; }
+/* The その他 menu draws its rim with its own ring: only the tint here. */
+:root:not([data-ytmls-theme="light"]) #ytmls-more > .ytmls-more-menu.ytmls-more-menu { background: linear-gradient(rgb(16 14 18 / .52), rgb(16 14 18 / .52)) padding-box !important; }

@@ -334,3 +334,17 @@ test('Now Playing page spans the window; the sidebar steps away and its button s
   assert.match(css, /html\.ytmls-am\.ytmls-am-side-peek \.ytmls-am-sidebar \{ display: flex; width: 226px; \}/, 'always the wide sidebar when shown over the page');
   assert.match(css, /html\.ytmls-am-compact:not\(\.ytmls-am-drawer-open\):not\(\.ytmls-am-side-peek\) \.ytmls-am-item-label/);
 });
+
+test('popovers share the readable glass; library, lyrics and mini player get their Apple touches', () => {
+  const lg = read('liquid-glass.css'), css = read('apple-shell.css');
+  assert.match(lg, /:root:not\(\[data-ytmls-theme="light"\]\) :is\(#ytmls-panel #ytmls-tools-pane, #ytmls-more > \.ytmls-more-menu, #ytmls-track-offset-popover, #ytmls-reload-notice\) \{/);
+  assert.match(lg, /#ytmls-more \[data-icon="share"\]/);
+  assert.match(css, /ytmusic-browse-response:has\(ytmusic-chip-cloud-renderer\):not\(:has\(ytmusic-carousel-shelf-renderer\)\) ytmusic-chip-cloud-renderer #chips \{/, 'library chips as one segmented bar');
+  assert.match(css, /\.ytmls-line\.ytmls-aside-line \{ font-size: \.74em;/);
+  const offset = fs.readFileSync(new URL('../src/content/timing-offset.js', import.meta.url), 'utf8');
+  assert.match(offset, /div\.classList\.add\("ytmls-aside-line"\)/);
+  const side = fs.readFileSync(new URL('../src/content/side-lyrics.js', import.meta.url), 'utf8');
+  assert.match(side, /<div class="bg"><i><\/i><i><\/i><i><\/i><\/div>/, 'moving artwork background in the mini player');
+  assert.match(side, /add\('lyrics', '歌詞を隠す'/);
+  assert.match(side, /set\('\.remaining'/);
+});
