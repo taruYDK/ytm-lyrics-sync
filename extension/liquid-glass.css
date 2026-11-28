@@ -624,6 +624,11 @@ html.music-glass ytmusic-player #song-image :is(yt-img-shadow, #thumbnail, div, 
   background: transparent !important; background-color: transparent !important;
   box-shadow: none !important; border: 0 !important; outline: none !important;
 }
+/* In song mode the video's own holders sit behind the square artwork, wider than it: no fill. */
+html.music-glass ytmusic-player-page ytmusic-player:not([video-mode]) :is(#player, .html5-video-player, #movie_player, #song-video, .html5-video-container, .ytp-cued-thumbnail-overlay) {
+  background: transparent !important; background-color: transparent !important; box-shadow: none !important;
+}
+html.music-glass ytmusic-player-page ytmusic-player:not([video-mode]) .ytp-cued-thumbnail-overlay { display: none !important; }
 
 /* The tabs' glass bead can be dragged like the size control (glass-segment.js, .ytmls-tabs-glass).
    The bead is drawn by .ytmls-seg-thumb under the labels, so the chosen tab itself goes clear. */
