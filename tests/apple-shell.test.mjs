@@ -289,7 +289,7 @@ test('album, playlist, artist and search pages get Apple-style looks only in the
   // Opening Now Playing: scale and fade only, the background's drift rests meanwhile.
   const shellCss = fs.readFileSync(new URL('../extension/apple-shell.css', import.meta.url), 'utf8');
   assert.doesNotMatch(shellCss, /filter: blur\(8px\)/);
-  assert.match(shellCss, /html\.ytmls-am-page-moving \.ytmls-am-ambient-blobs canvas \{ animation-play-state: paused !important; \}/);
+  assert.match(fs.readFileSync(new URL('../extension/apple-shell.js', import.meta.url), 'utf8'), /const rest = document\.hidden \|\| root\.classList\.contains\('ytmls-am-page-moving'\);/);
   const shellJs = fs.readFileSync(new URL('../extension/apple-shell.js', import.meta.url), 'utf8');
   assert.match(shellJs, /if \(open !== root\.classList\.contains\('ytmls-am-page-open'\)\) markPageMoving\(\);/);
   assert.match(shellJs, /image\.decode\(\)/);
@@ -313,9 +313,12 @@ test('moving artwork background, Up Next history / autoplay, album capsules and 
   const js = read('apple-shell.js'), css = read('apple-shell.css');
   assert.match(js, /function updateAmbient\(\)/);
   assert.match(js, /function paintAmbientShape\(canvas, image/, 'each shape is blurred once per song into a canvas');
-  assert.match(css, /\.ytmls-am-ambient-blobs canvas \{[^}]*will-change: transform;[^}]*animation-timing-function: steps\(560\) !important;/, 'only transform moves, in small steps');
+  assert.match(js, /const AMBIENT_FPS = 12, AMBIENT_SCALE = \.25;/, 'one small canvas, about 12 frames a second');
+  assert.match(js, /ctx\.drawImage\(sprite, -size \/ 2, -size \/ 2, size, size\);/, 'the shapes are drawn together into it');
+  assert.match(css, /\.ytmls-am-ambient-canvas \{ position: absolute; inset: 0; width: 100%; height: 100%; display: block; \}/);
+  assert.doesNotMatch(css, /ytmls-am-ambient-blobs|\.ytmls-am-ambient::after/, 'no window-sized layer per shape, no separate veil layer');
   assert.doesNotMatch(css.replace(/\/\*[\s\S]*?\*\//g, ''), /\.ytmls-am-ambient[^{]*\{[^}]*filter:/, 'no live blur on the moving background');
-  assert.match(css, /html:is\(\.ytmls-lyrics-motion-lightweight, \.ytmls-extra-motion-disabled\) \.ytmls-am-ambient-blobs canvas \{ animation: none; \}/);
+  assert.match(js, /function ambientStill\(\) \{\s*return root\.classList\.contains\('ytmls-lyrics-motion-lightweight'\) \|\| root\.classList\.contains\('ytmls-extra-motion-disabled'\)/);
   assert.match(js, /data-view="history"/);
   assert.match(js, /function autoplayToggle\(\)/);
   assert.match(js, /index < currentIndex/, 'history is the songs before the playing one');

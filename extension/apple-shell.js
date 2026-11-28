@@ -1105,6 +1105,83 @@
     ctx.clearRect(0, 0, size, size);
     ctx.drawImage(soft, 0, 0);
   }
+  // The four shapes are drawn together into ONE small canvas (about a quarter of the window's size,
+  // stretched to fill it), about 12 times a second, with the veil baked in. Before, each shape was
+  // its own window-sized layer moved by CSS, and the four large layers plus the veil had to be
+  // blended for every frame the page drew (scrolling, lyrics moving): the main cost on a big screen.
+  // Shape: [left, top, size] in vw (from the window's left/top; W and H are the window's width and
+  // height in vw), the motion's end [x, y in vw, turn in degrees, scale from, scale to], seconds,
+  // starting reversed, opacity.
+  const AMBIENT_SHAPES = [
+    {at: (W, H) => [-15, -25, 100], to: [24, 14, 140, 1, 1.25], period: 46, reverse: false, alpha: 1},
+    {at: (W, H) => [W - 75, -10, 100], to: [-22, 19, -160, 1.1, .9], period: 58, reverse: false, alpha: 1},
+    {at: (W, H) => [5, H - 55, 100], to: [16, -24, 120, .95, 1.2], period: 52, reverse: false, alpha: 1},
+    {at: (W, H) => [W - 70, H - 50, 80], to: [24, 14, 140, 1, 1.25], period: 64, reverse: true, alpha: .8},
+  ];
+  const AMBIENT_FPS = 12, AMBIENT_SCALE = .25;
+  const ambientLayers = new Set();
+  let ambientTimer = 0;
+  function ambientStill() {
+    return root.classList.contains('ytmls-lyrics-motion-lightweight') || root.classList.contains('ytmls-extra-motion-disabled') ||
+      matchMedia('(prefers-reduced-motion: reduce)').matches;
+  }
+  function drawAmbient(layer, seconds) {
+    const canvas = layer.ambientCanvas, shapes = layer.ambientShapes;
+    if (!canvas || !shapes) return;
+    const rect = layer.getBoundingClientRect();
+    if (!rect.width || !rect.height) return;
+    const width = Math.max(64, Math.round(rect.width * AMBIENT_SCALE)), height = Math.max(36, Math.round(rect.height * AMBIENT_SCALE));
+    if (canvas.width !== width || canvas.height !== height) { canvas.width = width; canvas.height = height; }
+    const ctx = canvas.getContext('2d');
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, width, height);
+    const vw = width / 100, W = 100, H = height / vw;
+    AMBIENT_SHAPES.forEach((shape, index) => {
+      const sprite = shapes[index];
+      if (!sprite) return;
+      const cycle = seconds / shape.period;
+      let f = cycle - Math.floor(cycle);
+      if ((Math.floor(cycle) % 2 === 1) !== shape.reverse) f = 1 - f;
+      const [left, top, size0] = shape.at(W, H);
+      const size = Math.min(size0 * vw, 1800 * AMBIENT_SCALE);
+      const [dx, dy, turn, s0, s1] = shape.to;
+      ctx.save();
+      ctx.globalAlpha = shape.alpha;
+      ctx.translate((left + dx * f) * vw + size / 2, (top + dy * f) * vw + size / 2);
+      ctx.rotate(turn * f * Math.PI / 180);
+      const scale = s0 + (s1 - s0) * f;
+      ctx.scale(scale, scale);
+      ctx.drawImage(sprite, -size / 2, -size / 2, size, size);
+      ctx.restore();
+    });
+    // The veil that keeps lyrics and controls readable over bright covers.
+    ctx.fillStyle = `rgb(0 0 0 / ${layer.parentElement === document.body ? .4 : .28})`;
+    ctx.fillRect(0, 0, width, height);
+  }
+  function ambientTick() {
+    ambientTimer = 0;
+    for (const layer of ambientLayers) if (!layer.isConnected) ambientLayers.delete(layer);
+    if (!ambientLayers.size) return;
+    // Resting while the tab is hidden, and while the Now Playing page opens or closes.
+    const rest = document.hidden || root.classList.contains('ytmls-am-page-moving');
+    const still = ambientStill();
+    if (!rest) {
+      const seconds = still ? 0 : performance.now() / 1000;
+      // The window's own background is not drawn while the fullscreen lyrics cover it.
+      const covered = Boolean(document.getElementById('ytmls-fullscreen'));
+      for (const layer of ambientLayers) {
+        if (covered && layer.parentElement === document.body) continue;
+        if (!still || !layer.ambientDrawn) { drawAmbient(layer, seconds); layer.ambientDrawn = true; }
+      }
+    }
+    ambientTimer = setTimeout(() => requestAnimationFrame(ambientTick), still ? 1000 : 1000 / AMBIENT_FPS);
+  }
+  function startAmbient(layer) {
+    ambientLayers.add(layer);
+    layer.ambientDrawn = false;
+    if (!ambientTimer) ambientTick();
+  }
+  addEventListener('resize', () => { for (const layer of ambientLayers) layer.ambientDrawn = false; });
   function placeAmbient(host, art) {
     const layers = [...host.querySelectorAll(':scope > .ytmls-am-ambient')];
     const top = layers.at(-1);
@@ -1113,11 +1190,10 @@
     layer.className = 'ytmls-am-ambient';
     layer.setAttribute('aria-hidden', 'true');
     layer.dataset.art = art;
-    const blobs = document.createElement('div');
-    blobs.className = 'ytmls-am-ambient-blobs';
-    const shapes = AMBIENT_CROPS.map(() => document.createElement('canvas'));
-    blobs.append(...shapes);
-    layer.append(blobs);
+    const canvas = document.createElement('canvas');
+    canvas.className = 'ytmls-am-ambient-canvas';
+    layer.append(canvas);
+    layer.ambientCanvas = canvas;
     // Behind the page's content, above Music Glass's still backdrop (the same back layer).
     const after = top || host.querySelector(':scope > #music-glass-backdrop, :scope > .music-glass-surface, :scope > .ytmls-full-backdrop, :scope > .ytmls-full-aurora');
     host.insertBefore(layer, after ? after.nextSibling : host.firstChild);
@@ -1126,7 +1202,9 @@
       if (!layer.isConnected) return;
       // Not in the middle of the page opening or closing: wait for it to settle.
       if (root.classList.contains('ytmls-am-page-moving')) { setTimeout(paint, 250); return; }
-      shapes.forEach((canvas, index) => paintAmbientShape(canvas, image, AMBIENT_CROPS[index]));
+      layer.ambientShapes = AMBIENT_CROPS.map(crop => { const sprite = document.createElement('canvas'); paintAmbientShape(sprite, image, crop); return sprite; });
+      startAmbient(layer);
+      drawAmbient(layer, ambientStill() ? 0 : performance.now() / 1000);
       requestAnimationFrame(() => layer.classList.add('is-ready'));
     };
     const whenIdle = typeof requestIdleCallback === 'function' ? fn => requestIdleCallback(fn, {timeout: 600}) : fn => setTimeout(fn, 0);
@@ -1138,7 +1216,7 @@
     image.src = art;
     for (const old of layers) {
       old.classList.add('is-leaving');
-      setTimeout(() => old.remove(), 1400);
+      setTimeout(() => { old.remove(); ambientLayers.delete(old); }, 1400);
     }
   }
   function updateAmbient() {
