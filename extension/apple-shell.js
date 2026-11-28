@@ -1484,9 +1484,13 @@
     updateAmbient();
     ensureAlbumActions();
     watchPlayerPage();
-    fitPlayerPage();
+    // Only when something it depends on changed (the page opening or closing calls it through the
+    // observer): it reads positions, which made the browser lay the large page out every 700ms.
+    const fitKey = `${layoutEl()?.hasAttribute('player-page-open')}:${lastLayout}:${innerWidth}`;
+    if (fitKey !== lastFitKey) { lastFitKey = fitKey; fitPlayerPage(); }
     updatePlayState();
   }
+  let lastFitKey = '';
 
   let refreshQueued = false;
   function queueRefresh() {

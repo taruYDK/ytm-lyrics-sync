@@ -1110,6 +1110,13 @@ html.ytmls-am ytmusic-app-layout[player-page-open]:not([player-fullscreened]) :i
   visibility: hidden !important;
   transition: visibility 0s linear 360ms;
 }
+/* Once it is open and still, the pages behind are not drawn at all (content-visibility): an album
+   or home page there has thousands of parts whose styles and layout the browser otherwise kept
+   working out while the song played and the lyrics scrolled. Back the moment it starts to close. */
+html.ytmls-am.ytmls-am-page-open:not(.ytmls-am-page-moving) ytmusic-app-layout[player-page-open]:not([player-fullscreened]) > :is(#content, [slot="content"]):not(ytmusic-player-page):not(:has(ytmusic-player-page)),
+html.ytmls-am.ytmls-am-page-open:not(.ytmls-am-page-moving) ytmusic-app-layout[player-page-open]:not([player-fullscreened]) :is(ytmusic-browse-response, ytmusic-search-page):not(ytmusic-player-page *):not(:has(ytmusic-player-page)) {
+  content-visibility: hidden;
+}
 
 /* ---------- Now Playing page across the whole window ----------
    The page is moved back to the window's left edge with the window's width while it is open
