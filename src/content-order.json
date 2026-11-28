@@ -1,5 +1,6 @@
 [
   "state.js",
+  "perf-probe.js",
   "theme.js",
   "player-bridge.js",
   "settings.js",

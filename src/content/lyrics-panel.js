@@ -1003,6 +1003,7 @@
       `Player page layout: ${playerPageLayoutDiagnostics()}`,
       `Mac toolbar: ${macToolbarDiagnostics()}`,
       `Mac pages: ${macPagesDiagnostics()}`,
+      `Perf: ${typeof perfProbeDiagnostics === "function" ? perfProbeDiagnostics() : "n/a"}`,
     ].join("\n");
   }
 
