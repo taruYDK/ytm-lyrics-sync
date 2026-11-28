@@ -964,8 +964,8 @@
       button('next', '次へ', 'next', transport.next),
       button('repeat', 'リピート', 'repeat', transport.repeat),
     );
-    // While the Now Playing page is open the sidebar steps away (like the Mac's full screen player);
-    // this chevron closes the page again (as do Esc and the now-playing display).
+    // While the Now Playing page is open this chevron closes it again (as do Esc and the now-playing
+    // display); the sidebar floats over the page meanwhile.
     const collapse = button('collapse', '再生中の画面を閉じる（Esc）', 'collapse', closePlayerPage);
     left.append(collapse, menu, controls);
 
@@ -1179,10 +1179,10 @@
     nativePlay.classList.add('ytmls-am-native-hidden');
   }
 
-  // ---------- Now Playing page across the whole window (the sidebar steps away) ----------
+  // ---------- Now Playing page across the whole window (the sidebar floats over it) ----------
   // YouTube Music starts the page at its side menu's right edge, so a wider menu made the page, and
   // the artwork sized to it, smaller. Here the page is pulled back to the window's left edge and
-  // given the window's width while it is open; the sidebar slides away meanwhile (CSS). The shift
+  // given the window's width while it is open; the sidebar stays on top of it. The shift
   // stays until the closing motion is over, so the page shrinks away in place.
   function layoutLeft(el) {
     let x = 0;

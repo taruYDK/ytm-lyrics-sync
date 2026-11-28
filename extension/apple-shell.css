@@ -1052,24 +1052,16 @@ html.ytmls-am ytmusic-app-layout[player-page-open]:not([player-fullscreened]) :i
   transition: visibility 0s linear 360ms;
 }
 
-/* ---------- Now Playing page across the whole window; the sidebar steps away ----------
-   Like the Mac's full screen player: while the page is open the sidebar slides out to the left, the
-   toolbar runs from the window's edge, and the page is moved back to the left edge with the window's
-   width (apple-shell.js, fitPlayerPage), so the artwork no longer shrinks when the sidebar is wide. */
+/* ---------- Now Playing page across the whole window, the sidebar floating over it ----------
+   The page is moved back to the window's left edge with the window's width while it is open
+   (apple-shell.js, fitPlayerPage); the sidebar stays and floats on top of it, like the glass sidebar
+   of the newest macOS, so widening or narrowing it no longer changes the page or its artwork. */
 html.ytmls-am ytmusic-app-layout > ytmusic-player-page[style*="--ytmls-am-page-shift"] {
   margin-left: calc(-1 * var(--ytmls-am-page-shift, 0px)) !important;
   width: var(--ytmls-am-page-width, 100vw) !important;
   max-width: none !important;
 }
 .ytmls-am-sidebar { transition: width .42s cubic-bezier(.2, .9, .25, 1), padding .42s cubic-bezier(.2, .9, .25, 1), transform .42s cubic-bezier(.2, .9, .25, 1), opacity .3s ease; }
-html.ytmls-am:has(ytmusic-app-layout[player-page-open]:not([player-fullscreened])) .ytmls-am-sidebar {
-  transform: translateX(calc(-100% - 20px));
-  opacity: 0;
-  pointer-events: none;
-}
-html.ytmls-am:has(ytmusic-app-layout[player-page-open]:not([player-fullscreened])) .ytmls-am-toolbar { left: 0; }
-html.ytmls-am:has(ytmusic-app-layout[player-page-open]:not([player-fullscreened])) .ytmls-am-toolbar::before { inset: 0 0 -18px 0; }
-html.ytmls-am.ytmls-am-page-open .ytmls-am-menu { display: none !important; }
 /* The chevron that closes the page, at the toolbar's left end (only while the page is open). */
 .ytmls-am-collapse { display: none; }
 html.ytmls-am:has(ytmusic-app-layout[player-page-open]:not([player-fullscreened])) .ytmls-am-collapse {

@@ -323,11 +323,11 @@ test('lyrics share card: a menu entry, up to four lines, copy and save', () => {
   assert.match(fs.readFileSync(new URL('../src/content/lyrics-panel.js', import.meta.url), 'utf8'), /openShareCard\(\)/);
 });
 
-test('Now Playing page: the sidebar steps away and the page spans the window, like the Mac\'s full screen player', () => {
+test('Now Playing page spans the window under the floating sidebar, so its artwork keeps its size', () => {
   const js = read('apple-shell.js'), css = read('apple-shell.css');
   assert.match(js, /function fitPlayerPage\(\)/);
   assert.match(js, /attributeFilter: \['player-page-open', 'player-fullscreened'\]/, 'fitted before the page is drawn open');
   assert.match(css, /ytmusic-player-page\[style\*="--ytmls-am-page-shift"\] \{\s*margin-left: calc\(-1 \* var\(--ytmls-am-page-shift, 0px\)\) !important;/);
-  assert.match(css, /html\.ytmls-am:has\(ytmusic-app-layout\[player-page-open\]:not\(\[player-fullscreened\]\)\) \.ytmls-am-sidebar \{\s*transform: translateX/);
+  assert.doesNotMatch(css, /\[player-page-open\][^{]*\.ytmls-am-sidebar \{/, 'the sidebar stays (floating over the page)');
   assert.match(js, /button\('collapse', '再生中の画面を閉じる（Esc）', 'collapse', closePlayerPage\)/);
 });
