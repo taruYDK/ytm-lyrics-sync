@@ -284,6 +284,13 @@ test('album, playlist, artist and search pages get Apple-style looks only in the
   // Now Playing page: lyrics come up sooner in the Mac-style screen.
   const autoOpen = fs.readFileSync(new URL('../src/content/auto-open.js', import.meta.url), 'utf8');
   assert.match(autoOpen, /classList\.contains\('ytmls-am'\) \? AUTO_LYRICS_MAC_DELAY_MS : AUTO_LYRICS_IDLE_DELAY_MS/);
+  // Opening Now Playing: scale and fade only, the background's drift rests meanwhile.
+  const shellCss = fs.readFileSync(new URL('../extension/apple-shell.css', import.meta.url), 'utf8');
+  assert.doesNotMatch(shellCss, /filter: blur\(8px\)/);
+  assert.match(shellCss, /html\.ytmls-am-page-moving \.ytmls-am-ambient-blobs canvas \{ animation-play-state: paused !important; \}/);
+  const shellJs = fs.readFileSync(new URL('../extension/apple-shell.js', import.meta.url), 'utf8');
+  assert.match(shellJs, /if \(open !== root\.classList\.contains\('ytmls-am-page-open'\)\) markPageMoving\(\);/);
+  assert.match(shellJs, /image\.decode\(\)/);
   // Not while the glass bead on the tabs is held.
   assert.match(autoOpen, /querySelector\('\.ytmls-tabs-segment\[data-dragging\]'\)\) \{\s*STATE\.lastUserInteractionAt = now;\s*return;/);
   assert.match(fs.readFileSync(new URL('../src/content/lyrics-panel.js', import.meta.url), 'utf8'), /`headers=\$\{/);

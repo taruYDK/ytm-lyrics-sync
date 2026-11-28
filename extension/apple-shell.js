@@ -1107,10 +1107,18 @@
     const after = top || host.querySelector(':scope > #music-glass-backdrop, :scope > .music-glass-surface, :scope > .ytmls-full-backdrop, :scope > .ytmls-full-aurora');
     host.insertBefore(layer, after ? after.nextSibling : host.firstChild);
     const image = new Image();
-    image.onload = () => {
+    const paint = () => {
       if (!layer.isConnected) return;
+      // Not in the middle of the page opening or closing: wait for it to settle.
+      if (root.classList.contains('ytmls-am-page-moving')) { setTimeout(paint, 250); return; }
       shapes.forEach((canvas, index) => paintAmbientShape(canvas, image, AMBIENT_CROPS[index]));
       requestAnimationFrame(() => layer.classList.add('is-ready'));
+    };
+    const whenIdle = typeof requestIdleCallback === 'function' ? fn => requestIdleCallback(fn, {timeout: 600}) : fn => setTimeout(fn, 0);
+    image.onload = () => {
+      // The picture is decoded away from the page's thread before it is drawn.
+      const decoded = typeof image.decode === 'function' ? image.decode().catch(() => {}) : Promise.resolve();
+      decoded.then(() => whenIdle(paint));
     };
     image.src = art;
     for (const old of layers) {
@@ -1234,13 +1242,21 @@
     if (event.target?.closest?.('.ytmls-am-sidebar, ytmusic-menu-popup-renderer, tp-yt-iron-dropdown')) return;
     toggleSidePeek(false);
   }, true);
-  let pageFitTimer = 0;
+  let pageFitTimer = 0, pageMovingTimer = 0;
+  // While the Now Playing page opens or closes, the moving background's drift rests (and a new
+  // background waits to be drawn), so the motion has the machine to itself.
+  function markPageMoving() {
+    root.classList.add('ytmls-am-page-moving');
+    clearTimeout(pageMovingTimer);
+    pageMovingTimer = setTimeout(() => root.classList.remove('ytmls-am-page-moving'), 700);
+  }
   function fitPlayerPage() {
     const layout = layoutEl();
     const page = layout?.querySelector(':scope > ytmusic-player-page');
     if (!page) return;
     const open = active() && root.classList.contains('ytmls-am') && layout.hasAttribute('player-page-open') && !layout.hasAttribute('player-fullscreened');
     clearTimeout(pageFitTimer);
+    if (open !== root.classList.contains('ytmls-am-page-open')) markPageMoving();
     root.classList.toggle('ytmls-am-page-open', open);
     if (!open) {
       const clear = () => { page.style.removeProperty('--ytmls-am-page-shift'); page.style.removeProperty('--ytmls-am-page-width'); };

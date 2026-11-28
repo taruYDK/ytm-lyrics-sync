@@ -902,20 +902,19 @@ html.ytmls-am ytmusic-player-page #ytmls-panel .ytmls-line {
 html.ytmls-am.ytmls-am.ytmls-am ytmusic-app-layout:not([is-mweb-modernization-enabled]):not([player-fullscreened]) > ytmusic-player-page[slot="player-page"] {
   transform-origin: 50% 0 !important;
   transform: translateY(-18px) scale(.93) !important;
-  filter: blur(8px);
   clip-path: none !important;
+  will-change: transform;
   opacity: 0 !important;
   visibility: hidden !important;
   pointer-events: none !important;
-  transition: transform 300ms cubic-bezier(.45, 0, .55, 1), filter 260ms ease-in 40ms, opacity 170ms ease-in 120ms, visibility 0s linear 300ms !important;
+  transition: transform 300ms cubic-bezier(.45, 0, .55, 1), opacity 170ms ease-in 120ms, visibility 0s linear 300ms !important;
 }
 html.ytmls-am.ytmls-am.ytmls-am ytmusic-app-layout:not([is-mweb-modernization-enabled]):not([player-fullscreened])[player-page-open] > ytmusic-player-page[slot="player-page"] {
   transform: none !important;
-  filter: none;
   opacity: 1 !important;
   visibility: visible !important;
   pointer-events: auto !important;
-  transition: transform 420ms cubic-bezier(.2, .9, .25, 1), filter 260ms ease-out, opacity 200ms ease-out, visibility 0s !important;
+  transition: transform 420ms cubic-bezier(.2, .9, .25, 1), opacity 200ms ease-out, visibility 0s !important;
 }
 /* The artwork settles a beat after the page, like the Mac's Now Playing. */
 html.ytmls-am.ytmls-am.ytmls-am ytmusic-app-layout:not([player-fullscreened]) > ytmusic-player-page[slot="player-page"] #main-panel > ytmusic-player:not([video-mode]):not([player-ui-state="FULLSCREEN"]):not([player-ui-state="MINIPLAYER"]) {
@@ -930,8 +929,10 @@ html.ytmls-am.ytmls-am.ytmls-am.ytmls-depth-animation-disabled ytmusic-app-layou
 html.ytmls-am.ytmls-am.ytmls-am.ytmls-depth-animation-disabled ytmusic-app-layout > ytmusic-player-page[slot="player-page"] #main-panel > ytmusic-player,
 html.ytmls-am.ytmls-am.ytmls-am ytmusic-app-layout[no-animation] > ytmusic-player-page[slot="player-page"],
 html.ytmls-am.ytmls-am.ytmls-am ytmusic-app-layout[no-animation] > ytmusic-player-page[slot="player-page"] #main-panel > ytmusic-player { transition: none !important; }
-/* Lightweight mode: no blur while it moves. */
-html.ytmls-am.ytmls-am.ytmls-am.ytmls-lyrics-motion-lightweight ytmusic-app-layout > ytmusic-player-page[slot="player-page"] { filter: none !important; }
+/* While it opens or closes (apple-shell.js, markPageMoving): the background's drift rests for that
+   moment, and picks up again once the page has settled. The page
+   itself is only scaled and faded (no blur over the whole page, which had to be redrawn each frame). */
+html.ytmls-am-page-moving .ytmls-am-ambient-blobs canvas { animation-play-state: paused !important; }
 @media (prefers-reduced-motion: reduce) {
   html.ytmls-am.ytmls-am.ytmls-am ytmusic-app-layout > ytmusic-player-page[slot="player-page"],
   html.ytmls-am.ytmls-am.ytmls-am ytmusic-app-layout > ytmusic-player-page[slot="player-page"] #main-panel > ytmusic-player { transition: opacity 160ms ease !important; transform: none !important; }
