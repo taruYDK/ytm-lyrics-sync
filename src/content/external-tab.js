@@ -35,6 +35,7 @@
 
   function closeExternalLyrics() {
     externalLyricsOpen = false;
+    document.documentElement.classList.remove('ytmls-external-lyrics-open');
     if (externalLyricsHost) externalLyricsHost.hidden = true;
     restoreExternalBackdrop();
   }
@@ -42,6 +43,8 @@
   function openExternalLyrics() {
     if (!STATE.enabled || !externalLyricsButton || externalLyricsButton.hidden) return false;
     externalLyricsOpen = true;
+    // The tabs' glass bead marks this 歌詞 (YouTube Music's own lyrics tab stays unselectable).
+    document.documentElement.classList.add('ytmls-external-lyrics-open');
     ensureLyricsMount();
     checkTrackChange();
     return true;

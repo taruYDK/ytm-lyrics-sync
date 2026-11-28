@@ -728,3 +728,16 @@ html.music-glass ytmusic-player-page ytmusic-av-toggle.ytmls-av-glass.ytmls-av-u
 :root:not([data-ytmls-theme="light"]) #ytmls-tools-pane .ytmls-candidate-pin { color: #fff !important; }
 /* The その他 menu draws its rim with its own ring: only the tint here. */
 :root:not([data-ytmls-theme="light"]) #ytmls-more > .ytmls-more-menu.ytmls-more-menu { background: linear-gradient(rgb(16 14 18 / .52), rgb(16 14 18 / .52)) padding-box !important; }
+/* A song without YouTube Music lyrics: its 歌詞 tab is disabled and the extension puts its own 歌詞
+   button over it (external-tab.js). While that is open the bead belongs there: the button gets the
+   bead's glass (instead of an underline), and the bead on YouTube Music's still-selected tab goes. */
+html.music-glass.ytmls-external-lyrics-open .ytmls-tabs-segment > .ytmls-seg-thumb { opacity: 0 !important; }
+html.music-glass.ytmls-external-lyrics-open ytmusic-player-page tp-yt-paper-tabs.ytmls-tabs-glass tp-yt-paper-tab:is([aria-selected="true"], .iron-selected) { color: rgb(255 255 255 / .62) !important; }
+html.music-glass #ytmls-external-tab { border-radius: 999px; transition: background-color .2s ease, color .2s ease; }
+html.music-glass #ytmls-external-tab[aria-expanded="true"] {
+  border-bottom: 0 !important;
+  background: rgb(255 255 255 / .14) padding-box;
+  box-shadow: inset 0 -6px 10px -9px rgb(255 255 255 / .3), 0 3px 10px rgb(0 0 0 / .18);
+  color: #fff;
+}
+:root[data-ytmls-theme="light"].music-glass #ytmls-external-tab[aria-expanded="true"] { background: rgb(255 255 255 / .85); color: #111; }
