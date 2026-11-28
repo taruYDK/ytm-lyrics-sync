@@ -332,6 +332,7 @@ test('Now Playing page spans the window; the sidebar steps away and its button s
   assert.doesNotMatch(js, /button\('collapse'/, 'no sidebar button: the left edge shows it');
   assert.match(js, /document\.addEventListener\('pointermove', sidePeekPointer, \{passive: true\}\)/, 'the window\'s left edge shows it, by position');
   assert.doesNotMatch(js, /sidebar\.addEventListener\('pointerleave'/, 'no enter / leave flicker');
+  assert.doesNotMatch(js, /if \(!open && root\.classList\.contains\('ytmls-am-side-peek'\)\) toggleSidePeek\(false\)/, 'pages without the Now Playing page open do not hide it on every refresh');
   assert.match(css, /html\.ytmls-am\.ytmls-am-side-peek \.ytmls-am-sidebar \{ display: flex; width: 226px; \}/, 'always the wide sidebar when shown over the page');
   assert.match(css, /html\.ytmls-am-compact:not\(\.ytmls-am-drawer-open\):not\(\.ytmls-am-side-peek\) \.ytmls-am-item-label/);
 });

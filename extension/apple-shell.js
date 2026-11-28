@@ -1235,7 +1235,6 @@
     const open = active() && root.classList.contains('ytmls-am') && layout.hasAttribute('player-page-open') && !layout.hasAttribute('player-fullscreened');
     clearTimeout(pageFitTimer);
     root.classList.toggle('ytmls-am-page-open', open);
-    if (!open && root.classList.contains('ytmls-am-side-peek')) toggleSidePeek(false);
     if (!open) {
       const clear = () => { page.style.removeProperty('--ytmls-am-page-shift'); page.style.removeProperty('--ytmls-am-page-width'); };
       if (!active() || !root.classList.contains('ytmls-am')) { clear(); return; }
