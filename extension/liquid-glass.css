@@ -728,3 +728,7 @@ html.music-glass ytmusic-player-page ytmusic-av-toggle.ytmls-av-glass.ytmls-av-u
 :root:not([data-ytmls-theme="light"]) #ytmls-tools-pane .ytmls-candidate-pin { color: #fff !important; }
 /* The その他 menu draws its rim with its own ring: only the tint here. */
 :root:not([data-ytmls-theme="light"]) #ytmls-more > .ytmls-more-menu.ytmls-more-menu { background: linear-gradient(rgb(16 14 18 / .52), rgb(16 14 18 / .52)) padding-box !important; }
+/* The underline of the chosen tab, whatever YouTube Music draws it with: the bead shows the choice. */
+html.music-glass ytmusic-player-page tp-yt-paper-tabs :is(#selectionBar, [id*="selectionBar" i], [class*="selection-bar" i], [class*="selectionBar" i], [class*="tab-bar" i]) { display: none !important; }
+html.music-glass ytmusic-player-page tp-yt-paper-tab { border-bottom: 0 !important; }
+html.music-glass ytmusic-player-page tp-yt-paper-tab::after { display: none !important; }

@@ -9315,12 +9315,22 @@ function ytmPlayerControlShown(el) {
 function ensureYtmTabGlassSegment() {
  const root = document.documentElement;
  if (!root?.classList.contains('music-glass')) return null;
- const tabs = document.querySelector('ytmusic-player-page tp-yt-paper-tabs');
+ // YouTube Music can leave an old tab bar in the page next to a new one: use the one that shows.
+ const all = [...document.querySelectorAll('ytmusic-player-page tp-yt-paper-tabs')];
+ const tabs = all.find(el => typeof el.checkVisibility !== 'function' || el.checkVisibility()) || all[0];
  if (!tabs) return null;
  // The tabs sit in #tabsContent inside paper-tabs (the bead must share their offset parent).
  const first = tabs.querySelector('tp-yt-paper-tab');
  const group = first?.parentElement;
- if (!group || group.glassSegment) return group?.glassSegment || null;
+ if (group?.glassSegment) {
+  // A tab chosen without a change the observer sees (YouTube Music swapping a tab's node, or a
+  // switch while the page was hidden): bring the bead to the chosen tab on the regular tick.
+  const segment = group.glassSegment;
+  const chosen = [...group.children].find(el => el.localName === 'tp-yt-paper-tab' && !el.classList.contains('ytmls-tab-hidden') && ytmTabSelected(el));
+  if (chosen && !segment.state.dragging && segment.lastChosen !== chosen) { segment.lastChosen = chosen; segment.sync(); }
+  return segment;
+ }
+ if (!group) return null;
  tabs.classList.add('ytmls-tabs-glass');
  group.classList.add('ytmls-tabs-segment');
  return attachGlassSegment(group, {
