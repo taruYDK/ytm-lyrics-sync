@@ -780,6 +780,17 @@ html.ytmls-am ytmusic-menu-popup-renderer :is(ytmusic-menu-navigation-item-rende
 }
 html.ytmls-am ytmusic-menu-popup-renderer yt-icon { width: 18px !important; height: 18px !important; }
 html.ytmls-am ytmusic-menu-popup-renderer :is(.text, yt-formatted-string) { font-size: 13.5px !important; line-height: 1.3 !important; }
+/* YouTube Music focuses the list (and its first row) when the menu opens: that drew a square focus
+   ring around the menu and lit the first row before anything was chosen. No ring, no focus tint;
+   only the pointer (or keyboard focus, below) highlights a row. */
+html.ytmls-am ytmusic-menu-popup-renderer,
+html.ytmls-am ytmusic-menu-popup-renderer *,
+html.ytmls-am tp-yt-iron-dropdown:has(ytmusic-menu-popup-renderer) :is(#contentWrapper, .dropdown-content) { outline: none !important; }
+html.ytmls-am tp-yt-iron-dropdown:has(ytmusic-menu-popup-renderer) :is(#contentWrapper, .dropdown-content) { border: 0 !important; box-shadow: none !important; }
+html.ytmls-am ytmusic-menu-popup-renderer :is(tp-yt-paper-item, a, #navigation-endpoint):focus:not(:focus-visible) { background: transparent !important; }
+html.ytmls-am ytmusic-menu-popup-renderer tp-yt-paper-item::before { background: transparent !important; opacity: 0 !important; }
+html.ytmls-am ytmusic-menu-popup-renderer { box-shadow: 0 18px 48px rgb(0 0 0 / .42), 0 2px 8px rgb(0 0 0 / .2), inset 0 .5px 0 rgb(255 255 255 / .12) !important; }
+
 /* Finished like a Mac menu: snug rows, small dim icons, regular-weight text, and the row under the
    pointer filled with the accent colour (white text and icon), as the Mac highlights menu items. */
 html.ytmls-am ytmusic-menu-popup-renderer { padding: 5px !important; border-radius: 12px !important; --paper-item-min-height: 30px; }
@@ -792,10 +803,10 @@ html.ytmls-am ytmusic-menu-popup-renderer :is(ytmusic-menu-navigation-item-rende
 }
 html.ytmls-am ytmusic-menu-popup-renderer yt-icon { width: 16px !important; height: 16px !important; margin-right: 12px !important; color: rgb(255 255 255 / .62) !important; }
 html.ytmls-am ytmusic-menu-popup-renderer :is(.text, yt-formatted-string) { font-size: 13px !important; font-weight: 400 !important; letter-spacing: .01em; color: rgb(255 255 255 / .92) !important; }
-html.ytmls-am ytmusic-menu-popup-renderer :is(ytmusic-menu-navigation-item-renderer, ytmusic-menu-service-item-renderer, ytmusic-toggle-menu-service-item-renderer, ytmusic-menu-service-item-download-renderer):is(:hover, :focus-within) {
+html.ytmls-am ytmusic-menu-popup-renderer :is(ytmusic-menu-navigation-item-renderer, ytmusic-menu-service-item-renderer, ytmusic-toggle-menu-service-item-renderer, ytmusic-menu-service-item-download-renderer):is(:hover, :has(:focus-visible)) {
   background: var(--am-accent, #fa2d48) !important;
 }
-html.ytmls-am ytmusic-menu-popup-renderer :is(ytmusic-menu-navigation-item-renderer, ytmusic-menu-service-item-renderer, ytmusic-toggle-menu-service-item-renderer, ytmusic-menu-service-item-download-renderer):is(:hover, :focus-within) :is(.text, yt-formatted-string, yt-icon) {
+html.ytmls-am ytmusic-menu-popup-renderer :is(ytmusic-menu-navigation-item-renderer, ytmusic-menu-service-item-renderer, ytmusic-toggle-menu-service-item-renderer, ytmusic-menu-service-item-download-renderer):is(:hover, :has(:focus-visible)) :is(.text, yt-formatted-string, yt-icon) {
   color: #fff !important;
 }
 /* The play button on song artwork shows only under the pointer (or while that song plays), like the
