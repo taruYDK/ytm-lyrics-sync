@@ -1,0 +1,1306 @@
+/* Mac Music-style screen (apple-shell.js). Only active while html.ytmls-am is set. */
+#ytmls-am { display: none; }
+
+/* YouTube Music's own chrome keeps its space (so the page layout stays the same) but is not shown. */
+html.ytmls-am ytmusic-nav-bar,
+html.ytmls-am tp-yt-app-drawer#guide,
+html.ytmls-am #mini-guide,
+html.ytmls-am div#mini-col,
+html.ytmls-am ytmusic-guide-renderer#mini-guide-renderer,
+html.ytmls-am ytmusic-player-bar {
+  visibility: hidden !important;
+}
+/* A part inside them that sets its own visibility would still show and take clicks meant for the
+   toolbar above it: hide every descendant too, and let clicks pass through. */
+html.ytmls-am ytmusic-nav-bar *,
+html.ytmls-am tp-yt-app-drawer#guide *,
+html.ytmls-am #mini-guide *,
+html.ytmls-am div#mini-col *,
+html.ytmls-am ytmusic-player-bar * {
+  visibility: hidden !important;
+}
+html.ytmls-am ytmusic-nav-bar,
+html.ytmls-am tp-yt-app-drawer#guide,
+html.ytmls-am #mini-guide,
+html.ytmls-am div#mini-col,
+html.ytmls-am ytmusic-player-bar,
+html.ytmls-am ytmusic-nav-bar *,
+html.ytmls-am tp-yt-app-drawer#guide *,
+html.ytmls-am ytmusic-player-bar * {
+  pointer-events: none !important;
+}
+
+html.ytmls-am #ytmls-am {
+  --am-ink: 255 255 255;
+  --am-accent: #fa2d48;
+  --am-glass: rgb(40 40 44 / .58);
+  --am-glass-soft: rgb(255 255 255 / .08);
+  --am-hairline: inset 0 0 0 1px rgb(255 255 255 / .1);
+  --am-blur: blur(30px) saturate(170%);
+  display: block;
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  pointer-events: none;
+  color: rgb(var(--am-ink));
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Yu Gothic UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+#ytmls-am button { font: inherit; color: inherit; }
+#ytmls-am svg { display: block; width: 18px; height: 18px; }
+
+/* ---------- sidebar: a floating glass panel ---------- */
+.ytmls-am-sidebar {
+  position: fixed;
+  left: 8px;
+  top: 8px;
+  bottom: 8px;
+  width: calc(var(--ytmls-am-side, 240px) - 14px);
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 8px 10px;
+  border-radius: 18px;
+  background: var(--am-glass);
+  -webkit-backdrop-filter: var(--am-blur);
+  backdrop-filter: var(--am-blur);
+  box-shadow: var(--am-hairline), 0 10px 32px rgb(0 0 0 / .32);
+  clip-path: inset(0 round 18px);
+  pointer-events: auto;
+  z-index: 2; /* above the toolbar, so the narrow-window search field shows */
+}
+.ytmls-am-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 30px;
+  margin: 0 2px 6px;
+  border-radius: 9px;
+  background: var(--am-glass-soft);
+  box-shadow: var(--am-hairline);
+}
+.ytmls-am-search-icon { position: absolute; left: 8px; opacity: .55; pointer-events: none; }
+.ytmls-am-search-icon svg { width: 15px; height: 15px; }
+.ytmls-am-search input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  padding: 0 10px 0 29px;
+  border: 0;
+  outline: none;
+  background: none;
+  color: rgb(var(--am-ink));
+  font: inherit;
+  font-size: 13px;
+}
+.ytmls-am-search input::placeholder { color: rgb(var(--am-ink) / .45); }
+.ytmls-am-search:focus-within { box-shadow: inset 0 0 0 1px rgb(255 255 255 / .1), 0 0 0 3px rgb(250 45 72 / .45); }
+.ytmls-am-search input::-webkit-search-cancel-button { filter: invert(1); opacity: .5; }
+.ytmls-am-search-toggle { display: none !important; }
+
+.ytmls-am-nav {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: none;
+  margin: 0 -2px;
+  padding: 0 2px;
+}
+.ytmls-am-nav::-webkit-scrollbar { display: none; }
+.ytmls-am-group + .ytmls-am-group { margin-top: 14px; }
+.ytmls-am-heading {
+  padding: 0 10px 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: rgb(var(--am-ink) / .45);
+}
+.ytmls-am-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  height: 32px;
+  padding: 0 9px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+.ytmls-am-item:hover { background: rgb(255 255 255 / .06); }
+.ytmls-am-item.is-active { background: rgb(255 255 255 / .13); }
+.ytmls-am-item-icon { flex: none; color: var(--am-accent); }
+.ytmls-am-item-icon svg { width: 18px; height: 18px; }
+.ytmls-am-item-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: rgb(var(--am-ink) / .92);
+}
+
+/* Narrow window: an icon-only sidebar; search opens beside it. */
+html.ytmls-am-compact:not(.ytmls-am-drawer-open):not(.ytmls-am-side-peek) .ytmls-am-sidebar { padding: 12px 6px; overflow: visible; clip-path: none; }
+html.ytmls-am-compact:not(.ytmls-am-drawer-open):not(.ytmls-am-side-peek) .ytmls-am-item { justify-content: center; padding: 0; height: 40px; }
+html.ytmls-am-compact:not(.ytmls-am-drawer-open):not(.ytmls-am-side-peek) .ytmls-am-item-icon svg { width: 21px; height: 21px; }
+html.ytmls-am-compact:not(.ytmls-am-drawer-open):not(.ytmls-am-side-peek) .ytmls-am-item-label,
+html.ytmls-am-compact:not(.ytmls-am-drawer-open):not(.ytmls-am-side-peek) .ytmls-am-heading { display: none; }
+html.ytmls-am-compact:not(.ytmls-am-drawer-open):not(.ytmls-am-side-peek) .ytmls-am-group + .ytmls-am-group { margin-top: 6px; padding-top: 6px; box-shadow: inset 0 1px rgb(255 255 255 / .08); }
+html.ytmls-am-compact:not(.ytmls-am-drawer-open):not(.ytmls-am-side-peek) .ytmls-am-search-toggle { display: flex !important; }
+html.ytmls-am-compact:not(.ytmls-am-drawer-open):not(.ytmls-am-side-peek) .ytmls-am-search {
+  display: none;
+  position: absolute;
+  left: calc(100% + 8px);
+  top: 10px;
+  width: 260px;
+  height: 36px;
+  margin: 0;
+  /* Inside the sidebar's glass its own blur cannot see the page, so it is nearly solid. */
+  background: rgb(38 38 42 / .97);
+  -webkit-backdrop-filter: var(--am-blur);
+  backdrop-filter: var(--am-blur);
+  box-shadow: var(--am-hairline), 0 10px 30px rgb(0 0 0 / .35);
+}
+html.ytmls-am-compact:not(.ytmls-am-drawer-open):not(.ytmls-am-side-peek) .ytmls-am-search.is-open { display: flex; }
+
+/* Very narrow window: no sidebar space; the menu button opens it as a drawer. */
+html.ytmls-am-no-side .ytmls-am-sidebar { display: none; }
+html.ytmls-am-no-side.ytmls-am-drawer-open .ytmls-am-sidebar { display: flex; width: 250px; }
+.ytmls-am-scrim { display: none; }
+html.ytmls-am-drawer-open .ytmls-am-scrim { display: block; position: fixed; inset: 0; pointer-events: auto; background: rgb(0 0 0 / .25); }
+
+/* ---------- toolbar: playback, now playing, views ---------- */
+.ytmls-am-toolbar {
+  position: fixed;
+  top: 0;
+  left: var(--ytmls-am-side, 0px);
+  right: 0;
+  height: var(--ytmls-am-top, 64px);
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(240px, 600px) minmax(0, 1fr);
+  align-items: center;
+  gap: 14px;
+  padding: 0 16px 0 12px;
+  pointer-events: auto;
+  isolation: isolate;
+  z-index: 1;
+}
+/* The page scrolls under the toolbar: soften it like the Mac's scroll edge. */
+.ytmls-am-toolbar::before {
+  content: "";
+  position: absolute;
+  /* From the window's left edge (under the sidebar), so no strip shows between the two. */
+  inset: 0 0 -18px calc(-1 * var(--ytmls-am-side, 0px));
+  z-index: -1;
+  background: linear-gradient(rgb(0 0 0 / .42), rgb(0 0 0 / .18) 70%, transparent);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  -webkit-mask-image: linear-gradient(#000 60%, transparent);
+  mask-image: linear-gradient(#000 60%, transparent);
+  pointer-events: none;
+}
+/* While the Now Playing page is open the toolbar sits over the moving background, which is already
+   a soft blur: blurring it again made no visible difference but had to be redone for every frame
+   of a scroll or a slide (each capsule, the display and the strip). A touch more tint instead. The
+   sidebar, out of sight while it is hidden, does not blur either. */
+html.ytmls-am.ytmls-am-page-open :is(.ytmls-am-capsule, .ytmls-am-menu, .ytmls-am-account, .ytmls-am-lcd, .ytmls-am-volume, .ytmls-am-btn),
+html.ytmls-am.ytmls-am-page-open .ytmls-am-toolbar::before,
+html.ytmls-am.ytmls-am-autohide:not(.ytmls-am-side-peek) .ytmls-am-sidebar {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+html.ytmls-am.ytmls-am-page-open :is(.ytmls-am-capsule, .ytmls-am-menu, .ytmls-am-account) { background: rgb(255 255 255 / .1); }
+html.ytmls-am.ytmls-am-page-open .ytmls-am-lcd { background: rgb(255 255 255 / .09); }
+.ytmls-am-cluster { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.ytmls-am-left { justify-self: start; }
+.ytmls-am-right { justify-self: end; }
+.ytmls-am-capsule,
+.ytmls-am-menu,
+.ytmls-am-account {
+  background: var(--am-glass-soft);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  backdrop-filter: blur(20px) saturate(160%);
+  box-shadow: var(--am-hairline), 0 4px 16px rgb(0 0 0 / .22);
+}
+.ytmls-am-capsule {
+  display: flex;
+  align-items: center;
+  height: 40px;
+  padding: 0 4px;
+  border-radius: 999px;
+  clip-path: inset(0 round 999px);
+}
+.ytmls-am-btn {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: rgb(var(--am-ink) / .88) !important;
+  cursor: pointer;
+  transition: background-color .15s, transform .12s;
+}
+.ytmls-am-btn:hover { background: rgb(255 255 255 / .1); }
+.ytmls-am-btn:active { transform: scale(.92); }
+.ytmls-am-btn[hidden] { display: none; }
+.ytmls-am-play svg { width: 22px; height: 22px; }
+.ytmls-am-prev svg, .ytmls-am-next svg { width: 21px; height: 21px; }
+.ytmls-am-shuffle, .ytmls-am-repeat { position: relative; color: rgb(var(--am-ink) / .6) !important; }
+/* On (repeat all / one, shuffle on): accent colour and a soft pill behind, like the Mac. */
+.ytmls-am-shuffle.is-recent { color: var(--am-accent, #fa2d48) !important; background: rgb(250 45 72 / .16); transition: color .6s, background-color .6s; }
+.ytmls-am-shuffle.is-active, .ytmls-am-repeat.is-active { color: var(--am-accent, #fa2d48) !important; background: rgb(250 45 72 / .16); }
+/* Repeat one: its own icon (a 1 inside the arrows), no badge. */
+/* A press gives a short pulse, so it is clear the button was taken. */
+.ytmls-am-btn.is-flash { animation: ytmls-am-flash .6s ease-out; }
+@keyframes ytmls-am-flash {
+  0% { transform: scale(.82); background: rgb(255 255 255 / .28); }
+  45% { transform: scale(1.08); }
+  100% { transform: none; }
+}
+@media (prefers-reduced-motion: reduce) { .ytmls-am-btn.is-flash { animation: none; } }
+.ytmls-am-shuffle svg, .ytmls-am-repeat svg { width: 16px; height: 16px; }
+.ytmls-am-menu, .ytmls-am-account { width: 40px; height: 40px; overflow: hidden; }
+.ytmls-am-menu { display: none; }
+html.ytmls-am-no-side .ytmls-am-menu { display: grid; }
+.ytmls-am-account img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
+
+/* The "LCD": artwork, title, artist and a thin progress line. */
+.ytmls-am-lcd {
+  position: relative;
+  justify-self: stretch;
+  min-width: 0;
+  height: 46px;
+  display: grid;
+  grid-template-columns: 46px minmax(0, 1fr);
+  align-items: center;
+  border-radius: 11px;
+  background: rgb(255 255 255 / .07);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  backdrop-filter: blur(20px) saturate(160%);
+  box-shadow: var(--am-hairline), 0 4px 16px rgb(0 0 0 / .22);
+  clip-path: inset(0 round 11px);
+}
+.ytmls-am-art,
+.ytmls-am-placeholder { grid-row: 1; grid-column: 1; width: 46px; height: 46px; }
+.ytmls-am-art { object-fit: cover; cursor: pointer; }
+.ytmls-am-art[hidden] { display: none; }
+.ytmls-am-placeholder { display: none; place-items: center; background: rgb(255 255 255 / .06); color: rgb(var(--am-ink) / .35); }
+.ytmls-am-lcd.is-empty .ytmls-am-placeholder { display: grid; }
+.ytmls-am-placeholder svg { width: 20px; height: 20px; }
+.ytmls-am-info {
+  grid-row: 1;
+  grid-column: 2;
+  min-width: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  padding: 0 56px 3px;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+.ytmls-am-title,
+.ytmls-am-subtitle { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1.25; }
+/* Long text: cut off with "…" at rest, glides to its end and back under the pointer (setScrollingText). */
+.ytmls-am-scroll { display: inline-block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; vertical-align: top; }
+.ytmls-am-lcd:hover :is(.ytmls-am-title, .ytmls-am-subtitle).is-long { text-overflow: clip; -webkit-mask-image: linear-gradient(90deg, transparent, #000 10px, #000 calc(100% - 10px), transparent); mask-image: linear-gradient(90deg, transparent, #000 10px, #000 calc(100% - 10px), transparent); }
+.ytmls-am-lcd:hover :is(.ytmls-am-title, .ytmls-am-subtitle).is-long > .ytmls-am-scroll {
+  max-width: none; overflow: visible; text-overflow: clip; padding-inline: 10px;
+  animation: ytmls-am-glide var(--ytmls-am-scroll-time, 6s) ease-in-out .6s infinite alternate;
+}
+@keyframes ytmls-am-glide { 0%, 12% { transform: translateX(0); } 88%, 100% { transform: translateX(calc(var(--ytmls-am-scroll, 0px) - 20px)); } }
+@media (prefers-reduced-motion: reduce) { .ytmls-am-lcd:hover :is(.ytmls-am-title, .ytmls-am-subtitle).is-long > .ytmls-am-scroll { animation: none; } }
+.ytmls-am-title { font-size: 13px; font-weight: 600; color: rgb(var(--am-ink) / .95); }
+.ytmls-am-subtitle { font-size: 12px; color: rgb(var(--am-ink) / .58); }
+.ytmls-am-time {
+  position: absolute;
+  bottom: 6px;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  color: rgb(var(--am-ink) / .5);
+  opacity: 0;
+  transition: opacity .2s;
+  pointer-events: none;
+}
+.ytmls-am-elapsed { left: 54px; }
+.ytmls-am-remaining { right: 9px; }
+.ytmls-am-lcd:hover .ytmls-am-time,
+.ytmls-am-lcd:has(.is-seeking) .ytmls-am-time { opacity: 1; }
+.ytmls-am-lcd.is-empty .ytmls-am-time,
+.ytmls-am-lcd.is-empty .ytmls-am-progress { display: none; }
+.ytmls-am-progress {
+  position: absolute;
+  left: 46px;
+  right: 0;
+  bottom: 0;
+  height: 9px;
+  cursor: pointer;
+  touch-action: none;
+}
+.ytmls-am-progress-track {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 3px;
+  background: rgb(255 255 255 / .14);
+  transition: height .15s;
+  overflow: hidden;
+}
+.ytmls-am-progress:hover .ytmls-am-progress-track,
+.ytmls-am-progress.is-seeking .ytmls-am-progress-track { height: 5px; }
+.ytmls-am-progress-fill {
+  position: absolute;
+  inset: 0;
+  background: rgb(255 255 255 / .78);
+  transform-origin: left center;
+  transform: scaleX(0);
+}
+
+/* Favourite (like) star at the right end of the LCD: shown on hover, or always when on. */
+.ytmls-am-star {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  width: 28px;
+  height: 28px;
+  margin-top: -16px;
+  opacity: 0;
+  transition: opacity .2s, transform .12s;
+}
+.ytmls-am-star svg { width: 16px; height: 16px; }
+.ytmls-am-lcd:hover .ytmls-am-star,
+.ytmls-am-star:focus-visible,
+.ytmls-am-star.is-on { opacity: 1; }
+.ytmls-am-star.is-on { color: var(--am-accent, #fa2d48) !important; }
+.ytmls-am-lcd.is-empty .ytmls-am-star { display: none; }
+
+/* Volume: speaker (mute) and a thin slider, like the Mac toolbar. */
+.ytmls-am-volume { display: flex; align-items: center; gap: 2px; }
+.ytmls-am-volume.ytmls-am-capsule { padding: 0 12px 0 4px; }
+.ytmls-am-volume-icon svg { width: 17px; height: 17px; }
+.ytmls-am-volume-slider {
+  --level: 1;
+  position: relative;
+  width: 86px;
+  height: 20px;
+  cursor: pointer;
+  touch-action: none;
+  outline: none;
+}
+.ytmls-am-volume-track {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 4px;
+  margin-top: -2px;
+  border-radius: 999px;
+  background: rgb(255 255 255 / .18);
+  overflow: hidden;
+}
+.ytmls-am-volume-fill {
+  position: absolute;
+  inset: 0;
+  background: rgb(255 255 255 / .85);
+  transform-origin: left center;
+  transform: scaleX(var(--level));
+}
+.ytmls-am-volume-knob {
+  position: absolute;
+  top: 50%;
+  left: calc(var(--level) * 100%);
+  width: 12px;
+  height: 12px;
+  margin: -6px 0 0 -6px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 4px rgb(0 0 0 / .35);
+  opacity: 0;
+  transform: scale(.6);
+  transition: opacity .15s, transform .15s;
+}
+.ytmls-am-volume-slider:is(:hover, .is-dragging, :focus-visible) .ytmls-am-volume-knob { opacity: 1; transform: none; }
+.ytmls-am-volume-slider:focus-visible .ytmls-am-volume-track { box-shadow: 0 0 0 2px rgb(250 45 72 / .6); }
+@media (max-width: 1180px) { .ytmls-am-toolbar .ytmls-am-volume-slider { width: 56px; } }
+@media (max-width: 980px) { .ytmls-am-toolbar .ytmls-am-volume-slider { display: none; } .ytmls-am-volume.ytmls-am-capsule { padding: 0 4px; } }
+
+/* "Now playing" banner when the song changes. */
+.ytmls-am-toast {
+  position: fixed;
+  /* Centred under the toolbar's now-playing display, clear of the lyrics panel on the right. */
+  top: calc(var(--ytmls-am-top, 64px) + 6px);
+  left: calc(var(--ytmls-am-side, 0px) + (100vw - var(--ytmls-am-side, 0px)) / 2);
+  translate: -50% 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 320px;
+  padding: 8px 14px 8px 8px;
+  border-radius: 16px;
+  background: rgb(40 40 44 / .72);
+  -webkit-backdrop-filter: var(--am-blur);
+  backdrop-filter: var(--am-blur);
+  box-shadow: var(--am-hairline), 0 12px 34px rgb(0 0 0 / .35);
+  clip-path: inset(0 round 16px);
+  opacity: 0;
+  transform: translateY(-8px) scale(.97);
+  transition: opacity .3s, transform .4s cubic-bezier(.2, .9, .3, 1.2);
+  pointer-events: none;
+}
+.ytmls-am-toast.is-shown { opacity: 1; transform: none; }
+.ytmls-am-toast img { width: 44px; height: 44px; flex: none; border-radius: 8px; object-fit: cover; }
+.ytmls-am-toast-text { display: flex; flex-direction: column; min-width: 0; }
+.ytmls-am-toast-label { font-size: 10.5px; font-weight: 600; color: var(--am-accent, #fa2d48); }
+.ytmls-am-toast-title, .ytmls-am-toast-sub { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ytmls-am-toast-title { font-size: 13px; font-weight: 600; }
+.ytmls-am-toast-sub { font-size: 12px; color: rgb(var(--am-ink) / .6); }
+
+/* Lightweight mode and "reduce transparency": solid surfaces, no blur. */
+html.ytmls-lyrics-motion-lightweight #ytmls-am *,
+html.ytmls-lyrics-motion-lightweight .ytmls-am-toolbar::before {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+html.ytmls-lyrics-motion-lightweight .ytmls-am-sidebar { background: #232327; }
+html.ytmls-lyrics-motion-lightweight .ytmls-am-toolbar::before { background: #111; -webkit-mask-image: none; mask-image: none; inset: 0; }
+@media (prefers-reduced-transparency: reduce) {
+  html.ytmls-am .ytmls-am-sidebar { background: #232327; -webkit-backdrop-filter: none; backdrop-filter: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ytmls-am-btn, .ytmls-am-progress-track, .ytmls-am-time, .ytmls-am-toast, .ytmls-am-volume-knob { transition: none; }
+}
+
+/* comments-toggle.js: YouTube Music's comments, hidden by the setting. */
+html ytmusic-player-page tp-yt-paper-tabs tp-yt-paper-tab.ytmls-tab-hidden.ytmls-tab-hidden,
+ytmusic-player-page .ytmls-comments-hidden { display: none !important; }
+
+/* ---------- Fullscreen lyrics as the Mac "Now Playing" screen (fullscreen-now.js) ----------
+   Left: artwork, title, position, playback and volume. Right: the lyrics. */
+#ytmls-fullscreen.ytmls-full-mac {
+  display: grid;
+  grid-template-columns: minmax(260px, min(38vw, 460px)) minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+  align-items: center;
+  column-gap: clamp(32px, 6vw, 110px);
+  padding: 0 clamp(28px, 6vw, 120px);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Yu Gothic UI", Roboto, sans-serif;
+}
+/* Still for a few seconds (fullscreen-now.js): the controls and the pointer fade away, the artwork,
+   title and lyrics stay. */
+#ytmls-fullscreen.ytmls-full-mac :is(.ytmls-full-size, .ytmls-full-progress, .ytmls-full-transport, .ytmls-full-volume) { transition: opacity .5s ease; }
+#ytmls-fullscreen.ytmls-full-mac.ytmls-full-idle :is(.ytmls-full-size, .ytmls-full-progress, .ytmls-full-transport, .ytmls-full-volume) { opacity: 0; pointer-events: none; transition-duration: .9s; }
+#ytmls-fullscreen.ytmls-full-mac.ytmls-full-idle, #ytmls-fullscreen.ytmls-full-mac.ytmls-full-idle * { cursor: none !important; }
+#ytmls-fullscreen.ytmls-full-mac > .ytmls-full-list { grid-column: 2; grid-row: 1; height: 100%; box-sizing: border-box; padding: 22vh 0; }
+.ytmls-full-now {
+  grid-column: 1;
+  grid-row: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-width: 0;
+}
+.ytmls-full-now > .ytmls-full-head { display: flex; flex-direction: column; align-items: stretch; gap: 22px; margin: 0; }
+#ytmls-fullscreen .ytmls-full-now .ytmls-full-cover {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1;
+  border-radius: 14px;
+  object-fit: cover;
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / .14), 0 24px 60px rgb(0 0 0 / .5), 0 4px 14px rgb(0 0 0 / .3);
+}
+html:not(.ytmls-extra-motion-disabled):not(.ytmls-lyrics-motion-lightweight) #ytmls-fullscreen .ytmls-full-now .ytmls-full-cover { transition: transform .5s cubic-bezier(.2, .9, .3, 1.15); }
+/* Paused: the artwork steps back a little, like the Mac and iPhone. */
+#ytmls-fullscreen.ytmls-full-mac:has(.ytmls-full-transport-play[data-playing="false"]) .ytmls-full-now .ytmls-full-cover { transform: scale(.92); }
+#ytmls-fullscreen .ytmls-full-now .ytmls-full-head h1 { font-size: clamp(18px, 1.6vw, 24px); font-weight: 700; white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+#ytmls-fullscreen .ytmls-full-now .ytmls-full-artist { margin-top: 4px; font-size: clamp(15px, 1.3vw, 19px); color: rgb(255 255 255 / .62); }
+
+.ytmls-full-progress { --progress: 0; position: relative; padding: 8px 0 0; cursor: pointer; touch-action: none; outline: none; }
+.ytmls-full-progress-track { position: relative; display: block; height: 6px; border-radius: 999px; background: rgb(255 255 255 / .2); overflow: hidden; transition: height .15s, margin .15s; }
+.ytmls-full-progress:is(:hover, .is-seeking) .ytmls-full-progress-track { height: 9px; margin: -1.5px 0; }
+.ytmls-full-progress-fill { position: absolute; inset: 0; background: rgb(255 255 255 / .82); transform-origin: left center; transform: scaleX(var(--progress)); }
+.ytmls-full-progress:focus-visible .ytmls-full-progress-track { box-shadow: 0 0 0 2px #ff8da5; }
+.ytmls-full-progress-times { display: flex; justify-content: space-between; margin-top: 7px; font-size: 12px; font-variant-numeric: tabular-nums; color: rgb(255 255 255 / .55); }
+
+.ytmls-full-transport { display: flex; align-items: center; justify-content: center; gap: clamp(28px, 4vw, 56px); }
+.ytmls-full-transport button {
+  display: grid;
+  place-items: center;
+  width: 54px;
+  height: 54px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: rgb(255 255 255 / .92);
+  cursor: pointer;
+  transition: background-color .15s, transform .12s;
+}
+.ytmls-full-transport button:hover { background: rgb(255 255 255 / .1); }
+.ytmls-full-transport button:active { transform: scale(.88); }
+.ytmls-full-transport svg { width: 34px; height: 34px; display: block; }
+.ytmls-full-transport .ytmls-full-transport-play { width: 66px; height: 66px; }
+.ytmls-full-transport .ytmls-full-transport-play svg { width: 46px; height: 46px; }
+
+.ytmls-full-volume { display: flex; align-items: center; gap: 6px; }
+.ytmls-full-volume .ytmls-am-btn { flex: none; display: grid; place-items: center; width: 32px; height: 32px; padding: 0; border: 0; border-radius: 999px; background: transparent; color: rgb(255 255 255 / .7); cursor: pointer; }
+.ytmls-full-volume .ytmls-am-btn svg { width: 18px; height: 18px; display: block; }
+.ytmls-full-volume .ytmls-am-volume-slider { flex: 1; width: auto; }
+
+/* Narrow or short windows: a compact row on top, lyrics below. */
+@media (max-width: 860px), (max-height: 520px) {
+  #ytmls-fullscreen.ytmls-full-mac { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); padding: 64px 24px 0; row-gap: 8px; }
+  .ytmls-full-now { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 10px 16px; }
+  .ytmls-full-now > .ytmls-full-head { flex-direction: row; align-items: center; gap: 14px; flex: 1 1 260px; min-width: 0; }
+  #ytmls-fullscreen .ytmls-full-now .ytmls-full-cover { width: 64px; flex: none; transform: none !important; }
+  .ytmls-full-progress { order: 3; flex: 1 0 100%; padding-top: 0; }
+  .ytmls-full-transport { gap: 10px; }
+  .ytmls-full-transport button { width: 40px; height: 40px; }
+  .ytmls-full-transport svg { width: 24px; height: 24px; }
+  .ytmls-full-transport .ytmls-full-transport-play { width: 46px; height: 46px; }
+  .ytmls-full-transport .ytmls-full-transport-play svg { width: 30px; height: 30px; }
+  .ytmls-full-volume { display: none; }
+  #ytmls-fullscreen.ytmls-full-mac > .ytmls-full-list { grid-column: 1; grid-row: 2; padding: 14vh 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ytmls-full-transport button, .ytmls-full-progress-track { transition: none; }
+}
+/* The lyrics column is about 60% of the screen here, so the lines are a little smaller. */
+#ytmls-fullscreen.ytmls-full-mac .ytmls-full-line { font-size: calc(clamp(28px, 3.7vw, 66px) * var(--ytmls-full-font-scale, 1)); font-weight: 800; }
+@media (max-width: 860px), (max-height: 520px) {
+  #ytmls-fullscreen.ytmls-full-mac .ytmls-full-line { font-size: calc(clamp(26px, 6vw, 48px) * var(--ytmls-full-font-scale, 1)); }
+}
+
+/* ---------- Lyrics panel on the right (side-lyrics.js), like the Mac's lyrics sidebar ---------- */
+#ytmls-side-lyrics, #ytmls-side-queue { display: none; }
+html.ytmls-am :is(#ytmls-side-lyrics, #ytmls-side-queue):not([hidden]) {
+  position: fixed;
+  z-index: 61;
+  top: calc(var(--ytmls-am-top, 64px) + 2px);
+  right: 8px;
+  bottom: 8px;
+  width: clamp(290px, 27vw, 420px);
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  border-radius: 18px;
+  background: rgb(36 36 40 / .62);
+  -webkit-backdrop-filter: blur(34px) saturate(170%);
+  backdrop-filter: blur(34px) saturate(170%);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / .1), 0 14px 40px rgb(0 0 0 / .4);
+  clip-path: inset(0 round 18px);
+  color: #fff;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Yu Gothic UI", Roboto, sans-serif;
+  animation: ytmls-side-in .32s cubic-bezier(.2, .9, .3, 1.1);
+}
+@keyframes ytmls-side-in { from { opacity: 0; transform: translateX(24px); } }
+.ytmls-side-head { display: flex; align-items: center; gap: 8px; padding: 12px 10px 4px 18px; }
+.ytmls-side-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; font-weight: 600; color: rgb(255 255 255 / .6); }
+.ytmls-side-close { display: grid; place-items: center; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 999px; background: rgb(255 255 255 / .08); color: rgb(255 255 255 / .8); cursor: pointer; }
+.ytmls-side-close:hover { background: rgb(255 255 255 / .16); }
+.ytmls-side-close svg { width: 15px; height: 15px; display: block; }
+.ytmls-side-message { margin: 18px; font-size: 14px; color: rgb(255 255 255 / .6); }
+.ytmls-side-message[hidden] { display: none; }
+.ytmls-side-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 18vh 10px 40vh;
+  scrollbar-width: none;
+  overscroll-behavior: contain;
+  -webkit-mask-image: linear-gradient(transparent, #000 10%, #000 82%, transparent);
+  mask-image: linear-gradient(transparent, #000 10%, #000 82%, transparent);
+}
+.ytmls-side-list::-webkit-scrollbar { display: none; }
+.ytmls-side-line {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: rgb(255 255 255 / .34);
+  font: inherit;
+  font-size: clamp(19px, 1.55vw, 26px);
+  font-weight: 800;
+  line-height: 1.6; /* room for readings above the words */
+  letter-spacing: -.01em;
+  text-align: left;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+  transform-origin: 0 50%;
+  transition: color .3s, transform .3s cubic-bezier(.2, .9, .3, 1.2), filter .3s;
+}
+.ytmls-side-line:hover { background: rgb(255 255 255 / .07); }
+#ytmls-side-lyrics[data-synced="true"] .ytmls-side-line:not(.is-current):not(.is-near) { filter: blur(.7px); }
+#ytmls-side-lyrics[data-synced="true"] .ytmls-side-list:hover .ytmls-side-line { filter: none; }
+.ytmls-side-line.is-past { color: rgb(255 255 255 / .42); }
+.ytmls-side-line.is-near { color: rgb(255 255 255 / .5); }
+.ytmls-side-line.is-current { color: #fff; transform: scale(1.03); }
+#ytmls-side-lyrics[data-synced="false"] .ytmls-side-line { color: rgb(255 255 255 / .86); cursor: default; }
+.ytmls-side-line rt { font-size: .38em; font-weight: 600; }
+.ytmls-side-line .ytmls-word { color: inherit; opacity: 1; background: none; -webkit-text-fill-color: currentColor; }
+.ytmls-am-btn.is-on { background: rgb(255 255 255 / .16); }
+@media (prefers-reduced-motion: reduce) {
+  html.ytmls-am #ytmls-side-lyrics:not([hidden]) { animation: none; }
+  .ytmls-side-line { transition: none; }
+}
+html.ytmls-lyrics-motion-lightweight #ytmls-side-lyrics { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; background: #232327 !important; animation: none !important; }
+html.ytmls-lyrics-motion-lightweight .ytmls-side-line { filter: none !important; transition: none; }
+
+/* Sidebar header: the wide / icon-only switch at its top right, like the Mac's sidebar button. */
+.ytmls-am-side-head { display: flex; justify-content: flex-end; margin: -6px 0 2px; }
+.ytmls-am-side-toggle { width: 30px; height: 30px; color: rgb(var(--am-ink) / .6) !important; }
+.ytmls-am-side-toggle svg { width: 17px; height: 17px; }
+.ytmls-am-side-toggle[hidden] { display: none; }
+html.ytmls-am-compact:not(.ytmls-am-drawer-open):not(.ytmls-am-side-peek) .ytmls-am-side-head { justify-content: center; margin: -2px 0 4px; }
+
+/* Widening / narrowing the sidebar: the panel and the toolbar glide to the new width, and the
+   labels fade in and out instead of jumping. */
+.ytmls-am-sidebar { transition: width .42s cubic-bezier(.2, .9, .25, 1), padding .42s cubic-bezier(.2, .9, .25, 1); overflow: hidden; }
+.ytmls-am-toolbar { transition: left .42s cubic-bezier(.2, .9, .25, 1); }
+.ytmls-am-item { transition: background-color .15s, padding .42s cubic-bezier(.2, .9, .25, 1), gap .42s cubic-bezier(.2, .9, .25, 1); }
+.ytmls-am-item-label { transition: opacity .25s ease .08s; }
+.ytmls-am-search, .ytmls-am-heading { transition: opacity .25s ease .08s; }
+html.ytmls-am-compact:not(.ytmls-am-drawer-open):not(.ytmls-am-side-peek) .ytmls-am-item { gap: 0; }
+html.ytmls-am-compact:not(.ytmls-am-drawer-open):not(.ytmls-am-side-peek) .ytmls-am-item-label { display: block !important; width: 0; opacity: 0; transition: opacity .12s ease; }
+/* The narrow window's search field opens beside the sidebar, so it may not be clipped there. */
+html.ytmls-am-compact:not(.ytmls-am-drawer-open):not(.ytmls-am-side-peek) .ytmls-am-sidebar { overflow: visible; }
+@media (prefers-reduced-motion: reduce) {
+  .ytmls-am-sidebar, .ytmls-am-toolbar, .ytmls-am-item, .ytmls-am-item-label, .ytmls-am-search, .ytmls-am-heading { transition: none !important; }
+}
+html.ytmls-lyrics-motion-lightweight :is(.ytmls-am-sidebar, .ytmls-am-toolbar, .ytmls-am-item, .ytmls-am-item-label) { transition: none !important; }
+
+/* ---------- "Up Next" panel (the same glass panel as the lyrics) ---------- */
+.ytmls-queue-list { flex: 1; min-height: 0; overflow-y: auto; padding: 4px 8px 14px; scrollbar-width: thin; overscroll-behavior: contain; }
+.ytmls-queue-row {
+  display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; align-items: center; gap: 10px;
+  width: 100%; padding: 6px 8px; border: 0; border-radius: 10px; background: transparent;
+  color: #fff; font: inherit; text-align: left; cursor: pointer;
+}
+.ytmls-queue-row:hover { background: rgb(255 255 255 / .07); }
+.ytmls-queue-row.is-current { background: rgb(255 255 255 / .12); }
+.ytmls-queue-art { width: 44px; height: 44px; border-radius: 6px; object-fit: cover; background: rgb(255 255 255 / .08); box-shadow: 0 2px 8px rgb(0 0 0 / .3); }
+.ytmls-queue-text { display: flex; flex-direction: column; min-width: 0; gap: 1px; }
+.ytmls-queue-title, .ytmls-queue-byline { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ytmls-queue-title { font-size: 13px; font-weight: 600; }
+.ytmls-queue-row.is-current .ytmls-queue-title { color: var(--am-accent, #fa2d48); }
+.ytmls-queue-byline { font-size: 12px; color: rgb(255 255 255 / .55); }
+.ytmls-queue-duration { font-size: 11.5px; font-variant-numeric: tabular-nums; color: rgb(255 255 255 / .45); }
+/* The playing song: three small bars, like the Mac. */
+.ytmls-queue-bars { display: inline-flex; align-items: flex-end; gap: 2px; height: 12px; }
+.ytmls-queue-bars i { width: 3px; height: 100%; border-radius: 1px; background: var(--am-accent, #fa2d48); animation: ytmls-queue-bar .9s ease-in-out infinite alternate; transform-origin: bottom; }
+.ytmls-queue-bars i:nth-child(2) { animation-delay: -.3s; }
+.ytmls-queue-bars i:nth-child(3) { animation-delay: -.6s; }
+@keyframes ytmls-queue-bar { from { transform: scaleY(.3); } to { transform: scaleY(1); } }
+@media (prefers-reduced-motion: reduce) { .ytmls-queue-bars i { animation: none; } }
+html.ytmls-lyrics-motion-lightweight #ytmls-side-queue { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; background: #232327 !important; animation: none !important; }
+
+/* ---------- Home and browse pages, Apple-style (Mac Music-style screen only) ----------
+   Only looks: type, corners, shadows and colours; no sizes or layout of YouTube Music's own. */
+/* Section headings (もう一度聴く, 新作 …): large and heavy. */
+html.ytmls-am ytmusic-carousel-shelf-basic-header-renderer :is(h2, .title) ,
+html.ytmls-am ytmusic-carousel-shelf-basic-header-renderer .title yt-formatted-string {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", Roboto, sans-serif !important;
+  font-weight: 800 !important;
+  letter-spacing: -.01em;
+}
+html.ytmls-am ytmusic-carousel-shelf-basic-header-renderer .strapline { color: rgb(255 255 255 / .5) !important; font-weight: 600 !important; }
+/* Artwork: rounded with a soft shadow. */
+html.ytmls-am ytmusic-two-row-item-renderer :is(#thumbnail, ytmusic-thumbnail-renderer, .image-wrapper, a.image-wrapper) {
+  border-radius: 10px !important;
+}
+html.ytmls-am ytmusic-two-row-item-renderer :is(ytmusic-thumbnail-renderer, .image-wrapper) {
+  overflow: hidden;
+  box-shadow: 0 8px 22px rgb(0 0 0 / .32), 0 1px 4px rgb(0 0 0 / .2);
+}
+html.ytmls-am ytmusic-two-row-item-renderer:not([aspect-ratio*="CIRCLE"]) :is(ytmusic-thumbnail-renderer, .image-wrapper) img { border-radius: 10px !important; }
+html.ytmls-am ytmusic-responsive-list-item-renderer :is(ytmusic-thumbnail-renderer, .thumbnail) img { border-radius: 6px !important; }
+/* Hover play button: a glass circle instead of the plain dark one. */
+html.ytmls-am ytmusic-item-thumbnail-overlay-renderer ytmusic-play-button-renderer {
+  --ytmusic-play-button-background-color: rgb(255 255 255 / .2) !important;
+  --ytmusic-play-button-active-background-color: rgb(255 255 255 / .28) !important;
+  --ytmusic-play-button-icon-color: #fff !important;
+  border-radius: 999px;
+  -webkit-backdrop-filter: blur(16px) saturate(170%);
+  backdrop-filter: blur(16px) saturate(170%);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / .22), 0 4px 14px rgb(0 0 0 / .3);
+}
+html.ytmls-am ytmusic-item-thumbnail-overlay-renderer #background,
+html.ytmls-am ytmusic-item-thumbnail-overlay-renderer .background { border-radius: 10px; }
+/* Title under the artwork a little bolder, the line under it softer. */
+html.ytmls-am ytmusic-two-row-item-renderer .title { font-weight: 600 !important; }
+html.ytmls-am ytmusic-two-row-item-renderer .subtitle { color: rgb(255 255 255 / .55) !important; }
+/* Mood chips (リラックス, 通勤 …): glass capsules; the chosen one white. */
+html.ytmls-am ytmusic-chip-cloud-chip-renderer :is(a, .gradient-box, #chip-container),
+html.ytmls-am ytmusic-chip-cloud-chip-renderer {
+  border-radius: 999px !important;
+}
+html.ytmls-am ytmusic-chip-cloud-chip-renderer :is(a, .gradient-box) {
+  border: 0 !important;
+  background: rgb(255 255 255 / .09) !important;
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / .1);
+  color: rgb(255 255 255 / .9) !important;
+  transition: background-color .15s;
+}
+html.ytmls-am ytmusic-chip-cloud-chip-renderer:hover :is(a, .gradient-box) { background: rgb(255 255 255 / .16) !important; }
+html.ytmls-am ytmusic-chip-cloud-chip-renderer:is([is-selected], [chip-style="STYLE_PRIMARY"]) :is(a, .gradient-box) {
+  background: rgb(255 255 255 / .92) !important;
+  color: #111 !important;
+}
+html.ytmls-am ytmusic-chip-cloud-chip-renderer:is([is-selected], [chip-style="STYLE_PRIMARY"]) :is(a, .gradient-box) * { color: #111 !important; }
+
+/* ---------- Song menus (right click / ⋮): glass menus like the Mac ---------- */
+html.ytmls-am ytmusic-menu-popup-renderer {
+  border: 0 !important;
+  border-radius: 14px !important;
+  padding: 6px !important;
+  /* Nearly solid: the dropdown fades in with opacity, which would cut a blur off from the page. */
+  background: rgb(38 38 42 / .9) !important;
+  -webkit-backdrop-filter: blur(30px) saturate(170%);
+  backdrop-filter: blur(30px) saturate(170%);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / .1), 0 18px 48px rgb(0 0 0 / .42), 0 2px 8px rgb(0 0 0 / .2) !important;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", Roboto, sans-serif;
+}
+html.ytmls-am ytmusic-menu-popup-renderer tp-yt-paper-listbox { background: transparent !important; padding: 0 !important; }
+html.ytmls-am ytmusic-menu-popup-renderer :is(ytmusic-menu-navigation-item-renderer, ytmusic-menu-service-item-renderer, ytmusic-toggle-menu-service-item-renderer, ytmusic-menu-service-item-download-renderer) {
+  border-radius: 8px !important;
+  overflow: hidden;
+}
+html.ytmls-am ytmusic-menu-popup-renderer :is(ytmusic-menu-navigation-item-renderer, ytmusic-menu-service-item-renderer, ytmusic-toggle-menu-service-item-renderer, ytmusic-menu-service-item-download-renderer) :is(a, tp-yt-paper-item, #navigation-endpoint) {
+  min-height: 34px !important;
+  border-radius: 8px !important;
+  background: transparent !important;
+}
+html.ytmls-am ytmusic-menu-popup-renderer :is(ytmusic-menu-navigation-item-renderer, ytmusic-menu-service-item-renderer, ytmusic-toggle-menu-service-item-renderer, ytmusic-menu-service-item-download-renderer):hover {
+  background: rgb(255 255 255 / .12) !important;
+}
+html.ytmls-am ytmusic-menu-popup-renderer :is(.text, yt-formatted-string) { font-size: 13.5px !important; font-weight: 500 !important; color: rgb(255 255 255 / .94) !important; }
+html.ytmls-am ytmusic-menu-popup-renderer yt-icon { color: rgb(255 255 255 / .75) !important; }
+/* The thin lines between groups. */
+html.ytmls-am ytmusic-menu-popup-renderer :is(#header, ytmusic-menu-title-renderer) { border-bottom: 1px solid rgb(255 255 255 / .08) !important; }
+html.ytmls-am tp-yt-iron-dropdown:has(ytmusic-menu-popup-renderer) #contentWrapper,
+html.ytmls-am tp-yt-iron-dropdown:has(ytmusic-menu-popup-renderer) .dropdown-content { background: transparent !important; border-radius: 14px; }
+html.ytmls-lyrics-motion-lightweight.ytmls-am ytmusic-menu-popup-renderer { -webkit-backdrop-filter: none; backdrop-filter: none; background: #26262a !important; }
+/* A little more compact than YouTube Music's 48px rows, evenly: every row and the parts inside it
+   share one minimum height (no fixed heights, which left some rows taller than others), the menu
+   keeps its width (no sideways scroll bar), and a scroll bar, when the window is short, is thin. */
+html.ytmls-am ytmusic-menu-popup-renderer { --paper-item-min-height: 36px; overflow-x: hidden !important; scrollbar-width: thin; scrollbar-color: rgb(255 255 255 / .25) transparent; }
+html.ytmls-am ytmusic-menu-popup-renderer :is(tp-yt-paper-listbox, #items, [role="listbox"], [role="menu"]) { padding: 0 !important; overflow-x: hidden !important; scrollbar-width: thin; scrollbar-color: rgb(255 255 255 / .25) transparent; }
+html.ytmls-am ytmusic-menu-popup-renderer :is(ytmusic-menu-navigation-item-renderer, ytmusic-menu-service-item-renderer, ytmusic-toggle-menu-service-item-renderer, ytmusic-menu-service-item-download-renderer),
+html.ytmls-am ytmusic-menu-popup-renderer :is(ytmusic-menu-navigation-item-renderer, ytmusic-menu-service-item-renderer, ytmusic-toggle-menu-service-item-renderer, ytmusic-menu-service-item-download-renderer) :is(a, tp-yt-paper-item, #navigation-endpoint, .yt-simple-endpoint) {
+  min-height: 36px !important; height: auto !important; padding-top: 0 !important; padding-bottom: 0 !important; margin-top: 0 !important; margin-bottom: 0 !important;
+}
+html.ytmls-am ytmusic-menu-popup-renderer yt-icon { width: 18px !important; height: 18px !important; }
+html.ytmls-am ytmusic-menu-popup-renderer :is(.text, yt-formatted-string) { font-size: 13.5px !important; line-height: 1.3 !important; }
+/* YouTube Music focuses the list (and its first row) when the menu opens: that drew a square focus
+   ring around the menu and lit the first row before anything was chosen. No ring, no focus tint;
+   only the pointer (or keyboard focus, below) highlights a row. */
+html.ytmls-am ytmusic-menu-popup-renderer,
+html.ytmls-am ytmusic-menu-popup-renderer *,
+html.ytmls-am tp-yt-iron-dropdown:has(ytmusic-menu-popup-renderer) :is(#contentWrapper, .dropdown-content) { outline: none !important; }
+html.ytmls-am tp-yt-iron-dropdown:has(ytmusic-menu-popup-renderer) :is(#contentWrapper, .dropdown-content) { border: 0 !important; box-shadow: none !important; }
+html.ytmls-am ytmusic-menu-popup-renderer :is(tp-yt-paper-item, a, #navigation-endpoint):focus:not(:focus-visible) { background: transparent !important; }
+html.ytmls-am ytmusic-menu-popup-renderer tp-yt-paper-item::before { background: transparent !important; opacity: 0 !important; }
+html.ytmls-am ytmusic-menu-popup-renderer { box-shadow: 0 18px 48px rgb(0 0 0 / .42), 0 2px 8px rgb(0 0 0 / .2) !important; border: 0 !important; }
+/* No edge line at all: the dropdown and every wrapper between it and the menu draw no border, ring
+   or shadow of their own (only the menu's soft drop shadow stays). */
+html.ytmls-am tp-yt-iron-dropdown:has(ytmusic-menu-popup-renderer),
+html.ytmls-am tp-yt-iron-dropdown:has(ytmusic-menu-popup-renderer) *:has(ytmusic-menu-popup-renderer) {
+  border: 0 !important; outline: none !important; box-shadow: none !important; background: transparent !important;
+}
+html.ytmls-am ytmusic-menu-popup-renderer :is(tp-yt-paper-listbox, #items, [role="listbox"], [role="menu"]) { border: 0 !important; box-shadow: none !important; }
+
+/* Finished like a Mac menu: snug rows, small dim icons, regular-weight text, and the row under the
+   pointer filled with the accent colour (white text and icon), as the Mac highlights menu items. */
+html.ytmls-am ytmusic-menu-popup-renderer { padding: 5px !important; border-radius: 12px !important; --paper-item-min-height: 30px; }
+html.ytmls-am ytmusic-menu-popup-renderer :is(ytmusic-menu-navigation-item-renderer, ytmusic-menu-service-item-renderer, ytmusic-toggle-menu-service-item-renderer, ytmusic-menu-service-item-download-renderer),
+html.ytmls-am ytmusic-menu-popup-renderer :is(ytmusic-menu-navigation-item-renderer, ytmusic-menu-service-item-renderer, ytmusic-toggle-menu-service-item-renderer, ytmusic-menu-service-item-download-renderer) :is(a, tp-yt-paper-item, #navigation-endpoint, .yt-simple-endpoint) {
+  min-height: 30px !important; border-radius: 7px !important;
+}
+html.ytmls-am ytmusic-menu-popup-renderer :is(ytmusic-menu-navigation-item-renderer, ytmusic-menu-service-item-renderer, ytmusic-toggle-menu-service-item-renderer, ytmusic-menu-service-item-download-renderer) :is(tp-yt-paper-item, a.yt-simple-endpoint) {
+  padding-left: 10px !important; padding-right: 16px !important;
+}
+html.ytmls-am ytmusic-menu-popup-renderer yt-icon { width: 16px !important; height: 16px !important; margin-right: 12px !important; color: rgb(255 255 255 / .62) !important; }
+html.ytmls-am ytmusic-menu-popup-renderer :is(.text, yt-formatted-string) { font-size: 13px !important; font-weight: 400 !important; letter-spacing: .01em; color: rgb(255 255 255 / .92) !important; }
+html.ytmls-am ytmusic-menu-popup-renderer :is(ytmusic-menu-navigation-item-renderer, ytmusic-menu-service-item-renderer, ytmusic-toggle-menu-service-item-renderer, ytmusic-menu-service-item-download-renderer):is(:hover, :has(:focus-visible)) {
+  background: var(--am-accent, #fa2d48) !important;
+}
+html.ytmls-am ytmusic-menu-popup-renderer :is(ytmusic-menu-navigation-item-renderer, ytmusic-menu-service-item-renderer, ytmusic-toggle-menu-service-item-renderer, ytmusic-menu-service-item-download-renderer):is(:hover, :has(:focus-visible)) :is(.text, yt-formatted-string, yt-icon) {
+  color: #fff !important;
+}
+/* The play button on song artwork shows only under the pointer (or while that song plays), like the
+   Mac; YouTube Music keeps it on songs all the time. */
+html.ytmls-am :is(ytmusic-two-row-item-renderer, ytmusic-responsive-list-item-renderer) ytmusic-item-thumbnail-overlay-renderer ytmusic-play-button-renderer:not([play-button-state="playing"]):not([play-button-state="paused"]):not([play-button-state="loading"]) {
+  opacity: 0 !important;
+  transform: scale(.85) !important;
+  transition: opacity .18s ease, transform .22s cubic-bezier(.2, .9, .3, 1.2);
+}
+html.ytmls-am :is(ytmusic-two-row-item-renderer, ytmusic-responsive-list-item-renderer):is(:hover, :focus-within) ytmusic-item-thumbnail-overlay-renderer ytmusic-play-button-renderer:not([play-button-state="playing"]):not([play-button-state="paused"]):not([play-button-state="loading"]) {
+  opacity: 1 !important;
+  transform: none !important;
+}
+html.ytmls-am :is(ytmusic-two-row-item-renderer, ytmusic-responsive-list-item-renderer):not(:hover):not(:focus-within) ytmusic-item-thumbnail-overlay-renderer :is(#background, .background) { opacity: 0 !important; }
+@media (prefers-reduced-motion: reduce) {
+  html.ytmls-am ytmusic-item-thumbnail-overlay-renderer ytmusic-play-button-renderer { transition: none !important; }
+}
+
+/* ---------- Album, playlist, artist and search pages, Apple-style (Mac Music-style screen only) ----------
+   Looks only (type, colour, corners, shadows); YouTube Music's own sizes and layout stay. */
+html.ytmls-am :is(ytmusic-responsive-header-renderer, ytmusic-detail-header-renderer, ytmusic-immersive-header-renderer, ytmusic-visual-header-renderer, ytmusic-card-shelf-renderer, ytmusic-shelf-renderer, ytmusic-playlist-shelf-renderer) {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", Roboto, sans-serif;
+}
+/* Album / playlist header: big artwork with a soft shadow, a heavy title, the artist in the accent colour. */
+html.ytmls-am :is(ytmusic-responsive-header-renderer, ytmusic-detail-header-renderer) :is(ytmusic-thumbnail-renderer, yt-img-shadow, #thumbnail) {
+  border-radius: 12px !important;
+  overflow: hidden;
+  box-shadow: 0 18px 44px rgb(0 0 0 / .42), 0 2px 8px rgb(0 0 0 / .24) !important;
+}
+html.ytmls-am :is(ytmusic-responsive-header-renderer, ytmusic-detail-header-renderer) :is(ytmusic-thumbnail-renderer, yt-img-shadow) img { border-radius: 12px !important; }
+html.ytmls-am :is(ytmusic-responsive-header-renderer, ytmusic-detail-header-renderer) :is(h1, h2, .title) {
+  font-weight: 800 !important;
+  letter-spacing: -.02em !important;
+}
+html.ytmls-am ytmusic-responsive-header-renderer :is(.strapline-text, .strapline-text a, .strapline a),
+html.ytmls-am ytmusic-detail-header-renderer .subtitle a:first-of-type {
+  color: var(--am-accent, #fa2d48) !important;
+  font-weight: 600 !important;
+}
+html.ytmls-am :is(ytmusic-responsive-header-renderer, ytmusic-detail-header-renderer) :is(.subtitle, .second-subtitle) {
+  color: rgb(255 255 255 / .55) !important;
+  font-weight: 500 !important;
+}
+html.ytmls-am :is(ytmusic-responsive-header-renderer, ytmusic-detail-header-renderer) :is(.description, ytmusic-description-shelf-renderer) { color: rgb(255 255 255 / .62) !important; }
+/* The big play button in the headers: the accent colour, like the Mac's red 再生 button. */
+html.ytmls-am :is(ytmusic-responsive-header-renderer, ytmusic-detail-header-renderer, ytmusic-immersive-header-renderer, ytmusic-visual-header-renderer) ytmusic-play-button-renderer {
+  --ytmusic-play-button-background-color: var(--am-accent, #fa2d48) !important;
+  --ytmusic-play-button-active-background-color: #ff4a62 !important;
+  --ytmusic-play-button-icon-color: #fff !important;
+  box-shadow: 0 6px 18px rgb(250 45 72 / .35);
+  border-radius: 999px;
+}
+/* Buttons in the content area: the filled one (再生, シャッフル …) in the accent colour, the others as glass capsules. */
+html.ytmls-am :is(ytmusic-browse-response, ytmusic-search-page) .yt-spec-button-shape-next--filled {
+  background: var(--am-accent, #fa2d48) !important;
+  color: #fff !important;
+  border: 0 !important;
+  box-shadow: 0 4px 14px rgb(250 45 72 / .28);
+}
+html.ytmls-am :is(ytmusic-browse-response, ytmusic-search-page) .yt-spec-button-shape-next--filled :is(yt-icon, .yt-spec-button-shape-next__icon, div, span) { color: #fff !important; fill: #fff !important; }
+html.ytmls-am :is(ytmusic-browse-response, ytmusic-search-page) :is(.yt-spec-button-shape-next--tonal, .yt-spec-button-shape-next--outline) {
+  background: rgb(255 255 255 / .09) !important;
+  border: 0 !important;
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / .12);
+  color: rgb(255 255 255 / .92) !important;
+}
+html.ytmls-am :is(ytmusic-browse-response, ytmusic-search-page) :is(.yt-spec-button-shape-next--tonal, .yt-spec-button-shape-next--outline):hover { background: rgb(255 255 255 / .16) !important; }
+/* Track lists: no divider lines, rounded rows and soft stripes on album and playlist pages, like the Mac. */
+html.ytmls-am :is(ytmusic-browse-response, ytmusic-search-page) ytmusic-responsive-list-item-renderer {
+  border-top: 0 !important;
+  border-bottom: 0 !important;
+  border-radius: 8px !important;
+}
+html.ytmls-am ytmusic-browse-response:has(:is(ytmusic-responsive-header-renderer, ytmusic-detail-header-renderer)) :is(ytmusic-shelf-renderer, ytmusic-playlist-shelf-renderer) ytmusic-responsive-list-item-renderer:nth-of-type(even):not(:hover):not([is-selected]) {
+  background-color: rgb(255 255 255 / .035) !important;
+}
+html.ytmls-am :is(ytmusic-browse-response, ytmusic-search-page) ytmusic-responsive-list-item-renderer .title { font-weight: 600 !important; }
+html.ytmls-am :is(ytmusic-browse-response, ytmusic-search-page) ytmusic-responsive-list-item-renderer :is(.secondary-flex-columns, .fixed-columns, .index) { color: rgb(255 255 255 / .5) !important; }
+/* Shelf headings on these pages (曲, アルバム, 人気曲 …): large and heavy, like the home page. */
+html.ytmls-am :is(ytmusic-shelf-renderer, ytmusic-card-shelf-renderer, ytmusic-music-card-shelf-header-basic-renderer) :is(h2, .title):not(ytmusic-responsive-list-item-renderer *) {
+  font-weight: 800 !important;
+  letter-spacing: -.01em;
+}
+/* Search: the top result as a glass card. */
+html.ytmls-am ytmusic-card-shelf-renderer {
+  border: 0 !important;
+  border-radius: 18px !important;
+  background: rgb(255 255 255 / .06) !important;
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / .09), 0 12px 32px rgb(0 0 0 / .22);
+}
+html.ytmls-am ytmusic-card-shelf-renderer :is(ytmusic-thumbnail-renderer, yt-img-shadow) {
+  border-radius: 10px !important;
+  overflow: hidden;
+  box-shadow: 0 8px 22px rgb(0 0 0 / .32);
+}
+html.ytmls-am ytmusic-card-shelf-renderer :is(ytmusic-thumbnail-renderer, yt-img-shadow):is([is-circle], .circle) { border-radius: 50% !important; }
+/* Artist page: the name sits heavy on the photo, which fades into the page at the bottom. */
+html.ytmls-am :is(ytmusic-immersive-header-renderer, ytmusic-visual-header-renderer) :is(h1, .title) {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", Roboto, sans-serif !important;
+  font-weight: 800 !important;
+  letter-spacing: -.025em !important;
+  text-shadow: 0 2px 18px rgb(0 0 0 / .45);
+}
+html.ytmls-am :is(ytmusic-immersive-header-renderer, ytmusic-visual-header-renderer) :is(.description, .subscription-count, .subtitle) { color: rgb(255 255 255 / .72) !important; }
+html.ytmls-am :is(ytmusic-immersive-header-renderer, ytmusic-visual-header-renderer) ytmusic-subscribe-button-renderer :is(button, .yt-spec-button-shape-next, tp-yt-paper-button) {
+  border-radius: 999px !important;
+  border: 0 !important;
+  background: rgb(255 255 255 / .14) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(170%);
+  backdrop-filter: blur(16px) saturate(170%);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / .18);
+  color: #fff !important;
+}
+
+/* ---------- Now Playing page: lyrics first ----------
+   The lines away from the one being sung soften a little, like the Mac's lyrics view. */
+html.ytmls-am:not(.ytmls-lyrics-motion-lightweight) ytmusic-player-page #ytmls-panel .ytmls-line:not(.ytmls-active):not(:hover) {
+  filter: blur(.6px);
+}
+html.ytmls-am ytmusic-player-page #ytmls-panel .ytmls-line {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", Roboto, sans-serif;
+  letter-spacing: -.02em;
+}
+@media (prefers-reduced-motion: reduce) {
+  html.ytmls-am ytmusic-player-page #ytmls-panel .ytmls-line { filter: none !important; }
+}
+
+/* ---------- Now Playing page: open and close like the Mac ----------
+   YouTube Music drops the page down and away, with the home page showing through it. Here the page
+   grows out of the now-playing display in the toolbar and, on closing, shrinks back up into it
+   while fading, so it reads as one motion. Video fullscreen and YouTube Music's own "no animation"
+   moments are left alone. (Three classes: wins over the player-bar animation in player-depth-clean.css.) */
+html.ytmls-am.ytmls-am.ytmls-am ytmusic-app-layout:not([is-mweb-modernization-enabled]):not([player-fullscreened]) > ytmusic-player-page[slot="player-page"] {
+  transform-origin: 50% 0 !important;
+  transform: translateY(-18px) scale(.93) !important;
+  clip-path: none !important;
+  will-change: transform;
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  transition: transform 300ms cubic-bezier(.45, 0, .55, 1), opacity 170ms ease-in 120ms, visibility 0s linear 300ms !important;
+}
+html.ytmls-am.ytmls-am.ytmls-am ytmusic-app-layout:not([is-mweb-modernization-enabled]):not([player-fullscreened])[player-page-open] > ytmusic-player-page[slot="player-page"] {
+  transform: none !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  pointer-events: auto !important;
+  transition: transform 420ms cubic-bezier(.2, .9, .25, 1), opacity 200ms ease-out, visibility 0s !important;
+}
+/* The artwork settles a beat after the page, like the Mac's Now Playing. */
+html.ytmls-am.ytmls-am.ytmls-am ytmusic-app-layout:not([player-fullscreened]) > ytmusic-player-page[slot="player-page"] #main-panel > ytmusic-player:not([video-mode]):not([player-ui-state="FULLSCREEN"]):not([player-ui-state="MINIPLAYER"]) {
+  transform: scale(.9) !important;
+  transition: transform 240ms cubic-bezier(.4, 0, .7, .2) !important;
+}
+html.ytmls-am.ytmls-am.ytmls-am ytmusic-app-layout:not([player-fullscreened])[player-page-open] > ytmusic-player-page[slot="player-page"] #main-panel > ytmusic-player:not([video-mode]):not([player-ui-state="FULLSCREEN"]):not([player-ui-state="MINIPLAYER"]) {
+  transform: none !important;
+  transition: transform 560ms cubic-bezier(.18, 1.25, .4, 1) 40ms !important;
+}
+html.ytmls-am.ytmls-am.ytmls-am.ytmls-depth-animation-disabled ytmusic-app-layout > ytmusic-player-page[slot="player-page"],
+html.ytmls-am.ytmls-am.ytmls-am.ytmls-depth-animation-disabled ytmusic-app-layout > ytmusic-player-page[slot="player-page"] #main-panel > ytmusic-player,
+html.ytmls-am.ytmls-am.ytmls-am ytmusic-app-layout[no-animation] > ytmusic-player-page[slot="player-page"],
+html.ytmls-am.ytmls-am.ytmls-am ytmusic-app-layout[no-animation] > ytmusic-player-page[slot="player-page"] #main-panel > ytmusic-player { transition: none !important; }
+/* While it opens or closes (apple-shell.js, markPageMoving): the background's drift rests for that
+   moment, and picks up again once the page has settled. The page
+   itself is only scaled and faded (no blur over the whole page, which had to be redrawn each frame). */
+@media (prefers-reduced-motion: reduce) {
+  html.ytmls-am.ytmls-am.ytmls-am ytmusic-app-layout > ytmusic-player-page[slot="player-page"],
+  html.ytmls-am.ytmls-am.ytmls-am ytmusic-app-layout > ytmusic-player-page[slot="player-page"] #main-panel > ytmusic-player { transition: opacity 160ms ease !important; transform: none !important; }
+}
+
+/* ---------- Moving artwork background (apple-shell.js, updateAmbient) ----------
+   The cover blurred into large soft shapes that drift slowly behind the Now Playing page and the
+   fullscreen lyrics. The shapes are drawn at a quarter size and scaled up, so the blur stays cheap. */
+/* Shown wherever apple-shell.js placed one (it removes them when the screen is off), also in the
+   fullscreen lyrics while the browser's own fullscreen has the rest of the screen switched off. */
+html.ytmls-am ytmusic-player-page { isolation: isolate; }
+.ytmls-am-ambient {
+  display: block; position: absolute; inset: 0; z-index: -1; overflow: hidden; pointer-events: none;
+  opacity: 0; transition: opacity 1.2s ease;
+}
+.ytmls-am-ambient.is-ready { opacity: 1; }
+.ytmls-am-ambient.is-leaving { opacity: 0; }
+/* One small canvas, stretched over the window (apple-shell.js draws the drifting shapes and the
+   veil into it about 12 times a second; still when motion is reduced or the lightweight /
+   no-extra-motion settings are on). */
+.ytmls-am-ambient-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+/* Fullscreen lyrics: over its own still backdrop. */
+#ytmls-fullscreen > .ytmls-am-ambient { position: absolute; z-index: -1; }
+
+/* ---------- Up Next panel: 次に再生 / 履歴 and 自動再生 ---------- */
+.ytmls-queue-tabs { display: flex; margin: 2px 14px 6px; padding: 2px; border-radius: 9px; background: rgb(255 255 255 / .08); }
+.ytmls-queue-tabs button {
+  flex: 1; padding: 5px 0; border: 0; border-radius: 7px; background: transparent; color: rgb(255 255 255 / .75);
+  font: 600 12px/1.4 inherit; font-family: inherit; cursor: pointer; transition: background-color .18s, color .18s;
+}
+.ytmls-queue-tabs button[aria-selected="true"] { background: rgb(255 255 255 / .2); color: #fff; box-shadow: 0 1px 3px rgb(0 0 0 / .25); }
+.ytmls-queue-section {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 12px 8px 6px; font-size: 13px; font-weight: 700; color: #fff;
+}
+.ytmls-queue-section:first-child { padding-top: 4px; }
+.ytmls-queue-autoplay {
+  display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px 4px 8px; border: 0; border-radius: 999px;
+  background: rgb(255 255 255 / .08); color: rgb(255 255 255 / .6); font: 600 11.5px/1.3 inherit; font-family: inherit; cursor: pointer;
+  transition: background-color .18s, color .18s;
+}
+.ytmls-queue-autoplay svg { width: 17px; height: 17px; }
+.ytmls-queue-autoplay:hover { background: rgb(255 255 255 / .14); }
+.ytmls-queue-autoplay.is-on { background: rgb(250 45 72 / .18); color: var(--am-accent, #fa2d48); }
+
+/* ---------- Album / playlist: red 再生 and シャッフル capsules (apple-shell.js, ensureAlbumActions) ---------- */
+html.ytmls-am .ytmls-am-native-hidden { display: none !important; }
+.ytmls-am-album-actions { display: none; }
+html.ytmls-am .ytmls-am-album-actions { display: inline-flex; align-items: center; gap: 10px; margin-inline-end: 6px; vertical-align: middle; }
+html.ytmls-am .ytmls-am-pill {
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-width: 112px; height: 36px; padding: 0 20px;
+  border: 0; border-radius: 10px; background: var(--am-accent, #fa2d48); color: #fff;
+  font: 650 14px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", "Noto Sans JP", sans-serif; cursor: pointer;
+  box-shadow: 0 4px 14px rgb(250 45 72 / .3); transition: filter .15s, transform .15s;
+}
+/* Their own row, full width above the round buttons (with the round buttons beside them the row ran
+   into the song list and シャッフル broke onto two lines). */
+html.ytmls-am .ytmls-am-album-row { display: flex !important; flex-wrap: wrap !important; justify-content: center !important; align-items: center; row-gap: 14px !important; }
+html.ytmls-am .ytmls-am-album-row > .ytmls-am-album-actions { display: flex; flex: 0 0 100%; order: -1; justify-content: center; margin: 0; }
+html.ytmls-am .ytmls-am-pill span { white-space: nowrap; }
+html.ytmls-am .ytmls-am-pill svg { width: 15px; height: 15px; }
+html.ytmls-am .ytmls-am-pill-shuffle svg { width: 17px; height: 17px; }
+html.ytmls-am .ytmls-am-pill:hover { filter: brightness(1.1); }
+html.ytmls-am .ytmls-am-pill:active { transform: scale(.97); }
+html.ytmls-am .ytmls-am-pill:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+
+/* ---------- Track lists: the playing song in red with small moving bars, like the Mac ---------- */
+html.ytmls-am :is(ytmusic-browse-response, ytmusic-search-page) ytmusic-responsive-list-item-renderer:has(ytmusic-play-button-renderer:is([play-button-state="playing"], [play-button-state="paused"])) .title,
+html.ytmls-am :is(ytmusic-browse-response, ytmusic-search-page) ytmusic-responsive-list-item-renderer:has(ytmusic-play-button-renderer:is([play-button-state="playing"], [play-button-state="paused"])) .title a {
+  color: var(--am-accent, #fa2d48) !important;
+}
+/* The bars sit over the thumbnail / number; YouTube Music's own playing animation underneath is hidden. */
+html.ytmls-am :is(ytmusic-browse-response, ytmusic-search-page) ytmusic-responsive-list-item-renderer ytmusic-item-thumbnail-overlay-renderer:has(ytmusic-play-button-renderer[play-button-state="playing"]):not(:hover) ytmusic-play-button-renderer { opacity: 0 !important; }
+html.ytmls-am :is(ytmusic-browse-response, ytmusic-search-page) ytmusic-responsive-list-item-renderer ytmusic-item-thumbnail-overlay-renderer:has(ytmusic-play-button-renderer[play-button-state="playing"]):not(:hover)::after {
+  content: ""; position: absolute; left: 50%; top: 50%; width: 15px; height: 13px; translate: -50% -50%; pointer-events: none;
+  background: linear-gradient(#fff, #fff) 0 100% / 3px 100% no-repeat,
+              linear-gradient(#fff, #fff) 6px 100% / 3px 60% no-repeat,
+              linear-gradient(#fff, #fff) 12px 100% / 3px 80% no-repeat;
+  animation: ytmls-am-list-bars .9s ease-in-out infinite alternate;
+}
+@keyframes ytmls-am-list-bars {
+  0% { background-size: 3px 30%, 3px 100%, 3px 55%; }
+  50% { background-size: 3px 100%, 3px 40%, 3px 90%; }
+  100% { background-size: 3px 60%, 3px 85%, 3px 30%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  html.ytmls-am ytmusic-responsive-list-item-renderer ytmusic-item-thumbnail-overlay-renderer::after { animation: none !important; }
+}
+html.ytmls-am :is(ytmusic-browse-response, ytmusic-search-page) ytmusic-responsive-list-item-renderer ytmusic-item-thumbnail-overlay-renderer:has(ytmusic-play-button-renderer[play-button-state="playing"]):not(:hover)::before {
+  content: ""; position: absolute; inset: 0; border-radius: 6px; background: rgb(0 0 0 / .5); pointer-events: none;
+}
+/* The whole window: behind every page (home, albums, search …), a little darker so lists stay readable. */
+body > .ytmls-am-ambient { position: fixed; inset: 0; z-index: -1; }
+
+/* ---------- Now Playing page without a frame ----------
+   The page keeps its place, but its own backing (Music Glass's dark fill and still artwork slice) is
+   dropped, so the window's moving background shows edge to edge with no box around the page.
+   The pages behind it are hidden once it has opened (and shown again the moment it starts to close),
+   so nothing shows through. */
+html.ytmls-am.ytmls-am ytmusic-player-page { background: transparent !important; }
+html.ytmls-am ytmusic-player-page > .music-glass-surface { visibility: hidden !important; }
+html.ytmls-am ytmusic-app-layout[player-page-open]:not([player-fullscreened]) :is(ytmusic-browse-response, ytmusic-search-page, ytmusic-app-layout > #content, ytmusic-app-layout > [slot="content"]):not(ytmusic-player-page *) {
+  visibility: hidden !important;
+  transition: visibility 0s linear 360ms;
+}
+/* Once it is open and still, the pages behind are not drawn at all (content-visibility): an album
+   or home page there has thousands of parts whose styles and layout the browser otherwise kept
+   working out while the song played and the lyrics scrolled. Back the moment it starts to close. */
+html.ytmls-am.ytmls-am-page-open:not(.ytmls-am-page-moving) ytmusic-app-layout[player-page-open]:not([player-fullscreened]) > :is(#content, [slot="content"]):not(ytmusic-player-page):not(:has(ytmusic-player-page)),
+html.ytmls-am.ytmls-am-page-open:not(.ytmls-am-page-moving) ytmusic-app-layout[player-page-open]:not([player-fullscreened]) :is(ytmusic-browse-response, ytmusic-search-page):not(ytmusic-player-page *):not(:has(ytmusic-player-page)) {
+  content-visibility: hidden;
+}
+
+/* ---------- Now Playing page across the whole window ----------
+   The page is moved back to the window's left edge with the window's width while it is open
+   (apple-shell.js, fitPlayerPage), so the sidebar's width no longer changes the page or its artwork. */
+html.ytmls-am ytmusic-app-layout > ytmusic-player-page[style*="--ytmls-am-page-shift"] {
+  margin-left: calc(-1 * var(--ytmls-am-page-shift, 0px)) !important;
+  width: var(--ytmls-am-page-width, 100vw) !important;
+  max-width: none !important;
+}
+.ytmls-am-sidebar { transition: width .42s cubic-bezier(.2, .9, .25, 1), padding .42s cubic-bezier(.2, .9, .25, 1), transform .42s cubic-bezier(.2, .9, .25, 1), opacity .3s ease; }
+
+/* On every page the sidebar stays out of the way (as on the Now Playing page, like the Mac's full
+   screen player) and the toolbar runs from the window's edge; the pointer at the window's left edge
+   shows it over the page (the page keeps its size). */
+html.ytmls-am.ytmls-am-autohide:not(.ytmls-am-side-peek) .ytmls-am-sidebar {
+  transform: translateX(calc(-100% - 20px));
+  opacity: 0;
+  pointer-events: none;
+}
+html.ytmls-am.ytmls-am-autohide .ytmls-am-toolbar { left: 0; }
+html.ytmls-am.ytmls-am-autohide .ytmls-am-toolbar::before { inset: 0 0 -18px 0; }
+html.ytmls-am.ytmls-am-autohide .ytmls-am-menu { display: none !important; }
+/* Shown over the page: in front of the toolbar too, with a deeper shadow. */
+html.ytmls-am.ytmls-am-side-peek .ytmls-am-sidebar { z-index: 3; box-shadow: var(--am-hairline), 0 18px 50px rgb(0 0 0 / .5); }
+/* Shown over the page it is always the wide sidebar (with labels), even in the icon-only or no-sidebar
+   layouts. It shows when the pointer reaches the window's left edge (apple-shell.js, sidePeekPointer). */
+html.ytmls-am.ytmls-am-side-peek .ytmls-am-sidebar { display: flex; width: 226px; }
+
+
+/* ---------- Library (プレイリスト / 曲 / アルバム / アーティスト), Apple-style ----------
+   Library pages are the browse pages with a grid or a song list and filter chips but no carousels
+   (the home page has carousels). Looks only; YouTube Music's own sizes stay. */
+/* The filter chips joined into one glass segmented bar, the chosen one a light bead. */
+html.ytmls-am ytmusic-browse-response:has(ytmusic-chip-cloud-renderer):not(:has(ytmusic-carousel-shelf-renderer)) ytmusic-chip-cloud-renderer #chips {
+  border-radius: 12px;
+  background: rgb(255 255 255 / .07);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / .08);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  backdrop-filter: blur(20px) saturate(160%);
+}
+html.ytmls-am ytmusic-browse-response:has(ytmusic-chip-cloud-renderer):not(:has(ytmusic-carousel-shelf-renderer)) ytmusic-chip-cloud-chip-renderer :is(a, .gradient-box) {
+  background: transparent !important;
+  box-shadow: none !important;
+  border-radius: 9px !important;
+}
+html.ytmls-am ytmusic-browse-response:has(ytmusic-chip-cloud-renderer):not(:has(ytmusic-carousel-shelf-renderer)) ytmusic-chip-cloud-chip-renderer:hover :is(a, .gradient-box) { background: rgb(255 255 255 / .08) !important; }
+html.ytmls-am ytmusic-browse-response:has(ytmusic-chip-cloud-renderer):not(:has(ytmusic-carousel-shelf-renderer)) ytmusic-chip-cloud-chip-renderer:is([is-selected], [chip-style="STYLE_PRIMARY"]) :is(a, .gradient-box) {
+  background: rgb(255 255 255 / .9) !important;
+  box-shadow: 0 1px 4px rgb(0 0 0 / .25) !important;
+}
+/* Grid: the artwork lifts a little under the pointer, like the Mac's library. */
+html.ytmls-am ytmusic-grid-renderer ytmusic-two-row-item-renderer :is(ytmusic-thumbnail-renderer, .image-wrapper) {
+  transition: transform .25s cubic-bezier(.2, .9, .3, 1.2), box-shadow .25s ease;
+}
+html.ytmls-am ytmusic-grid-renderer ytmusic-two-row-item-renderer:hover :is(ytmusic-thumbnail-renderer, .image-wrapper) {
+  transform: translateY(-3px) scale(1.015);
+  box-shadow: 0 14px 30px rgb(0 0 0 / .4), 0 2px 6px rgb(0 0 0 / .22);
+}
+/* Song lists in the library: soft stripes, like the Mac's Songs view. */
+html.ytmls-am ytmusic-browse-response:has(ytmusic-chip-cloud-renderer):not(:has(ytmusic-carousel-shelf-renderer)) :is(ytmusic-shelf-renderer, ytmusic-playlist-shelf-renderer) ytmusic-responsive-list-item-renderer:nth-of-type(even):not(:hover):not([is-selected]) {
+  background-color: rgb(255 255 255 / .035) !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  html.ytmls-am ytmusic-grid-renderer ytmusic-two-row-item-renderer :is(ytmusic-thumbnail-renderer, .image-wrapper) { transition: none; transform: none !important; }
+}
+
+/* ---------- Lyrics, more like Apple Music (Now Playing page, Mac-style screen) ----------
+   Lines settle with a soft spring as the song moves on (the current-line focus keeps its own
+   sizes); bracketed lines (choruses, asides) are smaller and quieter, like background vocals.
+   #ytmls-panel twice: over the lyrics-motion and focus rules. */
+html.ytmls-am:not(.ytmls-lyrics-motion-lightweight) ytmusic-player-page #ytmls-panel#ytmls-panel .ytmls-line {
+  transition: color 160ms ease, opacity 260ms ease, transform 520ms cubic-bezier(.2, .9, .25, 1.12), filter 320ms ease;
+}
+html.ytmls-am ytmusic-player-page #ytmls-panel#ytmls-panel .ytmls-line.ytmls-aside-line { font-size: .74em; font-weight: 700; }
+html.ytmls-am ytmusic-player-page #ytmls-panel#ytmls-panel:not([data-sync="none"]) .ytmls-line.ytmls-aside-line:not(.ytmls-active) { opacity: .42; }
+html.ytmls-am ytmusic-player-page #ytmls-panel#ytmls-panel .ytmls-line.ytmls-aside-line.ytmls-active { opacity: .85; }
+@media (prefers-reduced-motion: reduce) {
+  html.ytmls-am ytmusic-player-page #ytmls-panel#ytmls-panel .ytmls-line { transition: color 160ms ease, opacity 160ms ease !important; }
+}
+
+/* ---------- Library / search tab strip (ライブラリ・オフライン …) ----------
+   Music Glass paints this sticky strip as an opaque box with a still slice of the artwork, which
+   showed as a frame that did not match the moving background or reach the window's edge. Here it
+   is the same glass as the toolbar's scroll edge: see-through, blurring whatever scrolls under it,
+   from the window's left edge (under the sidebar) and fading out at the bottom, so it looks the same
+   at rest and while stuck under the toolbar. The tabs are glass capsules like the other tab bars. */
+html.ytmls-am :is(ytmusic-browse-response, ytmusic-search-page, ytmusic-tabbed-search-results-renderer) ytmusic-tabs {
+  background: transparent !important;
+  --ytmusic-tabs-background: transparent;
+  isolation: isolate;
+}
+html.ytmls-am :is(ytmusic-browse-response, ytmusic-search-page, ytmusic-tabbed-search-results-renderer) ytmusic-tabs > :is(.music-glass-surface, .music-glass-aurora) { visibility: hidden !important; }
+html.ytmls-am :is(ytmusic-browse-response, ytmusic-search-page, ytmusic-tabbed-search-results-renderer) ytmusic-tabs::before {
+  content: ""; position: absolute; z-index: -1; pointer-events: none;
+  inset: 0 0 -14px calc(-1 * var(--ytmls-am-side, 0px));
+  -webkit-backdrop-filter: blur(22px) saturate(160%);
+  backdrop-filter: blur(22px) saturate(160%);
+  background: linear-gradient(rgb(0 0 0 / .16), rgb(0 0 0 / .06));
+  -webkit-mask-image: linear-gradient(#000 70%, transparent);
+  mask-image: linear-gradient(#000 70%, transparent);
+}
+html.ytmls-am :is(ytmusic-browse-response, ytmusic-search-page, ytmusic-tabbed-search-results-renderer) ytmusic-tabs tp-yt-paper-tabs {
+  background: transparent !important;
+  --ytmusic-tabs-background: transparent;
+  --paper-tabs-selection-bar-color: transparent;
+}
+html.ytmls-am :is(ytmusic-browse-response, ytmusic-search-page, ytmusic-tabbed-search-results-renderer) ytmusic-tabs tp-yt-paper-tabs #selectionBar { opacity: 0 !important; }
+html.ytmls-am :is(ytmusic-browse-response, ytmusic-search-page, ytmusic-tabbed-search-results-renderer) ytmusic-tabs tp-yt-paper-tab {
+  border-radius: 999px; color: rgb(255 255 255 / .62) !important; transition: background-color .2s, color .2s;
+}
+html.ytmls-am :is(ytmusic-browse-response, ytmusic-search-page, ytmusic-tabbed-search-results-renderer) ytmusic-tabs tp-yt-paper-tab:hover { color: rgb(255 255 255 / .88) !important; background: rgb(255 255 255 / .06); }
+html.ytmls-am :is(ytmusic-browse-response, ytmusic-search-page, ytmusic-tabbed-search-results-renderer) ytmusic-tabs tp-yt-paper-tab:is(.iron-selected, [aria-selected="true"]) {
+  color: #fff !important;
+  background: rgb(255 255 255 / .14);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / .12), 0 2px 8px rgb(0 0 0 / .18);
+}
+html.ytmls-lyrics-motion-lightweight.ytmls-am :is(ytmusic-browse-response, ytmusic-search-page, ytmusic-tabbed-search-results-renderer) ytmusic-tabs::before {
+  -webkit-backdrop-filter: none; backdrop-filter: none; background: rgb(30 28 34 / .92);
+}
+
+/* The sidebar is shown only over the page, always wide: its own wide / icon switch is not needed. */
+html.ytmls-am.ytmls-am-autohide .ytmls-am-side-toggle { display: none !important; }
+/* The banner is centred in the window (no sidebar column any more). */
+html.ytmls-am.ytmls-am-autohide .ytmls-am-toast { left: 50vw; }
+
+/* ---------- Sort menu (並べ替え) and other choice menus: the same glass as the song menus ----------
+   YouTube Music draws these with its multi-select menu (a title, then rows with a check). */
+html.ytmls-am :is(ytmusic-multi-select-menu-renderer, ytmusic-sort-filter-menu-renderer) {
+  border: 0 !important;
+  border-radius: 14px !important;
+  padding: 6px !important;
+  background: rgb(38 38 42 / .9) !important;
+  -webkit-backdrop-filter: blur(30px) saturate(170%);
+  backdrop-filter: blur(30px) saturate(170%);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / .1), 0 18px 48px rgb(0 0 0 / .42), 0 2px 8px rgb(0 0 0 / .2) !important;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", Roboto, sans-serif;
+  overflow: hidden;
+}
+html.ytmls-am :is(ytmusic-multi-select-menu-renderer, ytmusic-sort-filter-menu-renderer) :is(tp-yt-paper-listbox, #container, #items, .dropdown-content) { background: transparent !important; }
+/* The title (並べ替え): small and quiet, with a thin line under it. */
+html.ytmls-am :is(ytmusic-multi-select-menu-renderer, ytmusic-sort-filter-menu-renderer) :is(#header, #title, .title, yt-formatted-string#title):not(:is(ytmusic-multi-select-menu-item-renderer, tp-yt-paper-item) *) {
+  font-size: 12px !important; font-weight: 600 !important; color: rgb(255 255 255 / .55) !important;
+}
+html.ytmls-am :is(ytmusic-multi-select-menu-renderer, ytmusic-sort-filter-menu-renderer) #header { border-bottom: 1px solid rgb(255 255 255 / .08) !important; }
+/* Rows: rounded, a light tint under the pointer. */
+html.ytmls-am :is(ytmusic-multi-select-menu-renderer, ytmusic-sort-filter-menu-renderer) :is(ytmusic-multi-select-menu-item-renderer, tp-yt-paper-item, ytmusic-menu-service-item-renderer) {
+  border-radius: 8px !important;
+  background: transparent !important;
+  transition: background-color .12s;
+}
+html.ytmls-am :is(ytmusic-multi-select-menu-renderer, ytmusic-sort-filter-menu-renderer) :is(ytmusic-multi-select-menu-item-renderer, tp-yt-paper-item, ytmusic-menu-service-item-renderer):hover { background: rgb(255 255 255 / .12) !important; }
+html.ytmls-am :is(ytmusic-multi-select-menu-renderer, ytmusic-sort-filter-menu-renderer) :is(.text, yt-formatted-string) { font-size: 13.5px; font-weight: 500 !important; color: rgb(255 255 255 / .94) !important; }
+html.ytmls-am :is(ytmusic-multi-select-menu-renderer, ytmusic-sort-filter-menu-renderer) yt-icon { color: rgb(255 255 255 / .85) !important; }
+html.ytmls-am tp-yt-iron-dropdown:has(:is(ytmusic-multi-select-menu-renderer, ytmusic-sort-filter-menu-renderer)) :is(#contentWrapper, .dropdown-content) { background: transparent !important; border-radius: 14px; }
+html.ytmls-lyrics-motion-lightweight.ytmls-am :is(ytmusic-multi-select-menu-renderer, ytmusic-sort-filter-menu-renderer) { -webkit-backdrop-filter: none; backdrop-filter: none; background: #26262a !important; }
+/* Inside the menu every part of YouTube Music's own box goes clear (it drew a second dark box with
+   a border inside the glass); only the rows' pointer tint stays. The title, whatever YouTube Music
+   calls it, is small and quiet; rows are a little more compact. */
+html.ytmls-am :is(ytmusic-multi-select-menu-renderer, ytmusic-sort-filter-menu-renderer) *:not(yt-icon):not(svg):not(path) {
+  background-color: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+html.ytmls-am :is(ytmusic-multi-select-menu-renderer, ytmusic-sort-filter-menu-renderer) :is([id*="header" i], [class*="header" i], [id*="title" i], [class*="title" i]):not(:is(ytmusic-multi-select-menu-item-renderer, tp-yt-paper-item, [role="option"], [role="menuitem"], [role="menuitemradio"]) *):not(ytmusic-multi-select-menu-item-renderer) {
+  font-size: 12px !important; font-weight: 600 !important; color: rgb(255 255 255 / .55) !important;
+}
+html.ytmls-am :is(ytmusic-multi-select-menu-renderer, ytmusic-sort-filter-menu-renderer) :is([id*="header" i], [class*="header" i]):not(:is(ytmusic-multi-select-menu-item-renderer, tp-yt-paper-item) *) {
+  border-bottom: 1px solid rgb(255 255 255 / .08) !important;
+}
+html.ytmls-am :is(ytmusic-multi-select-menu-renderer, ytmusic-sort-filter-menu-renderer) :is(tp-yt-paper-item, [role="option"], [role="menuitem"], [role="menuitemradio"]) {
+  min-height: 36px !important; border-radius: 8px !important;
+}
+html.ytmls-am.ytmls-am :is(ytmusic-multi-select-menu-renderer, ytmusic-sort-filter-menu-renderer) :is(ytmusic-multi-select-menu-item-renderer, tp-yt-paper-item, [role="option"], [role="menuitem"], [role="menuitemradio"]):hover {
+  background-color: rgb(255 255 255 / .12) !important;
+}
+/* Compact, like a Mac menu: small title, 30px rows, a narrow check column, no extra space. */
+html.ytmls-am :is(ytmusic-multi-select-menu-renderer, ytmusic-sort-filter-menu-renderer) { padding: 5px !important; min-width: 0 !important; width: auto !important; }
+html.ytmls-am :is(ytmusic-multi-select-menu-renderer, ytmusic-sort-filter-menu-renderer) :is(tp-yt-paper-listbox, #container, #items, [role="listbox"], [role="menu"]) { padding: 0 !important; margin: 0 !important; }
+html.ytmls-am :is(ytmusic-multi-select-menu-renderer, ytmusic-sort-filter-menu-renderer) :is([id*="header" i], [class*="header" i]):not(:is(ytmusic-multi-select-menu-item-renderer, tp-yt-paper-item) *) {
+  padding: 4px 10px 6px !important; margin: 0 0 4px !important; min-height: 0 !important; height: auto !important;
+}
+html.ytmls-am :is(ytmusic-multi-select-menu-renderer, ytmusic-sort-filter-menu-renderer) :is(ytmusic-multi-select-menu-item-renderer, tp-yt-paper-item, [role="option"], [role="menuitem"], [role="menuitemradio"]) {
+  min-height: 30px !important; height: auto !important; padding-top: 0 !important; padding-bottom: 0 !important; margin: 0 !important;
+}
+html.ytmls-am :is(ytmusic-multi-select-menu-renderer, ytmusic-sort-filter-menu-renderer) tp-yt-paper-item { padding-left: 8px !important; padding-right: 12px !important; gap: 6px; }
+html.ytmls-am :is(ytmusic-multi-select-menu-renderer, ytmusic-sort-filter-menu-renderer) yt-icon { width: 16px !important; height: 16px !important; margin: 0 6px 0 0 !important; padding: 0 !important; flex: 0 0 16px; }
+html.ytmls-am :is(ytmusic-multi-select-menu-renderer, ytmusic-sort-filter-menu-renderer) :is(.text, yt-formatted-string) { font-size: 13px !important; line-height: 1.3 !important; margin: 0 !important; }

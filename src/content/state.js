@@ -7,6 +7,7 @@
     manualScrollReturnMs: 3500,
     trackingEnabled: true, // 歌詞ハイライト + 中央自動スクロール
     wordTrackingStyle: "smooth", // 単語ハイライト: smooth | silky
+    wordGlow: true, // 歌っている単語を光らせる
     focusFade: true,
     autoLyricsOnIdle: true, // 「次のコンテンツ」表示後、無操作なら歌詞タブへ移動
     lines: [],
@@ -104,6 +105,10 @@
       karalyr: true,
     },
     lyricCandidates: [],
+    candidateSearchKey: "", // track whose providers have all been searched for candidates
+    isCollectingCandidates: false,
+    candidateCollectToken: 0, // identifies the running background collection
+    lastTrackInfo: null, // search info that belongs to lastTrackKey
     activeCandidateId: "",
     manualSelectedCandidateId: "",
     activeBaseInfo: null,
@@ -147,6 +152,8 @@
   let localLyricsButtonEl = null;
   let exportLyricsButtonEl = null;
   let candidateSaveBusy = false;
+  let candidatePointerDown = false; // a press inside the candidate list is in progress
+  let candidateRefreshPending = false;
   let lyricsToolsPaneEl = null;
   let lyricsToolsPaneMode = "";
   let diagnosticsEl = null;

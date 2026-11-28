@@ -8,16 +8,36 @@ let practiceFullscreen = null, practiceFullSignature = '', practiceFullIndex = -
 const practiceRomajiCache = new Map();
 function practiceVideoId() { return String(getAuthoritativeVideoId() || ''); }
 function practiceEntry(id=practiceVideoId()) { return practiceData[id] || {}; }
+// Settings chosen but not saved yet (shown at once; the save follows).
+const practicePendingSettings={};
 function practicePrefs() {
- const prefs={...practiceGlobal,...(practiceEntry().settings||{})};
+ const id=practiceVideoId();
+ const prefs={...practiceGlobal,...(practiceEntry(id).settings||{}),...(practicePendingSettings[id]||{})};
  // Global OFF suppresses readings without discarding the per-track preference.
  for(const key of ['readingJapanese','readingEnglish'])prefs[key]=practiceGlobal[key]!==false&&prefs[key]!==false;
  return prefs;
 }
 function practiceCurrent(id,lines=STATE.lines) { return Boolean(id && id===practiceVideoId() && id===STATE.displayedVideoId && lines===STATE.lines && STATE.enabled); }
+// Only the fields this version uses, in the shape the storage check accepts. Entries saved by older
+// versions can hold other fields; writing them back made the whole save fail for that song.
+const PRACTICE_SETTING_TYPES={fontSize:'number',readingJapanese:'boolean',readingEnglish:'boolean',showTranslation:'boolean',showRomaji:'boolean'};
+function cleanPracticeEntry(entry) {
+ const settings={};
+ for(const [key,value] of Object.entries((entry&&typeof entry.settings==='object'&&entry.settings)||{})){
+  const type=PRACTICE_SETTING_TYPES[key];
+  if(type==='number'&&Number.isFinite(value)&&value>=10&&value<=100)settings[key]=value;
+  else if(type==='boolean'&&typeof value==='boolean')settings[key]=value;
+ }
+ return {
+  title:String((entry&&entry.title)||STATE.lastDisplayedTitle||''),
+  artist:String((entry&&entry.artist)||STATE.lastDisplayedArtist||''),
+  settings,
+  updatedAt:Date.now(),
+ };
+}
 async function savePracticeEntry(id,entry) {
  if(!id)throw Error('曲を読み込んでください');
- const data=await sendUserDataMutation({action:'entry',key:PRACTICE_KEY,videoId:id,entry:{title:STATE.lastDisplayedTitle||'',artist:STATE.lastDisplayedArtist||'',...entry,updatedAt:Date.now()}});
+ const data=await sendUserDataMutation({action:'entry',key:PRACTICE_KEY,videoId:id,entry:cleanPracticeEntry(entry)});
  practiceData=data[PRACTICE_KEY]||practiceData;
  if(id===practiceVideoId()) { applyPracticePrefs();void refreshPracticeExtras(); }
 }
@@ -197,6 +217,7 @@ function closePracticeFullscreen(animate = true) {
  document.removeEventListener('keyup', handlePracticeFullscreenSpace, true);
  clearTimeout(box.closeTimer);
  box.resizeObserver?.disconnect();
+ cancelAnimationFrame(box.nowFrame||0); clearTimeout(box.nowTimer||0);
  const finish = () => {
   practiceFullscreen = null;
   const exiting = document.fullscreenElement === box ? document.exitFullscreen() : Promise.resolve();
@@ -207,6 +228,17 @@ function closePracticeFullscreen(animate = true) {
  };
  if (animate === false || !playerFeedbackEnabled()) { finish(); return; }
  box.backgroundMotion?.cancel();
+ // Shrink back into the button it was opened from (after leaving browser fullscreen, so the
+ // button is where it will be on the page again).
+ const opener = box.openedFrom;
+ if (opener?.isConnected && typeof glassMorph === 'function') {
+  const leaving = document.fullscreenElement === box ? document.exitFullscreen().catch(() => {}) : Promise.resolve();
+  void leaving.then(() => new Promise(resolve => requestAnimationFrame(resolve))).then(() => {
+   if (!opener.isConnected || !opener.getClientRects().length) { finish(); return; }
+   glassMorph(box, opener, {closing: true, onDone: finish});
+  });
+  return;
+ }
  const canvas = box.querySelector('canvas');
  const blur = getComputedStyle(canvas).filter;
  canvas.animate([{filter:blur},{filter:'blur(0px)'}], {duration:220,easing:'ease-in',fill:'forwards'});
@@ -227,12 +259,20 @@ function openPracticeFullscreen() {
  if (!STATE.enabled || !STATE.lines.length || practiceFullscreen) return;
  const box=document.createElement('div');box.id='ytmls-fullscreen';box.setAttribute('role','dialog');box.setAttribute('aria-label','全画面歌詞');box.setAttribute('aria-modal','true');
  const canvas=document.createElement('canvas');canvas.width=96;canvas.height=96;canvas.className='ytmls-full-backdrop';box.append(canvas);
+ const haze=document.createElement('div');haze.className='music-glass-aurora ytmls-full-aurora';haze.setAttribute('aria-hidden','true');box.append(haze);
  const corner=document.createElement('div');corner.className='ytmls-full-corner';box.append(corner);const close=practiceButton(corner,'全画面を閉じる',closePracticeFullscreen);close.className='ytmls-full-close';box.classList.add('ytmls-full-intro');box.closeTimer=setTimeout(()=>{if(practiceFullscreen===box)box.classList.remove('ytmls-full-intro');},3000);
+ const toolbar = document.createElement('div');
+ toolbar.className = 'ytmls-full-size';
  const sizeControls = document.createElement('div');
- sizeControls.className = 'ytmls-full-size';
+ sizeControls.className = 'ytmls-full-group';
  sizeControls.setAttribute('role', 'group');
  sizeControls.setAttribute('aria-label', '歌詞の文字サイズ');
- box.append(sizeControls);
+ const alignControls = document.createElement('div');
+ alignControls.className = 'ytmls-full-group';
+ alignControls.setAttribute('role', 'group');
+ alignControls.setAttribute('aria-label', '歌詞の位置');
+ toolbar.append(sizeControls, alignControls);
+ box.append(toolbar);
  let scale = 100;
  const resize = delta => {
   scale = Math.min(150, Math.max(70, scale + delta));
@@ -244,10 +284,34 @@ function openPracticeFullscreen() {
  const larger = practiceButton(sizeControls, 'A+', () => resize(10));
  smaller.setAttribute('aria-label', '歌詞の文字を小さくする');
  larger.setAttribute('aria-label', '歌詞の文字を大きくする');
- const title=document.createElement('h1');title.textContent=STATE.lastDisplayedTitle||'歌詞';box.append(title);const list=document.createElement('div');list.className='ytmls-full-list';box.append(list);
+ // Left or centered lyrics; the choice is shared across tabs and kept in backups.
+ const setAlign = value => {
+  box.dataset.align = value;
+  alignLeft.setAttribute('aria-pressed', String(value === 'left'));
+  alignCenter.setAttribute('aria-pressed', String(value === 'center'));
+ };
+ const chooseAlign = value => {
+  box.alignChosen = true;
+  setAlign(value);
+  box.pendingFollow = true; syncPracticeFullscreenTracking();
+  try { chrome.storage.sync.set({fullscreenAlign:value}, () => { void chrome.runtime.lastError; }); } catch (_) {}
+ };
+ const alignLeft = practiceButton(alignControls, '左', () => chooseAlign('left'));
+ const alignCenter = practiceButton(alignControls, '中央', () => chooseAlign('center'));
+ alignLeft.setAttribute('aria-label', '歌詞を左寄せで表示');
+ alignCenter.setAttribute('aria-label', '歌詞を中央寄せで表示');
+ setAlign('left');
+ try { chrome.storage.sync.get({fullscreenAlign:'left'}, data => { if (!chrome.runtime.lastError && practiceFullscreen === box && !box.alignChosen) setAlign(data.fullscreenAlign === 'center' ? 'center' : 'left'); }); } catch (_) {}
+ // Header: small cover, title and artist (kept in step with the song in refreshPracticeFullscreen).
+ const head=document.createElement('header');head.className='ytmls-full-head';
+ const cover=document.createElement('img');cover.className='ytmls-full-cover';cover.alt='';cover.decoding='async';
+ const meta=document.createElement('div');meta.className='ytmls-full-meta';
+ const title=document.createElement('h1');const artist=document.createElement('p');artist.className='ytmls-full-artist';
+ meta.append(title,artist);head.append(cover,meta);box.append(head);updatePracticeFullscreenHeader(box);const list=document.createElement('div');list.className='ytmls-full-list';box.append(list);
+ if(typeof buildFullscreenNowPlaying==='function')buildFullscreenNowPlaying(box);
  box.returnFocus=document.activeElement;document.body.append(box);practiceFullscreen=box;trackingDisplayResumedAt=performance.now();document.addEventListener('keydown',handlePracticeFullscreenSpace,true);document.addEventListener('keyup',handlePracticeFullscreenSpace,true);practiceFullSignature='';practiceFullIndex=-1;refreshPracticeFullscreen();box.tabIndex=-1;box.focus();
  box.resizeObserver=new ResizeObserver(()=>{if(practiceFullscreen===box){box.pendingFollow=true;syncPracticeFullscreenTracking();}});box.resizeObserver.observe(list);
- const pause=()=>{box.manualUntil=performance.now()+(STATE.manualScrollReturnMs||3500);box.pendingFollow=true;};list.addEventListener('wheel',pause,{passive:true});list.addEventListener('touchmove',pause,{passive:true});list.addEventListener('keydown',e=>{if(['ArrowUp','ArrowDown','PageUp','PageDown','Home','End'].includes(e.key))pause();});
+ const pause=()=>{box.manualUntil=performance.now()+(STATE.manualScrollReturnMs||3500);box.pendingFollow=true;box.dataset.browsing='true';};list.addEventListener('wheel',pause,{passive:true});list.addEventListener('touchmove',pause,{passive:true});list.addEventListener('keydown',e=>{if(['ArrowUp','ArrowDown','PageUp','PageDown','Home','End'].includes(e.key))pause();});
  box.addEventListener('keydown',e=>{if(e.key==='Escape'){e.stopPropagation();closePracticeFullscreen();}else if(e.key==='Tab'){const buttons=[...box.querySelectorAll('button:not(:disabled)')];const first=buttons[0],last=buttons.at(-1);if(e.shiftKey&&document.activeElement===first){e.preventDefault();last?.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first?.focus();}}});
 
  if (playerFeedbackEnabled()) {
@@ -255,20 +319,36 @@ function openPracticeFullscreen() {
     [{filter:'blur(0px)',opacity:0},{filter:'blur(12px)',opacity:.65}],
     {duration:240,easing:'ease-out'});
  }
- if(box.requestFullscreen)void box.requestFullscreen().then(()=>{box.dataset.native='true';}).catch(()=>{});
+ // Grow out of the "その他" button it was opened from, then go browser-fullscreen: in browser
+ // fullscreen the page behind is hidden, so the button would grow over black.
+ const goFullscreen=()=>{if(practiceFullscreen===box&&!box.inert&&box.requestFullscreen)void box.requestFullscreen().then(()=>{box.dataset.native='true';}).catch(()=>{});};
+ const opener=document.querySelector('#ytmls-more > summary');
+ const morph=opener?.getClientRects().length&&typeof glassMorph==='function'?glassMorph(box,opener):null;
+ if(morph){box.openedFrom=opener;morph.finished.then(goFullscreen,()=>{});}else goFullscreen();
+}
+function updatePracticeFullscreenHeader(box) {
+ // Runs on every refresh: YouTube Music often swaps the cover after the new lyrics are shown.
+ const heading=box.querySelector('.ytmls-full-head h1'),titleText=STATE.lastDisplayedTitle||'歌詞';
+ if(heading.textContent!==titleText)heading.textContent=titleText;
+ const artist=box.querySelector('.ytmls-full-artist'),artistText=STATE.lastDisplayedArtist||'';
+ if(artist.textContent!==artistText)artist.textContent=artistText;artist.hidden=!artistText;
+ const image=document.querySelector('ytmusic-player-bar .thumbnail-image-wrapper img,ytmusic-player-bar img.image,ytmusic-player #song-image img');
+ const src=image?.currentSrc||image?.src||'';const cover=box.querySelector('.ytmls-full-cover');
+ if(cover.getAttribute('src')!==src){if(src)cover.src=src;else cover.removeAttribute('src');}
+ if(cover.hidden!==!src)cover.hidden=!src;
 }
 function refreshPracticeFullscreen() {
  const box=practiceFullscreen;if(!box || box.inert)return;if(!STATE.enabled){closePracticeFullscreen(false);return;}
- paintPracticeBackground(box);
+ paintPracticeBackground(box);updatePracticeFullscreenHeader(box);
  const sig=[STATE.displayedVideoId,STATE.activeCandidateId,practiceExtrasGeneration,STATE.lines.length].join(':');const list=box.querySelector('.ytmls-full-list');
- if(sig!==practiceFullSignature){practiceFullSignature=sig;practiceFullIndex=-1;box.querySelector('h1').textContent=STATE.lastDisplayedTitle||'歌詞';const restoreFocus=list.contains(document.activeElement);list.replaceChildren();if(restoreFocus)box.focus({preventScroll:true});const renderedId=STATE.displayedVideoId,renderedLines=STATE.lines;for(let i=0;i<STATE.lines.length;i++){const b=document.createElement('button');b.className='ytmls-full-line ytmls-line';b.append(...[...(listEl?.children[i]?.childNodes||[])].map(x=>x.cloneNode(true)));if(!b.childNodes.length)b.textContent=STATE.lines[i].text;b.addEventListener('keydown',e=>handlePracticeLineKey(e,renderedId,renderedLines,b));b.addEventListener('click',()=>{if(practiceCurrent(renderedId,renderedLines)){box.manualUntil=0;box.pendingFollow=true;practiceSeek(i);}});list.append(b);}}
+ if(sig!==practiceFullSignature){practiceFullSignature=sig;practiceFullIndex=-1;const restoreFocus=list.contains(document.activeElement);list.replaceChildren();if(restoreFocus)box.focus({preventScroll:true});const renderedId=STATE.displayedVideoId,renderedLines=STATE.lines;for(let i=0;i<STATE.lines.length;i++){const b=document.createElement('button');b.className='ytmls-full-line ytmls-line';b.append(...[...(listEl?.children[i]?.childNodes||[])].map(x=>x.cloneNode(true)));if(!b.childNodes.length)b.textContent=STATE.lines[i].text;b.addEventListener('keydown',e=>handlePracticeLineKey(e,renderedId,renderedLines,b));b.addEventListener('click',()=>{if(practiceCurrent(renderedId,renderedLines)){box.manualUntil=0;box.pendingFollow=true;practiceSeek(i);}});list.append(b);}}
  syncPracticeFullscreenTracking();
 }
 function syncPracticeFullscreenTracking() {
  const box=practiceFullscreen;if(!box)return;
  const list=box.querySelector('.ytmls-full-list');
  const tracking=STATE.trackingEnabled!==false&&practiceCurrent(STATE.displayedVideoId);
- box.dataset.wordTracking=tracking?(STATE.wordTrackingStyle||'smooth'):'off';box.dataset.trackingMode=tracking?'auto':'off';
+ box.dataset.wordTracking=tracking?(STATE.wordTrackingStyle||'smooth'):'off';box.dataset.wordGlow=STATE.wordGlow===false?'off':'on';box.dataset.trackingMode=tracking?'auto':'off';
  const index=tracking?STATE.currentIndex:-1,changed=index!==practiceFullIndex;
  box.dataset.focusFade=tracking&&index>=0&&STATE.focusFade!==false?'on':'off';
  if(changed){practiceFullIndex=index;for(let i=0;i<list.children.length;i++){list.children[i].classList.toggle('active',i===index);list.children[i].classList.toggle('ytmls-active',i===index);const distance=index>=0?Math.abs(i-index):999;list.children[i].classList.toggle('ytmls-near',distance===1);list.children[i].classList.toggle('ytmls-middle',distance===2);list.children[i].classList.toggle('ytmls-upcoming',index>=0&&i>index);}box.pendingFollow=true;}
@@ -280,16 +360,34 @@ function syncPracticeFullscreenTracking() {
  if(tracking&&row&&box.pendingFollow&&performance.now()>=(box.manualUntil||0)){
   const rect=list.getBoundingClientRect(),lineRect=row.getBoundingClientRect();
   const top=Math.max(0,list.scrollTop+lineRect.top-rect.top+lineRect.height/2-list.clientHeight*(STATE.trackingPosition||42)/100);
-  const smooth=changed&&!window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  list.scrollTo({top,behavior:smooth?'smooth':'instant'});box.pendingFollow=false;
+  const smooth=changed&&!window.matchMedia('(prefers-reduced-motion: reduce)').matches&&!document.documentElement.classList.contains('ytmls-lyrics-motion-lightweight');
+  cancelAnimationFrame(box.scrollFrame||0);box.scrollFrame=0;
+  delete box.dataset.browsing;
+  if(smooth&&typeof lyricsScrollEase==='function')animateFullscreenScroll(box,list,top);
+  else list.scrollTo({top,behavior:'instant'});
+  box.pendingFollow=false;
  }
+}
+// Same gentle overshoot as the lyrics panel; manual scrolling stops it.
+function animateFullscreenScroll(box,list,target) {
+ const start=list.scrollTop,startedAt=performance.now();
+ const bounce=!document.documentElement.classList.contains('ytmls-extra-motion-disabled');
+ const duration=bounce?Math.min(560,Math.max(400,360+Math.abs(target-start)*.3)):260;
+ const step=now=>{
+  box.scrollFrame=0;
+  if(practiceFullscreen!==box||performance.now()<(box.manualUntil||0))return;
+  const progress=Math.min(1,Math.max(0,(now-startedAt)/duration));
+  list.scrollTo({top:start+(target-start)*lyricsScrollEase(progress,bounce),behavior:'instant'});
+  if(progress<1)box.scrollFrame=requestAnimationFrame(step);
+ };
+ box.scrollFrame=requestAnimationFrame(step);
 }
 function ensurePracticeControls() {
  const menu=lyricsToolsEl?.querySelector('.ytmls-more-menu');if(!menu)return;
  const group = menu.querySelector('#ytmls-practice-controls');
  if (!group) return;
  if (!group.querySelector('button')) {
-  for(const [title,fn] of [['この曲の表示設定',showTrackDisplay],['全画面歌詞ビュー',openPracticeFullscreen]])practiceButton(group,title,()=>{const details=menu.closest('details');if(details)closeMoreMenu(details);fn();});
+  for(const [title,fn,icon] of [['この曲の表示設定',showTrackDisplay,'sliders'],['全画面歌詞ビュー',openPracticeFullscreen,'expand']])practiceButton(group,title,()=>{const details=menu.closest('details');if(details)closeMoreMenu(details);fn();}).dataset.icon=icon;
  }
  const available=practiceCurrent(STATE.displayedVideoId)&&STATE.lines.length>0;
  for(const button of group.querySelectorAll(':scope > button'))button.disabled=!available;

@@ -1,7 +1,6 @@
 (() => {
   'use strict';
   let enabled = true, bridgeEnabled = true, currentId = '', snapshotAt = 0, held = false;
-  const source = 'ytmls-player-bridge-v1';
   let keyboardFocus = true;
   window.addEventListener('pointerdown', () => { keyboardFocus = false; document.documentElement.classList.add('ytmls-pointer-focus'); }, true);
   window.addEventListener('keydown', e => { if (e.key === 'Tab') { keyboardFocus = true; document.documentElement.classList.remove('ytmls-pointer-focus'); } }, true);
@@ -9,11 +8,15 @@
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area === 'sync' && changes.enabled) enabled = changes.enabled.newValue !== false;
   });
-  window.addEventListener('message', e => {
-    if (e.source !== window || e.data?.source !== source) return;
-    if (e.data.type === 'tracking-config') { bridgeEnabled = e.data.enabled === true; if (!bridgeEnabled) { currentId = ''; snapshotAt = 0; } return; }
-    if (e.data.type !== 'snapshot') return;
-    currentId = String(e.data.payload?.videoId || '');
+  // Player snapshots and settings arrive over the private channel (bridge-channel.js).
+  const bridge = globalThis.ytmlsBridge;
+  if (!bridge) return;
+  bridge.onSend(message => {
+    if (message?.type === 'tracking-config') { bridgeEnabled = message.enabled === true; if (!bridgeEnabled) { currentId = ''; snapshotAt = 0; } }
+  });
+  bridge.listen(message => {
+    if (message?.type !== 'snapshot') return;
+    currentId = String(message.payload?.videoId || '');
     snapshotAt = performance.now();
   });
   function editable(event) {
@@ -28,7 +31,7 @@
     const lyricRow = path.some(el => el instanceof Element && el.matches('#ytmls-list .ytmls-line, #ytmls-fullscreen .ytmls-full-line'));
     if (!lyricRow && keyboardFocus && path.some(el => el instanceof Element && el.matches(':focus-visible') && el.matches('button, a[href], summary, [role="button"], [role="menuitem"], [role="menuitemcheckbox"], [role="menuitemradio"], [role="slider"], [role="switch"], [role="checkbox"], [role="tab"]'))) return;
     e.preventDefault(); e.stopImmediatePropagation(); held = true;
-    if (!e.repeat) window.postMessage({source, type:'toggle-playback', payload:{videoId:currentId}}, '*');
+    if (!e.repeat) bridge.send({type:'toggle-playback', payload:{videoId:currentId}});
   }, true);
   window.addEventListener('keyup', e => {
     if (e.code !== 'Space' || !held) return;

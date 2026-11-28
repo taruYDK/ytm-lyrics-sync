@@ -5,7 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>バックアップ・復元 | YT Music 歌詞シンクロ</title>
 <style>
-  :root { color-scheme:dark; --bg:#111214; --card:#1b1d21; --border:rgba(255,255,255,.1); --text:#f5f5f5; --sub:#aeb3bb; --accent:#ff3d4f; }
+  :root { color-scheme:dark; --bg:#111214; --card:#1b1d21; --border:rgba(255,255,255,.1); --text:#f5f5f5; --sub:#aeb3bb; --accent:#ff3d4f; --danger:#ff8d98; }
+  @media(prefers-color-scheme:light) { :root { --danger:#b91f37; } }
   * { box-sizing:border-box; }
   body { margin:0; min-height:100vh; padding:40px 20px; background:var(--bg); color:var(--text); font-family:"Segoe UI","Hiragino Sans","Noto Sans JP",sans-serif; }
   main { width:min(620px,100%); margin:0 auto; }
@@ -23,49 +24,111 @@
   #status.success { color:#80dfaa; }
   #status.error { color:#ff8d98; }
   #trackFilter { width:100%; padding:9px; margin:8px 0; color:var(--text); background:var(--bg); border:1px solid var(--border); border-radius:6px; }
-  .saved-track { display:flex; align-items:flex-start; gap:10px; padding:12px 0; border-bottom:1px solid var(--border); overflow-wrap:anywhere; }
-  .saved-track small { display:block; color:var(--sub); margin-top:4px; }
-  #savedTracks { max-height:450px; overflow:auto; }
+  .list-head { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:10px 12px; margin-top:6px; border:1px solid var(--border); border-bottom:0; border-radius:10px 10px 0 0; color:var(--sub); font-size:12px; }
+  .select-all { display:flex; align-items:center; gap:8px; cursor:pointer; color:var(--text); font-weight:600; }
+  .list-meta { display:flex; gap:12px; }
+  #listSelectionCount { color:var(--danger); font-weight:700; }
+  #savedTracks { max-height:min(560px,60vh); overflow:auto; border:1px solid var(--border); border-radius:0 0 10px 10px; }
+  .saved-track { display:grid; grid-template-columns:auto minmax(0,1fr) auto; align-items:center; gap:12px; padding:11px 12px; border-bottom:1px solid var(--border); cursor:pointer; transition:background-color .12s ease; }
+  .saved-track:last-child { border-bottom:0; }
+  .saved-track:hover { background:color-mix(in srgb, var(--text) 5%, transparent); }
+  .saved-track[data-selected="true"] { background:color-mix(in srgb, var(--danger) 10%, transparent); }
+  .saved-track input { width:16px; height:16px; margin:0; accent-color:var(--accent); }
+  .track-main { display:flex; flex-direction:column; gap:2px; min-width:0; }
+  .track-title { font-size:14px; font-weight:700; color:var(--text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .track-artist { font-size:12px; color:var(--sub); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .track-tags { display:flex; flex-wrap:wrap; gap:4px; margin-top:4px; }
+  .track-tag { padding:1px 7px; border:1px solid var(--border); border-radius:999px; font-size:10.5px; line-height:1.6; color:var(--sub); }
+  .track-tag.favorite { border-color:color-mix(in srgb, #e3b23c 55%, transparent); color:#e3b23c; }
+  .track-side { display:flex; flex-direction:column; align-items:flex-end; gap:6px; }
+  .track-date { font-size:11px; color:var(--sub); font-variant-numeric:tabular-nums; }
+  .track-open { padding:3px 9px; border:1px solid var(--border); border-radius:999px; color:var(--text); font-size:11px; text-decoration:none; white-space:nowrap; }
+  .track-open:hover { border-color:var(--sub); }
+  .saved-empty { margin:0; padding:22px 12px; text-align:center; }
+  @media(prefers-color-scheme:light) { .track-tag.favorite { color:#8a6200; } }
   #dataManager button { margin:4px 0; }
+  .card.danger { border-color:color-mix(in srgb, var(--danger) 45%, var(--border)); }
+  .card.danger h2 { color:var(--danger); }
+  button.danger { border-color:var(--danger); background:transparent; color:var(--danger); }
+  button.danger:not(:disabled):hover { background:color-mix(in srgb, var(--danger) 12%, transparent); filter:none; }
+  .tools { display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; }
   .note { padding:13px 15px; border-radius:11px; background:rgba(255,255,255,.045); color:var(--sub); font-size:12px; line-height:1.65; }
 </style>
 <link rel="stylesheet" href="settings-theme.css">
+<link rel="stylesheet" href="backup-apple.css">
+<link rel="stylesheet" href="pages-glass.css">
 </head>
 <body>
-<main>
-  <h1>データ保護・管理</h1>
-  <p class="lead">曲ごとの歌詞タイミング補正、固定した歌詞、追加・作成したローカル歌詞、書き換えた歌詞、手動検索内容、表示設定をJSONファイルで移せます。通常取得した歌詞キャッシュや認証情報は保存しません。</p>
+<main class="page-content">
+  <header class="hero">
+    <span class="hero-icon" aria-hidden="true"></span>
+    <div class="hero-copy">
+      <h1>データ保護・管理</h1>
+      <p class="lead">設定と曲ごとの保存データ（補正・固定した歌詞・ローカル歌詞・歌詞の編集・表示設定など）を保存・復元します。歌詞のキャッシュや認証情報は含みません。</p>
+    </div>
+    <div class="hero-stats" aria-label="保存データ">
+      <div class="stat"><span class="stat-value" id="savedCount">–</span><span class="stat-label">保存した曲</span></div>
+      <div class="stat"><span class="stat-value" id="savedBytes">–</span><span class="stat-label">曲のデータ</span></div>
+    </div>
+    <div class="meter" aria-hidden="true"><span class="meter-fill" id="storageMeter"></span></div>
+    <p id="storageUsage" class="meter-caption" role="status">使用量を確認中…</p>
+  </header>
 
-  <section class="card">
-    <h2>バックアップ</h2>
-    <p>現在の設定、補正値、固定した歌詞、ローカル歌詞をファイルとして保存します。</p>
-    <button type="button" id="exportButton" class="primary">バックアップを書き出す</button>
+  <section class="tiles" aria-label="バックアップと復元">
+    <article class="tile">
+      <span class="tile-icon" data-icon="export" aria-hidden="true"></span>
+      <h2>バックアップ</h2>
+      <p>設定と曲ごとの保存データを、1つのファイルに書き出します。</p>
+      <button type="button" id="exportButton" class="primary">書き出す…</button>
+    </article>
+    <article class="tile">
+      <span class="tile-icon" data-icon="import" aria-hidden="true"></span>
+      <h2>復元</h2>
+      <p>書き出したファイルを読み込み、今のデータを上書きします。</p>
+      <button type="button" id="importButton">読み込む…</button>
+      <input type="file" id="importFile" accept="application/json,.json" />
+    </article>
   </section>
 
-  <section class="card">
-    <h2>復元</h2>
-    <p>以前に書き出したバックアップを読み込み、現在の設定を上書きします。</p>
-    <button type="button" id="importButton">バックアップを読み込む</button>
-    <input type="file" id="importFile" accept="application/json,.json" />
-  </section>
-
-  <section class="card" id="dataManager">
-    <h2>保存曲・お気に入り／履歴</h2>
-    <p>固定した歌詞をお気に入りとして表示します。履歴は保存済みデータの更新順です（再生履歴ではありません）。</p>
-    <label class="track-view-field">表示する曲<select id="trackView"><option value="recent">最近保存・編集した曲</option><option value="pinned">お気に入り（固定した曲）</option><option value="name">すべて・曲名順</option></select></label>
-    <p id="storageUsage" role="status">使用量を確認中…</p>
-    <p>選択した曲の補正・編集・固定歌詞・ローカル歌詞・手動検索条件を削除します。元に戻すには事前のバックアップが必要です。通常の歌詞キャッシュや表示設定は削除しません。</p>
-    <label>曲名・アーティスト・曲IDで検索 <input type="search" id="trackFilter" /></label>
+  <section class="library" id="dataManager" aria-labelledby="savedHeading">
+    <div class="library-head">
+      <div>
+        <h2 id="savedHeading">保存した曲</h2>
+        <p class="library-sub">固定した歌詞は ★ お気に入り。並びは保存・編集した順です（再生履歴ではありません）。</p>
+      </div>
+      <button type="button" id="refreshTracks" class="icon-button" title="一覧を更新" aria-label="一覧を更新"></button>
+    </div>
+    <div class="library-bar">
+      <div class="segmented" role="radiogroup" aria-label="表示する曲">
+        <button type="button" role="radio" data-view="recent" aria-checked="true">最近</button>
+        <button type="button" role="radio" data-view="pinned" aria-checked="false">お気に入り</button>
+        <button type="button" role="radio" data-view="name" aria-checked="false">曲名順</button>
+      </div>
+      <select id="trackView" class="visually-hidden" tabindex="-1" aria-hidden="true"><option value="recent">最近保存・編集した曲</option><option value="pinned">お気に入り（固定した曲）</option><option value="name">すべて・曲名順</option></select>
+      <label class="search"><span class="visually-hidden">曲名・アーティスト・曲IDで検索</span><input type="search" id="trackFilter" placeholder="曲名・アーティスト・曲ID" /></label>
+    </div>
+    <div class="list-head">
+      <label class="select-all"><input type="checkbox" id="selectAllTracks"> すべて選択</label>
+      <span class="list-meta"><span id="listSelectionCount"></span><span id="visibleTrackCount"></span></span>
+    </div>
     <div id="savedTracks"></div>
-    <button type="button" id="loadMoreTracks" hidden>さらに50曲表示</button>
-    <p id="selectionCount" aria-live="polite">0曲選択</p>
-    <button type="button" id="deleteTracks" disabled>選択した曲のデータを削除</button>
-    <button type="button" id="refreshTracks">一覧を更新</button>
+    <div class="tools">
+      <button type="button" id="loadMoreTracks" hidden>さらに50曲表示</button>
+    </div>
   </section>
-  <div class="note">削除・復元後は、開いているYouTube Musicのタブを再読み込みしてください。歌詞を表示中の場合、削除した歌詞が再読み込みまで画面に残ることがあります。</div>
+
+  <div class="action-bar" aria-labelledby="deleteHeading">
+    <div class="action-copy">
+      <strong id="selectionCount" aria-live="polite">0曲選択</strong>
+      <span id="deleteHeading">選んだ曲の補正・編集・固定歌詞・ローカル歌詞・手動検索・ふりがな・表示設定を削除します。元に戻すにはバックアップが必要です。</span>
+    </div>
+    <button type="button" id="deleteTracks" class="danger" disabled>削除…</button>
+  </div>
+  <p class="foot-note">削除・復元の後は、開いているYouTube Musicのタブを再読み込みしてください。</p>
   <div id="status" role="status" aria-live="polite"></div>
 <p id="backupReminder" role="status" hidden></p>
 </main>
+<script src="details-motion.js"></script>
 <script src="backup-reminder.js"></script>
 <script src="backup-validation.js"></script>
 <script src="backup.js"></script>

@@ -2,17 +2,14 @@
   'use strict';
   const key = 'ytmlsPlayerBarCustomEnabled';
   const toggle = document.getElementById('playerBarCustomToggle');
-  const state = document.getElementById('playerBarCustomState');
   const status = document.getElementById('playerBarCustomStatus');
   let saved = true;
   function render(enabled) {
     saved = enabled !== false;
     toggle.checked = saved;
-    state.textContent = saved ? 'ON' : 'OFF';
   }
   chrome.storage.local.get({[key]:true}, data => {
     if (chrome.runtime.lastError) {
-      state.textContent = '未読込';
       status.textContent = '設定を読み込めませんでした。設定画面を開き直してください。';
       return;
     }

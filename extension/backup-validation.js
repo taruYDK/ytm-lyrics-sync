@@ -50,7 +50,7 @@ globalThis.YTMLSBackupValidation = (() => {
         if (key === 'ytmlsTrackTimingOffsetsV174') { timing(entry,path); continue; }
         requireValue(map(entry),path);metadata(entry,path);
         if (key === 'ytmlsManualSearchOverridesV190') requireValue(typeof entry.title === 'string' && typeof entry.artist === 'string',path);
-        else if (key === 'ytmlsLocalLyricsV200') requireValue(typeof entry.rawLrc === 'string' && entry.rawLrc.length <= 500000 && /\[\d{1,3}:\d{2}(?:\.\d{1,3})?\]/.test(entry.rawLrc),path+'.rawLrc');
+        else if (key === 'ytmlsLocalLyricsV200') requireValue(typeof entry.rawLrc === 'string' && entry.rawLrc.length <= 500000 && /\[\d{1,3}:\d{2}(?:[.:]\d{1,3})?\]/.test(entry.rawLrc),path+'.rawLrc');
         else if (key === 'ytmlsBookmarksV310') {
           requireValue(Array.isArray(entry.entries) && entry.entries.length <= 500, path+'.entries');
           for (const bookmark of entry.entries) requireValue(map(bookmark) && finite(bookmark.time) && bookmark.time >= 0 && bookmark.time <= 86400 && typeof bookmark.text === 'string' && bookmark.text.length <= 4000, path+'.entries');
@@ -91,11 +91,12 @@ globalThis.YTMLSBackupValidation = (() => {
   }
   function sync(data) {
     requireValue(map(data),'sync');safeTree(data,'sync');
-    for (const key of ['enabled','focusFade','trackingEnabled','autoLyricsOnIdle','readingJapanese','readingEnglish']) if (key in data) requireValue(typeof data[key] === 'boolean',key);
+    for (const key of ['enabled','focusFade','trackingEnabled','autoLyricsOnIdle','readingJapanese','readingEnglish','wordGlow']) if (key in data) requireValue(typeof data[key] === 'boolean',key);
     const ranges={fontSize:[10,100],trackingPosition:[25,65],manualScrollReturnMs:[1000,10000],uiVersion:[0,100000]};
     for (const [key,[min,max]] of Object.entries(ranges)) if (key in data) requireValue(finite(data[key]) && data[key]>=min && data[key]<=max,key);
     if ('backupReminderThreshold' in data) requireValue(Number.isInteger(data.backupReminderThreshold) && data.backupReminderThreshold>=1 && data.backupReminderThreshold<=1000,'backupReminderThreshold');
     if ('wordTrackingStyle' in data) requireValue(['smooth','silky'].includes(data.wordTrackingStyle),'wordTrackingStyle');
+    if ('fullscreenAlign' in data) requireValue(['left','center'].includes(data.fullscreenAlign),'fullscreenAlign');
     const providers=['youtubeMusic','betterLyrics','lrclib','unison','binilyrics','karalyr'];
     if ('providerOrder' in data) requireValue(Array.isArray(data.providerOrder) && data.providerOrder.every(key=>providers.includes(key)),'providerOrder');
     if ('providerEnabled' in data) requireValue(map(data.providerEnabled) && Object.entries(data.providerEnabled).every(([key,value])=>providers.includes(key) && typeof value==='boolean'),'providerEnabled');

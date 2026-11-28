@@ -325,6 +325,22 @@
     }
   }
 
+  // Another tab wrote the shared cache: take its entries and removals, so this tab's next
+  // write does not drop them (each tab otherwise wrote only its own in-memory map).
+  function mergeLyricsCacheChange(change) {
+    const before = change && change.oldValue && typeof change.oldValue === "object" ? change.oldValue : {};
+    const after = change && change.newValue && typeof change.newValue === "object" ? change.newValue : {};
+    for (const key of Object.keys(before)) {
+      if (!Object.prototype.hasOwnProperty.call(after, key)) STATE.lyricsCache.delete(key);
+    }
+    for (const [key, value] of Object.entries(after)) {
+      if (!value || !Array.isArray(value.lines) || !value.lines.length) continue;
+      const mine = STATE.lyricsCache.get(key);
+      if (!mine || Number(value.ts || 0) > Number(mine.ts || 0)) STATE.lyricsCache.set(key, value);
+    }
+    while (STATE.lyricsCache.size > LYRICS_CACHE_MAX_ENTRIES) STATE.lyricsCache.delete(STATE.lyricsCache.keys().next().value);
+  }
+
   let lyricsCacheSaveTimer = null;
   function saveLyricsCacheToStorage() {
     clearTimeout(lyricsCacheSaveTimer);
@@ -350,6 +366,8 @@
       syncLevel: result.syncLevel || "none",
       _source: result._source || "",
       _providerKey: result._providerKey || "",
+      // Edits are saved under this id; rebuilt from filtered lines it would differ.
+      _candidateId: result._candidateId || lyricCandidateIdentity(result),
       _providerSignature: providerConfigSignature(),
       ts: Date.now(),
     });
@@ -435,6 +453,8 @@
     STATE.lyricCandidates = [];
     STATE.activeCandidateId = "";
     STATE.manualSelectedCandidateId = "";
+    STATE.isCollectingCandidates = false;
+    STATE.candidateSearchKey = "";
     STATE.lyricsAppliedAt = 0;
     STATE.displayedVideoId = "";
     STATE.currentIndex = -1;

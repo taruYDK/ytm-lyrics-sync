@@ -37,6 +37,9 @@
     return {lines,syncLevel:'line',_source:'YouTube Music',_providerKey:'youtubeMusic'};
   }
 
+  // Clients YouTube Music accepts for the track page (next) and the timed-lyrics page (browse).
+  const YTM_LYRICS_CLIENTS = {next: ['WEB_REMIX', '1.20240101.01.00'], browse: ['ANDROID_MUSIC', '7.21.50']};
+
   async function fetchFromYouTubeMusic(info, duration, trackKey) {
     if (!/^[A-Za-z0-9_-]{11}$/.test(info.videoId || '') || trackKey !== STATE.lastTrackKey) return null;
     const current = () => trackKey === STATE.lastTrackKey && STATE.enabled !== false && STATE.providerEnabled.youtubeMusic !== false;
@@ -65,11 +68,11 @@
     }
     try {
       if (!current()) return null;
-      const next = await request('next','WEB_REMIX','1.20240101.01.00',{videoId:info.videoId});
+      const next = await request('next',...YTM_LYRICS_CLIENTS.next,{videoId:info.videoId});
       if (!current() || !next) return null;
       const browseId = nativeLyricsBrowseId(next);
       if (!browseId) { reportNativeLyricsFailure('next', 'lyrics-tab-unavailable'); return null; }
-      const lyrics = await request('browse','ANDROID_MUSIC','7.21.50',{browseId});
+      const lyrics = await request('browse',...YTM_LYRICS_CLIENTS.browse,{browseId});
       if (!current() || !lyrics) return null;
       const result = parseNativeTimedLyrics(lyrics);
       if (!result) reportNativeLyricsFailure('browse', 'timed-lyrics-unavailable');
@@ -78,4 +81,37 @@
       if (current()) reportNativeLyricsFailure('provider', 'processing-error');
       return null;
     }
+  }
+
+  // Provider test from the settings popup: checks YouTube Music's own lyrics for the song
+  // playing in this tab. found / notfound (the service answered) / offline / error.
+  async function testYouTubeMusicLyrics() {
+    const videoId = String(getAuthoritativeVideoId() || '');
+    if (!/^[A-Za-z0-9_-]{11}$/.test(videoId)) return {state: 'nosong'};
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 8000);
+    const post = (endpoint, [clientName, clientVersion], payload) => fetch('https://music.youtube.com/youtubei/v1/' + endpoint + '?prettyPrint=false', {
+      method: 'POST', credentials: 'omit', cache: 'no-store', signal: controller.signal,
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({context: {client: {clientName, clientVersion, hl: 'ja', gl: 'JP'}}, ...payload}),
+    });
+    try {
+      const next = await post('next', YTM_LYRICS_CLIENTS.next, {videoId});
+      if (!next.ok) return {state: 'error', status: next.status};
+      const browseId = nativeLyricsBrowseId(await next.json());
+      if (!browseId) return {state: 'notfound'};
+      const lyrics = await post('browse', YTM_LYRICS_CLIENTS.browse, {browseId});
+      if (!lyrics.ok) return {state: 'error', status: lyrics.status};
+      return {state: parseNativeTimedLyrics(await lyrics.json()) ? 'found' : 'notfound'};
+    } catch (error) {
+      return {state: error?.name === 'SyntaxError' ? 'error' : 'offline'};
+    } finally { clearTimeout(timer); }
+  }
+
+  function bindProviderTestListener() {
+    chrome.runtime.onMessage.addListener((message, sender, reply) => {
+      if (message?.type !== 'YTMLS_TEST_YTM' || sender.id !== chrome.runtime.id) return;
+      testYouTubeMusicLyrics().then(reply, () => reply({state: 'error'}));
+      return true;
+    });
   }

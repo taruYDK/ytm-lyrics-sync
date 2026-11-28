@@ -119,6 +119,9 @@ async function mutateUserData(message) {
       if (Object.prototype.hasOwnProperty.call(message.data || {}, key)) {
         if (!isMap(message.data[key])) throw new Error('保存データの形式が不正です。');
         changed[key] = message.merge === true ? {...(await localDataCall('get', [key]))[key], ...message.data[key]} : message.data[key];
+      } else if (message.merge !== true) {
+        // A full restore replaces everything: a category the backup does not have becomes empty.
+        changed[key] = {};
       }
     }
   } else if (message.action === 'deleteTracks') {

@@ -207,8 +207,16 @@
     return `${minutes}:${String(remainder).padStart(2, '0')} から`;
   }
 
+  // The track is filled from 0 (the middle) toward the current offset.
+  function paintTrackTimingRange(range) {
+    const percent = (clampTrackOffsetMs(range.value) + TRACK_TIMING_OFFSET_LIMIT_MS) / (TRACK_TIMING_OFFSET_LIMIT_MS * 2) * 100;
+    range.style.setProperty('--from', `${Math.min(50, percent)}%`);
+    range.style.setProperty('--to', `${Math.max(50, percent)}%`);
+  }
+
   function bindTrackTimingRange(range, group, point, videoId) {
     range.addEventListener('input', () => {
+      paintTrackTimingRange(range);
       if (getTrackOffsetVideoId(false) !== videoId) return;
       group.querySelector('.ytmls-track-offset-value').textContent = formatOffsetMs(range.value);
       setCurrentTrackTimingPointOffset(point.position, range.value, false, false);
@@ -263,6 +271,7 @@
       group.querySelector('.ytmls-track-offset-value').textContent = formatOffsetMs(point.offsetMs);
       const range = group.querySelector('.ytmls-track-offset-range');
       range.value = String(point.offsetMs);
+      paintTrackTimingRange(range);
       range.setAttribute('aria-label', `${formatTrackPosition(point.position, duration)}の歌詞タイミング補正`);
       bindTrackTimingRange(range, group, point, videoId);
       for (const button of group.querySelectorAll('[data-delta]')) {
@@ -294,8 +303,13 @@
     return null;
   }
 
+  // Open and not already shrinking back into its button.
+  function trackTimingPopoverOpen() {
+    return Boolean(trackTimingPopoverEl && !trackTimingPopoverEl.hidden && trackTimingPopoverEl.dataset.morphing !== 'closing');
+  }
+
   function positionTrackTimingPopover() {
-    if (!trackTimingPopoverEl || trackTimingPopoverEl.hidden) return;
+    if (!trackTimingPopoverOpen()) return;
     const rect = visibleTrackTimingAnchor()?.rect;
     const width = trackTimingPopoverEl.offsetWidth || 330;
     const height = trackTimingPopoverEl.offsetHeight || 230;
@@ -313,14 +327,19 @@
   function toggleTrackTimingPopover(anchor = trackTimingButtonEl) {
     if (!trackTimingButtonEl?.isConnected || trackTimingButtonEl.disabled) return;
     ensureTrackTimingPopover();
-    if (!trackTimingPopoverEl.hidden) { closeTrackTimingPopover(); return; }
+    if (trackTimingPopoverOpen()) { closeTrackTimingPopover(); return; }
     trackTimingAnchor = anchor;
     trackTimingPopoverEl.hidden = false;
+    // Not shown until it is placed, so the first frame is not drawn at the old spot.
+    trackTimingPopoverEl.style.visibility = 'hidden';
     trackTimingButtonEl.setAttribute('aria-expanded', 'true');
     updateTrackTimingControl();
     requestAnimationFrame(() => {
+      trackTimingPopoverEl.style.removeProperty('visibility');
       if (trackTimingPopoverEl.hidden) return;
       positionTrackTimingPopover();
+      // Grow out of the button that opened it.
+      if (typeof glassMorph === 'function') glassMorph(trackTimingPopoverEl, visibleTrackTimingAnchor()?.target);
       trackTimingPopoverEl.querySelector('.ytmls-track-offset-close')?.focus();
     });
   }
@@ -359,7 +378,7 @@
       const duration = getAuthoritativeDuration(media);
       trackTimingAddPointEl.disabled = !enabled || !Number.isFinite(time) || !Number.isFinite(duration) || duration <= 0;
     }
-    if (renderPoints && trackTimingPopoverEl && !trackTimingPopoverEl.hidden) renderTrackTimingPoints();
+    if (renderPoints && trackTimingPopoverOpen()) renderTrackTimingPoints();
     if (trackTimingTotalEl) {
       trackTimingTotalEl.textContent = `現在位置の補正: ${formatOffsetMs(currentMs)} ・ 途中のポイント ${customPointCount}個 ・ この曲だけに保存`;
     }
@@ -367,10 +386,20 @@
   }
 
   function closeTrackTimingPopover() {
+    if (trackTimingPopoverEl?.dataset.morphing === 'closing') return;
     if (trackTimingPreview?.videoId === getTrackOffsetVideoId(false)) saveCurrentTrackTimingPoints(trackTimingPreview.points, false);
-    if (trackTimingPopoverEl) trackTimingPopoverEl.hidden = true;
+    const popover = trackTimingPopoverEl, anchor = visibleTrackTimingAnchor()?.target;
     if (trackTimingButtonEl) trackTimingButtonEl.setAttribute('aria-expanded', 'false');
     trackTimingAnchor = null;
+    if (!popover || popover.hidden) return;
+    // Shrink back into the button, then hide (a reopen during the shrink cancels the hide).
+    if (typeof glassMorph === 'function' && glassMorphAllowed(popover) && anchor) {
+      popover.style.pointerEvents = 'none';
+      const settle = () => popover.style.removeProperty('pointer-events');
+      glassMorph(popover, anchor, {closing: true, onCancel: settle, onDone: () => { popover.hidden = true; settle(); }});
+    } else {
+      popover.hidden = true;
+    }
   }
 
   function dismissTrackTimingPopover() {
@@ -380,7 +409,7 @@
   }
 
   function updateOffsetPreview() {
-    if (!trackTimingPopoverEl || trackTimingPopoverEl.hidden) return;
+    if (!trackTimingPopoverOpen()) return;
     let preview = trackTimingPopoverEl.querySelector('.ytmls-offset-preview');
     if (!preview) {
       preview = document.createElement('div');
@@ -395,7 +424,9 @@
   function ensurePlayerBarTimingControl() {
     const playerBar = document.querySelector('ytmusic-player-bar');
     if (!playerBar) return;
-    const compactMenu = window.innerWidth <= 1100 ? document.querySelector('#ytmls-playback-menu') : null;
+    // In the Mac Music-style screen (apple-shell.js) YouTube Music's player bar is hidden, so use the menu.
+    const useMenu = window.innerWidth <= 1100 || document.documentElement.classList.contains('ytmls-am');
+    const compactMenu = useMenu ? document.querySelector('#ytmls-playback-menu') : null;
     const host = compactMenu || playerBar.querySelector('.middle-controls .middle-controls-buttons') ||
       playerBar.querySelector('.middle-controls-buttons');
     if (!host) return;
@@ -424,6 +455,9 @@
       host.appendChild(resyncButtonEl);
     }
 
+    // Only one of each: a copy left behind when the lyrics panel was rebuilt showed twice in the menu.
+    document.querySelectorAll('#ytmls-resync-button').forEach(el => { if (el !== resyncButtonEl) el.remove(); });
+
     if (!trackTimingButtonEl || !trackTimingButtonEl.isConnected) {
       const button = document.createElement('button');
       button.id = 'ytmls-track-offset-button';
@@ -449,6 +483,7 @@
     } else if (trackTimingButtonEl.parentElement !== host) {
       host.appendChild(trackTimingButtonEl);
     }
+    document.querySelectorAll('#ytmls-track-offset-button').forEach(el => { if (el !== trackTimingButtonEl) el.remove(); });
 
     ensureTrackTimingPopover();
     // tick()から300msごとに呼ばれるため、一覧DOMは変更せず現在値だけ更新する。
@@ -509,7 +544,7 @@
     renderTrackTimingPoints();
 
     document.addEventListener('click', (event) => {
-      if (!trackTimingPopoverEl || trackTimingPopoverEl.hidden) return;
+      if (!trackTimingPopoverOpen()) return;
       if (trackTimingPopoverEl.contains(event.target) || (trackTimingButtonEl && trackTimingButtonEl.contains(event.target))) return;
       closeTrackTimingPopover();
     });
@@ -611,6 +646,8 @@
         empty.appendChild(sub);
         listEl.appendChild(empty);
       }
+      // Cancels a reading refresh still running for the previous song and clears its status.
+      void refreshLyricsReadings();
       return;
     }
 
@@ -620,6 +657,9 @@
       div.dataset.index = String(i);
       if (line.agent) div.dataset.agent = line.agent;
       if (line.dir) div.dir = line.dir;
+      // A line that is all in brackets (a chorus or an aside, e.g. "（いえーい）") is shown smaller
+      // and quieter in the Mac-style screen, like Apple Music's background vocals.
+      if (/^\s*[（(][^（()）]*[)）]\s*$/.test(String(line.text || ''))) div.classList.add("ytmls-aside-line");
 
       if (Array.isArray(line.words) && line.words.length) {
         div.classList.add("ytmls-rich-line");

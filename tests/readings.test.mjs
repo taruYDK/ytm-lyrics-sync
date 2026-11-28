@@ -149,7 +149,11 @@ test('manual line layout: English words, unmatched spelling and timed fragments 
  assert.equal(parts.map(p=>p.reading).join(''),'ハローワールド');
  const fallback=layoutManualLineReadings(text,[{start:0,end:11,lineIndex:0,reading:'はろーわーるど'}]);
  assert.equal(fallback.map(r=>r.reading).join(''),'はろーわーるど');
- assert(fallback.every(r=>r.end-r.start===1));
+ assert.deepEqual(fallback.map(r=>[r.start,r.end]),[[0,5],[6,11]],'the reading goes to the words, not to the space');
+ // Mixed line that cannot be aligned: kana and punctuation get no ruby, nothing is dropped.
+ const mixed=layoutManualLineReadings('愛、そしてLove',[{start:0,end:9,lineIndex:0,reading:'あいそしてらぶっ'}],true,false);
+ assert.deepEqual(mixed.map(r=>[r.start,r.end]),[[0,1]],'only the kanji carries ruby when English readings are off');
+ assert.equal(mixed[0].reading,'あいそしてらぶっ');
  const hidden={start:0,end:11,lineIndex:0,reading:''};
  assert.deepEqual(layoutManualLineReadings(text,[hidden]),[hidden]);
 });
@@ -188,4 +192,22 @@ test('ruby tracking: each base and reading receives a sequential interval, inclu
  assert.deepEqual(expressions.map(s=>Math.round(progress(s,0))),[0,0,0]);
  assert.deepEqual(expressions.map(s=>Math.round(progress(s,100))),[100,100,100]);
  assert.equal(word.children[1].className,'ytmls-reading-plain');
+});
+
+test('English readings use long "o" and familiar spellings for frequent lyric words', () => {
+  assert.equal(englishPhonesToKana('G OW1'), 'ゴー');
+  assert.equal(englishPhonesToKana('S N OW1'), 'スノー');
+  const dictionary = JSON.parse(fs.readFileSync(new URL('../extension/vendor/readings/english.json', import.meta.url), 'utf8'));
+  assert.deepEqual(['ok', 'wow', 'dash', 'happy', 'open'].map(word => dictionary[word]), ['オーケー', 'ワオ', 'ダッシュ', 'ハッピー', 'オープン']);
+});
+
+test('the Japanese dictionary is warmed up at most once a minute and only when readings are on', () => {
+  const sent = [];let now = 0;
+  const c = vm.createContext({STATE: {readingJapanese: true}, performance: {now: () => now},
+    chrome: {runtime: {sendMessage: message => { sent.push(message); return Promise.resolve({ok: true}); }}}});
+  vm.runInContext(fs.readFileSync(new URL('../src/content/readings.js', import.meta.url), 'utf8'), c);
+  c.warmJapaneseReadings(); c.warmJapaneseReadings();
+  assert.equal(sent.length, 1); assert.equal(sent[0].type, 'YTMLS_JAPANESE_TOKENS');
+  now = 61000; c.warmJapaneseReadings(); assert.equal(sent.length, 2);
+  now = 200000; c.STATE.readingJapanese = false; c.warmJapaneseReadings(); assert.equal(sent.length, 2);
 });

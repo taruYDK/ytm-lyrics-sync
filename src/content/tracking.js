@@ -37,6 +37,13 @@
     STATE.currentWordIndex = -1;
   }
 
+  // easeOutBack with a gentle overshoot (about 6%) when bouncing; easeOutCubic otherwise.
+  function lyricsScrollEase(progress, bounce) {
+    if (!bounce) return 1 - Math.pow(1 - progress, 3);
+    const c1 = 1.25, c3 = c1 + 1;
+    return 1 + c3 * Math.pow(progress - 1, 3) + c1 * Math.pow(progress - 1, 2);
+  }
+
   let lyricScrollFrame = 0;
   function cancelLyricsFollowScroll() {
     if (lyricScrollFrame) cancelAnimationFrame(lyricScrollFrame);
@@ -67,7 +74,10 @@
       scroller.scrollTo({left:0,top:target, behavior:"instant"});
       return true;
     }
-    const duration = Math.min(190, Math.max(110, 95 + Math.abs(target - start) * .10));
+    // With operation motion on, the move overshoots slightly and settles (a small "bounce").
+    const bounce = !document.documentElement.classList.contains("ytmls-extra-motion-disabled");
+    const distance = Math.abs(target - start);
+    const duration = bounce ? Math.min(520, Math.max(380, 340 + distance * .4)) : Math.min(190, Math.max(110, 95 + distance * .10));
     const startedAt = performance.now();
     autoScrollUntil = startedAt + duration + 150;
     function step(now) {
@@ -75,7 +85,7 @@
       if (listEl !== scroller || !scroller.isConnected || !lineEl.isConnected ||
           !STATE.enabled || !STATE.trackingEnabled || !STATE.hasSync || isManualScrollPaused()) return;
       const progress = Math.min(1, Math.max(0, (now - startedAt) / duration));
-      const eased = 1 - Math.pow(1 - progress, 3);
+      const eased = lyricsScrollEase(progress, bounce);
       scroller.scrollTo({left:0,top:start + (target - start) * eased, behavior:"instant"});
       autoScrollUntil = now + 150;
       if (progress < 1) lyricScrollFrame = requestAnimationFrame(step);
@@ -228,7 +238,9 @@
     if (!canTrackCurrentPlayback(media)) return false;
     // A completed seek on the current media can precede the next bridge sample.
     // Use the media's new time for this event only, after the track identity check.
-    const seekTime = seekedMedia && seekedMedia === media && !media.seeking ? media.currentTime : null;
+    // During the track-start guard a seeked event may still carry the previous track's time.
+    const seekTime = seekedMedia && seekedMedia === media && !media.seeking && !STATE.trackStartGuardActive
+      ? media.currentTime : null;
     const safeCurrentTime = Number.isFinite(seekTime) && seekTime >= 0
       ? seekTime
       : getGuardedPlaybackTime(media);
@@ -291,6 +303,10 @@
     if (trackingRaf) return;
 
       const frame = () => {
+        const started = globalThis.ytmlsPerfOn ? performance.now() : 0;
+        try { trackingFrame(); } finally { if (started) globalThis.ytmlsPerfAdd?.('lyrics tracking frames', performance.now() - started); }
+      };
+      const trackingFrame = () => {
         if (STATE.contextInvalidated) { trackingRaf = 0; return; }
         trackingRaf = requestAnimationFrame(frame);
       if (!STATE.enabled || !STATE.hasSync) return;

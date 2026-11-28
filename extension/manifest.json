@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "minimum_chrome_version": "111",
   "name": "YT Music 歌詞シンクロ",
-  "version": "3.2.1",
+  "version": "3.3.0",
   "description": "同期歌詞・ふりがな・曲別表示設定・ローマ字・全画面歌詞に対応。",
   "icons": {
     "16": "icons/icon-16.png",
@@ -32,6 +32,15 @@
         "https://music.youtube.com/*"
       ],
       "js": [
+        "bridge-channel.js"
+      ],
+      "run_at": "document_start"
+    },
+    {
+      "matches": [
+        "https://music.youtube.com/*"
+      ],
+      "js": [
         "player-bridge.js"
       ],
       "run_at": "document_start",
@@ -43,6 +52,7 @@
       ],
       "js": [
         "space-playback.js",
+        "details-motion.js",
         "content.js",
         "empty-width.js",
         "display-class-settings.js",
@@ -72,11 +82,16 @@
         "header-divider.css",
         "lyrics-panel-lift.css",
         "player-depth-clean.css",
-        "player-depth-surface-guard.css"
+        "player-depth-surface-guard.css",
+        "apple-shell.css",
+        "liquid-glass.css"
       ],
       "js": [
         "music-glass.js",
-        "player-depth-scroll-guard.js"
+        "player-depth-scroll-guard.js",
+        "liquid-glass.js",
+        "apple-shell.js",
+        "comments-toggle.js"
       ],
       "run_at": "document_idle"
     }
@@ -93,6 +108,6 @@
     "service_worker": "background.js"
   },
   "web_accessible_resources": [],
-  "version_name": "3.2.1",
+  "version_name": "3.3.0",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEApZe/sWz1TIwRd0/mQ+ZwnCUZK+GQt62M9Qy11IUXklxsS7Izm3JTtLaAR+VqvaD9i8kCiSklqU86DXxuW0T8upeuHlLfyfZTc/OVuEmebLqEchO50sy83h3HgPFKxnyZz8+MSnVR7SDOknUkZD6SzX1KjW51ptfQEN6gw7NtzDhDdjRNsIjYgKE354T4TXx2vALaqjo3vRNETaqOkn6CZsBYoXUubxaL2KMBXZfssp4rywb49wWFN/htPN6GQiCF0jY2n7VitFdZ+dUcqiBTuneAuJIbiRbauqBRixB8Mlkp/om6fFhwFv+kq2KAzZzVfiQea4cyxmvY/7dbJoVmOwIDAQAB"
 }

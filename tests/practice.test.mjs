@@ -132,3 +132,58 @@ test('editing only font size preserves the masked per-track reading preference',
  assert.equal(h.c.STATE.readingJapanese,true);
  assert.equal(h.run('practiceData.one.settings.readingEnglish'),undefined);
 });
+
+test('Japanese songs keep their own English lines and drop only same-time translations',()=>{
+ const c=vm.createContext({});vm.runInContext(read('src/content/language-filter.js'),c);
+ const lines=[['静かな街に朝が来る',1],['Shizuka na machi ni asa ga kuru',1],['Hello my morning sky',5],['窓辺の光を数えてる',9],['I love you',13],['Mado no hikari',9.02]]
+  .map(([text,time])=>({time,end:null,text,words:[]}));
+ c.input={syncLevel:'line',lines};
+ const result=vm.runInContext("sanitizeCandidateForTrackLanguage(input,'ja')",c);
+ assert.deepEqual(Array.from(result.lines,x=>x.text),['静かな街に朝が来る','Hello my morning sky','窓辺の光を数えてる','I love you']);
+});
+
+test('Japanese songs also drop translations of kanji-only lines and slightly shifted ones',()=>{
+ const c=vm.createContext({});vm.runInContext(read('src/content/language-filter.js'),c);
+ const lines=[['運命',10],['unmei',10],['Destiny',10],['静かな夜',20],['Shizuka na yoru',20.2],['Hello my morning sky',25]]
+  .map(([text,time])=>({time,end:null,text,words:[]}));
+ c.input={syncLevel:'line',lines};
+ const result=vm.runInContext("sanitizeCandidateForTrackLanguage(input,'ja')",c);
+ assert.deepEqual(Array.from(result.lines,x=>x.text),['運命','静かな夜','Hello my morning sky']);
+});
+
+test('fullscreen header follows the cover on every refresh and a picked alignment wins over the stored one',()=>{
+ const text=read('src/content/practice.js');
+ const refresh=text.slice(text.indexOf('function refreshPracticeFullscreen'),text.indexOf('function syncPracticeFullscreenTracking'));
+ assert.match(refresh,/paintPracticeBackground\(box\);updatePracticeFullscreenHeader\(box\);/);
+ assert.equal((refresh.match(/updatePracticeFullscreenHeader/g)||[]).length,1,'not only when the lyrics change');
+ assert.match(text,/const chooseAlign = value => \{\n  box\.alignChosen = true;/);
+ assert.match(text,/practiceFullscreen === box && !box\.alignChosen\) setAlign\(/);
+});
+
+test('a size chosen in the menu shows at once and is not undone before its save finishes', () => {
+  const source = read('src/content/enhancements.js');
+  assert.match(source, /practicePendingSettings\[id\]=\{\.\.\.\(practicePendingSettings\[id\]\|\|\{\}\),fontSize:size\};\s*applyPracticePrefs\(\);/);
+  assert.doesNotMatch(source, /button\.disabled=true/, 'the button stays usable while saving');
+  assert.match(source, /if\(practicePendingSettings\[id\]\?\.fontSize===size\)\{delete practicePendingSettings\[id\];applyPracticePrefs\(\);\}/);
+  assert.match(source, /reportSaveError\(e\)/, 'a failed save says why, and the chosen size stays on screen');
+  const h = harness();
+  h.run("practiceLocalReady=true;practiceSyncReady=true;practiceData.one={settings:{fontSize:26}};practicePendingSettings.one={fontSize:40};applyPracticePrefs()");
+  assert.equal(h.c.STATE.fontSize, 40, 'the pending choice wins over the saved one');
+  h.run("delete practicePendingSettings.one;applyPracticePrefs()");
+  assert.equal(h.c.STATE.fontSize, 26);
+});
+
+test('saving a track display entry keeps only the fields in use, so an old entry cannot block the save', async () => {
+  const sent = [];
+  const h = harness();
+  h.c.sendUserDataMutation = async message => { sent.push(message); return {}; };
+  h.run("practiceLocalReady=true;practiceSyncReady=true");
+  await h.c.savePracticeEntry('other', {title: 't', settings: {fontSize: 40, readingJapanese: false, fontScale: 1.2, showRomaji: 'yes'}, translations: 'old', legacy: 1});
+  const entry = sent[0].entry;
+  assert.deepEqual(Object.keys(entry).sort(), ['artist', 'settings', 'title', 'updatedAt']);
+  assert.deepEqual({...entry.settings}, {fontSize: 40, readingJapanese: false});
+  const validation = read('extension/backup-validation.js');
+  const v = {};
+  vm.runInNewContext(validation, v);
+  assert.doesNotThrow(() => v.YTMLSBackupValidation.local({ytmlsTrackDisplayV280: {other: JSON.parse(JSON.stringify(entry))}}), 'passes the storage check');
+});

@@ -1,0 +1,137 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import vm from 'node:vm';
+const source = fs.readFileSync(new URL('../src/content/glass-morph.js', import.meta.url), 'utf8');
+const rect = (left, top, width, height) => ({left, top, width, height, right: left + width, bottom: top + height});
+
+function morph({motion = true, linear = true} = {}) {
+  const animations = [];
+  const fakeAnimation = () => { let resolve; const a = {finished: new Promise(r => { resolve = r; }), cancel() { a.cancelled = true; resolve(); }, finish: () => resolve()}; animations.push(a); return a; };
+  const child = () => ({animate: (k, o) => Object.assign(fakeAnimation(), {keyframes: k, options: o}), getAnimations: () => []});
+  const el = {dataset: {}, children: [child(), child()], getBoundingClientRect: () => rect(1080, 175, 288, 520),
+    animate(keyframes, options) { const a = fakeAnimation(); a.keyframes = keyframes; a.options = options; this.last = a; return a; }};
+  const c = vm.createContext({playerFeedbackEnabled: () => motion, getComputedStyle: () => ({borderTopLeftRadius: '22px'}),
+    CSS: {supports: (p, v) => linear || !String(v).startsWith('linear(')}});
+  vm.runInContext(source, c);
+  return {c, el, animations};
+}
+
+test('a surface below its button starts as the button capsule at its top edge', () => {
+  const {c} = morph();
+  const start = c.glassMorphStart(rect(1080, 175, 288, 520), rect(1290, 134, 78, 32));
+  assert.equal(start.inset, 'inset(0px 0px 488px 210px round 16px)');
+  assert.deepEqual([start.dx, start.dy], [0, -41]);
+  const above = c.glassMorphStart(rect(286, 283, 330, 540), rect(390, 836, 120, 36));
+  assert.match(above.inset, /^inset\(504px /, 'a popover above its button grows from its bottom edge');
+});
+
+test('opening grows from the button on a spring; contents fade in', async () => {
+  const h = morph();
+  const anchor = {isConnected: true, getBoundingClientRect: () => rect(1290, 134, 78, 32)};
+  h.c.glassMorph(h.el, anchor);
+  const a = h.el.last;
+  assert.match(a.keyframes[0].clipPath, /round 16px\)$/);
+  assert.equal(a.keyframes.at(-1).clipPath, 'inset(-48px -48px -48px -48px round 70px)', 'room for the shadow');
+  assert.equal(a.keyframes[0].opacity, 0);
+  assert.match(a.options.easing, /^linear\(0, .*, 1\)$/);
+  assert.ok(a.options.easing.split(',').some(v => Number(v.replace(/[^\d.]/g, '')) > 1.02), 'overshoots a little');
+  assert.equal(h.el.dataset.morphing, 'opening');
+  a.finish(); await a.finished; await null;
+  assert.equal(h.el.dataset.morphing, undefined);
+});
+
+test('closing shrinks back and only then runs the hide', async () => {
+  const h = morph();
+  const anchor = {isConnected: true, getBoundingClientRect: () => rect(1290, 134, 78, 32)};
+  let hidden = false;
+  h.c.glassMorph(h.el, anchor, {closing: true, onDone: () => { hidden = true; }});
+  assert.equal(hidden, false);
+  const last = h.el.last.keyframes.at(-1);
+  assert.equal(last.clipPath, h.c.glassMorphStart(h.el.getBoundingClientRect(), anchor.getBoundingClientRect()).inset);
+  assert.equal(last.opacity, 0, 'melts into the button');
+  assert.match(h.el.last.keyframes[0].clipPath, /^inset\(-48px/, 'the shadow is not cut off when closing starts');
+  assert.match(h.el.last.options.easing, /^cubic-bezier\(\.25, \.8/, 'fast first, then eases into the button');
+  h.el.last.finish(); await h.el.last.finished; await null;
+  assert.equal(hidden, true);
+});
+
+test('reopening during a close cancels the hide', async () => {
+  const h = morph();
+  const anchor = {isConnected: true, getBoundingClientRect: () => rect(1290, 134, 78, 32)};
+  let hidden = false;
+  h.c.glassMorph(h.el, anchor, {closing: true, onDone: () => { hidden = true; }});
+  const closing = h.el.last;
+  h.c.glassMorph(h.el, anchor);
+  await closing.finished; await null;
+  assert.equal(closing.cancelled, true);
+  assert.equal(hidden, false);
+});
+
+test('without motion it opens and closes at once; old browsers get a cubic-bezier spring', () => {
+  const still = morph({motion: false});
+  let hidden = false;
+  assert.equal(still.c.glassMorph(still.el, {isConnected: true, getBoundingClientRect: () => rect(0, 0, 10, 10)}, {closing: true, onDone: () => { hidden = true; }}), null);
+  assert.equal(hidden, true);
+  const old = morph({linear: false});
+  assert.match(old.c.glassMorphEasing(), /^cubic-bezier/);
+});
+
+const read = name => fs.readFileSync(new URL('../src/content/' + name, import.meta.url), 'utf8');
+
+test('tool panes close by hand into their button, lifted over the lyrics; switching panes stays instant', () => {
+  const panel = read('lyrics-panel.js');
+  const close = panel.slice(panel.indexOf('const closeToolPaneByHand'), panel.indexOf('lyricsToolsPaneEl.addEventListener("click"'));
+  assert.match(close, /position: "absolute", top: `\$\{pane\.offsetTop\}px`/, 'out of the layout while it shrinks');
+  assert.match(close, /closing: true/);
+  assert.match(close, /if \(lyricsToolsPaneMode === mode\) closeLyricsToolsPane\(\);/, 'a pane opened meanwhile is kept');
+  assert.match(panel, /event\.target\.closest\?\.\("\.ytmls-tools-close"\)/, '閉じる buttons');
+  assert.match(panel, /#ytmls-tools > \.ytmls-tool-button\[aria-pressed='true'\]/, 'the same button again');
+  assert.match(panel, /event\.key !== "Escape" \|\| event\.isComposing \|\| event\.keyCode === 229/, 'Escape, but not during IME conversion');
+  assert.match(panel, /closest\?\.\("input, textarea, select, \[contenteditable='true'\]"\)\) return;/, 'nor from a field with unsaved text');
+  assert.match(panel, /onCancel: unlift/, 'an interrupted close puts the pane back in the layout');
+  assert.match(panel, /dataset\.morphing === "closing" && typeof stopGlassMorph === "function"\) stopGlassMorph\(lyricsToolsPaneEl\)/, 'another pane opening stops the shrink');
+});
+
+test('fullscreen lyrics grow out of その他 before going browser-fullscreen, and shrink back after leaving it', () => {
+  const practice = read('practice.js');
+  assert.match(practice, /morph\.finished\.then\(goFullscreen/, 'browser fullscreen hides the page, so it waits for the morph');
+  assert.match(practice, /else goFullscreen\(\);/, 'without motion it goes fullscreen at once');
+  const close = practice.slice(practice.indexOf('function closePracticeFullscreen'), practice.indexOf('function paintPracticeBackground'));
+  assert.match(close, /document\.exitFullscreen\(\)[\s\S]*glassMorph\(box, opener, \{closing: true, onDone: finish\}\)/);
+});
+
+test('the older fade-in animations do not run on top of the morph', () => {
+  const css = fs.readFileSync(new URL('../extension/liquid-glass.css', import.meta.url), 'utf8');
+  assert.match(css, /#ytmls-panel #ytmls-tools-pane:not\(\[hidden\]\), #ytmls-track-offset-popover:not\(\[hidden\]\), html #ytmls-more\[open\] > \.ytmls-more-menu \{ animation: none !important; \}/);
+});
+
+test('an interrupted morph runs its onCancel cleanup, measures without its offset, and leaves other animations alone', async () => {
+  const h = morph();
+  const anchor = {isConnected: true, getBoundingClientRect: () => rect(1290, 134, 78, 32)};
+  // While a morph runs, the surface reads as shifted by its transform.
+  h.el.getBoundingClientRect = () => h.el.glassMorphRun ? rect(1200, 140, 288, 520) : rect(1080, 175, 288, 520);
+  const foreign = {cancelled: false, cancel() { this.cancelled = true; }};
+  h.el.children[0].getAnimations = () => [foreign];
+  let cancelled = 0, hidden = false;
+  h.c.glassMorph(h.el, anchor, {closing: true, onDone: () => { hidden = true; }, onCancel: () => { cancelled++; }});
+  const closing = h.el.last;
+  h.c.glassMorph(h.el, anchor);
+  assert.equal(cancelled, 1, 'cleanup of the interrupted close runs');
+  assert.equal(closing.cancelled, true);
+  assert.equal(foreign.cancelled, false, 'a CSS animation on a child keeps running');
+  const expected = h.c.glassMorphStart(rect(1080, 175, 288, 520), anchor.getBoundingClientRect());
+  assert.equal(h.el.last.keyframes[0].clipPath, expected.inset, 'measured after stopping the old transform');
+  await closing.finished; await null;
+  assert.equal(hidden, false);
+  assert.equal(h.c.stopGlassMorph(h.el), true);
+  assert.equal(h.el.dataset.morphing, undefined);
+});
+
+test('the timing popover counts as closed while it shrinks', () => {
+  const timing = read('timing-offset.js');
+  assert.match(timing, /function trackTimingPopoverOpen\(\) \{\s*return Boolean\(trackTimingPopoverEl && !trackTimingPopoverEl\.hidden && trackTimingPopoverEl\.dataset\.morphing !== 'closing'\);/);
+  for (const where of ['function positionTrackTimingPopover() {\n    if (!trackTimingPopoverOpen()) return;', 'function updateOffsetPreview() {\n    if (!trackTimingPopoverOpen()) return;', "document.addEventListener('click', (event) => {\n      if (!trackTimingPopoverOpen()) return;"]) assert.ok(timing.includes(where), where);
+  assert.match(timing, /function closeTrackTimingPopover\(\) \{\s*if \(trackTimingPopoverEl\?\.dataset\.morphing === 'closing'\) return;/, 'a second close does not restart the shrink');
+  assert.match(timing, /onCancel: settle/, 'reopening during the shrink makes it clickable again');
+});

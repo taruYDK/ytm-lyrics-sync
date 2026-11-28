@@ -67,7 +67,15 @@ test('restore: valid current and legacy entries restore without mutation',async(
  ytmlsPinnedLyricsV200:{song:{candidateId:'candidate',result:{syncLevel:'word',lines:[{time:0,end:null,text:'hello',words:[{time:0,end:1,text:'hello'}]}]}}},
  ytmlsLocalLyricsV200:{song:{rawLrc:'[00:00.00]hello'}}};
  const before=structuredClone(data);assert.equal((await h.send({action:'restore',data})).ok,true);
- assert.deepEqual(h.store,data);assert.deepEqual(data,before);
+ for(const [key,value] of Object.entries(h.store)) assert.deepEqual(value,key in data?data[key]:{},key);assert.deepEqual(data,before);
+});
+test('restore: a full restore empties categories the backup does not have; a partial one keeps them',async()=>{
+ const full=harness();full.store.ytmlsManualReadingsV256={old:{entries:[]}};
+ assert.equal((await full.send({action:'restore',data:{ytmlsLocalLyricsV200:{song:{rawLrc:'[00:00.00]a'}}}})).ok,true);
+ assert.deepEqual(full.store.ytmlsManualReadingsV256,{});
+ const partial=harness();partial.store.ytmlsManualReadingsV256={old:{entries:[]}};
+ assert.equal((await partial.send({action:'restore',merge:true,data:{ytmlsLocalLyricsV200:{song:{rawLrc:'[00:00.00]a'}}}})).ok,true);
+ assert.deepEqual(partial.store.ytmlsManualReadingsV256,{old:{entries:[]}});
 });
 test('restore: malformed entries reject the whole operation and preserve existing data',async()=>{
  const h=harness();h.store.ytmlsLocalLyricsV200={keep:{rawLrc:'[00:00]keep'}};const before=structuredClone(h.store);

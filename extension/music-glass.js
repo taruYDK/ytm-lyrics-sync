@@ -94,10 +94,17 @@
       }
     }
     for (const [host, canvas] of surfaces) if (!host.isConnected) { surfaceResizeObserver?.unobserve(host); canvas.remove(); surfaces.delete(host); }
+    if (tabsOnly !== true) ensureAurora();
   }
   let tabsFrame = false;
-  document.addEventListener('scroll', () => {
+  document.addEventListener('scroll', event => {
     if (tabsFrame || !themeEnabled() || document.hidden || typeof requestAnimationFrame !== 'function') return;
+    // Only scrolling of a page that has these tabs matters. The lyrics scroll by themselves on every
+    // line while a song plays: measuring the tabs on each of those frames made the browser lay the
+    // page out every frame (the main reason playing felt heavier than paused).
+    const target = event.target?.nodeType === 1 ? event.target : null;
+    if (target?.closest?.('ytmusic-player-page, [id^="ytmls-"], ytmusic-player-bar')) return;
+    if (document.querySelector('ytmusic-app-layout[player-page-open]')) return;
     tabsFrame = true;
     requestAnimationFrame(() => { tabsFrame = false; paintSurfaces(true); });
   }, {capture:true, passive:true});
@@ -118,6 +125,48 @@
       const url = new URL(value);
       return url.protocol === 'https:' && /(^|\.)(ytimg\.com|googleusercontent\.com|ggpht\.com)$/.test(url.hostname) ? url.href : '';
     } catch { return ''; }
+  }
+  // Three soft colors (top-left, center, bottom-right of the cover) for the drifting haze.
+  function setAuroraPalette(pixels) {
+    const region = (x0, y0, x1, y1) => {
+      let r = 0, g = 0, b = 0, n = 0;
+      for (let y = y0; y < y1; y += 2) for (let x = x0; x < x1; x += 2) {
+        const i = (y * 96 + x) * 4; r += pixels[i]; g += pixels[i+1]; b += pixels[i+2]; n++;
+      }
+      const avg = [r / n, g / n, b / n], mean = (avg[0] + avg[1] + avg[2]) / 3;
+      // Slightly more saturated and a little darker, so the haze tints rather than brightens.
+      return avg.map(v => Math.max(0, Math.min(255, Math.round((mean + (v - mean) * 1.5) * 0.8)))).join(' ');
+    };
+    root.style.setProperty('--mg-aurora-1', region(0, 0, 40, 40));
+    root.style.setProperty('--mg-aurora-2', region(28, 28, 68, 68));
+    root.style.setProperty('--mg-aurora-3', region(56, 56, 96, 96));
+  }
+  // Without readable pixels (or artwork), fall back to the neutral haze instead of the last song's colors.
+  function clearAuroraPalette() {
+    for (const key of ['--mg-aurora-1', '--mg-aurora-2', '--mg-aurora-3']) root.style.removeProperty(key);
+  }
+  // The haze lives in the player page, above its surface bitmap and below the content.
+  let aurora;
+  function ensureAurora() {
+    const page = document.querySelector?.('ytmusic-player-page');
+    if (!themeEnabled() || settings.musicGlassLightweight || !page?.prepend) { aurora?.remove(); aurora = null; return; }
+    if (!aurora) {
+      aurora = document.createElement('div');
+      aurora.className = 'music-glass-aurora';
+      aurora.setAttribute('aria-hidden', 'true');
+    }
+    if (aurora.parentNode !== page) {
+      const surface = surfaces.get(page);
+      if (surface?.after) surface.after(aurora); else page.prepend(aurora);
+    }
+  }
+  // Mean luminance above the target is reduced with a light black layer (at most 25%).
+  function backdropShadeAlpha(pixels) {
+    let sum = 0, count = 0;
+    for (let i = 0; i < pixels.length; i += 16) { sum += (0.2126*pixels[i] + 0.7152*pixels[i+1] + 0.0722*pixels[i+2]) / 255; count++; }
+    const luma = count ? sum / count : 0;
+    const target = 0.4;
+    return luma > target ? Math.min(0.25, 1 - target / luma) : 0;
   }
   function update() {
     if (document.hidden) return;
@@ -174,7 +223,11 @@
             }
             if (!best) root.style.removeProperty("--ytmls-art-accent");
             if (best) document.documentElement.style.setProperty('--ytmls-art-accent', best.map(n=>Math.min(255,Math.round(n*.55+140))).join(' '));
-          } catch (_) { document.documentElement.style.removeProperty('--ytmls-art-accent'); }
+            setAuroraPalette(pixels);
+            // Bright covers make white lyrics hard to read: darken only those, toward a fixed brightness.
+            const shade = backdropShadeAlpha(pixels);
+            if (shade > 0) { context.filter = 'none'; context.fillStyle = `rgba(0,0,0,${shade})`; context.fillRect(0, 0, 96, 96); }
+          } catch (_) { document.documentElement.style.removeProperty('--ytmls-art-accent'); clearAuroraPalette(); }
           artworkReady = true;
           artworkRevision++;
           paintSurfaces();
@@ -210,7 +263,8 @@
   }
   document.addEventListener('yt-navigate-finish', trimGuideAtPlayer);
   globalThis.addEventListener?.('resize', trimGuideAtPlayer);
-  setInterval(trimGuideAtPlayer, 2000);
+  // A fallback only (resize and page changes call it): each run measures the page.
+  setInterval(trimGuideAtPlayer, 10000);
   let watchedMenu;
   let menuObserver;
   function syncExpandedControls() {
@@ -231,7 +285,8 @@
     }
     root.classList.toggle('music-glass-controls-open', open);
   }
-  setInterval(syncExpandedControls, 1000);
+  // The menu's own attribute changes call it at once; this is only a fallback (it reads styles).
+  setInterval(syncExpandedControls, 5000);
   document.addEventListener('yt-navigate-finish', syncExpandedControls);
   function apply() {
     root.classList.toggle('music-glass', themeEnabled());
@@ -240,10 +295,11 @@
     root.classList.toggle('music-glass-hide-scrollbar', extensionEnabled && settings.musicGlassHideScrollbar === true);
     root.classList.toggle('music-glass-hide-dislike', extensionEnabled && settings.musicGlassHideDislike === true);
     root.style.setProperty('--mg-art-opacity', String(Math.max(0, Math.min(100, Number(settings.musicGlassIntensity) || 0)) / 100));
-    if (!themeEnabled() || !settings.musicGlassArtwork || settings.musicGlassLightweight) { root.style.removeProperty('--ytmls-art-accent'); generation++; artworkReady = false; backdrop?.remove(); backdrop = null; lastArt = ''; }
+    if (!themeEnabled() || !settings.musicGlassArtwork || settings.musicGlassLightweight) { root.style.removeProperty('--ytmls-art-accent'); clearAuroraPalette(); generation++; artworkReady = false; backdrop?.remove(); backdrop = null; lastArt = ''; }
     else update();
     if (!themeEnabled()) { surfaceResizeObserver?.disconnect(); for (const canvas of surfaces.values()) canvas.remove(); surfaces.clear(); }
     else paintSurfaces();
+    ensureAurora();
   }
   chrome.storage.sync?.get({enabled:true}, stored => { extensionEnabled = stored.enabled !== false; apply(); });
   chrome.storage.local.get(defaults, stored => { settings = { ...defaults, ...stored }; apply(); });
@@ -267,7 +323,9 @@
     document.addEventListener(type, blockArtworkActivation, true);
   }
   // A bounded check avoids observing every lyrics/list DOM mutation.
-  setInterval(() => { if (!document.hidden && settings.musicGlassArtwork) update(); }, 2000);
+  // The player bar's picture is watched (load events, src changes); this is only a fallback, and each
+  // run measures where the glass surfaces sit.
+  setInterval(() => { if (!document.hidden && settings.musicGlassArtwork) update(); }, 8000);
   document.addEventListener('visibilitychange', schedule);
   document.addEventListener('yt-navigate-finish', schedule);
 

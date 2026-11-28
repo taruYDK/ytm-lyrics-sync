@@ -25,3 +25,17 @@ test('partial backup import reports rejected songs and requests a preserving mer
  elements.get('importFile').files=[{size:100,text:async()=>JSON.stringify({format:'ytm-lyrics-sync-backup',formatVersion:1,sync:{},local:{ytmlsLocalLyricsV200:{bad:{rawLrc:42},good:{rawLrc:'[00:00]good'}}}})}];
  await elements.get('importFile').handlers.change();assert.equal(operations.length,1);assert.equal(operations[0].merge,true);assert.deepEqual(Object.keys(operations[0].data.ytmlsLocalLyricsV200),['good']);assert.match(prompts[0],/1件/);assert.match(prompts[0],/バックアップにない曲は残します/);assert.doesNotMatch(prompts[0],/上書きします/);assert.match(elements.get('status').textContent,/1件.*保持/);
 });
+
+test('fullscreen lyric alignment is part of the backup and only accepts left or center',()=>{
+ const v=vm.createContext({});vm.runInContext(fs.readFileSync(new URL('../extension/backup-validation.js',import.meta.url),'utf8'),v);
+ assert.doesNotThrow(()=>v.YTMLSBackupValidation.sync({fullscreenAlign:'center'}));
+ assert.throws(()=>v.YTMLSBackupValidation.sync({fullscreenAlign:'right'}));
+ assert.match(fs.readFileSync(new URL('../extension/backup.js',import.meta.url),'utf8'),/"fullscreenAlign"/);
+});
+
+test('word glow setting is backed up and must be a boolean',()=>{
+ const v=vm.createContext({});vm.runInContext(fs.readFileSync(new URL('../extension/backup-validation.js',import.meta.url),'utf8'),v);
+ assert.doesNotThrow(()=>v.YTMLSBackupValidation.sync({wordGlow:false}));
+ assert.throws(()=>v.YTMLSBackupValidation.sync({wordGlow:'off'}));
+ assert.match(fs.readFileSync(new URL('../extension/backup.js',import.meta.url),'utf8'),/"wordGlow"/);
+});

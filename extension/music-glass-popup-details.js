@@ -30,7 +30,6 @@
       if (chrome.runtime.lastError) {status.textContent = 'リセットできませんでした。再度お試しください。';return;}
       render(65);
       document.getElementById('musicGlassQuickToggle').checked = true;
-      const state = document.getElementById('musicGlassQuickState');state.textContent = 'ON';state.dataset.enabled = 'true';
       document.getElementById('musicGlassArtworkToggle').checked = true;
       document.getElementById('musicGlassScrollbarToggle').checked = false;
       document.getElementById('musicGlassDislikeToggle').checked = false;

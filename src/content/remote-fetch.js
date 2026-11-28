@@ -26,14 +26,15 @@
 
   async function sendUserDataMutation(payload) {
     if (!runtimeAvailable()) throw new Error(CONTEXT_RELOAD_MESSAGE);
+    let response;
     try {
-      const response = await chrome.runtime.sendMessage({ type: "YTMLS_USER_DATA", captureUndo: false, ...payload });
-      if (!response?.ok) throw new Error(response?.error || "保存できませんでした。");
-      return response.data;
+      response = await chrome.runtime.sendMessage({ type: "YTMLS_USER_DATA", captureUndo: false, ...payload });
     } catch (error) {
-      runtimeAvailable(error);
-      throw error;
+      // Runtime messaging errors are English; show a Japanese message instead.
+      throw new Error(runtimeAvailable(error) ? "保存できませんでした。もう一度お試しください。" : CONTEXT_RELOAD_MESSAGE);
     }
+    if (!response?.ok) throw new Error(response?.error || "保存できませんでした。");
+    return response.data;
   }
 
   function reportSaveError(error) {

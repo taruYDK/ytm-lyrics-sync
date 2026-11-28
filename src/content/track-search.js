@@ -64,13 +64,17 @@
     if (now - STATE.trackCandidateSince < 450) return;
 
     STATE.lastTrackKey = key;
+    STATE.lastTrackInfo = info;
     // 曲変更検知経路に関係なく、検索開始が確定した時点でLyricsタブを優先する。
     // endedイベントを取りこぼした場合でも「次のコンテンツ」のままにならない。
     openLyricsTabForTrack(info.videoId || getAuthoritativeVideoId());
+    if (typeof warmJapaneseReadings === "function") warmJapaneseReadings();
     if (info.videoId) STATE.stableTrackVideoId = info.videoId;
     STATE.stableTrackTitle = info.title || STATE.stableTrackTitle;
     const myGeneration = ++STATE.searchGeneration;
     STATE.lyricCandidates = [];
+    STATE.candidateSearchKey = "";
+    STATE.isCollectingCandidates = false;
     STATE.activeCandidateId = "";
     STATE.manualSelectedCandidateId = "";
     updateLyricsToolsUi();
@@ -246,19 +250,7 @@
       }
     }, 1400);
 
-    const providerTasks = [
-      { key: "youtubeMusic", run: () => fetchFromYouTubeMusic(info, duration, key) },
-      { key: "betterLyrics", run: () => fetchFromBetterLyricsV2(info, duration, key) },
-      { key: "betterLyrics", run: () => fetchFromBetterLyricsJson(info, duration, key) },
-      { key: "betterLyrics", run: () => fetchFromBetterLyrics(info, duration, key) },
-      { key: "betterLyrics", run: () => fetchFromBoiduProvider(info, duration, key, "qq") },
-      { key: "betterLyrics", run: () => fetchFromBoiduProvider(info, duration, key, "kugou") },
-      { key: "lrclib", run: () => fetchFromLrclib(info, duration, key) },
-      { key: "lrclib", run: () => fetchFromLrclibQuick(info, duration, key) },
-      { key: "unison", run: () => fetchFromUnison(info, duration, key) },
-      { key: "binilyrics", run: () => fetchFromBiniLyrics(info, duration, key) },
-      { key: "karalyr", run: () => fetchFromKaralyr(info, duration, key) },
-    ].filter((provider) => STATE.providerEnabled[provider.key] !== false);
+    const providerTasks = providerTasksFor(info, duration, key);
 
     // 全ソースを並列検索。1件返るたび、その場で表示/アップグレードする。
     const tasks = providerTasks.map(async (provider) => {
@@ -288,10 +280,12 @@
     await Promise.allSettled(tasks);
     clearTimeout(ambiguousGateTimer);
     if (key !== STATE.lastTrackKey || myGeneration !== STATE.searchGeneration) return;
+    STATE.candidateSearchKey = key;
     reevaluateCandidates(true);
 
     STATE.isSearching = false;
-    if (foundAny) {
+    // A candidate the user picked while providers were still running is a result too.
+    if (foundAny || (STATE.manualSelectedCandidateId && STATE.hasLyricsResult)) {
       // 最終的に採用された歌詞を維持。検索完了時に消さない。
       applySettings();
       if (cacheKey) {
@@ -310,4 +304,69 @@
     ensureLyricsMount();
     renderLines();
     applySettings();
+  }
+
+  function providerTasksFor(info, duration, key) {
+    return [
+      { key: "youtubeMusic", run: () => fetchFromYouTubeMusic(info, duration, key) },
+      { key: "betterLyrics", run: () => fetchFromBetterLyricsV2(info, duration, key) },
+      { key: "betterLyrics", run: () => fetchFromBetterLyricsJson(info, duration, key) },
+      { key: "betterLyrics", run: () => fetchFromBetterLyrics(info, duration, key) },
+      { key: "betterLyrics", run: () => fetchFromBoiduProvider(info, duration, key, "qq") },
+      { key: "betterLyrics", run: () => fetchFromBoiduProvider(info, duration, key, "kugou") },
+      { key: "lrclib", run: () => fetchFromLrclib(info, duration, key) },
+      { key: "lrclib", run: () => fetchFromLrclibQuick(info, duration, key) },
+      { key: "unison", run: () => fetchFromUnison(info, duration, key) },
+      { key: "binilyrics", run: () => fetchFromBiniLyrics(info, duration, key) },
+      { key: "karalyr", run: () => fetchFromKaralyr(info, duration, key) },
+    ].filter((provider) => STATE.providerEnabled[provider.key] !== false);
+  }
+
+  // Saved, pinned and cached lyrics are shown without a provider search, so the candidate
+  // list starts with one entry. Opening the list fills it in the background; the lyrics
+  // on screen are never switched automatically.
+  async function collectMoreCandidates() {
+    const key = STATE.lastTrackKey;
+    // Use the info the current key was built from: activeSearchInfo already points at the next
+    // song while the track change is still settling.
+    const info = STATE.lastTrackInfo;
+    const generation = STATE.searchGeneration;
+    if (!key || !info || STATE.isSearching || STATE.candidateSearchKey === key) return;
+    if (`${info.videoId || ""}::${info.title}::${info.artist}` !== key) return;
+    STATE.candidateSearchKey = key;
+    STATE.isCollectingCandidates = true;
+    const token = ++STATE.candidateCollectToken;
+    refreshCandidatePane();
+    const current = () => key === STATE.lastTrackKey && generation === STATE.searchGeneration;
+    let finished = false;
+    const expected = inferTrackLanguage(info);
+    const sameText = (a, b) => a._providerKey === b._providerKey &&
+      lyricsTextForLanguage(a).slice(0, 120) === lyricsTextForLanguage(b).slice(0, 120);
+    try {
+      const duration = await getTrackDuration(key);
+      if (!current()) return;
+      await Promise.allSettled(providerTasksFor(info, duration, key).map(async (provider) => {
+        let result = null;
+        try { result = await provider.run(); } catch (_) { result = null; }
+        if (!current() || !result || !Array.isArray(result.lines) || !result.lines.length) return;
+        if (String(result.syncLevel || "none") === "none" || !result.lines.some((line) => line && line.time != null)) return;
+        result._providerKey = provider.key;
+        result._candidateId = lyricCandidateIdentity(result);
+        const candidate = sanitizeCandidateForTrackLanguage(result, expected) || result;
+        if (STATE.lyricCandidates.some((item) => item.id === candidate._candidateId || sameText(item.result, candidate))) return;
+        candidate._recommendationScore = candidateRecommendationScore(candidate, info, expected);
+        upsertLyricsCandidate(candidate);
+        refreshCandidatePane();
+      }));
+      finished = current();
+    } finally {
+      // A newer collection owns the flag; otherwise always clear it, even when a new search
+      // (saved local lyrics, manual search) replaced this one on the same track.
+      if (token === STATE.candidateCollectToken) {
+        STATE.isCollectingCandidates = false;
+        // An abandoned run did not search every provider, so let the next opening retry.
+        if (!finished && STATE.candidateSearchKey === key) STATE.candidateSearchKey = "";
+        refreshCandidatePane();
+      }
+    }
   }

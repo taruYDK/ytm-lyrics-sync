@@ -17,10 +17,12 @@ const SYNC_KEYS = [
   "manualScrollReturnMs",
   "autoLyricsOnIdle",
   "wordTrackingStyle",
+  "wordGlow",
   "providerOrder",
   "providerEnabled",
   "uiVersion",
   "backupReminderThreshold",
+  "fullscreenAlign",
 ];
 const LOCAL_KEYS = [
   "ytmlsTrackTimingOffsetsV174",
@@ -57,7 +59,8 @@ async function restoreBackupData(syncData, localData, partial = false) {
   const before = keys.length ? await storageGet(chrome.storage.sync, keys) : {};
   if (keys.length) await storageSet(chrome.storage.sync, syncData);
   try {
-    if (Object.keys(localData).length) await mutateData({action:"restore",data:localData,merge:partial});
+    // A full restore always runs, so categories missing from the backup are cleared too.
+    if (Object.keys(localData).length || !partial) await mutateData({action:"restore",data:localData,merge:partial});
   } catch (error) {
     if (keys.length) {
       try {
@@ -98,6 +101,7 @@ function setBusy(busy) {
   document.getElementById("refreshTracks").disabled = busy;
   document.getElementById("trackFilter").disabled = busy;
   document.querySelectorAll("#savedTracks input").forEach(input => { input.disabled = busy; });
+  document.getElementById("selectAllTracks").disabled = busy;
 }
 
 exportButton.addEventListener("click", async () => {

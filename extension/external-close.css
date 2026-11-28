@@ -2,7 +2,9 @@
 html:has(ytmusic-app-layout:not([player-page-open]):not([player-fullscreened])) #ytmls-external-view,
 html:has(ytmusic-app-layout:not([player-page-open]):not([player-fullscreened])) #ytmls-external-tab,
 html:has(ytmusic-app-layout:not([player-page-open]):not([player-fullscreened])) #ytmls-empty-width-overlay,
-html:has(ytmusic-app-layout:not([player-page-open]):not([player-fullscreened])) #ytmls-empty-status-overlay {
+html:has(ytmusic-app-layout:not([player-page-open]):not([player-fullscreened])) #ytmls-empty-status-overlay,
+/* The empty-state copy sits on top of the page; hide it while a lyrics menu or pane is open. */
+html:has(#ytmls-more[open], #ytmls-tools-pane:not([hidden])) #ytmls-empty-width-overlay {
   display: none !important;
   pointer-events: none !important;
 }

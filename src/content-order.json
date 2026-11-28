@@ -1,5 +1,6 @@
 [
   "state.js",
+  "perf-probe.js",
   "theme.js",
   "player-bridge.js",
   "settings.js",
@@ -21,6 +22,11 @@
   "readings.js",
   "helpful-ui.js",
   "practice.js",
+  "fullscreen-now.js",
+  "side-lyrics.js",
+  "share-card.js",
+  "glass-segment.js",
+  "glass-morph.js",
   "enhancements.js",
   "main.js"
 ]

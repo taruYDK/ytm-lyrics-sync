@@ -35,6 +35,10 @@
 
   function closeExternalLyrics() {
     externalLyricsOpen = false;
+    if (document.documentElement.classList.contains('ytmls-external-lyrics-open')) {
+      document.documentElement.classList.remove('ytmls-external-lyrics-open');
+      document.querySelector('.ytmls-tabs-segment')?.glassSegment?.sync();
+    }
     if (externalLyricsHost) externalLyricsHost.hidden = true;
     restoreExternalBackdrop();
   }
@@ -42,6 +46,9 @@
   function openExternalLyrics() {
     if (!STATE.enabled || !externalLyricsButton || externalLyricsButton.hidden) return false;
     externalLyricsOpen = true;
+    // The tabs' glass bead marks this 歌詞 (YouTube Music's own lyrics tab stays unselectable).
+    document.documentElement.classList.add('ytmls-external-lyrics-open');
+    document.querySelector('.ytmls-tabs-segment')?.glassSegment?.sync();
     ensureLyricsMount();
     checkTrackChange();
     return true;
@@ -51,14 +58,21 @@
     const tab = findLyricsTabButton();
     if (externalLyricsTab && externalLyricsTab !== tab) closeExternalLyrics();
     externalLyricsTab = tab;
+    // Songs with YouTube Music lyrics (most) stop here, before anything is measured: this runs every
+    // 300ms, and measuring made the browser lay the page out each time.
+    if (!STATE.enabled || !nativeLyricsDisabled(tab)) {
+      if (externalLyricsOpen || externalLyricsHost?.hidden === false) closeExternalLyrics();
+      if (externalLyricsButton && !externalLyricsButton.hidden) externalLyricsButton.hidden = true;
+      return;
+    }
     const side = document.querySelector('ytmusic-player-page #side-panel') || document.querySelector('#side-panel');
     const rect = tab?.getBoundingClientRect();
     const sideRect = side?.getBoundingClientRect();
     const usable = STATE.enabled && nativeLyricsDisabled(tab) && rect?.width > 0 && rect?.height > 0 &&
       sideRect?.width > 0 && sideRect?.bottom > rect.bottom && isVisibleRenderer(tab) && isVisibleRenderer(side);
     if (!usable) {
-      closeExternalLyrics();
-      if (externalLyricsButton) externalLyricsButton.hidden = true;
+      if (externalLyricsOpen || externalLyricsHost?.hidden === false) closeExternalLyrics();
+      if (externalLyricsButton && !externalLyricsButton.hidden) externalLyricsButton.hidden = true;
       return;
     }
     if (!externalLyricsButton) {

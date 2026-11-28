@@ -2,6 +2,17 @@
   let lyricsReadingGeneration = 0;
   const lyricsReadingCache = new Map();
 
+  // Loading the Japanese dictionary takes about a second the first time (and again after it
+  // idles out). Start it while lyrics are still being searched so readings appear with them.
+  let readingWarmupAt = -Infinity;
+  function warmJapaneseReadings() {
+    if (STATE.readingJapanese === false || STATE.contextInvalidated) return;
+    const now = performance.now();
+    if (now - readingWarmupAt < 60000) return;
+    readingWarmupAt = now;
+    try { void chrome.runtime.sendMessage({type:'YTMLS_JAPANESE_TOKENS',text:'歌詞'}).catch(() => {}); } catch (_) {}
+  }
+
   function getJapaneseReadingTokenizer() {
     return Promise.resolve({tokenize:async text=>{
       const response=await chrome.runtime.sendMessage({type:'YTMLS_JAPANESE_TOKENS',text});
@@ -149,10 +160,10 @@
     }
     const button = document.createElement('button');
     button.className = 'ytmls-tool-button';
-    button.id = 'ytmls-reading-edit'; button.type = 'button'; button.textContent = 'ふりがな編集';
+    button.id = 'ytmls-reading-edit'; button.type = 'button'; button.textContent = 'ふりがな編集'; button.dataset.icon = 'ruby';
     button.disabled = !canEditLyricsReadings();
     button.title = button.disabled ? '曲と歌詞の読み込みが完了すると編集できます' : '行ごとのふりがなを編集';
-    button.addEventListener('click', () => { const more = lyricsToolsEl.querySelector('#ytmls-more'); if (more) more.open = false; openManualReadingEditor(); });
+    button.addEventListener('click', () => { const more = lyricsToolsEl.querySelector('#ytmls-more'); if (more) closeMoreMenu(more); openManualReadingEditor(); });
     lyricsToolsEl.querySelector('#ytmls-lyrics-menu')?.append(button);
   }
 

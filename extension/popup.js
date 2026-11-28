@@ -4,6 +4,7 @@ const focusFadeToggle = document.getElementById("focusFadeToggle");
 const trackingToggle = document.getElementById("trackingToggle");
 const autoLyricsOnIdleToggle = document.getElementById("autoLyricsOnIdleToggle");
 const wordTrackingStyleSelect = document.getElementById("wordTrackingStyleSelect");
+const wordGlowToggle = document.getElementById("wordGlowToggle");
 const trackingPosition = document.getElementById("trackingPosition");
 const manualScrollReturnMs = document.getElementById("manualScrollReturnMs");
 const noticeTimers = new Map();
@@ -128,11 +129,11 @@ function renderProviderList() {
 
   const localName = document.createElement("span");
   localName.className = "provider-name";
-  localName.textContent = "ローカル歌詞 ★最優先";
+  localName.textContent = "ローカル歌詞";
 
   const fixedBadge = document.createElement("span");
   fixedBadge.className = "provider-fixed-badge";
-  fixedBadge.textContent = "固定";
+  fixedBadge.textContent = "常に最優先";
 
   localRow.append(localCheckbox, localRank, localName, fixedBadge);
   providerList.appendChild(localRow);
@@ -215,6 +216,7 @@ chrome.storage.sync.get(
     trackingEnabled: true,
     autoLyricsOnIdle: true,
     wordTrackingStyle: "smooth",
+    wordGlow: true,
     providerOrder: DEFAULT_PROVIDER_ORDER,
     providerEnabled: currentProviderEnabled,
     uiVersion: 9,
@@ -229,6 +231,7 @@ chrome.storage.sync.get(
     focusFadeToggle.checked = data.focusFade !== false;
     trackingToggle.checked = data.trackingEnabled !== false;
     autoLyricsOnIdleToggle.checked = data.autoLyricsOnIdle !== false;
+    wordGlowToggle.checked = data.wordGlow !== false;
 
     selectRestoredValue(fontSizeSelect, data.fontSize, 32, 10, 100, value => `${value}px`);
 
@@ -250,6 +253,7 @@ focusFadeToggle.addEventListener("change", () => chrome.storage.sync.set({ focus
 trackingToggle.addEventListener("change", () => chrome.storage.sync.set({ trackingEnabled: trackingToggle.checked }));
 autoLyricsOnIdleToggle.addEventListener("change", () => chrome.storage.sync.set({ autoLyricsOnIdle: autoLyricsOnIdleToggle.checked }));
 wordTrackingStyleSelect.addEventListener("change", () => chrome.storage.sync.set({ wordTrackingStyle: wordTrackingStyleSelect.value }));
+wordGlowToggle.addEventListener("change", () => chrome.storage.sync.set({ wordGlow: wordGlowToggle.checked }));
 
 const userDataKeys = ["ytmlsTrackTimingOffsetsV174", "ytmlsManualSearchOverridesV190", "ytmlsLyricsEditsV199", "ytmlsPinnedLyricsV200", "ytmlsLocalLyricsV200", "ytmlsManualReadingsV256", "ytmlsTrackDisplayV280", "ytmlsBookmarksV310"];
 chrome.storage.local.get(userDataKeys, data => {

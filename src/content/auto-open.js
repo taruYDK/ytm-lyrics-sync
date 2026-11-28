@@ -11,10 +11,11 @@
     if (!el || !(el instanceof Element)) return false;
     // 拡張自身の「歌詞 ±秒」ボタンやポップオーバーを、歌詞タブとして再検出しない。
     if (el.closest && el.closest('#ytmls-panel, #ytmls-track-offset-popover, [id^="ytmls-"]')) return false;
-    try {
-      const style = getComputedStyle(el);
-      if (style.display === 'none' || style.visibility === 'hidden') return false;
-    } catch (_) {}
+    // Hidden tabs are marked in the page (YouTube Music's hidden attribute, the extension's class):
+    // read those instead of the computed style, which made the browser work out the whole page's
+    // styles several times a second.
+    if (el.closest && el.closest('[hidden], .ytmls-tab-hidden')) return false;
+    if (el.style && (el.style.display === 'none' || el.style.visibility === 'hidden')) return false;
     return true;
   }
 
@@ -33,18 +34,26 @@
       'ytmusic-player-page paper-tab',
       'ytmusic-tab-renderer [role="tab"]',
     ];
+    // Asked several times in one tick (auto-open, the lyrics mount, the external tab): the answer is
+    // kept for a moment. Each tab is looked at once (its computed style made the browser work out
+    // the page's styles, once per matching selector).
+    const now = typeof performance === 'object' ? performance.now() : 0;
+    if (playerPageTabsCache && now && now - playerPageTabsCache.at < 120 && playerPageTabsCache.tabs.every(el => el.isConnected)) return playerPageTabsCache.tabs.slice();
     const out = [];
     const seen = new Set();
     for (const selector of selectors) {
       for (const el of document.querySelectorAll(selector)) {
-        if (!isUsableTabElement(el) || seen.has(el)) continue;
-        if (el.closest && el.closest('[page-type="MUSIC_PAGE_TYPE_TRACK_LYRICS"]')) continue;
+        if (seen.has(el)) continue;
         seen.add(el);
+        if (!isUsableTabElement(el)) continue;
+        if (el.closest && el.closest('[page-type="MUSIC_PAGE_TYPE_TRACK_LYRICS"]')) continue;
         out.push(el);
       }
     }
+    if (now) playerPageTabsCache = {at: now, tabs: out.slice()};
     return out;
   }
+  let playerPageTabsCache = null;
 
   function normalizedTabText(el) {
     if (!el) return '';
@@ -96,10 +105,9 @@
 
     // 2) 現行UIではラベルがyt-formatted-string等の子要素にだけ入ることがある。
     //    「歌詞 / Lyrics」という実テキストを探して、クリック可能な親タブまで戻る。
-    const roots = [
-      document.querySelector('ytmusic-player-page'),
-      document.querySelector('#side-panel')
-    ].filter(Boolean);
+    //    Only inside the tab bars: over the whole page (thousands of parts, the queue and the lyrics)
+    //    reading every block's text took a third of a second while a new song's tabs were rebuilt.
+    const roots = [...document.querySelectorAll('ytmusic-player-page tp-yt-paper-tabs, ytmusic-player-page paper-tabs, ytmusic-player-page #tabs, #side-panel [role="tablist"]')];
     const labelSelectors = [
       'yt-formatted-string', '.tab-content', '[aria-label]', '[title]',
       'span', 'div'
@@ -148,10 +156,29 @@
       tab.classList.contains('active');
   }
 
+  // Asked several times in one tick; the answer is kept for a moment (each look makes the browser
+  // work out styles and layout).
+  let lyricsViewVisibleCache = null;
   function isLyricsViewVisible() {
+    const now = typeof performance === 'object' ? performance.now() : 0;
+    if (now && lyricsViewVisibleCache && now - lyricsViewVisibleCache.at < 60) return lyricsViewVisibleCache.value;
+    const value = isLyricsViewVisibleNow();
+    if (now) lyricsViewVisibleCache = {at: now, value};
+    return value;
+  }
+  function isLyricsViewVisibleNow() {
     if (externalLyricsOpen && externalLyricsHost && !externalLyricsHost.hidden) return true;
     const renderer = findLyricsRenderer();
     if (!renderer) return false;
+    // From the page's own marks first (no style or layout work): the lyrics renderer is hidden
+    // with the hidden attribute while another tab shows, and the lyrics tab says it is chosen.
+    if (renderer.closest('[hidden]')) return false;
+    // Not while the Now Playing page is closed (it stays in the page, out of sight).
+    const layout = document.querySelector('ytmusic-app-layout');
+    if (layout && !layout.hasAttribute('player-page-open') && !layout.hasAttribute('player-fullscreened') && !renderer.closest('#ytmls-fullscreen')) return false;
+    const tabs = getPlayerPageTabs();
+    const chosen = tabs.find(tab => tab.getAttribute('aria-selected') === 'true');
+    if (chosen) return isLyricsLabelText(normalizedTabText(chosen)) || chosen.getAttribute('aria-controls')?.split(/\s+/).includes(renderer.id) || false;
     try {
       const style = getComputedStyle(renderer);
       return renderer.getClientRects().length > 0 && style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0';
@@ -200,6 +227,8 @@
   // YouTube MusicのタブDOM/selected属性の揺れに備えて、ラベル・paper-tabsのselected・
   // page-type renderer・タブ並びの4経路で現在タブを判定する。
   const AUTO_LYRICS_IDLE_DELAY_MS = 2000;
+  // Mac-style screen: the Now Playing page is lyrics-first, so the lyrics come up sooner.
+  const AUTO_LYRICS_MAC_DELAY_MS = 2500;
   const AUTO_LYRICS_RETRY_MS = 450;
 
   function isTabActive(tab) {
@@ -458,6 +487,12 @@
     }
 
     const now = performance.now();
+    // While the glass bead on the tabs is held, the person is choosing: wait, and count the
+    // idle time from the release.
+    if (document.querySelector('.ytmls-tabs-segment[data-dragging]')) {
+      STATE.lastUserInteractionAt = now;
+      return;
+    }
     const activeVideoId = String(getAuthoritativeVideoId() || '');
     if (STATE.lyricsAutoOpenExpectedVideoId && activeVideoId && activeVideoId !== STATE.lyricsAutoOpenExpectedVideoId) {
       STATE.lyricsAutoOpenExpectedVideoId = activeVideoId;
@@ -468,11 +503,13 @@
 
     // 次のコンテンツを開いた後の「最後の実操作」から2秒。
     const idleStart = Math.max(STATE.lyricsAutoOpenArmedAt || 0, STATE.lastUserInteractionAt || 0);
-    if (now - idleStart < AUTO_LYRICS_IDLE_DELAY_MS) return;
+    const idleDelay = document.documentElement.classList.contains('ytmls-am') ? AUTO_LYRICS_MAC_DELAY_MS : AUTO_LYRICS_IDLE_DELAY_MS;
+    if (now - idleStart < idleDelay) return;
 
     const lyricsTab = findLyricsTabButton();
     if (!lyricsTab) return;
-    if (nativeLyricsDisabled(lyricsTab)) { openExternalLyrics(); return; }
+    // No YouTube Music lyrics: the extension's own 歌詞 view, opened once (not again on every tick).
+    if (nativeLyricsDisabled(lyricsTab)) { if (!externalLyricsOpen) openExternalLyrics(); resetLyricsAutoOpenIdle(); return; }
     if (isLyricsTabSelected(lyricsTab) || isLyricsViewVisible()) {
       requestAnimationFrame(() => ensureLyricsMount());
       resetLyricsAutoOpenIdle();
@@ -482,7 +519,11 @@
     // クリックが1回取りこぼされても、次tickで再試行する。
     if (STATE.lyricsAutoOpenLastClickAt && now - STATE.lyricsAutoOpenLastClickAt < AUTO_LYRICS_RETRY_MS) return;
     STATE.lyricsAutoOpenLastClickAt = now;
+    // Timed on its own in the diagnostics: the click makes YouTube Music build the lyrics tab
+    // right away, which can be most of a slow moment after a song change.
+    const clickStarted = globalThis.ytmlsPerfOn ? performance.now() : 0;
     clickLyricsTab(lyricsTab);
+    if (clickStarted) globalThis.ytmlsPerfAdd?.('auto-open: click to 歌詞', performance.now() - clickStarted);
 
     setTimeout(() => {
       const latestLyricsTab = findLyricsTabButton();

@@ -169,15 +169,24 @@ function layoutManualLineReadings(text, ranges, ja = true, en = true, automatic 
     }
     const aligned = tokens.length < 150 ? align(0, 0) : null;
     if (aligned) return aligned;
-    // Unmatched kana/spacing must not produce one centered ruby across the line.
-    // Preserve the complete entered reading, distributing by original character length.
+    // Unaligned: give the whole entered reading to the words that can carry ruby (kanji, and
+    // English when its readings are shown), by length. Kana, spaces and punctuation get none,
+    // so nothing lands on the wrong characters and no part of the reading is dropped.
     const mora = range.reading.match(/.[ぁぃぅぇぉゃゅょァィゥェォャュョ]?/gu) || [];
-    return Array.from(text).map((char, i, chars) => ({
-      start: chars.slice(0,i).join('').length, end: chars.slice(0,i+1).join('').length,
-      reading: mora.slice(Math.floor(i*mora.length/chars.length),Math.floor((i+1)*mora.length/chars.length)).join(''),
-    }));
+    const carriers = tokens.filter(t => t.variable && (/[\p{Script=Han}々〆ヶ]/u.test(t.text) ? ja : en));
+    if (!carriers.length) return [{start:0,end:text.length,reading:range.reading,whole:true}];
+    const total = carriers.reduce((n, t) => n + t.text.length, 0);
+    let used = 0, from = 0;
+    return carriers.map((t, i) => {
+      used += t.text.length;
+      const to = i === carriers.length - 1 ? mora.length : Math.round(used * mora.length / total);
+      const part = {start:t.start,end:t.end,reading:mora.slice(from,to).join(''),whole:true};
+      from = to;
+      return part;
+    });
   }).map(r => ({...r, reading: r.reading === text.slice(r.start,r.end) ? '' : r.reading}))
-    .filter(r => /[\p{Script=Han}々〆ヶぁ-ゖァ-ヶ]/u.test(text.slice(r.start,r.end)) ? ja : en);
+    // Fallback parts were already chosen for what is shown; keep them as they are.
+    .filter(r => r.whole ? (delete r.whole, true) : /[\p{Script=Han}々〆ヶぁ-ゖァ-ヶ]/u.test(text.slice(r.start,r.end)) ? ja : en);
 }
 
 function readingSegmentProgressCss(start, end, length) {
@@ -222,6 +231,7 @@ function readingTokensToRomaji(tokens) {
     manualScrollReturnMs: 3500,
     trackingEnabled: true, // 歌詞ハイライト + 中央自動スクロール
     wordTrackingStyle: "smooth", // 単語ハイライト: smooth | silky
+    wordGlow: true, // 歌っている単語を光らせる
     focusFade: true,
     autoLyricsOnIdle: true, // 「次のコンテンツ」表示後、無操作なら歌詞タブへ移動
     lines: [],
@@ -319,6 +329,10 @@ function readingTokensToRomaji(tokens) {
       karalyr: true,
     },
     lyricCandidates: [],
+    candidateSearchKey: "", // track whose providers have all been searched for candidates
+    isCollectingCandidates: false,
+    candidateCollectToken: 0, // identifies the running background collection
+    lastTrackInfo: null, // search info that belongs to lastTrackKey
     activeCandidateId: "",
     manualSelectedCandidateId: "",
     activeBaseInfo: null,
@@ -362,6 +376,8 @@ function readingTokensToRomaji(tokens) {
   let localLyricsButtonEl = null;
   let exportLyricsButtonEl = null;
   let candidateSaveBusy = false;
+  let candidatePointerDown = false; // a press inside the candidate list is in progress
+  let candidateRefreshPending = false;
   let lyricsToolsPaneEl = null;
   let lyricsToolsPaneMode = "";
   let diagnosticsEl = null;
@@ -416,6 +432,91 @@ function readingTokensToRomaji(tokens) {
   }
   let authorShortcutController = null;
 
+// Feature: perf-probe.js
+// ---------- Where the time goes (for the diagnostics) ----------
+// Chrome reports every animation frame that took longer than 50ms, with the scripts that ran in it
+// (which file and function) and the time spent on style and layout. The last 20 seconds are kept,
+// so "全体が重い" reports can say whether this extension, YouTube Music or the drawing is the cause.
+// Nothing is measured until 診断情報 is opened (perfProbeStart): normal playback pays nothing.
+// Chrome keeps the recent slow frames itself, so the first copy still shows them.
+const perfProbeFrames = [];
+globalThis.ytmlsPerfOn = false;
+// Time this extension's own regular work takes (per second over the last 20 seconds), measured
+// around each loop: apple-shell.js and the content script add to it through ytmlsPerfAdd.
+const perfProbeOwn = new Map();
+globalThis.ytmlsPerfAdd = (name, ms) => {
+ const now = performance.now(), slot = Math.floor(now / 1000);
+ let entry = perfProbeOwn.get(name);
+ if (!entry) { entry = {slots: new Map(), max: 0}; perfProbeOwn.set(name, entry); }
+ entry.slots.set(slot, (entry.slots.get(slot) || 0) + ms);
+ if (ms > entry.max) entry.max = ms;
+ for (const key of entry.slots.keys()) if (key < slot - 20) entry.slots.delete(key);
+};
+function perfProbeOwnText() {
+ const slot = Math.floor(performance.now() / 1000);
+ const rows = [...perfProbeOwn].map(([name, entry]) => {
+  let total = 0;
+  for (const [key, ms] of entry.slots) if (key >= slot - 20) total += ms;
+  return [name, total / 20, entry.max];
+ }).filter(row => row[1] > 0).sort((a, b) => b[1] - a[1]);
+ return `own=[${rows.map(([name, perSecond, max]) => `${name}: ${perSecond.toFixed(1)}ms/s max ${Math.round(max)}ms`).join(' ; ') || 'none'}]`;
+}
+function perfProbeStart() {
+ if (globalThis.ytmlsPerfOn) return;
+ globalThis.ytmlsPerfOn = true;
+ if (typeof PerformanceObserver !== 'function') return;
+ const keep = entry => {
+  perfProbeFrames.push(entry);
+  const cutoff = performance.now() - 20000;
+  while (perfProbeFrames.length && (perfProbeFrames[0].startTime < cutoff || perfProbeFrames.length > 400)) perfProbeFrames.shift();
+ };
+ try { new PerformanceObserver(list => list.getEntries().forEach(keep)).observe({type: 'long-animation-frame', buffered: true}); }
+ catch (_) {
+  try { new PerformanceObserver(list => list.getEntries().forEach(keep)).observe({type: 'longtask', buffered: true}); } catch (__) {}
+ }
+}
+// Things that could pile up song after song (a report said it gets heavier after changing songs).
+function perfProbeCounts() {
+ const q = selector => document.querySelectorAll(selector).length;
+ const heap = performance.memory ? `${Math.round(performance.memory.usedJSHeapSize / 1048576)}MB` : '-';
+ const segments = typeof glassSegmentAttachCount === 'number' ? glassSegmentAttachCount : '-';
+ const ambient = typeof globalThis.ytmlsAmbientStats === 'function' ? globalThis.ytmlsAmbientStats() : 'ambient=-';
+ return `counts=[nodes=${q('*')} ours=${q('[id^="ytmls"], [class*="ytmls"]')} canvases=${q('canvas')} imgs=${q('img')} lyricLines=${q('.ytmls-line')} thumbs=${q('.ytmls-seg-thumb')} lenses=${q('.ytmls-seg-lens')} segmentsAttached=${segments} ${ambient} heap=${heap} songs=${perfProbeSongs.size}]`;
+}
+const perfProbeSongs = new Set();
+// Songs played in this tab (one cheap look every few seconds), to compare the counts after several songs.
+setInterval(() => {
+ if (document.hidden || !globalThis.ytmlsPerfOn) return;
+ try { const id = typeof getAuthoritativeVideoId === 'function' ? getAuthoritativeVideoId() : ''; if (id) perfProbeSongs.add(id); } catch (_) {}
+}, 4000);
+function perfProbeDiagnostics() {
+ if (!globalThis.ytmlsPerfOn) { perfProbeStart(); return `measuring=started (診断情報を開いたまま 20 秒ほど使ってからもう一度コピー) ${perfProbeFramesText()} ${perfProbeCounts()}`; }
+ return `${perfProbeFramesText()} ${perfProbeOwnText()} ${perfProbeCounts()}`;
+}
+function perfProbeFramesText() {
+ const cutoff = performance.now() - 20000;
+ const frames = perfProbeFrames.filter(entry => entry.startTime >= cutoff);
+ if (!frames.length) return 'slowFrames20s=0';
+ const total = frames.reduce((sum, entry) => sum + entry.duration, 0);
+ // A frame: tasks and scripts, then (from renderStart) animation-frame callbacks, then (from
+ // styleAndLayoutStart) style and layout, then painting (not timed here).
+ const end = entry => entry.startTime + entry.duration;
+ const layout = frames.reduce((sum, entry) => sum + (entry.styleAndLayoutStart ? Math.max(0, end(entry) - entry.styleAndLayoutStart) : 0), 0);
+ const render = frames.reduce((sum, entry) => sum + (entry.renderStart && entry.styleAndLayoutStart ? Math.max(0, entry.styleAndLayoutStart - entry.renderStart) : 0), 0);
+ const bySource = new Map();
+ let scriptTotal = 0;
+ for (const entry of frames) for (const script of entry.scripts || []) {
+  const file = String(script.sourceURL || '').replace(/^.*\//, '').replace(/[?#].*$/, '') || '?';
+  const owner = /^chrome-extension:/.test(script.sourceURL || '') ? 'ext' : 'page';
+  const key = `${owner}:${file}:${script.sourceFunctionName || script.invoker || '?'}`;
+  bySource.set(key, (bySource.get(key) || 0) + script.duration);
+  scriptTotal += script.duration;
+ }
+ const top = [...bySource].sort((a, b) => b[1] - a[1]).slice(0, 6).map(([key, ms]) => `${key}=${Math.round(ms)}`).join(' ');
+ const worst = Math.max(...frames.map(entry => entry.duration));
+ return `slowFrames20s=${frames.length} total=${Math.round(total)}ms worst=${Math.round(worst)}ms scripts=${Math.round(scriptTotal)}ms rafCallbacks=${Math.round(render)}ms styleLayout=${Math.round(layout)}ms top=[${top || 'none'}]`;
+}
+
 // Feature: theme.js
   let lastThemeCheck = 0;
   const observedThemeRoots = new WeakSet();
@@ -428,7 +529,20 @@ function readingTokensToRomaji(tokens) {
       updateLyricsTheme(true);
     });
   }
-  const lyricsThemeObserver = new MutationObserver(scheduleLyricsThemeRefresh);
+  // The extension changes classes and CSS variables on these elements itself (often, while things
+  // move); those changes are not a theme change, and reading the colours again for each of them
+  // made the browser work out the page's styles on every frame.
+  const ownThemeTokens = value => String(value || '').split(/\s+/).filter(name => name && !/^ytmls|^music-glass/.test(name)).sort().join(' ');
+  const ownStyle = value => String(value || '').replace(/--ytmls[\w-]*\s*:[^;]*;?/g, '').trim();
+  const lyricsThemeObserver = new MutationObserver(records => {
+    const real = !Array.isArray(records) || records.some(record => {
+      const now = record.target.getAttribute(record.attributeName);
+      if (record.attributeName === 'class') return ownThemeTokens(record.oldValue) !== ownThemeTokens(now);
+      if (record.attributeName === 'style') return ownStyle(record.oldValue) !== ownStyle(now);
+      return true;
+    });
+    if (real) scheduleLyricsThemeRefresh();
+  });
   const lyricsThemeMedia = matchMedia('(prefers-color-scheme: light)');
   lyricsThemeMedia.addEventListener('change', scheduleLyricsThemeRefresh);
   function updateLyricsTheme(force = false) {
@@ -436,11 +550,11 @@ function readingTokensToRomaji(tokens) {
     for (const root of roots) {
       if (!root || observedThemeRoots.has(root)) continue;
       observedThemeRoots.add(root);
-      lyricsThemeObserver.observe(root, {attributes:true, attributeFilter:['class','style','dark','theme','data-theme','is-dark-theme','color-scheme']});
+      lyricsThemeObserver.observe(root, {attributes:true, attributeOldValue:true, attributeFilter:['class','style','dark','theme','data-theme','is-dark-theme','color-scheme']});
       force = true;
     }
     const now = performance.now();
-    if (!force && now - lastThemeCheck < 1000) return;
+    if (!force && now - lastThemeCheck < 5000) return;
     lastThemeCheck = now;
     // Read the site's rendered surface, not the extension's own colors.
     // No dependency on undocumented theme class names.
@@ -466,17 +580,19 @@ function readingTokensToRomaji(tokens) {
   // ---------- YouTube Player 本体とのブリッジ ----------
   // DOM上の <video> は自動次曲時に前曲要素が残ることがあるため、
   // MAIN world の #movie_player API が返す videoId/currentTime を最優先する。
-  const PLAYER_BRIDGE_SOURCE = "ytmls-player-bridge-v1";
+  // Messages go through the private channel from bridge-channel.js (not window.postMessage,
+  // which page scripts could read and forge).
+  function sendToPlayerBridge(message) {
+    if (typeof ytmlsBridge !== "undefined") ytmlsBridge.send(message);
+  }
 
   function requestPlayerToggle(videoId) {
     if (!STATE.enabled || !videoId) return;
-    window.postMessage({ source: PLAYER_BRIDGE_SOURCE, type: 'toggle-playback', payload: { videoId } }, '*');
+    sendToPlayerBridge({ type: 'toggle-playback', payload: { videoId } });
   }
 
-  window.addEventListener("message", (event) => {
-    if (event.source !== window) return;
-    const data = event.data;
-    if (!data || data.source !== PLAYER_BRIDGE_SOURCE || data.type !== "snapshot") return;
+  if (typeof ytmlsBridge !== "undefined") ytmlsBridge.listen((data) => {
+    if (!data || data.type !== "snapshot") return;
     const payload = data.payload || {};
     const currentTime = Number(payload.currentTime);
     const duration = Number(payload.duration);
@@ -568,11 +684,7 @@ function readingTokensToRomaji(tokens) {
     const id = String(videoId || "");
     const time = Number(seconds);
     if (!id || !Number.isFinite(time)) return false;
-    window.postMessage({
-      source: PLAYER_BRIDGE_SOURCE,
-      type: "seek",
-      payload: { videoId: id, time: Math.max(0, time) },
-    }, "*");
+    sendToPlayerBridge({ type: "seek", payload: { videoId: id, time: Math.max(0, time) } });
     return true;
   }
 
@@ -620,6 +732,7 @@ function readingTokensToRomaji(tokens) {
           manualScrollReturnMs: 3500,
           trackingEnabled: true,
           wordTrackingStyle: "smooth",
+          wordGlow: true,
           focusFade: true,
           autoLyricsOnIdle: true,
           providerOrder: DEFAULT_PROVIDER_ORDER,
@@ -639,6 +752,7 @@ function readingTokensToRomaji(tokens) {
             ? String(data.wordTrackingStyle)
             : "smooth";
           STATE.focusFade = data.focusFade !== false;
+          STATE.wordGlow = data.wordGlow !== false;
           STATE.providerOrder = normalizedProviderOrder(data.providerOrder);
           STATE.providerEnabled = normalizedProviderEnabled(data.providerEnabled);
 
@@ -667,6 +781,11 @@ function readingTokensToRomaji(tokens) {
 
       chrome.storage.onChanged.addListener((changes, areaName) => {
         if (!areaName || areaName === "local") {
+          // Edits saved in another tab for the song shown here are applied right away.
+          const editsChange = changes[LYRICS_EDITS_STORAGE_KEY];
+          const shownId = String(STATE.displayedVideoId || "");
+          const editsForShownChanged = Boolean(editsChange && shownId &&
+            JSON.stringify((STATE.lyricsEdits || {})[shownId] || null) !== JSON.stringify((editsChange.newValue || {})[shownId] || null));
           for (const [key, field] of [
             [TRACK_TIMING_OFFSETS_STORAGE_KEY, "trackTimingOffsets"],
             [LYRICS_EDITS_STORAGE_KEY, "lyricsEdits"],
@@ -674,6 +793,12 @@ function readingTokensToRomaji(tokens) {
           ]) {
             if (changes[key]) STATE[field] = changes[key].newValue || {};
           }
+          if (editsForShownChanged && lyricsToolsPaneMode !== "edit" && typeof activeOriginalLyricsCandidate === "function") {
+            const candidate = activeOriginalLyricsCandidate();
+            const info = STATE.activeSearchInfo || STATE.activeBaseInfo;
+            if (candidate && info && STATE.lastTrackKey) applyLyricsResult(candidate.result, info, STATE.lastTrackKey, STATE.searchGeneration);
+          }
+          if (typeof LYRICS_CACHE_STORAGE_KEY !== "undefined" && changes[LYRICS_CACHE_STORAGE_KEY]) mergeLyricsCacheChange(changes[LYRICS_CACHE_STORAGE_KEY]);
           if (changes[TRACK_TIMING_OFFSETS_STORAGE_KEY]) {
             updateTrackTimingControl();
             const media = getVideoElement();
@@ -742,6 +867,11 @@ function readingTokensToRomaji(tokens) {
           if (media && STATE.hasSync && STATE.trackingEnabled) updateHighlight(getAuthoritativePlaybackTime(media) || 0, true);
         }
 
+        if (changes.wordGlow) {
+          STATE.wordGlow = changes.wordGlow.newValue !== false;
+          applySettings();
+        }
+
         if (changes.focusFade) {
           STATE.focusFade = changes.focusFade.newValue !== false;
           applySettings();
@@ -788,10 +918,11 @@ function readingTokensToRomaji(tokens) {
     if (!el || !(el instanceof Element)) return false;
     // 拡張自身の「歌詞 ±秒」ボタンやポップオーバーを、歌詞タブとして再検出しない。
     if (el.closest && el.closest('#ytmls-panel, #ytmls-track-offset-popover, [id^="ytmls-"]')) return false;
-    try {
-      const style = getComputedStyle(el);
-      if (style.display === 'none' || style.visibility === 'hidden') return false;
-    } catch (_) {}
+    // Hidden tabs are marked in the page (YouTube Music's hidden attribute, the extension's class):
+    // read those instead of the computed style, which made the browser work out the whole page's
+    // styles several times a second.
+    if (el.closest && el.closest('[hidden], .ytmls-tab-hidden')) return false;
+    if (el.style && (el.style.display === 'none' || el.style.visibility === 'hidden')) return false;
     return true;
   }
 
@@ -810,18 +941,26 @@ function readingTokensToRomaji(tokens) {
       'ytmusic-player-page paper-tab',
       'ytmusic-tab-renderer [role="tab"]',
     ];
+    // Asked several times in one tick (auto-open, the lyrics mount, the external tab): the answer is
+    // kept for a moment. Each tab is looked at once (its computed style made the browser work out
+    // the page's styles, once per matching selector).
+    const now = typeof performance === 'object' ? performance.now() : 0;
+    if (playerPageTabsCache && now && now - playerPageTabsCache.at < 120 && playerPageTabsCache.tabs.every(el => el.isConnected)) return playerPageTabsCache.tabs.slice();
     const out = [];
     const seen = new Set();
     for (const selector of selectors) {
       for (const el of document.querySelectorAll(selector)) {
-        if (!isUsableTabElement(el) || seen.has(el)) continue;
-        if (el.closest && el.closest('[page-type="MUSIC_PAGE_TYPE_TRACK_LYRICS"]')) continue;
+        if (seen.has(el)) continue;
         seen.add(el);
+        if (!isUsableTabElement(el)) continue;
+        if (el.closest && el.closest('[page-type="MUSIC_PAGE_TYPE_TRACK_LYRICS"]')) continue;
         out.push(el);
       }
     }
+    if (now) playerPageTabsCache = {at: now, tabs: out.slice()};
     return out;
   }
+  let playerPageTabsCache = null;
 
   function normalizedTabText(el) {
     if (!el) return '';
@@ -873,10 +1012,9 @@ function readingTokensToRomaji(tokens) {
 
     // 2) 現行UIではラベルがyt-formatted-string等の子要素にだけ入ることがある。
     //    「歌詞 / Lyrics」という実テキストを探して、クリック可能な親タブまで戻る。
-    const roots = [
-      document.querySelector('ytmusic-player-page'),
-      document.querySelector('#side-panel')
-    ].filter(Boolean);
+    //    Only inside the tab bars: over the whole page (thousands of parts, the queue and the lyrics)
+    //    reading every block's text took a third of a second while a new song's tabs were rebuilt.
+    const roots = [...document.querySelectorAll('ytmusic-player-page tp-yt-paper-tabs, ytmusic-player-page paper-tabs, ytmusic-player-page #tabs, #side-panel [role="tablist"]')];
     const labelSelectors = [
       'yt-formatted-string', '.tab-content', '[aria-label]', '[title]',
       'span', 'div'
@@ -925,10 +1063,29 @@ function readingTokensToRomaji(tokens) {
       tab.classList.contains('active');
   }
 
+  // Asked several times in one tick; the answer is kept for a moment (each look makes the browser
+  // work out styles and layout).
+  let lyricsViewVisibleCache = null;
   function isLyricsViewVisible() {
+    const now = typeof performance === 'object' ? performance.now() : 0;
+    if (now && lyricsViewVisibleCache && now - lyricsViewVisibleCache.at < 60) return lyricsViewVisibleCache.value;
+    const value = isLyricsViewVisibleNow();
+    if (now) lyricsViewVisibleCache = {at: now, value};
+    return value;
+  }
+  function isLyricsViewVisibleNow() {
     if (externalLyricsOpen && externalLyricsHost && !externalLyricsHost.hidden) return true;
     const renderer = findLyricsRenderer();
     if (!renderer) return false;
+    // From the page's own marks first (no style or layout work): the lyrics renderer is hidden
+    // with the hidden attribute while another tab shows, and the lyrics tab says it is chosen.
+    if (renderer.closest('[hidden]')) return false;
+    // Not while the Now Playing page is closed (it stays in the page, out of sight).
+    const layout = document.querySelector('ytmusic-app-layout');
+    if (layout && !layout.hasAttribute('player-page-open') && !layout.hasAttribute('player-fullscreened') && !renderer.closest('#ytmls-fullscreen')) return false;
+    const tabs = getPlayerPageTabs();
+    const chosen = tabs.find(tab => tab.getAttribute('aria-selected') === 'true');
+    if (chosen) return isLyricsLabelText(normalizedTabText(chosen)) || chosen.getAttribute('aria-controls')?.split(/\s+/).includes(renderer.id) || false;
     try {
       const style = getComputedStyle(renderer);
       return renderer.getClientRects().length > 0 && style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0';
@@ -977,6 +1134,8 @@ function readingTokensToRomaji(tokens) {
   // YouTube MusicのタブDOM/selected属性の揺れに備えて、ラベル・paper-tabsのselected・
   // page-type renderer・タブ並びの4経路で現在タブを判定する。
   const AUTO_LYRICS_IDLE_DELAY_MS = 2000;
+  // Mac-style screen: the Now Playing page is lyrics-first, so the lyrics come up sooner.
+  const AUTO_LYRICS_MAC_DELAY_MS = 2500;
   const AUTO_LYRICS_RETRY_MS = 450;
 
   function isTabActive(tab) {
@@ -1235,6 +1394,12 @@ function readingTokensToRomaji(tokens) {
     }
 
     const now = performance.now();
+    // While the glass bead on the tabs is held, the person is choosing: wait, and count the
+    // idle time from the release.
+    if (document.querySelector('.ytmls-tabs-segment[data-dragging]')) {
+      STATE.lastUserInteractionAt = now;
+      return;
+    }
     const activeVideoId = String(getAuthoritativeVideoId() || '');
     if (STATE.lyricsAutoOpenExpectedVideoId && activeVideoId && activeVideoId !== STATE.lyricsAutoOpenExpectedVideoId) {
       STATE.lyricsAutoOpenExpectedVideoId = activeVideoId;
@@ -1245,11 +1410,13 @@ function readingTokensToRomaji(tokens) {
 
     // 次のコンテンツを開いた後の「最後の実操作」から2秒。
     const idleStart = Math.max(STATE.lyricsAutoOpenArmedAt || 0, STATE.lastUserInteractionAt || 0);
-    if (now - idleStart < AUTO_LYRICS_IDLE_DELAY_MS) return;
+    const idleDelay = document.documentElement.classList.contains('ytmls-am') ? AUTO_LYRICS_MAC_DELAY_MS : AUTO_LYRICS_IDLE_DELAY_MS;
+    if (now - idleStart < idleDelay) return;
 
     const lyricsTab = findLyricsTabButton();
     if (!lyricsTab) return;
-    if (nativeLyricsDisabled(lyricsTab)) { openExternalLyrics(); return; }
+    // No YouTube Music lyrics: the extension's own 歌詞 view, opened once (not again on every tick).
+    if (nativeLyricsDisabled(lyricsTab)) { if (!externalLyricsOpen) openExternalLyrics(); resetLyricsAutoOpenIdle(); return; }
     if (isLyricsTabSelected(lyricsTab) || isLyricsViewVisible()) {
       requestAnimationFrame(() => ensureLyricsMount());
       resetLyricsAutoOpenIdle();
@@ -1259,7 +1426,11 @@ function readingTokensToRomaji(tokens) {
     // クリックが1回取りこぼされても、次tickで再試行する。
     if (STATE.lyricsAutoOpenLastClickAt && now - STATE.lyricsAutoOpenLastClickAt < AUTO_LYRICS_RETRY_MS) return;
     STATE.lyricsAutoOpenLastClickAt = now;
+    // Timed on its own in the diagnostics: the click makes YouTube Music build the lyrics tab
+    // right away, which can be most of a slow moment after a song change.
+    const clickStarted = globalThis.ytmlsPerfOn ? performance.now() : 0;
     clickLyricsTab(lyricsTab);
+    if (clickStarted) globalThis.ytmlsPerfAdd?.('auto-open: click to 歌詞', performance.now() - clickStarted);
 
     setTimeout(() => {
       const latestLyricsTab = findLyricsTabButton();
@@ -1358,6 +1529,10 @@ function readingTokensToRomaji(tokens) {
 
   function closeExternalLyrics() {
     externalLyricsOpen = false;
+    if (document.documentElement.classList.contains('ytmls-external-lyrics-open')) {
+      document.documentElement.classList.remove('ytmls-external-lyrics-open');
+      document.querySelector('.ytmls-tabs-segment')?.glassSegment?.sync();
+    }
     if (externalLyricsHost) externalLyricsHost.hidden = true;
     restoreExternalBackdrop();
   }
@@ -1365,6 +1540,9 @@ function readingTokensToRomaji(tokens) {
   function openExternalLyrics() {
     if (!STATE.enabled || !externalLyricsButton || externalLyricsButton.hidden) return false;
     externalLyricsOpen = true;
+    // The tabs' glass bead marks this 歌詞 (YouTube Music's own lyrics tab stays unselectable).
+    document.documentElement.classList.add('ytmls-external-lyrics-open');
+    document.querySelector('.ytmls-tabs-segment')?.glassSegment?.sync();
     ensureLyricsMount();
     checkTrackChange();
     return true;
@@ -1374,14 +1552,21 @@ function readingTokensToRomaji(tokens) {
     const tab = findLyricsTabButton();
     if (externalLyricsTab && externalLyricsTab !== tab) closeExternalLyrics();
     externalLyricsTab = tab;
+    // Songs with YouTube Music lyrics (most) stop here, before anything is measured: this runs every
+    // 300ms, and measuring made the browser lay the page out each time.
+    if (!STATE.enabled || !nativeLyricsDisabled(tab)) {
+      if (externalLyricsOpen || externalLyricsHost?.hidden === false) closeExternalLyrics();
+      if (externalLyricsButton && !externalLyricsButton.hidden) externalLyricsButton.hidden = true;
+      return;
+    }
     const side = document.querySelector('ytmusic-player-page #side-panel') || document.querySelector('#side-panel');
     const rect = tab?.getBoundingClientRect();
     const sideRect = side?.getBoundingClientRect();
     const usable = STATE.enabled && nativeLyricsDisabled(tab) && rect?.width > 0 && rect?.height > 0 &&
       sideRect?.width > 0 && sideRect?.bottom > rect.bottom && isVisibleRenderer(tab) && isVisibleRenderer(side);
     if (!usable) {
-      closeExternalLyrics();
-      if (externalLyricsButton) externalLyricsButton.hidden = true;
+      if (externalLyricsOpen || externalLyricsHost?.hidden === false) closeExternalLyrics();
+      if (externalLyricsButton && !externalLyricsButton.hidden) externalLyricsButton.hidden = true;
       return;
     }
     if (!externalLyricsButton) {
@@ -1494,32 +1679,45 @@ function readingTokensToRomaji(tokens) {
     updateLyricsToolsUi();
   }
 
+  // Writes a property only when it changes (writing the same value still made the browser recheck styles).
+  function setIfChanged(el, prop, value) {
+    if (el && el[prop] !== value) el[prop] = value;
+  }
   function updateLyricsToolsUi() {
     if (typeof ensureReadingEditButton === 'function') ensureReadingEditButton();
     if (exportLyricsButtonEl) {
-      exportLyricsButtonEl.disabled = !STATE.hasSync || !STATE.lines.length || STATE.contextInvalidated;
-      exportLyricsButtonEl.title = exportLyricsButtonEl.disabled ? '同期歌詞が表示されると保存できます' : '表示中の歌詞を書き出す';
+      setIfChanged(exportLyricsButtonEl, 'disabled', !STATE.hasSync || !STATE.lines.length || STATE.contextInvalidated);
+      setIfChanged(exportLyricsButtonEl, 'title', exportLyricsButtonEl.disabled ? '同期歌詞が表示されると保存できます' : '表示中の歌詞を書き出す');
     }
     if (candidateButtonEl) {
       const count = STATE.lyricCandidates.length;
-      candidateButtonEl.textContent = `歌詞候補 ${count}`;
-      candidateButtonEl.disabled = count === 0;
-      candidateButtonEl.title = count ? "取得した同期歌詞から選択" : "候補を検索中です";
+      // The count is a small badge; rebuilt only when it changes.
+      if (typeof candidateButtonEl.replaceChildren !== "function") candidateButtonEl.textContent = `歌詞候補 ${count}`;
+      else if (candidateButtonEl.dataset.count !== String(count)) {
+        candidateButtonEl.dataset.count = String(count);
+        const badge = document.createElement("span");
+        badge.className = "ytmls-count";
+        badge.textContent = String(count);
+        candidateButtonEl.replaceChildren("歌詞候補 ", badge);
+        candidateButtonEl.setAttribute("aria-label", `歌詞候補 ${count}件`);
+      }
+      setIfChanged(candidateButtonEl, 'disabled', count === 0);
+      setIfChanged(candidateButtonEl, 'title', count ? "取得した同期歌詞から選択" : "候補を検索中です");
     }
     if (editLyricsButtonEl) {
-      editLyricsButtonEl.disabled = !STATE.hasLyricsResult || !Array.isArray(STATE.lines) || !STATE.lines.length;
-      editLyricsButtonEl.title = editLyricsButtonEl.disabled
+      setIfChanged(editLyricsButtonEl, 'disabled', !STATE.hasLyricsResult || !Array.isArray(STATE.lines) || !STATE.lines.length);
+      setIfChanged(editLyricsButtonEl, 'title', editLyricsButtonEl.disabled
         ? "同期歌詞を表示すると編集できます"
-        : "歌詞の文章をタイミングを変えずに編集";
+        : "歌詞の文章をタイミングを変えずに編集");
     }
     if (localLyricsButtonEl) {
       const info = STATE.activeBaseInfo || STATE.activeSearchInfo;
       const videoId = String((info && info.videoId) || getAuthoritativeVideoId() || "");
       const ready = Boolean(videoId && STATE.lastTrackKey);
-      localLyricsButtonEl.disabled = !ready;
-      localLyricsButtonEl.title = ready ? "LRCの追加・読み込み・同期歌詞作成" : "曲の読み込みが完了すると使用できます";
+      setIfChanged(localLyricsButtonEl, 'disabled', !ready);
+      setIfChanged(localLyricsButtonEl, 'title', ready ? "LRCの追加・読み込み・同期歌詞作成" : "曲の読み込みが完了すると使用できます");
     }
-    if (lyricsToolsEl) lyricsToolsEl.hidden = !STATE.enabled;
+    if (lyricsToolsEl) setIfChanged(lyricsToolsEl, 'hidden', !STATE.enabled);
     updateDiagnosticsSummary();
     if (typeof updateHelpfulUi === "function") updateHelpfulUi();
   }
@@ -1580,6 +1778,13 @@ function readingTokensToRomaji(tokens) {
     recommendationNote.className = "ytmls-recommendation-note";
     recommendationNote.textContent = "おすすめ度は、同期精度・言語一致・提供元の優先順位・歌詞行数から自動計算した目安です。";
     lyricsToolsPaneEl.appendChild(recommendationNote);
+    if (STATE.isCollectingCandidates) {
+      const collecting = document.createElement("div");
+      collecting.className = "ytmls-recommendation-note ytmls-candidate-collecting";
+      collecting.setAttribute("role", "status");
+      collecting.textContent = "ほかの提供元の候補を探しています…";
+      lyricsToolsPaneEl.appendChild(collecting);
+    }
 
     const pinMessage = document.createElement("div");
     pinMessage.className = "ytmls-local-message";
@@ -1628,7 +1833,9 @@ function readingTokensToRomaji(tokens) {
       pinButton.type = "button";
       pinButton.className = "ytmls-candidate-pin";
       const isPinned = Boolean(pinned && pinned.candidateId === candidate.id);
-      pinButton.textContent = isPinned ? "📌 固定済み（解除）" : "📌 この歌詞を固定";
+      // A drawn pin (CSS) instead of the emoji; filled while this candidate is pinned.
+      pinButton.textContent = isPinned ? "固定済み（解除）" : "この歌詞を固定";
+      pinButton.dataset.pinned = String(isPinned);
       pinButton.setAttribute("aria-label", isPinned ? `${result._source || "この歌詞"}の固定を解除` : `${result._source || "この歌詞"}をこの曲で固定`);
       pinButton.addEventListener("click", async () => {
         if (!videoId || candidateSaveBusy) return;
@@ -1675,6 +1882,36 @@ function readingTokensToRomaji(tokens) {
     close.textContent = "閉じる";
     close.addEventListener("click", closeLyricsToolsPane);
     lyricsToolsPaneEl.appendChild(close);
+    if (typeof collectMoreCandidates === "function") void collectMoreCandidates();
+  }
+
+  // Re-render the open candidate list in place (renderCandidatePane toggles when called directly).
+  function refreshCandidatePane() {
+    updateLyricsToolsUi();
+    candidateRefreshPending = false;
+    if (!lyricsToolsPaneEl || lyricsToolsPaneEl.hidden || lyricsToolsPaneMode !== "candidates" || candidateSaveBusy) return;
+    if (lyricsToolsPaneEl.dataset.morphing === "closing") return;
+    if (candidatePointerDown) {
+      candidateRefreshPending = true;
+      return;
+    }
+    // Keep keyboard focus on the same control of the same candidate across the rebuild.
+    const focused = document.activeElement;
+    const focusedRow = focused && lyricsToolsPaneEl.contains(focused) ? focused.closest(".ytmls-candidate-row") : null;
+    const focusedClass = focused && lyricsToolsPaneEl.contains(focused)
+      ? ["ytmls-candidate-select", "ytmls-candidate-pin", "ytmls-tools-close"].find((name) => focused.classList.contains(name))
+      : "";
+    const focusedId = focusedRow ? focusedRow.dataset.candidateId : "";
+    const scrollTop = lyricsToolsPaneEl.scrollTop;
+    lyricsToolsPaneMode = "";
+    renderCandidatePane();
+    lyricsToolsPaneEl.scrollTop = scrollTop;
+    if (focusedClass) {
+      const rows = Array.from(lyricsToolsPaneEl.querySelectorAll(".ytmls-candidate-row"));
+      const scope = focusedId ? rows.find((row) => row.dataset.candidateId === focusedId) : lyricsToolsPaneEl;
+      const target = scope && scope.querySelector(`.${focusedClass}`);
+      if (target) target.focus({ preventScroll: true });
+    }
   }
 
   function renderManualSearchPane() {
@@ -2108,9 +2345,9 @@ function readingTokensToRomaji(tokens) {
     record.addEventListener("click", () => {
       const currentVideoId = String(getAuthoritativeVideoId() || "");
       if (!currentVideoId || currentVideoId !== videoId) {
-        message.textContent = "曲が切り替わったため記録を停止しました。元の曲に戻ってやり直してください。";
+        // Keep the button usable: recording resumes once the original track plays again.
+        message.textContent = "別の曲が再生されているため記録できません。元の曲に戻してから記録してください。";
         message.dataset.error = "true";
-        record.disabled = true;
         return;
       }
       const currentTime = getAuthoritativePlaybackTime(getVideoElement());
@@ -2187,7 +2424,12 @@ function readingTokensToRomaji(tokens) {
       if (authorShortcutTargetsControl(event.target, record)) return;
       const space = event.code === "Space" && !event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey;
       const back = event.key.toLowerCase() === "z" && (event.ctrlKey || event.metaKey) && !event.altKey && !event.shiftKey;
-      if ((!space && !back) || (space ? record : undo).disabled) return;
+      if (!space && !back) return;
+      if ((space ? record : undo).disabled) {
+        // After every line is recorded, Space must not scroll the page or toggle playback.
+        if (space) { event.preventDefault(); event.stopImmediatePropagation(); }
+        return;
+      }
       event.preventDefault(); event.stopImmediatePropagation();
       if (!event.repeat) (space ? record : undo).click();
     }, { capture: true, signal: authorShortcutController.signal });
@@ -2375,7 +2617,158 @@ function readingTokensToRomaji(tokens) {
       `Player source: ${snapshot.playerSource}`,
       `Pinned lyrics: ${snapshot.pinned ? "yes" : "no"}`,
       `Local lyrics: ${snapshot.local ? "yes" : "no"}`,
+      `Glass lens: ${typeof glassLensDiagnostics === "function" ? glassLensDiagnostics() : "n/a"}`,
+      `Guide layout: ${guideLayoutDiagnostics()}`,
+      `Player page layout: ${playerPageLayoutDiagnostics()}`,
+      `Mac toolbar: ${macToolbarDiagnostics()}`,
+      `Mac pages: ${macPagesDiagnostics()}`,
+      `Perf: ${typeof perfProbeDiagnostics === "function" ? perfProbeDiagnostics() : "n/a"}`,
     ].join("\n");
+  }
+
+  // Mac-style screen: how many of YouTube Music's parts that the Apple-style rules target are on the
+  // page (counts and tag names only), to see which ones the real page uses.
+  function macPagesDiagnostics() {
+    try {
+      const count = (selector) => document.querySelectorAll(selector).length;
+      const queue = document.querySelector("ytmusic-player-queue-item");
+      const menu = document.querySelector("ytmusic-menu-popup-renderer");
+      return [
+        `queueItems=${count("ytmusic-player-queue-item")}`,
+        queue ? `queueItem=[${["song-title", "byline", "duration"].map(c => `${c}:${queue.querySelector("." + c) ? "y" : "n"}`).join(",")} selected:${count("ytmusic-player-queue-item[selected]")} state:${queue.getAttribute("play-button-state") || "-"}]` : "queueItem=none",
+        `shelfHeaders=${count("ytmusic-carousel-shelf-basic-header-renderer")}`,
+        `twoRow=${count("ytmusic-two-row-item-renderer")}`,
+        `listRows=${count("ytmusic-responsive-list-item-renderer")}`,
+        `chips=${count("ytmusic-chip-cloud-chip-renderer")}`,
+        `playButtons=${count("ytmusic-item-thumbnail-overlay-renderer ytmusic-play-button-renderer")}`,
+        `headers=${["ytmusic-responsive-header-renderer", "ytmusic-detail-header-renderer", "ytmusic-immersive-header-renderer", "ytmusic-visual-header-renderer"].map(n => `${n.replace(/^ytmusic-|-header-renderer$/g, "")}:${count(n)}`).join(",")}`,
+        `pageButtons=[filled:${count(":is(ytmusic-browse-response, ytmusic-search-page) .yt-spec-button-shape-next--filled")} tonal:${count(":is(ytmusic-browse-response, ytmusic-search-page) .yt-spec-button-shape-next--tonal")} outline:${count(":is(ytmusic-browse-response, ytmusic-search-page) .yt-spec-button-shape-next--outline")}]`,
+        `cardShelf=${count("ytmusic-card-shelf-renderer")}`,
+        `autoplay=${(() => { const t = [...document.querySelectorAll('ytmusic-player-page tp-yt-paper-toggle-button, ytmusic-player-page [role="switch"]')]; return t.length ? `${t.length}:${t.map(x => (x.hasAttribute('checked') || x.getAttribute('aria-pressed') === 'true') ? 'on' : 'off').join('/')}` : 'none'; })()}`,
+        `albumPills=${document.querySelectorAll('.ytmls-am-album-actions').length}`,
+        // What paints behind the Now Playing artwork (a pale box was reported around it).
+        `artBox=${(() => { const box = document.querySelector('ytmusic-player-page ytmusic-player #song-image'); if (!box) return 'none'; const img = box.querySelector('img'); const ir = img?.getBoundingClientRect(); const player = box.closest('ytmusic-player'); const chain = []; for (let el = box; el && el !== player?.parentElement; el = el.parentElement) chain.push(el); const paints = (cs) => cs && cs.content !== 'none' && cs.content !== 'normal' && cs.display !== 'none' && (cs.backgroundColor !== 'rgba(0, 0, 0, 0)' || cs.backgroundImage !== 'none' || (cs.backdropFilter || 'none') !== 'none') || false; const pseudo = [...chain, ...box.querySelectorAll('*')].flatMap(el => ['::before', '::after'].filter(p => paints(getComputedStyle(el, p))).map(p => `${el.tagName.toLowerCase()}${el.id ? '#' + el.id : ''}${p}`)); const painted = [...chain, ...box.querySelectorAll('*')].filter(Boolean).filter(el => { const cs = getComputedStyle(el); return el !== img && (cs.backgroundColor !== 'rgba(0, 0, 0, 0)' && cs.backgroundColor !== 'transparent' || cs.backgroundImage !== 'none' || cs.boxShadow !== 'none' || (cs.backdropFilter || 'none') !== 'none'); }).concat(pseudo.map(name => ({tagName: name, id: '', getBoundingClientRect: () => ({width: 0, height: 0}), pseudo: true}))).slice(0, 5).map(el => { const r = el.getBoundingClientRect(); if (el.pseudo) return el.tagName; return `${el.tagName.toLowerCase()}${el.id ? '#' + el.id : ''} ${Math.round(r.width)}x${Math.round(r.height)} bg:${getComputedStyle(el).backgroundColor}`; }); const side = ir ? document.elementsFromPoint(Math.max(1, ir.left - 14), ir.top + ir.height / 2).slice(0, 8).map(el => { const cs = getComputedStyle(el), r = el.getBoundingClientRect(); const bits = [cs.backgroundColor !== 'rgba(0, 0, 0, 0)' ? 'bg:' + cs.backgroundColor : '', cs.backgroundImage !== 'none' ? 'bgimg' : '', cs.backdropFilter && cs.backdropFilter !== 'none' ? 'backdrop' : '', cs.boxShadow !== 'none' ? 'shadow' : '', cs.filter !== 'none' ? 'filter:' + cs.filter.slice(0, 24) : '', cs.opacity !== '1' ? 'op:' + cs.opacity : ''].filter(Boolean).join(','); return `${el.tagName.toLowerCase()}${el.id ? '#' + el.id : ''}${typeof el.className === 'string' && el.className ? '.' + el.className.trim().split(/\s+/).slice(0, 2).join('.') : ''}(${Math.round(r.width)}x${Math.round(r.height)}@${Math.round(r.left)},${Math.round(r.top)})${bits ? '{' + bits + '}' : ''}`; }) : []; const px = ir ? Math.max(1, ir.left - 14) : 0, py = ir ? ir.top + ir.height / 2 : 0; const covering = ir ? [...document.querySelectorAll('body *')].filter(el => { if (el === img) return false; const r = el.getBoundingClientRect(); if (!(r.left <= px && r.right >= px && r.top <= py && r.bottom >= py) || r.width > innerWidth * .8) return false; const cs = getComputedStyle(el); if (cs.visibility === 'hidden' || cs.display === 'none') return false; return cs.backgroundColor !== 'rgba(0, 0, 0, 0)' || cs.backgroundImage !== 'none' || (cs.backdropFilter || 'none') !== 'none' || cs.boxShadow !== 'none' || el.tagName === 'VIDEO' || el.tagName === 'CANVAS' || el.tagName === 'IMG' || ['::before', '::after'].some(p => paints(getComputedStyle(el, p))); }).slice(0, 8).map(el => { const cs = getComputedStyle(el), r = el.getBoundingClientRect(); return `${el.tagName.toLowerCase()}${el.id ? '#' + el.id : ''}${typeof el.className === 'string' && el.className ? '.' + el.className.trim().split(/\s+/).slice(0, 2).join('.') : ''}(${Math.round(r.width)}x${Math.round(r.height)}@${Math.round(r.left)},${Math.round(r.top)} pe:${cs.pointerEvents} op:${cs.opacity} bg:${cs.backgroundColor}${(cs.backdropFilter || 'none') !== 'none' ? ' backdrop' : ''}${cs.boxShadow !== 'none' ? ' shadow' : ''})`; }) : []; return `[img ${ir ? Math.round(ir.width) + 'x' + Math.round(ir.height) + '@' + Math.round(ir.left) + ',' + Math.round(ir.top) : '-'} painted: ${painted.join(' ; ') || 'none'} left-of-art: ${side.join(' > ') || 'none'} covering: ${covering.join(' ; ') || 'none'}]`; })()}`,
+        `page=${(() => { const pg = document.querySelector('ytmusic-app-layout > ytmusic-player-page'); if (!pg) return 'none'; const cs = getComputedStyle(pg), r = pg.getBoundingClientRect(); return `[${cs.position} left:${cs.left} ml:${cs.marginLeft} pl:${cs.paddingLeft} x:${Math.round(r.left)} w:${Math.round(r.width)} shift:${pg.style.getPropertyValue('--ytmls-am-page-shift') || '-'}]`; })()}`,
+        `dropdown=${(() => { const open = [...document.querySelectorAll("tp-yt-iron-dropdown")].find(d => d.offsetParent !== null || getComputedStyle(d).display !== "none"); const inner = open?.querySelector(".dropdown-content > *, #contentWrapper > * > *"); return inner ? `${inner.localName}>${[...new Set([...inner.querySelectorAll("*")].map(el => el.localName).filter(n => /^(ytmusic|tp-yt)-/.test(n)))].slice(0, 6).join("/")}` : "closed"; })()}`,
+        `menu=${menu ? `${menu.parentElement?.localName || "-"} items:${[...new Set([...menu.querySelectorAll("[class], *")].map(el => el.localName).filter(n => /^ytmusic-.*item/.test(n)))].join("/")} rows:${[...menu.querySelectorAll("ytmusic-menu-navigation-item-renderer, ytmusic-menu-service-item-renderer, ytmusic-toggle-menu-service-item-renderer, ytmusic-menu-service-item-download-renderer")].filter(el => el.offsetParent !== null).map(el => { const inner = el.querySelector("tp-yt-paper-item, a"); return `${Math.round(el.getBoundingClientRect().height)}${inner ? "/" + inner.localName + ":" + Math.round(inner.getBoundingClientRect().height) : ""}`; }).join(",")} box:${Math.round(menu.getBoundingClientRect().width)}x${Math.round(menu.getBoundingClientRect().height)} scroll:${menu.scrollHeight}/${menu.scrollWidth} edges:${(() => { const out = []; for (let el = menu; el && el !== document.body; el = el.parentElement) { const cs = getComputedStyle(el); const bits = [cs.borderTopWidth !== '0px' && cs.borderTopStyle !== 'none' ? 'border:' + cs.borderTopWidth + ' ' + cs.borderTopColor : '', cs.boxShadow !== 'none' ? 'shadow:' + cs.boxShadow.slice(0, 60) : '', cs.outlineStyle !== 'none' && cs.outlineWidth !== '0px' ? 'outline' : '', cs.backgroundColor !== 'rgba(0, 0, 0, 0)' ? 'bg:' + cs.backgroundColor : ''].filter(Boolean); if (bits.length) out.push(el.localName + (el.id ? '#' + el.id : '') + '{' + bits.join(',') + '}'); } return out.join(' < ') || 'none'; })()}` : "closed"}`,
+      ].join(" ");
+    } catch (_) {
+      return "error";
+    }
+  }
+
+  // Mac-style screen (apple-shell.js): for each playback button, whether YouTube Music's own button
+  // was found, and what is actually under our button (something on top would take the clicks).
+  function macToolbarDiagnostics() {
+    try {
+      if (!document.getElementById("ytmls-am")) return "off";
+      const bar = document.querySelector("ytmusic-player-bar");
+      const describe = (el) => el ? `${el.localName}${el.id ? "#" + el.id : ""}${el.classList.length ? "." + [...el.classList].slice(0, 2).join(".") : ""}` : "none";
+      return [["play", "#play-pause-button"], ["prev", ".previous-button"], ["next", ".next-button"], ["shuffle", ".shuffle"], ["repeat", ".repeat"]].map(([name, selector]) => {
+        const ours = document.querySelector(`#ytmls-am .ytmls-am-${name}`);
+        const native = bar?.querySelector(selector);
+        let hit = "hidden";
+        const rect = ours?.getBoundingClientRect();
+        if (rect?.width) {
+          const top = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
+          hit = top && (top === ours || ours.contains(top)) ? "ok" : describe(top);
+        }
+        return `${name}: native=${native ? describe(native) : "missing"} hit=${hit}`;
+      }).join("; ") + "; shuffle: " + (() => {
+        // How YouTube Music's shuffle button shows on / off (attribute names and values; no titles of songs).
+        const el = bar?.querySelector(".shuffle");
+        if (!el) return "missing";
+        const attrs = el2 => el2 ? [...el2.attributes].filter(a => a.name !== "style").map(a => `${a.name}=${String(a.value).slice(0, 40)}`).join(" ") : "-";
+        return `[${attrs(el)}] inner[${attrs(el.querySelector("button"))}]`;
+      })() + "; gap: " + (() => {
+        // What sits in the space between the sidebar and the toolbar (a strip was reported there).
+        const side = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--ytmls-am-side")) || 0;
+        return [-10, -4, 2, 8].map(dx => `${dx}=${describe(document.elementFromPoint(Math.max(0, side + dx), 30))}`).join(",");
+      })();
+    } catch (_) {
+      return "error";
+    }
+  }
+
+  // How the Now Playing page is built (to find the comments): tab labels, the page's columns, and
+  // anything whose tag or id says "comment". Element names, ids, classes and sizes only.
+  function playerPageLayoutDiagnostics() {
+    try {
+      const page = document.querySelector("ytmusic-player-page");
+      if (!page) return "no player page";
+      const box = (el) => { const r = el.getBoundingClientRect(); return `${Math.round(r.width)}x${Math.round(r.height)}@${Math.round(r.left)},${Math.round(r.top)}`; };
+      const describe = (el) => `${el.localName}${el.id ? "#" + el.id : ""}${el.classList.length ? "." + [...el.classList].slice(0, 3).join(".") : ""}(${box(el)})`;
+      const tabs = [...page.querySelectorAll("tp-yt-paper-tab")].map(tab => `${tab.textContent.replace(/\s+/g, " ").trim().slice(0, 12)}${tab.classList.contains("ytmls-tab-hidden") ? "[hidden]" : ""}`);
+      const columns = [...(page.querySelector("#content, .content") || page).children].map(describe);
+      const comments = [];
+      const walker = document.createTreeWalker(page, NodeFilter.SHOW_ELEMENT);
+      for (let el = walker.nextNode(); el && comments.length < 6; el = walker.nextNode()) {
+        if (el.closest("#ytmls-panel")) continue;
+        if (/comment/i.test(el.localName) || /comment/i.test(el.id || "")) {
+          const chain = []; for (let p = el.parentElement; p && p !== page && chain.length < 4; p = p.parentElement) chain.push(describe(p));
+          comments.push(`${describe(el)} < ${chain.join(" < ")}`);
+        }
+      }
+      const av = page.querySelector("ytmusic-av-toggle");
+      const avText = av ? `mode=${av.getAttribute("playback-mode") || "-"} disabled=${av.hasAttribute("toggle-disabled")} buttons=${[...av.querySelectorAll(".song-button, .video-button")].map(b => `${describe(b)}[pressed=${b.getAttribute("aria-pressed") || "-"} disabled=${b.disabled || b.hasAttribute("disabled")} aria-disabled=${b.getAttribute("aria-disabled") || "-"}] in ${describe(b.parentElement)}`).join(" , ")}` : "none";
+      // The glass bead on the tabs: which tab is chosen, which one the bead is over, and how many tab bars exist.
+      const bars = [...page.querySelectorAll("tp-yt-paper-tabs")];
+      const thumb = page.querySelector(".ytmls-tabs-segment .ytmls-seg-thumb");
+      const tabEls = [...page.querySelectorAll("tp-yt-paper-tab")];
+      const chosen = tabEls.map((tab, i) => (tab.getAttribute("aria-selected") === "true" ? "a" : "") + (tab.classList.contains("iron-selected") ? "i" : "") ? i : -1).filter(i => i >= 0);
+      let beadAt = "-";
+      if (thumb && !thumb.hidden) { const t = thumb.getBoundingClientRect(), mid = t.left + t.width / 2; let best = Infinity; tabEls.forEach((tab, i) => { const r = tab.getBoundingClientRect(), d = Math.abs(r.left + r.width / 2 - mid); if (d < best) { best = d; beadAt = i; } }); }
+      const bead = `bars=${bars.length}(${bars.map(b => (typeof b.checkVisibility === "function" ? (b.checkVisibility() ? "v" : "h") : "?") + (b.classList.contains("ytmls-tabs-glass") ? "g" : "")).join(",")}) chosen=${chosen.join("+") || "none"} beadAt=${beadAt} thumb=${thumb ? (thumb.hidden ? "hidden" : "shown") : "none"} thumbs=${page.querySelectorAll(".ytmls-seg-thumb").length} groups=${page.querySelectorAll(".ytmls-tabs-segment").length} under=${tabEls.findIndex(t => t.classList.contains("ytmls-seg-under"))} lens=${document.querySelector(".ytmls-tabs-segment")?.dataset.lens || "-"}`;
+      return `tabs=[${tabs.join(" | ")}] bead=[${bead}] columns=[${columns.join(", ")}] comments=[${comments.join(" ; ") || "none"}] av=[${avText}]`;
+    } catch (_) {
+      return "error";
+    }
+  }
+
+  // How YouTube Music builds its side menu, to style it without guessing: element names, ids, slots,
+  // classes and sizes only (never titles such as playlist names).
+  function guideLayoutDiagnostics() {
+    try {
+      const describe = (el) => {
+        if (!el?.localName) return "?";
+        const cls = typeof el.className === "string" ? el.className.trim().split(/\s+/).filter(Boolean).slice(0, 3).join(".") : "";
+        const attrs = ["slot", "active", "mini", "collapsed", "opened", "persistent", "hidden"].filter((a) => el.hasAttribute?.(a)).map((a) => `[${a}]`).join("");
+        return `${el.localName}${el.id ? "#" + el.id : ""}${cls ? "." + cls : ""}${el.getAttribute?.("slot") ? `{slot=${el.getAttribute("slot")}}` : ""}${attrs}`;
+      };
+      const chain = (el) => {
+        const parts = [];
+        for (let n = el; n && n.localName !== "ytmusic-app-layout" && parts.length < 9; n = n.parentElement) {
+          const r = n.getBoundingClientRect?.();
+          parts.push(`${describe(n)}(${r ? Math.round(r.width) + "x" + Math.round(r.height) : ""})`);
+        }
+        return parts.reverse().join(" > ");
+      };
+      const inner = (el, depth = 0) => {
+        if (!el || depth > 2) return "";
+        const kids = [...el.children].slice(0, 4).map((c) => describe(c) + (c.children.length && depth < 2 ? "{" + inner(c, depth + 1) + "}" : ""));
+        return kids.join(",");
+      };
+      const layout = document.querySelector("ytmusic-app-layout");
+      const layoutAttrs = layout ? [...layout.attributes].map((a) => a.name).filter((n) => /guide|drawer|mini/.test(n)).join(",") : "none";
+      const entries = [...document.querySelectorAll("ytmusic-guide-entry-renderer, ytmusic-mini-guide-entry-renderer")].filter((e) => e.getBoundingClientRect().width > 0);
+      const first = entries[0];
+      return [
+        `layout[${layoutAttrs}]`,
+        `renderers=${[...document.querySelectorAll("ytmusic-guide-renderer, ytmusic-mini-guide-renderer")].map((r) => describe(r) + (r.getBoundingClientRect().width ? "" : "(hidden)")).join("|") || "none"}`,
+        `visibleEntries=${entries.length}`,
+        first ? `entry: ${chain(first)}` : "entry: none",
+        first ? `entryInside: ${inner(first)}` : "",
+        ...["guide-renderer", "mini-guide-renderer"].map((id) => {
+          const r = document.getElementById(id);
+          if (!r) return `${id}: none`;
+          const box = r.getBoundingClientRect();
+          return `${id}(${Math.round(box.width)}x${Math.round(box.height)}): ${inner(r)}`;
+        }),
+        `sections: ${[...document.querySelectorAll("#guide-renderer ytmusic-guide-section-renderer")].map((sec) => `[${[...sec.children].map(describe).join(",")}]`).join(" ") || "none"}`,
+      ].filter(Boolean).join(" ; ");
+    } catch (e) {
+      return "error " + (e?.message || e);
+    }
   }
 
   function updateDiagnosticsSummary() {
@@ -2415,12 +2808,13 @@ function readingTokensToRomaji(tokens) {
   function closeMoreMenu(more) {
     if (!more?.open) return;
     const menu=more.querySelector('.ytmls-more-menu');
-    const motion=!document.documentElement.classList.contains('ytmls-extra-motion-disabled') && !document.documentElement.classList.contains('ytmls-lyrics-motion-lightweight') && !(typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches);
-    if (!motion || !menu?.animate) { more.open=false; return; }
+    const summary=more.querySelector(':scope > summary');
+    if (!menu || typeof glassMorph !== 'function' || !glassMorphAllowed(menu)) { more.open=false; return; }
     if (more.dataset.closing==='true') return;
     more.dataset.closing='true';menu.style.pointerEvents='none';
-    const animation=menu.animate([{opacity:1,transform:'none'},{opacity:0,transform:'translateY(-5px) scale(.98)'}],{duration:140,easing:'ease-in'});
-    animation.finished.catch(()=>{}).finally(()=>{more.open=false;delete more.dataset.closing;menu.style.removeProperty('pointer-events');});
+    // Shrink back into the "その他" button.
+    const settle=()=>{delete more.dataset.closing;menu.style.removeProperty('pointer-events');};
+    glassMorph(menu, summary, {closing: true, onDone: () => {more.open=false;settle();}, onCancel: settle});
   }
 
   function createPanel() {
@@ -2428,11 +2822,12 @@ function readingTokensToRomaji(tokens) {
 
     panelEl = document.createElement("div");
     panelEl.id = "ytmls-panel";
-    panelEl.setAttribute("aria-live", "polite");
     panelEl.dataset.sync = "none";
 
     statusEl = document.createElement("div");
     statusEl.id = "ytmls-status";
+    // Announce status changes only; a live panel would read every lyric line on each render.
+    statusEl.setAttribute("aria-live", "polite");
     statusEl.textContent = STATE.statusText;
     panelEl.appendChild(statusEl);
 
@@ -2449,6 +2844,7 @@ function readingTokensToRomaji(tokens) {
     manualSearchButtonEl.type = "button";
     manualSearchButtonEl.className = "ytmls-tool-button";
     manualSearchButtonEl.textContent = "手動検索";
+    manualSearchButtonEl.dataset.icon = "search";
     manualSearchButtonEl.setAttribute("aria-pressed", "false");
     manualSearchButtonEl.addEventListener("click", renderManualSearchPane);
 
@@ -2456,6 +2852,7 @@ function readingTokensToRomaji(tokens) {
     editLyricsButtonEl.type = "button";
     editLyricsButtonEl.className = "ytmls-tool-button";
     editLyricsButtonEl.textContent = "歌詞編集";
+    editLyricsButtonEl.dataset.icon = "pencil";
     editLyricsButtonEl.setAttribute("aria-pressed", "false");
     editLyricsButtonEl.addEventListener("click", renderLyricsEditPane);
 
@@ -2463,6 +2860,7 @@ function readingTokensToRomaji(tokens) {
     localLyricsButtonEl.type = "button";
     localLyricsButtonEl.className = "ytmls-tool-button ytmls-local-lyrics-button";
     localLyricsButtonEl.textContent = "歌詞を追加";
+    localLyricsButtonEl.dataset.icon = "plus";
     localLyricsButtonEl.setAttribute("aria-pressed", "false");
     localLyricsButtonEl.addEventListener("click", renderLocalLyricsPane);
 
@@ -2470,13 +2868,25 @@ function readingTokensToRomaji(tokens) {
     exportLyricsButtonEl.type = "button";
     exportLyricsButtonEl.className = "ytmls-tool-button";
     exportLyricsButtonEl.textContent = "LRC保存";
+    exportLyricsButtonEl.dataset.icon = "download";
     exportLyricsButtonEl.addEventListener("click", renderLrcExportPane);
     const more = document.createElement("details");
     more.id = "ytmls-more";
     const moreToggle = document.createElement("summary");
     moreToggle.className = "ytmls-tool-button";
     moreToggle.textContent = "その他";
-    moreToggle.addEventListener('click',event=>{if(more.open){event.preventDefault();closeMoreMenu(more);}});
+    // The chevron is its own element (the summary's ::after holds the glass behind the label).
+    const moreChevron = document.createElement("span");
+    moreChevron.className = "ytmls-more-chevron";
+    moreChevron.setAttribute("aria-hidden", "true");
+    moreToggle.append(moreChevron);
+    moreToggle.addEventListener('click',event=>{
+      if(!more.open)return;
+      event.preventDefault();
+      // Pressed again while it shrinks back: grow out of the button again instead of ignoring the press.
+      if(more.dataset.closing==='true'&&typeof stopGlassMorph==='function'){stopGlassMorph(menu);fitMoreMenu(more,menu);glassMorph(menu,moreToggle);return;}
+      closeMoreMenu(more);
+    });
     const menu = document.createElement("div");
     menu.className = "ytmls-more-menu";
     function menuGroup(title, id) {
@@ -2497,8 +2907,20 @@ function readingTokensToRomaji(tokens) {
     const lyricsGroup = menuGroup('歌詞の検索・編集', 'ytmls-lyrics-menu');
     lyricsGroup.append(manualSearchButtonEl, localLyricsButtonEl, editLyricsButtonEl);
     const storageGroup = menuGroup('保存・診断', 'ytmls-storage-menu');
-    storageGroup.append(exportLyricsButtonEl);
-    menu.append(displayGroup, playbackGroup, lyricsGroup, storageGroup);
+    const shareLyricsButtonEl = document.createElement("button");
+    shareLyricsButtonEl.type = "button";
+    shareLyricsButtonEl.className = "ytmls-tool-button";
+    shareLyricsButtonEl.id = "ytmls-share-lyrics";
+    shareLyricsButtonEl.dataset.icon = "share";
+    shareLyricsButtonEl.textContent = "歌詞を共有";
+    shareLyricsButtonEl.title = "選んだ行を、ジャケットの色のカード画像にしてコピー・保存";
+    shareLyricsButtonEl.addEventListener("click", () => { closeMoreMenu(more); openShareCard(); });
+    storageGroup.append(shareLyricsButtonEl, exportLyricsButtonEl);
+    // The menu draws the glass and its rim; the body inside scrolls (so the rim never scrolls away).
+    const menuBody = document.createElement("div");
+    menuBody.className = "ytmls-more-body";
+    menuBody.append(displayGroup, playbackGroup, lyricsGroup, storageGroup);
+    menu.append(menuBody);
     more.append(moreToggle, menu);
     lyricsToolsEl.append(candidateButtonEl, more);
     for (const button of [candidateButtonEl, manualSearchButtonEl, editLyricsButtonEl, localLyricsButtonEl, exportLyricsButtonEl]) {
@@ -2506,6 +2928,13 @@ function readingTokensToRomaji(tokens) {
     }
     document.addEventListener("click", event => {
       if (more.open && !more.contains(event.target)) closeMoreMenu(more);
+    });
+    // As tall as the window allows below it, so the whole menu shows (it scrolls only when it cannot).
+    more.addEventListener("toggle", () => {
+      if (!more.open) return;
+      menu.style.maxHeight = "";
+      const top = menu.getBoundingClientRect().top;
+      if (top > 0) menu.style.maxHeight = `${Math.max(240, Math.floor(window.innerHeight - top - 12))}px`;
     });
     more.addEventListener("keydown", event => {
       if (event.key === "Escape") { closeMoreMenu(more); moreToggle.focus(); event.stopPropagation(); }
@@ -2528,16 +2957,89 @@ function readingTokensToRomaji(tokens) {
     diagnosticDetails.className = "ytmls-diagnostic-details";
     const diagnosticToggle = document.createElement("summary");
     diagnosticToggle.textContent = "診断情報";
+    diagnosticToggle.dataset.icon = "info";
     diagnosticDetails.append(diagnosticToggle, diagnosticsEl);
     storageGroup.append(diagnosticDetails);
+    // The Perf: timings only run while someone is looking at the diagnostics.
+    diagnosticDetails.addEventListener("toggle", () => { if (diagnosticDetails.open && typeof perfProbeStart === "function") perfProbeStart(); });
     more.addEventListener("toggle", () => {
-      if (more.open) fitMoreMenu(more, menu);
+      if (more.open) { fitMoreMenu(more, menu); if (typeof updateHelpfulUi === "function") updateHelpfulUi(); }
       else diagnosticDetails.open = false;
     });
+    // Grow out of the button as soon as it opens (a mutation runs before the next paint).
+    if (typeof MutationObserver === "function") new MutationObserver(() => {
+      if (!more.open || more.dataset.closing === "true") return;
+      fitMoreMenu(more, menu);
+      if (typeof glassMorph === "function") glassMorph(menu, moreToggle);
+    }).observe(more, { attributes: true, attributeFilter: ["open"] });
 
     lyricsToolsPaneEl = document.createElement("div");
     lyricsToolsPaneEl.id = "ytmls-tools-pane";
     lyricsToolsPaneEl.hidden = true;
+    // Tool panes grow out of the button that opened them (a menu item counts as "その他").
+    let toolPaneAnchor = null;
+    lyricsToolsEl.addEventListener("click", event => {
+      const button = event.target.closest?.("button, summary");
+      if (button) toolPaneAnchor = button.closest(".ytmls-more-menu") ? moreToggle : button;
+    }, true);
+    // Closing by hand ("閉じる", the same button again, Escape) shrinks back into that button.
+    // Switching to another pane or closing for other reasons stays instant.
+    const closeToolPaneByHand = () => {
+      if (lyricsToolsPaneEl.hidden || lyricsToolsPaneEl.dataset.morphing === "closing" || candidateSaveBusy) return false;
+      const anchor = toolPaneAnchor?.isConnected && toolPaneAnchor.getClientRects().length ? toolPaneAnchor : candidateButtonEl;
+      if (typeof glassMorph !== "function" || !glassMorphAllowed(lyricsToolsPaneEl)) return false;
+      const mode = lyricsToolsPaneMode;
+      // Lift the pane out of the layout where it is, so the lyrics move back at once and the
+      // glass shrinks over them (instead of leaving a gap that closes with a jump at the end).
+      const pane = lyricsToolsPaneEl;
+      const lifted = { position: "absolute", top: `${pane.offsetTop}px`, left: `${pane.offsetLeft}px`, width: `${pane.offsetWidth}px`, height: `${pane.offsetHeight}px`, margin: "0", zIndex: "31" };
+      if (pane.offsetParent) Object.assign(pane.style, lifted);
+      pane.style.pointerEvents = "none";
+      const unlift = () => { for (const key of ["position", "top", "left", "width", "height", "margin", "z-index", "pointer-events"]) pane.style.removeProperty(key); };
+      glassMorph(pane, anchor, { closing: true, onCancel: unlift, onDone: () => {
+        unlift();
+        // Another pane opened meanwhile: keep it.
+        if (lyricsToolsPaneMode === mode) closeLyricsToolsPane();
+      } });
+      return true;
+    };
+    lyricsToolsPaneEl.addEventListener("click", event => {
+      if (!event.target.closest?.(".ytmls-tools-close")) return;
+      if (closeToolPaneByHand()) { event.stopImmediatePropagation(); event.preventDefault(); }
+    }, true);
+    lyricsToolsEl.addEventListener("click", event => {
+      const button = event.target.closest?.("#ytmls-tools > .ytmls-tool-button[aria-pressed='true']");
+      if (button && closeToolPaneByHand()) { event.stopImmediatePropagation(); event.preventDefault(); }
+    }, true);
+    // Escape closes the pane, but not while a Japanese conversion is open or a field is in use
+    // (Escape there belongs to the IME or the field, and closing would drop unsaved text).
+    lyricsToolsPaneEl.addEventListener("keydown", event => {
+      if (event.key !== "Escape" || event.isComposing || event.keyCode === 229) return;
+      if (event.target.closest?.("input, textarea, select, [contenteditable='true']")) return;
+      if (lyricsToolsPaneEl.hidden || candidateSaveBusy) return;
+      event.stopPropagation();
+      if (!closeToolPaneByHand() && lyricsToolsPaneEl.dataset.morphing !== "closing") closeLyricsToolsPane();
+      (toolPaneAnchor?.isConnected ? toolPaneAnchor : candidateButtonEl)?.focus();
+    });
+    // Another pane replacing the contents during a hand close takes over: stop the shrink.
+    if (typeof MutationObserver === "function") new MutationObserver(() => {
+      if (lyricsToolsPaneEl.dataset.morphing === "closing" && typeof stopGlassMorph === "function") stopGlassMorph(lyricsToolsPaneEl);
+    }).observe(lyricsToolsPaneEl, { childList: true });
+    if (typeof MutationObserver === "function") new MutationObserver(() => {
+      if (lyricsToolsPaneEl.hidden) { lyricsToolsPaneEl.wasShown = false; return; }
+      if (lyricsToolsPaneEl.wasShown) return;
+      lyricsToolsPaneEl.wasShown = true;
+      if (typeof glassMorph === "function") glassMorph(lyricsToolsPaneEl, toolPaneAnchor?.isConnected ? toolPaneAnchor : candidateButtonEl);
+    }).observe(lyricsToolsPaneEl, { attributes: true, attributeFilter: ["hidden"] });
+    // Rebuilding the candidate list under a press would swallow the click: wait until it ends.
+    lyricsToolsPaneEl.addEventListener("pointerdown", () => { candidatePointerDown = true; });
+    const endCandidatePress = () => {
+      if (!candidatePointerDown) return;
+      candidatePointerDown = false;
+      if (candidateRefreshPending) setTimeout(refreshCandidatePane, 0);
+    };
+    window.addEventListener("pointerup", endCandidatePress, true);
+    window.addEventListener("pointercancel", endCandidatePress, true);
     panelEl.appendChild(lyricsToolsPaneEl);
 
     listEl = document.createElement("div");
@@ -2574,7 +3076,9 @@ function readingTokensToRomaji(tokens) {
     }
 
     // 歌詞タブを開き直した時、古いスクロール位置（特に最下部）をそのまま使わない。
-    const isVisible = isLyricsPanelActive() && renderer.getClientRects().length > 0 && getComputedStyle(renderer).display !== "none";
+    // From the page's marks (no style or layout work every 300ms): the panel is active and the
+    // renderer is not hidden.
+    const isVisible = isLyricsPanelActive() && !renderer.closest("[hidden]") && (renderer === externalLyricsHost || isLyricsViewVisible());
     if (isVisible && !lyricsWasVisible) {
       // Give the next animation frame time to restart before the watchdog checks.
       trackingDisplayResumedAt = performance.now();
@@ -2623,33 +3127,40 @@ function readingTokensToRomaji(tokens) {
   function applySettings() {
     if (bridgeEnabledSetting !== STATE.enabled) {
       bridgeEnabledSetting = STATE.enabled;
-      window.postMessage({source:PLAYER_BRIDGE_SOURCE,type:'tracking-config',enabled:STATE.enabled===true}, '*');
+      sendToPlayerBridge({type:'tracking-config',enabled:STATE.enabled===true});
     }
-    if (listEl) listEl.style.fontSize = STATE.fontSize + "px";
+    // Only what changed is written: this runs every 300ms, and writing even the same value (above
+    // all the attribute on <html>, which many style rules depend on) made the browser recheck the
+    // styles of the whole page each time — tens of milliseconds on a big YouTube Music page.
+    const setStyle = (el, prop, value) => { if (el && el.style[prop] !== value) el.style[prop] = value; };
+    const setData = (el, key, value) => { if (el && el.dataset[key] !== value) el.dataset[key] = value; };
+    setStyle(listEl, "fontSize", STATE.fontSize + "px");
     if (panelEl) {
-      panelEl.dataset.sync = STATE.syncLevel || "none";
-      panelEl.dataset.trackingMode = STATE.trackingEnabled ? "auto" : "off";
-      panelEl.dataset.wordTracking = STATE.wordTrackingStyle || "smooth";
-      panelEl.dataset.focusFade = STATE.focusFade ? "on" : "off";
+      setData(panelEl, "sync", STATE.syncLevel || "none");
+      setData(panelEl, "trackingMode", STATE.trackingEnabled ? "auto" : "off");
+      setData(panelEl, "wordTracking", STATE.wordTrackingStyle || "smooth");
+      setData(panelEl, "wordGlow", STATE.wordGlow === false ? "off" : "on");
+      setData(panelEl, "focusFade", STATE.focusFade ? "on" : "off");
     }
 
     // v1.8.0: 拡張が有効な間はYouTube Music標準歌詞へフォールバックしない。
     // 外部同期歌詞が見つからない場合も、標準歌詞を露出させず拡張パネルに状態を表示する。
     const shouldReplaceNative = STATE.enabled && isLyricsPanelActive();
 
-    if (panelEl) panelEl.style.display = shouldReplaceNative ? "flex" : "none";
+    setStyle(panelEl, "display", shouldReplaceNative ? "flex" : "none");
     if (!shouldReplaceNative) {
       const more = panelEl?.querySelector("#ytmls-more");
-      if (more) more.open = false;
+      if (more?.open) more.open = false;
     }
-    if (lyricsRendererEl) {
+    if (lyricsRendererEl && lyricsRendererEl.classList.contains("ytmls-replaced") !== shouldReplaceNative) {
       lyricsRendererEl.classList.toggle("ytmls-replaced", shouldReplaceNative);
     }
-    if (document.documentElement) {
-      document.documentElement.setAttribute("data-ytmls-enabled", STATE.enabled ? "true" : "false");
+    const enabledValue = STATE.enabled ? "true" : "false";
+    if (document.documentElement && document.documentElement.getAttribute("data-ytmls-enabled") !== enabledValue) {
+      document.documentElement.setAttribute("data-ytmls-enabled", enabledValue);
     }
-    if (resyncButtonEl) resyncButtonEl.hidden = !STATE.enabled;
-    if (trackTimingButtonEl) trackTimingButtonEl.hidden = !STATE.enabled;
+    if (resyncButtonEl && resyncButtonEl.hidden !== !STATE.enabled) resyncButtonEl.hidden = !STATE.enabled;
+    if (trackTimingButtonEl && trackTimingButtonEl.hidden !== !STATE.enabled) trackTimingButtonEl.hidden = !STATE.enabled;
     updateLyricsToolsUi();
     if (!STATE.enabled) {
       closeExternalLyrics();
@@ -2662,7 +3173,8 @@ function readingTokensToRomaji(tokens) {
   function setStatus(text) {
     if (STATE.contextInvalidated) text = CONTEXT_RELOAD_MESSAGE;
     // すでに歌詞を表示できている間は、裏検索の進捗表示で見出しを上書きしない。
-    if (STATE.hasLyricsResult && STATE.isSearching &&
+    // 歌詞候補を開いたときの裏の候補集めでも同じ。
+    if (STATE.hasLyricsResult && (STATE.isSearching || STATE.isCollectingCandidates) &&
         /(探し中|検索中|確認中|準備中|探索中)/.test(String(text || ""))) {
       return;
     }
@@ -3041,8 +3553,16 @@ function readingTokensToRomaji(tokens) {
     return `${minutes}:${String(remainder).padStart(2, '0')} から`;
   }
 
+  // The track is filled from 0 (the middle) toward the current offset.
+  function paintTrackTimingRange(range) {
+    const percent = (clampTrackOffsetMs(range.value) + TRACK_TIMING_OFFSET_LIMIT_MS) / (TRACK_TIMING_OFFSET_LIMIT_MS * 2) * 100;
+    range.style.setProperty('--from', `${Math.min(50, percent)}%`);
+    range.style.setProperty('--to', `${Math.max(50, percent)}%`);
+  }
+
   function bindTrackTimingRange(range, group, point, videoId) {
     range.addEventListener('input', () => {
+      paintTrackTimingRange(range);
       if (getTrackOffsetVideoId(false) !== videoId) return;
       group.querySelector('.ytmls-track-offset-value').textContent = formatOffsetMs(range.value);
       setCurrentTrackTimingPointOffset(point.position, range.value, false, false);
@@ -3097,6 +3617,7 @@ function readingTokensToRomaji(tokens) {
       group.querySelector('.ytmls-track-offset-value').textContent = formatOffsetMs(point.offsetMs);
       const range = group.querySelector('.ytmls-track-offset-range');
       range.value = String(point.offsetMs);
+      paintTrackTimingRange(range);
       range.setAttribute('aria-label', `${formatTrackPosition(point.position, duration)}の歌詞タイミング補正`);
       bindTrackTimingRange(range, group, point, videoId);
       for (const button of group.querySelectorAll('[data-delta]')) {
@@ -3128,8 +3649,13 @@ function readingTokensToRomaji(tokens) {
     return null;
   }
 
+  // Open and not already shrinking back into its button.
+  function trackTimingPopoverOpen() {
+    return Boolean(trackTimingPopoverEl && !trackTimingPopoverEl.hidden && trackTimingPopoverEl.dataset.morphing !== 'closing');
+  }
+
   function positionTrackTimingPopover() {
-    if (!trackTimingPopoverEl || trackTimingPopoverEl.hidden) return;
+    if (!trackTimingPopoverOpen()) return;
     const rect = visibleTrackTimingAnchor()?.rect;
     const width = trackTimingPopoverEl.offsetWidth || 330;
     const height = trackTimingPopoverEl.offsetHeight || 230;
@@ -3147,14 +3673,19 @@ function readingTokensToRomaji(tokens) {
   function toggleTrackTimingPopover(anchor = trackTimingButtonEl) {
     if (!trackTimingButtonEl?.isConnected || trackTimingButtonEl.disabled) return;
     ensureTrackTimingPopover();
-    if (!trackTimingPopoverEl.hidden) { closeTrackTimingPopover(); return; }
+    if (trackTimingPopoverOpen()) { closeTrackTimingPopover(); return; }
     trackTimingAnchor = anchor;
     trackTimingPopoverEl.hidden = false;
+    // Not shown until it is placed, so the first frame is not drawn at the old spot.
+    trackTimingPopoverEl.style.visibility = 'hidden';
     trackTimingButtonEl.setAttribute('aria-expanded', 'true');
     updateTrackTimingControl();
     requestAnimationFrame(() => {
+      trackTimingPopoverEl.style.removeProperty('visibility');
       if (trackTimingPopoverEl.hidden) return;
       positionTrackTimingPopover();
+      // Grow out of the button that opened it.
+      if (typeof glassMorph === 'function') glassMorph(trackTimingPopoverEl, visibleTrackTimingAnchor()?.target);
       trackTimingPopoverEl.querySelector('.ytmls-track-offset-close')?.focus();
     });
   }
@@ -3193,7 +3724,7 @@ function readingTokensToRomaji(tokens) {
       const duration = getAuthoritativeDuration(media);
       trackTimingAddPointEl.disabled = !enabled || !Number.isFinite(time) || !Number.isFinite(duration) || duration <= 0;
     }
-    if (renderPoints && trackTimingPopoverEl && !trackTimingPopoverEl.hidden) renderTrackTimingPoints();
+    if (renderPoints && trackTimingPopoverOpen()) renderTrackTimingPoints();
     if (trackTimingTotalEl) {
       trackTimingTotalEl.textContent = `現在位置の補正: ${formatOffsetMs(currentMs)} ・ 途中のポイント ${customPointCount}個 ・ この曲だけに保存`;
     }
@@ -3201,10 +3732,20 @@ function readingTokensToRomaji(tokens) {
   }
 
   function closeTrackTimingPopover() {
+    if (trackTimingPopoverEl?.dataset.morphing === 'closing') return;
     if (trackTimingPreview?.videoId === getTrackOffsetVideoId(false)) saveCurrentTrackTimingPoints(trackTimingPreview.points, false);
-    if (trackTimingPopoverEl) trackTimingPopoverEl.hidden = true;
+    const popover = trackTimingPopoverEl, anchor = visibleTrackTimingAnchor()?.target;
     if (trackTimingButtonEl) trackTimingButtonEl.setAttribute('aria-expanded', 'false');
     trackTimingAnchor = null;
+    if (!popover || popover.hidden) return;
+    // Shrink back into the button, then hide (a reopen during the shrink cancels the hide).
+    if (typeof glassMorph === 'function' && glassMorphAllowed(popover) && anchor) {
+      popover.style.pointerEvents = 'none';
+      const settle = () => popover.style.removeProperty('pointer-events');
+      glassMorph(popover, anchor, {closing: true, onCancel: settle, onDone: () => { popover.hidden = true; settle(); }});
+    } else {
+      popover.hidden = true;
+    }
   }
 
   function dismissTrackTimingPopover() {
@@ -3214,7 +3755,7 @@ function readingTokensToRomaji(tokens) {
   }
 
   function updateOffsetPreview() {
-    if (!trackTimingPopoverEl || trackTimingPopoverEl.hidden) return;
+    if (!trackTimingPopoverOpen()) return;
     let preview = trackTimingPopoverEl.querySelector('.ytmls-offset-preview');
     if (!preview) {
       preview = document.createElement('div');
@@ -3229,7 +3770,9 @@ function readingTokensToRomaji(tokens) {
   function ensurePlayerBarTimingControl() {
     const playerBar = document.querySelector('ytmusic-player-bar');
     if (!playerBar) return;
-    const compactMenu = window.innerWidth <= 1100 ? document.querySelector('#ytmls-playback-menu') : null;
+    // In the Mac Music-style screen (apple-shell.js) YouTube Music's player bar is hidden, so use the menu.
+    const useMenu = window.innerWidth <= 1100 || document.documentElement.classList.contains('ytmls-am');
+    const compactMenu = useMenu ? document.querySelector('#ytmls-playback-menu') : null;
     const host = compactMenu || playerBar.querySelector('.middle-controls .middle-controls-buttons') ||
       playerBar.querySelector('.middle-controls-buttons');
     if (!host) return;
@@ -3258,6 +3801,9 @@ function readingTokensToRomaji(tokens) {
       host.appendChild(resyncButtonEl);
     }
 
+    // Only one of each: a copy left behind when the lyrics panel was rebuilt showed twice in the menu.
+    document.querySelectorAll('#ytmls-resync-button').forEach(el => { if (el !== resyncButtonEl) el.remove(); });
+
     if (!trackTimingButtonEl || !trackTimingButtonEl.isConnected) {
       const button = document.createElement('button');
       button.id = 'ytmls-track-offset-button';
@@ -3283,6 +3829,7 @@ function readingTokensToRomaji(tokens) {
     } else if (trackTimingButtonEl.parentElement !== host) {
       host.appendChild(trackTimingButtonEl);
     }
+    document.querySelectorAll('#ytmls-track-offset-button').forEach(el => { if (el !== trackTimingButtonEl) el.remove(); });
 
     ensureTrackTimingPopover();
     // tick()から300msごとに呼ばれるため、一覧DOMは変更せず現在値だけ更新する。
@@ -3343,7 +3890,7 @@ function readingTokensToRomaji(tokens) {
     renderTrackTimingPoints();
 
     document.addEventListener('click', (event) => {
-      if (!trackTimingPopoverEl || trackTimingPopoverEl.hidden) return;
+      if (!trackTimingPopoverOpen()) return;
       if (trackTimingPopoverEl.contains(event.target) || (trackTimingButtonEl && trackTimingButtonEl.contains(event.target))) return;
       closeTrackTimingPopover();
     });
@@ -3445,6 +3992,8 @@ function readingTokensToRomaji(tokens) {
         empty.appendChild(sub);
         listEl.appendChild(empty);
       }
+      // Cancels a reading refresh still running for the previous song and clears its status.
+      void refreshLyricsReadings();
       return;
     }
 
@@ -3454,6 +4003,9 @@ function readingTokensToRomaji(tokens) {
       div.dataset.index = String(i);
       if (line.agent) div.dataset.agent = line.agent;
       if (line.dir) div.dir = line.dir;
+      // A line that is all in brackets (a chorus or an aside, e.g. "（いえーい）") is shown smaller
+      // and quieter in the Mac-style screen, like Apple Music's background vocals.
+      if (/^\s*[（(][^（()）]*[)）]\s*$/.test(String(line.text || ''))) div.classList.add("ytmls-aside-line");
 
       if (Array.isArray(line.words) && line.words.length) {
         div.classList.add("ytmls-rich-line");
@@ -3737,6 +4289,14 @@ function readingTokensToRomaji(tokens) {
   }
 
   // ---------- LRC ----------
+  // [mm:ss], [mm:ss.xx] and the [mm:ss:xx] form some LRC tools write.
+  const LRC_TIME_TAG_SOURCE = String.raw`\[(\d{1,3}):(\d{2}(?:[.:]\d{1,3})?)\]`;
+  const LRC_TIME_TAG_TEST_RE = new RegExp(LRC_TIME_TAG_SOURCE);
+  function lrcTimeTagRe() { return new RegExp(LRC_TIME_TAG_SOURCE, "g"); }
+  function lrcTagSeconds(minutes, seconds) {
+    return Number(minutes) * 60 + Number(String(seconds).replace(":", "."));
+  }
+
   function lrcOffsetSeconds(lrcText) {
     let globalOffset = 0;
     const offsetMatch = (lrcText || "").match(/\[offset:([+-]?\d+(?:\.\d+)?)\]/i);
@@ -3752,7 +4312,7 @@ function readingTokensToRomaji(tokens) {
   function parseLRC(lrcText, sortLines = true) {
     const lines = [];
     const globalOffset = lrcOffsetSeconds(lrcText);
-    const timeTagRe = /\[(\d{1,3}):(\d{2}(?:\.\d{1,3})?)\]/g;
+    const timeTagRe = lrcTimeTagRe();
 
     (lrcText || "").split(/\r?\n/).forEach((rawLine) => {
       const tags = [...rawLine.matchAll(timeTagRe)];
@@ -3765,10 +4325,8 @@ function readingTokensToRomaji(tokens) {
         .trim();
 
       tags.forEach((m) => {
-        const minutes = parseInt(m[1], 10);
-        const seconds = parseFloat(m[2]);
         lines.push({
-          time: Math.max(0, minutes * 60 + seconds + globalOffset),
+          time: Math.max(0, lrcTagSeconds(m[1], m[2]) + globalOffset),
           end: null,
           text,
           words: [],
@@ -3824,6 +4382,14 @@ function readingTokensToRomaji(tokens) {
 
   function collectTimedSpans(element, inheritedBackground, output) {
     for (const node of element.childNodes) {
+      // Text between timed spans (usually the space between words) belongs to the word before it;
+      // dropping it ran words together ("Hello world" → "Helloworld").
+      if (node.nodeType === Node.TEXT_NODE) {
+        const gap = String(node.nodeValue || "").replace(/\s+/g, " ");
+        const previous = output[output.length - 1];
+        if (gap && previous && !(gap === " " && /\s$/.test(previous.text))) previous.text += gap;
+        continue;
+      }
       if (node.nodeType !== Node.ELEMENT_NODE) continue;
       const el = node;
       const localName = (el.localName || el.tagName || "").toLowerCase();
@@ -3905,9 +4471,9 @@ function readingTokensToRomaji(tokens) {
     let firstTagTime = 0;
     let pendingTagTimes = [];
     for (const raw of rows) {
-      const tags = [...raw.matchAll(/\[(\d{1,3}):(\d{2}(?:\.\d{1,3})?)\]/g)];
+      const tags = [...raw.matchAll(lrcTimeTagRe())];
       if (tags.length) {
-        pendingTagTimes = tags.map(tag => Number(tag[1]) * 60 + Number(tag[2]));
+        pendingTagTimes = tags.map(tag => lrcTagSeconds(tag[1], tag[2]));
         firstTagTime = pendingTagTimes[0];
         pendingLineIndices = Array.from({ length: tags.length }, (_, index) => baseCursor + index);
         baseCursor += tags.length;
@@ -3978,14 +4544,15 @@ function readingTokensToRomaji(tokens) {
 
   async function sendUserDataMutation(payload) {
     if (!runtimeAvailable()) throw new Error(CONTEXT_RELOAD_MESSAGE);
+    let response;
     try {
-      const response = await chrome.runtime.sendMessage({ type: "YTMLS_USER_DATA", captureUndo: false, ...payload });
-      if (!response?.ok) throw new Error(response?.error || "保存できませんでした。");
-      return response.data;
+      response = await chrome.runtime.sendMessage({ type: "YTMLS_USER_DATA", captureUndo: false, ...payload });
     } catch (error) {
-      runtimeAvailable(error);
-      throw error;
+      // Runtime messaging errors are English; show a Japanese message instead.
+      throw new Error(runtimeAvailable(error) ? "保存できませんでした。もう一度お試しください。" : CONTEXT_RELOAD_MESSAGE);
     }
+    if (!response?.ok) throw new Error(response?.error || "保存できませんでした。");
+    return response.data;
   }
 
   function reportSaveError(error) {
@@ -4199,6 +4766,9 @@ function readingTokensToRomaji(tokens) {
     return {lines,syncLevel:'line',_source:'YouTube Music',_providerKey:'youtubeMusic'};
   }
 
+  // Clients YouTube Music accepts for the track page (next) and the timed-lyrics page (browse).
+  const YTM_LYRICS_CLIENTS = {next: ['WEB_REMIX', '1.20240101.01.00'], browse: ['ANDROID_MUSIC', '7.21.50']};
+
   async function fetchFromYouTubeMusic(info, duration, trackKey) {
     if (!/^[A-Za-z0-9_-]{11}$/.test(info.videoId || '') || trackKey !== STATE.lastTrackKey) return null;
     const current = () => trackKey === STATE.lastTrackKey && STATE.enabled !== false && STATE.providerEnabled.youtubeMusic !== false;
@@ -4227,11 +4797,11 @@ function readingTokensToRomaji(tokens) {
     }
     try {
       if (!current()) return null;
-      const next = await request('next','WEB_REMIX','1.20240101.01.00',{videoId:info.videoId});
+      const next = await request('next',...YTM_LYRICS_CLIENTS.next,{videoId:info.videoId});
       if (!current() || !next) return null;
       const browseId = nativeLyricsBrowseId(next);
       if (!browseId) { reportNativeLyricsFailure('next', 'lyrics-tab-unavailable'); return null; }
-      const lyrics = await request('browse','ANDROID_MUSIC','7.21.50',{browseId});
+      const lyrics = await request('browse',...YTM_LYRICS_CLIENTS.browse,{browseId});
       if (!current() || !lyrics) return null;
       const result = parseNativeTimedLyrics(lyrics);
       if (!result) reportNativeLyricsFailure('browse', 'timed-lyrics-unavailable');
@@ -4240,6 +4810,39 @@ function readingTokensToRomaji(tokens) {
       if (current()) reportNativeLyricsFailure('provider', 'processing-error');
       return null;
     }
+  }
+
+  // Provider test from the settings popup: checks YouTube Music's own lyrics for the song
+  // playing in this tab. found / notfound (the service answered) / offline / error.
+  async function testYouTubeMusicLyrics() {
+    const videoId = String(getAuthoritativeVideoId() || '');
+    if (!/^[A-Za-z0-9_-]{11}$/.test(videoId)) return {state: 'nosong'};
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 8000);
+    const post = (endpoint, [clientName, clientVersion], payload) => fetch('https://music.youtube.com/youtubei/v1/' + endpoint + '?prettyPrint=false', {
+      method: 'POST', credentials: 'omit', cache: 'no-store', signal: controller.signal,
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({context: {client: {clientName, clientVersion, hl: 'ja', gl: 'JP'}}, ...payload}),
+    });
+    try {
+      const next = await post('next', YTM_LYRICS_CLIENTS.next, {videoId});
+      if (!next.ok) return {state: 'error', status: next.status};
+      const browseId = nativeLyricsBrowseId(await next.json());
+      if (!browseId) return {state: 'notfound'};
+      const lyrics = await post('browse', YTM_LYRICS_CLIENTS.browse, {browseId});
+      if (!lyrics.ok) return {state: 'error', status: lyrics.status};
+      return {state: parseNativeTimedLyrics(await lyrics.json()) ? 'found' : 'notfound'};
+    } catch (error) {
+      return {state: error?.name === 'SyntaxError' ? 'error' : 'offline'};
+    } finally { clearTimeout(timer); }
+  }
+
+  function bindProviderTestListener() {
+    chrome.runtime.onMessage.addListener((message, sender, reply) => {
+      if (message?.type !== 'YTMLS_TEST_YTM' || sender.id !== chrome.runtime.id) return;
+      testYouTubeMusicLyrics().then(reply, () => reply({state: 'error'}));
+      return true;
+    });
   }
 
 // Feature: providers.js
@@ -4337,15 +4940,15 @@ function readingTokensToRomaji(tokens) {
   function parseInlineTimedLrc(lrcText) {
     const base = parseLRC(lrcText, false);
     if (!base.length) return { lines: [], syncLevel: "none" };
-    const rawRows = String(lrcText || "").split(/\r?\n/).filter((x) => /\[\d{1,3}:\d{2}(?:\.\d{1,3})?\]/.test(x));
+    const rawRows = String(lrcText || "").split(/\r?\n/).filter((x) => LRC_TIME_TAG_TEST_RE.test(x));
     const globalOffset = lrcOffsetSeconds(lrcText);
     let bi = 0;
     for (const raw of rawRows) {
       if (!base[bi]) break;
-      const lineTags = [...raw.matchAll(/\[(\d{1,3}):(\d{2}(?:\.\d{1,3})?)\]/g)];
+      const lineTags = [...raw.matchAll(lrcTimeTagRe())];
       if (!lineTags.length) continue; // No corresponding parseLRC row was consumed.
       const expandedCount = lineTags.length;
-      const content = raw.replace(/^\s*(?:\[\d{1,3}:\d{2}(?:\.\d{1,3})?\])+\s*/, "");
+      const content = raw.replace(/^\s*(?:\[\d{1,3}:\d{2}(?:[.:]\d{1,3})?\])+\s*/, "");
       const tagRe = /<(\d{1,3}:\d{2}(?:\.\d+)?)>/g;
       const matches = [...content.matchAll(tagRe)];
       if (matches.length) {
@@ -4353,7 +4956,7 @@ function readingTokensToRomaji(tokens) {
         // Text before the first word tag starts at the row's own timestamp.
         const leading = content.slice(0, matches[0].index);
         const firstWordTime = angleTimeToSeconds(matches[0][1]);
-        const firstLineTime = Number(lineTags[0][1]) * 60 + Number(lineTags[0][2]);
+        const firstLineTime = lrcTagSeconds(lineTags[0][1], lineTags[0][2]);
         if (leading.trim() && firstWordTime != null && Number.isFinite(firstLineTime)) {
           words.push({ text: leading, time: Math.min(firstLineTime, firstWordTime), end: firstWordTime, background: false });
         }
@@ -4371,7 +4974,7 @@ function readingTokensToRomaji(tokens) {
             const line = base[bi + copyIndex];
             if (!line) continue;
             const shift = Number.isFinite(firstLineTime) && Number.isFinite(line.time)
-              ? Number(lineTags[copyIndex][1]) * 60 + Number(lineTags[copyIndex][2]) - firstLineTime + globalOffset
+              ? lrcTagSeconds(lineTags[copyIndex][1], lineTags[copyIndex][2]) - firstLineTime + globalOffset
               : 0;
             line.words = words.map((word) => ({
               ...word,
@@ -4429,11 +5032,13 @@ function readingTokensToRomaji(tokens) {
     const blocks = String(raw || "").split(/\n\n|\r\n\r\n/);
     for (const block of blocks) {
       let eventName = "";
-      let dataText = "";
+      const dataLines = [];
       for (const line of block.split(/\r?\n/)) {
         if (line.startsWith("event:")) eventName = line.slice(6).trim();
-        else if (line.startsWith("data:")) dataText += line.slice(5).trim();
+        // SSE: drop only the one optional space after "data:", and join lines with "\n".
+        else if (line.startsWith("data:")) dataLines.push(line.slice(line.startsWith("data: ") ? 6 : 5));
       }
+      const dataText = dataLines.join("\n").trim();
       if (eventName !== "provider" || !dataText || dataText === "[DONE]") continue;
       let data;
       try { data = JSON.parse(dataText); } catch (_) { continue; }
@@ -5316,6 +5921,17 @@ function readingTokensToRomaji(tokens) {
     const sourceLines = firstPass && Array.isArray(firstPass.lines) ? firstPass.lines : result.lines;
     const kept = [];
     let removed = Number(firstPass && firstPass._translationRowsRemoved) || 0;
+    // Translation and romaji rows share the timestamp of the Japanese row they translate
+    // (some sources shift them slightly). A kanji-only row such as 「運命」 counts as Japanese too.
+    // English rows with their own timestamp are part of the song and must stay.
+    const japaneseTimes = expected === "ja"
+      ? sourceLines.filter((line) => {
+        if (!Number.isFinite(line?.time)) return false;
+        const stats = getScriptStats(lineTextForLanguage(line));
+        return stats.kana + stats.han >= 1;
+      }).map((line) => line.time)
+      : [];
+    const sharesJapaneseTime = (line) => Number.isFinite(line?.time) && japaneseTimes.some((time) => Math.abs(time - line.time) < 0.3);
 
     for (const line of sourceLines) {
       const text = lineTextForLanguage(line);
@@ -5328,11 +5944,11 @@ function readingTokensToRomaji(tokens) {
       if (expected === "ja") {
         // かなを含む行は、日本語原文中の英単語なども含めて原文として守る。
         if (stats.kana < 1) {
-          if (["zh", "ko", "th", "ar", "he", "ru", "en"].includes(language)) foreign = true;
+          if (["zh", "ko", "th", "ar", "he", "ru"].includes(language)) foreign = true;
           // 明確な別スクリプトは行判定がunknownでも落とす。
           if (stats.hangul || stats.thai || stats.arabic || stats.hebrew || stats.cyrillic) foreign = true;
-          // 英字だけの独立行（Tiger Fire等）は日本語曲では表示しない。
-          if (stats.latin >= 2 && stats.han + stats.kana + stats.hangul === 0) foreign = true;
+          // 英字だけの行は、日本語の行と同じ時刻に並ぶ訳・ローマ字だけを除外する。
+          if (stats.latin >= 2 && stats.han + stats.kana + stats.hangul === 0 && sharesJapaneseTime(line)) foreign = true;
         }
       } else if (language !== "unknown" && language !== expected) {
         foreign = true;
@@ -5691,6 +6307,22 @@ function readingTokensToRomaji(tokens) {
     }
   }
 
+  // Another tab wrote the shared cache: take its entries and removals, so this tab's next
+  // write does not drop them (each tab otherwise wrote only its own in-memory map).
+  function mergeLyricsCacheChange(change) {
+    const before = change && change.oldValue && typeof change.oldValue === "object" ? change.oldValue : {};
+    const after = change && change.newValue && typeof change.newValue === "object" ? change.newValue : {};
+    for (const key of Object.keys(before)) {
+      if (!Object.prototype.hasOwnProperty.call(after, key)) STATE.lyricsCache.delete(key);
+    }
+    for (const [key, value] of Object.entries(after)) {
+      if (!value || !Array.isArray(value.lines) || !value.lines.length) continue;
+      const mine = STATE.lyricsCache.get(key);
+      if (!mine || Number(value.ts || 0) > Number(mine.ts || 0)) STATE.lyricsCache.set(key, value);
+    }
+    while (STATE.lyricsCache.size > LYRICS_CACHE_MAX_ENTRIES) STATE.lyricsCache.delete(STATE.lyricsCache.keys().next().value);
+  }
+
   let lyricsCacheSaveTimer = null;
   function saveLyricsCacheToStorage() {
     clearTimeout(lyricsCacheSaveTimer);
@@ -5716,6 +6348,8 @@ function readingTokensToRomaji(tokens) {
       syncLevel: result.syncLevel || "none",
       _source: result._source || "",
       _providerKey: result._providerKey || "",
+      // Edits are saved under this id; rebuilt from filtered lines it would differ.
+      _candidateId: result._candidateId || lyricCandidateIdentity(result),
       _providerSignature: providerConfigSignature(),
       ts: Date.now(),
     });
@@ -5801,6 +6435,8 @@ function readingTokensToRomaji(tokens) {
     STATE.lyricCandidates = [];
     STATE.activeCandidateId = "";
     STATE.manualSelectedCandidateId = "";
+    STATE.isCollectingCandidates = false;
+    STATE.candidateSearchKey = "";
     STATE.lyricsAppliedAt = 0;
     STATE.displayedVideoId = "";
     STATE.currentIndex = -1;
@@ -6320,13 +6956,17 @@ function readingTokensToRomaji(tokens) {
     if (now - STATE.trackCandidateSince < 450) return;
 
     STATE.lastTrackKey = key;
+    STATE.lastTrackInfo = info;
     // 曲変更検知経路に関係なく、検索開始が確定した時点でLyricsタブを優先する。
     // endedイベントを取りこぼした場合でも「次のコンテンツ」のままにならない。
     openLyricsTabForTrack(info.videoId || getAuthoritativeVideoId());
+    if (typeof warmJapaneseReadings === "function") warmJapaneseReadings();
     if (info.videoId) STATE.stableTrackVideoId = info.videoId;
     STATE.stableTrackTitle = info.title || STATE.stableTrackTitle;
     const myGeneration = ++STATE.searchGeneration;
     STATE.lyricCandidates = [];
+    STATE.candidateSearchKey = "";
+    STATE.isCollectingCandidates = false;
     STATE.activeCandidateId = "";
     STATE.manualSelectedCandidateId = "";
     updateLyricsToolsUi();
@@ -6502,19 +7142,7 @@ function readingTokensToRomaji(tokens) {
       }
     }, 1400);
 
-    const providerTasks = [
-      { key: "youtubeMusic", run: () => fetchFromYouTubeMusic(info, duration, key) },
-      { key: "betterLyrics", run: () => fetchFromBetterLyricsV2(info, duration, key) },
-      { key: "betterLyrics", run: () => fetchFromBetterLyricsJson(info, duration, key) },
-      { key: "betterLyrics", run: () => fetchFromBetterLyrics(info, duration, key) },
-      { key: "betterLyrics", run: () => fetchFromBoiduProvider(info, duration, key, "qq") },
-      { key: "betterLyrics", run: () => fetchFromBoiduProvider(info, duration, key, "kugou") },
-      { key: "lrclib", run: () => fetchFromLrclib(info, duration, key) },
-      { key: "lrclib", run: () => fetchFromLrclibQuick(info, duration, key) },
-      { key: "unison", run: () => fetchFromUnison(info, duration, key) },
-      { key: "binilyrics", run: () => fetchFromBiniLyrics(info, duration, key) },
-      { key: "karalyr", run: () => fetchFromKaralyr(info, duration, key) },
-    ].filter((provider) => STATE.providerEnabled[provider.key] !== false);
+    const providerTasks = providerTasksFor(info, duration, key);
 
     // 全ソースを並列検索。1件返るたび、その場で表示/アップグレードする。
     const tasks = providerTasks.map(async (provider) => {
@@ -6544,10 +7172,12 @@ function readingTokensToRomaji(tokens) {
     await Promise.allSettled(tasks);
     clearTimeout(ambiguousGateTimer);
     if (key !== STATE.lastTrackKey || myGeneration !== STATE.searchGeneration) return;
+    STATE.candidateSearchKey = key;
     reevaluateCandidates(true);
 
     STATE.isSearching = false;
-    if (foundAny) {
+    // A candidate the user picked while providers were still running is a result too.
+    if (foundAny || (STATE.manualSelectedCandidateId && STATE.hasLyricsResult)) {
       // 最終的に採用された歌詞を維持。検索完了時に消さない。
       applySettings();
       if (cacheKey) {
@@ -6566,6 +7196,71 @@ function readingTokensToRomaji(tokens) {
     ensureLyricsMount();
     renderLines();
     applySettings();
+  }
+
+  function providerTasksFor(info, duration, key) {
+    return [
+      { key: "youtubeMusic", run: () => fetchFromYouTubeMusic(info, duration, key) },
+      { key: "betterLyrics", run: () => fetchFromBetterLyricsV2(info, duration, key) },
+      { key: "betterLyrics", run: () => fetchFromBetterLyricsJson(info, duration, key) },
+      { key: "betterLyrics", run: () => fetchFromBetterLyrics(info, duration, key) },
+      { key: "betterLyrics", run: () => fetchFromBoiduProvider(info, duration, key, "qq") },
+      { key: "betterLyrics", run: () => fetchFromBoiduProvider(info, duration, key, "kugou") },
+      { key: "lrclib", run: () => fetchFromLrclib(info, duration, key) },
+      { key: "lrclib", run: () => fetchFromLrclibQuick(info, duration, key) },
+      { key: "unison", run: () => fetchFromUnison(info, duration, key) },
+      { key: "binilyrics", run: () => fetchFromBiniLyrics(info, duration, key) },
+      { key: "karalyr", run: () => fetchFromKaralyr(info, duration, key) },
+    ].filter((provider) => STATE.providerEnabled[provider.key] !== false);
+  }
+
+  // Saved, pinned and cached lyrics are shown without a provider search, so the candidate
+  // list starts with one entry. Opening the list fills it in the background; the lyrics
+  // on screen are never switched automatically.
+  async function collectMoreCandidates() {
+    const key = STATE.lastTrackKey;
+    // Use the info the current key was built from: activeSearchInfo already points at the next
+    // song while the track change is still settling.
+    const info = STATE.lastTrackInfo;
+    const generation = STATE.searchGeneration;
+    if (!key || !info || STATE.isSearching || STATE.candidateSearchKey === key) return;
+    if (`${info.videoId || ""}::${info.title}::${info.artist}` !== key) return;
+    STATE.candidateSearchKey = key;
+    STATE.isCollectingCandidates = true;
+    const token = ++STATE.candidateCollectToken;
+    refreshCandidatePane();
+    const current = () => key === STATE.lastTrackKey && generation === STATE.searchGeneration;
+    let finished = false;
+    const expected = inferTrackLanguage(info);
+    const sameText = (a, b) => a._providerKey === b._providerKey &&
+      lyricsTextForLanguage(a).slice(0, 120) === lyricsTextForLanguage(b).slice(0, 120);
+    try {
+      const duration = await getTrackDuration(key);
+      if (!current()) return;
+      await Promise.allSettled(providerTasksFor(info, duration, key).map(async (provider) => {
+        let result = null;
+        try { result = await provider.run(); } catch (_) { result = null; }
+        if (!current() || !result || !Array.isArray(result.lines) || !result.lines.length) return;
+        if (String(result.syncLevel || "none") === "none" || !result.lines.some((line) => line && line.time != null)) return;
+        result._providerKey = provider.key;
+        result._candidateId = lyricCandidateIdentity(result);
+        const candidate = sanitizeCandidateForTrackLanguage(result, expected) || result;
+        if (STATE.lyricCandidates.some((item) => item.id === candidate._candidateId || sameText(item.result, candidate))) return;
+        candidate._recommendationScore = candidateRecommendationScore(candidate, info, expected);
+        upsertLyricsCandidate(candidate);
+        refreshCandidatePane();
+      }));
+      finished = current();
+    } finally {
+      // A newer collection owns the flag; otherwise always clear it, even when a new search
+      // (saved local lyrics, manual search) replaced this one on the same track.
+      if (token === STATE.candidateCollectToken) {
+        STATE.isCollectingCandidates = false;
+        // An abandoned run did not search every provider, so let the next opening retry.
+        if (!finished && STATE.candidateSearchKey === key) STATE.candidateSearchKey = "";
+        refreshCandidatePane();
+      }
+    }
   }
 
 // Feature: tracking.js
@@ -6608,6 +7303,13 @@ function readingTokensToRomaji(tokens) {
     STATE.currentWordIndex = -1;
   }
 
+  // easeOutBack with a gentle overshoot (about 6%) when bouncing; easeOutCubic otherwise.
+  function lyricsScrollEase(progress, bounce) {
+    if (!bounce) return 1 - Math.pow(1 - progress, 3);
+    const c1 = 1.25, c3 = c1 + 1;
+    return 1 + c3 * Math.pow(progress - 1, 3) + c1 * Math.pow(progress - 1, 2);
+  }
+
   let lyricScrollFrame = 0;
   function cancelLyricsFollowScroll() {
     if (lyricScrollFrame) cancelAnimationFrame(lyricScrollFrame);
@@ -6638,7 +7340,10 @@ function readingTokensToRomaji(tokens) {
       scroller.scrollTo({left:0,top:target, behavior:"instant"});
       return true;
     }
-    const duration = Math.min(190, Math.max(110, 95 + Math.abs(target - start) * .10));
+    // With operation motion on, the move overshoots slightly and settles (a small "bounce").
+    const bounce = !document.documentElement.classList.contains("ytmls-extra-motion-disabled");
+    const distance = Math.abs(target - start);
+    const duration = bounce ? Math.min(520, Math.max(380, 340 + distance * .4)) : Math.min(190, Math.max(110, 95 + distance * .10));
     const startedAt = performance.now();
     autoScrollUntil = startedAt + duration + 150;
     function step(now) {
@@ -6646,7 +7351,7 @@ function readingTokensToRomaji(tokens) {
       if (listEl !== scroller || !scroller.isConnected || !lineEl.isConnected ||
           !STATE.enabled || !STATE.trackingEnabled || !STATE.hasSync || isManualScrollPaused()) return;
       const progress = Math.min(1, Math.max(0, (now - startedAt) / duration));
-      const eased = 1 - Math.pow(1 - progress, 3);
+      const eased = lyricsScrollEase(progress, bounce);
       scroller.scrollTo({left:0,top:start + (target - start) * eased, behavior:"instant"});
       autoScrollUntil = now + 150;
       if (progress < 1) lyricScrollFrame = requestAnimationFrame(step);
@@ -6799,7 +7504,9 @@ function readingTokensToRomaji(tokens) {
     if (!canTrackCurrentPlayback(media)) return false;
     // A completed seek on the current media can precede the next bridge sample.
     // Use the media's new time for this event only, after the track identity check.
-    const seekTime = seekedMedia && seekedMedia === media && !media.seeking ? media.currentTime : null;
+    // During the track-start guard a seeked event may still carry the previous track's time.
+    const seekTime = seekedMedia && seekedMedia === media && !media.seeking && !STATE.trackStartGuardActive
+      ? media.currentTime : null;
     const safeCurrentTime = Number.isFinite(seekTime) && seekTime >= 0
       ? seekTime
       : getGuardedPlaybackTime(media);
@@ -6862,6 +7569,10 @@ function readingTokensToRomaji(tokens) {
     if (trackingRaf) return;
 
       const frame = () => {
+        const started = globalThis.ytmlsPerfOn ? performance.now() : 0;
+        try { trackingFrame(); } finally { if (started) globalThis.ytmlsPerfAdd?.('lyrics tracking frames', performance.now() - started); }
+      };
+      const trackingFrame = () => {
         if (STATE.contextInvalidated) { trackingRaf = 0; return; }
         trackingRaf = requestAnimationFrame(frame);
       if (!STATE.enabled || !STATE.hasSync) return;
@@ -6978,6 +7689,17 @@ function readingTokensToRomaji(tokens) {
   // Reading annotations are display-only. Never write ruby text into STATE.lines.
   let lyricsReadingGeneration = 0;
   const lyricsReadingCache = new Map();
+
+  // Loading the Japanese dictionary takes about a second the first time (and again after it
+  // idles out). Start it while lyrics are still being searched so readings appear with them.
+  let readingWarmupAt = -Infinity;
+  function warmJapaneseReadings() {
+    if (STATE.readingJapanese === false || STATE.contextInvalidated) return;
+    const now = performance.now();
+    if (now - readingWarmupAt < 60000) return;
+    readingWarmupAt = now;
+    try { void chrome.runtime.sendMessage({type:'YTMLS_JAPANESE_TOKENS',text:'歌詞'}).catch(() => {}); } catch (_) {}
+  }
 
   function getJapaneseReadingTokenizer() {
     return Promise.resolve({tokenize:async text=>{
@@ -7126,10 +7848,10 @@ function readingTokensToRomaji(tokens) {
     }
     const button = document.createElement('button');
     button.className = 'ytmls-tool-button';
-    button.id = 'ytmls-reading-edit'; button.type = 'button'; button.textContent = 'ふりがな編集';
+    button.id = 'ytmls-reading-edit'; button.type = 'button'; button.textContent = 'ふりがな編集'; button.dataset.icon = 'ruby';
     button.disabled = !canEditLyricsReadings();
     button.title = button.disabled ? '曲と歌詞の読み込みが完了すると編集できます' : '行ごとのふりがなを編集';
-    button.addEventListener('click', () => { const more = lyricsToolsEl.querySelector('#ytmls-more'); if (more) more.open = false; openManualReadingEditor(); });
+    button.addEventListener('click', () => { const more = lyricsToolsEl.querySelector('#ytmls-more'); if (more) closeMoreMenu(more); openManualReadingEditor(); });
     lyricsToolsEl.querySelector('#ytmls-lyrics-menu')?.append(button);
   }
 
@@ -7259,7 +7981,8 @@ function readingTokensToRomaji(tokens) {
     if (STATE.contextInvalidated) return 'ページの再読み込みが必要です';
     if (!STATE.enabled) return '拡張機能はOFFです';
     if (STATE.isSearching) return STATE.hasLyricsResult ? '取得済み・ほかの候補を検索中' + (STATE.source ? ' · ' + STATE.source : '') : '歌詞を検索中…';
-    if (STATE.hasLyricsResult) return (STATE.hasSync ? '同期歌詞を取得済み' : '同期時刻のない歌詞') + (STATE.source ? ' · ' + STATE.source : '');
+    // While lyrics play normally the source badge says enough; only exceptions get text.
+    if (STATE.hasLyricsResult) return (STATE.hasSync ? (STATE.trackingEnabled ? '' : '読むモード') : '同期時刻のない歌詞') + (STATE.source ? ' · ' + STATE.source : '');
     return STATE.lastTrackKey ? '同期歌詞が見つかりません' : '曲の読み込み待ち';
   }
   function fitMoreMenu(more, menu) {
@@ -7288,21 +8011,29 @@ function readingTokensToRomaji(tokens) {
         updateHelpfulUi();
       });
       const source = document.createElement('span'); source.className = 'ytmls-source-badge';
-      bar.append(status, source, back); lyricsToolsEl.prepend(bar);
+      // Source first: it is the one label shown while lyrics play normally.
+      bar.append(source, status, back); lyricsToolsEl.prepend(bar);
     }
     const text = helpfulStatus();
     const badge = bar.querySelector('.ytmls-source-badge');
     const source = STATE.enabled && !STATE.contextInvalidated && STATE.hasLyricsResult ? STATE.source || '' : '';
-    badge.hidden = !source;
-    if (badge.textContent !== source) { badge.textContent = source; badge.title = source; }
-    const summary = source ? text.replace(' · ' + source, '') : text;
+    if (badge.hidden !== !source) badge.hidden = !source;
+    if (badge.textContent !== source) badge.textContent = source;
+    const badgeTitle = source && STATE.hasSync ? `${source}・${syncLevelShortLabel(STATE.syncLevel)}ごとに同期` : source;
+    if (badge.title !== badgeTitle) badge.title = badgeTitle;
+    const summary = (source ? text.replace(' · ' + source, '') : text).replace(/^ · /, '');
     const statusText = bar.querySelector('.ytmls-fetch-status-text');
     if (statusText.textContent !== summary) { statusText.textContent = summary; statusText.title = summary; }
-    bar.lastChild.hidden = !(STATE.enabled && STATE.trackingEnabled && STATE.hasSync && isManualScrollPaused());
+    const browsing = Boolean(STATE.trackingEnabled && isManualScrollPaused());
+    // Reading by manual scroll: other lines are shown unblurred.
+    if (panelEl.dataset.browsing !== String(browsing)) panelEl.dataset.browsing = String(browsing);
+    const backHidden = !(STATE.enabled && STATE.trackingEnabled && STATE.hasSync && browsing);
+    if (bar.lastChild.hidden !== backHidden) bar.lastChild.hidden = backHidden;
     const more = lyricsToolsEl.querySelector('#ytmls-more');
     const menu = more?.querySelector('.ytmls-more-menu');
     if (menu) fitMoreMenu(more, menu);
-    if (menu) for (const button of menu.querySelectorAll('button')) updateHelpfulMenuHint(button);
+    // The hints matter only while the menu is open (it runs twice a second).
+    if (menu && more.open) for (const button of menu.querySelectorAll('button')) updateHelpfulMenuHint(button);
     if (helpfulTimer === null) helpfulTimer = setTimeout(() => { helpfulTimer = null; updateHelpfulUi(); }, 500);
   }
 
@@ -7316,7 +8047,7 @@ function readingTokensToRomaji(tokens) {
     if (!hint?.classList.contains('ytmls-menu-hint')) {
       hint = document.createElement('small'); hint.className = 'ytmls-menu-hint'; button.after(hint);
     }
-    hint.hidden = !button.disabled;
+    if (hint.hidden !== !button.disabled) hint.hidden = !button.disabled;
     const reason = button.disabled ? button.title || '曲と歌詞の読み込み後に使用できます' : '';
     if (hint.textContent !== reason) hint.textContent = reason;
   }
@@ -7332,16 +8063,36 @@ let practiceFullscreen = null, practiceFullSignature = '', practiceFullIndex = -
 const practiceRomajiCache = new Map();
 function practiceVideoId() { return String(getAuthoritativeVideoId() || ''); }
 function practiceEntry(id=practiceVideoId()) { return practiceData[id] || {}; }
+// Settings chosen but not saved yet (shown at once; the save follows).
+const practicePendingSettings={};
 function practicePrefs() {
- const prefs={...practiceGlobal,...(practiceEntry().settings||{})};
+ const id=practiceVideoId();
+ const prefs={...practiceGlobal,...(practiceEntry(id).settings||{}),...(practicePendingSettings[id]||{})};
  // Global OFF suppresses readings without discarding the per-track preference.
  for(const key of ['readingJapanese','readingEnglish'])prefs[key]=practiceGlobal[key]!==false&&prefs[key]!==false;
  return prefs;
 }
 function practiceCurrent(id,lines=STATE.lines) { return Boolean(id && id===practiceVideoId() && id===STATE.displayedVideoId && lines===STATE.lines && STATE.enabled); }
+// Only the fields this version uses, in the shape the storage check accepts. Entries saved by older
+// versions can hold other fields; writing them back made the whole save fail for that song.
+const PRACTICE_SETTING_TYPES={fontSize:'number',readingJapanese:'boolean',readingEnglish:'boolean',showTranslation:'boolean',showRomaji:'boolean'};
+function cleanPracticeEntry(entry) {
+ const settings={};
+ for(const [key,value] of Object.entries((entry&&typeof entry.settings==='object'&&entry.settings)||{})){
+  const type=PRACTICE_SETTING_TYPES[key];
+  if(type==='number'&&Number.isFinite(value)&&value>=10&&value<=100)settings[key]=value;
+  else if(type==='boolean'&&typeof value==='boolean')settings[key]=value;
+ }
+ return {
+  title:String((entry&&entry.title)||STATE.lastDisplayedTitle||''),
+  artist:String((entry&&entry.artist)||STATE.lastDisplayedArtist||''),
+  settings,
+  updatedAt:Date.now(),
+ };
+}
 async function savePracticeEntry(id,entry) {
  if(!id)throw Error('曲を読み込んでください');
- const data=await sendUserDataMutation({action:'entry',key:PRACTICE_KEY,videoId:id,entry:{title:STATE.lastDisplayedTitle||'',artist:STATE.lastDisplayedArtist||'',...entry,updatedAt:Date.now()}});
+ const data=await sendUserDataMutation({action:'entry',key:PRACTICE_KEY,videoId:id,entry:cleanPracticeEntry(entry)});
  practiceData=data[PRACTICE_KEY]||practiceData;
  if(id===practiceVideoId()) { applyPracticePrefs();void refreshPracticeExtras(); }
 }
@@ -7521,6 +8272,7 @@ function closePracticeFullscreen(animate = true) {
  document.removeEventListener('keyup', handlePracticeFullscreenSpace, true);
  clearTimeout(box.closeTimer);
  box.resizeObserver?.disconnect();
+ cancelAnimationFrame(box.nowFrame||0); clearTimeout(box.nowTimer||0);
  const finish = () => {
   practiceFullscreen = null;
   const exiting = document.fullscreenElement === box ? document.exitFullscreen() : Promise.resolve();
@@ -7531,6 +8283,17 @@ function closePracticeFullscreen(animate = true) {
  };
  if (animate === false || !playerFeedbackEnabled()) { finish(); return; }
  box.backgroundMotion?.cancel();
+ // Shrink back into the button it was opened from (after leaving browser fullscreen, so the
+ // button is where it will be on the page again).
+ const opener = box.openedFrom;
+ if (opener?.isConnected && typeof glassMorph === 'function') {
+  const leaving = document.fullscreenElement === box ? document.exitFullscreen().catch(() => {}) : Promise.resolve();
+  void leaving.then(() => new Promise(resolve => requestAnimationFrame(resolve))).then(() => {
+   if (!opener.isConnected || !opener.getClientRects().length) { finish(); return; }
+   glassMorph(box, opener, {closing: true, onDone: finish});
+  });
+  return;
+ }
  const canvas = box.querySelector('canvas');
  const blur = getComputedStyle(canvas).filter;
  canvas.animate([{filter:blur},{filter:'blur(0px)'}], {duration:220,easing:'ease-in',fill:'forwards'});
@@ -7551,12 +8314,20 @@ function openPracticeFullscreen() {
  if (!STATE.enabled || !STATE.lines.length || practiceFullscreen) return;
  const box=document.createElement('div');box.id='ytmls-fullscreen';box.setAttribute('role','dialog');box.setAttribute('aria-label','全画面歌詞');box.setAttribute('aria-modal','true');
  const canvas=document.createElement('canvas');canvas.width=96;canvas.height=96;canvas.className='ytmls-full-backdrop';box.append(canvas);
+ const haze=document.createElement('div');haze.className='music-glass-aurora ytmls-full-aurora';haze.setAttribute('aria-hidden','true');box.append(haze);
  const corner=document.createElement('div');corner.className='ytmls-full-corner';box.append(corner);const close=practiceButton(corner,'全画面を閉じる',closePracticeFullscreen);close.className='ytmls-full-close';box.classList.add('ytmls-full-intro');box.closeTimer=setTimeout(()=>{if(practiceFullscreen===box)box.classList.remove('ytmls-full-intro');},3000);
+ const toolbar = document.createElement('div');
+ toolbar.className = 'ytmls-full-size';
  const sizeControls = document.createElement('div');
- sizeControls.className = 'ytmls-full-size';
+ sizeControls.className = 'ytmls-full-group';
  sizeControls.setAttribute('role', 'group');
  sizeControls.setAttribute('aria-label', '歌詞の文字サイズ');
- box.append(sizeControls);
+ const alignControls = document.createElement('div');
+ alignControls.className = 'ytmls-full-group';
+ alignControls.setAttribute('role', 'group');
+ alignControls.setAttribute('aria-label', '歌詞の位置');
+ toolbar.append(sizeControls, alignControls);
+ box.append(toolbar);
  let scale = 100;
  const resize = delta => {
   scale = Math.min(150, Math.max(70, scale + delta));
@@ -7568,10 +8339,34 @@ function openPracticeFullscreen() {
  const larger = practiceButton(sizeControls, 'A+', () => resize(10));
  smaller.setAttribute('aria-label', '歌詞の文字を小さくする');
  larger.setAttribute('aria-label', '歌詞の文字を大きくする');
- const title=document.createElement('h1');title.textContent=STATE.lastDisplayedTitle||'歌詞';box.append(title);const list=document.createElement('div');list.className='ytmls-full-list';box.append(list);
+ // Left or centered lyrics; the choice is shared across tabs and kept in backups.
+ const setAlign = value => {
+  box.dataset.align = value;
+  alignLeft.setAttribute('aria-pressed', String(value === 'left'));
+  alignCenter.setAttribute('aria-pressed', String(value === 'center'));
+ };
+ const chooseAlign = value => {
+  box.alignChosen = true;
+  setAlign(value);
+  box.pendingFollow = true; syncPracticeFullscreenTracking();
+  try { chrome.storage.sync.set({fullscreenAlign:value}, () => { void chrome.runtime.lastError; }); } catch (_) {}
+ };
+ const alignLeft = practiceButton(alignControls, '左', () => chooseAlign('left'));
+ const alignCenter = practiceButton(alignControls, '中央', () => chooseAlign('center'));
+ alignLeft.setAttribute('aria-label', '歌詞を左寄せで表示');
+ alignCenter.setAttribute('aria-label', '歌詞を中央寄せで表示');
+ setAlign('left');
+ try { chrome.storage.sync.get({fullscreenAlign:'left'}, data => { if (!chrome.runtime.lastError && practiceFullscreen === box && !box.alignChosen) setAlign(data.fullscreenAlign === 'center' ? 'center' : 'left'); }); } catch (_) {}
+ // Header: small cover, title and artist (kept in step with the song in refreshPracticeFullscreen).
+ const head=document.createElement('header');head.className='ytmls-full-head';
+ const cover=document.createElement('img');cover.className='ytmls-full-cover';cover.alt='';cover.decoding='async';
+ const meta=document.createElement('div');meta.className='ytmls-full-meta';
+ const title=document.createElement('h1');const artist=document.createElement('p');artist.className='ytmls-full-artist';
+ meta.append(title,artist);head.append(cover,meta);box.append(head);updatePracticeFullscreenHeader(box);const list=document.createElement('div');list.className='ytmls-full-list';box.append(list);
+ if(typeof buildFullscreenNowPlaying==='function')buildFullscreenNowPlaying(box);
  box.returnFocus=document.activeElement;document.body.append(box);practiceFullscreen=box;trackingDisplayResumedAt=performance.now();document.addEventListener('keydown',handlePracticeFullscreenSpace,true);document.addEventListener('keyup',handlePracticeFullscreenSpace,true);practiceFullSignature='';practiceFullIndex=-1;refreshPracticeFullscreen();box.tabIndex=-1;box.focus();
  box.resizeObserver=new ResizeObserver(()=>{if(practiceFullscreen===box){box.pendingFollow=true;syncPracticeFullscreenTracking();}});box.resizeObserver.observe(list);
- const pause=()=>{box.manualUntil=performance.now()+(STATE.manualScrollReturnMs||3500);box.pendingFollow=true;};list.addEventListener('wheel',pause,{passive:true});list.addEventListener('touchmove',pause,{passive:true});list.addEventListener('keydown',e=>{if(['ArrowUp','ArrowDown','PageUp','PageDown','Home','End'].includes(e.key))pause();});
+ const pause=()=>{box.manualUntil=performance.now()+(STATE.manualScrollReturnMs||3500);box.pendingFollow=true;box.dataset.browsing='true';};list.addEventListener('wheel',pause,{passive:true});list.addEventListener('touchmove',pause,{passive:true});list.addEventListener('keydown',e=>{if(['ArrowUp','ArrowDown','PageUp','PageDown','Home','End'].includes(e.key))pause();});
  box.addEventListener('keydown',e=>{if(e.key==='Escape'){e.stopPropagation();closePracticeFullscreen();}else if(e.key==='Tab'){const buttons=[...box.querySelectorAll('button:not(:disabled)')];const first=buttons[0],last=buttons.at(-1);if(e.shiftKey&&document.activeElement===first){e.preventDefault();last?.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first?.focus();}}});
 
  if (playerFeedbackEnabled()) {
@@ -7579,20 +8374,36 @@ function openPracticeFullscreen() {
     [{filter:'blur(0px)',opacity:0},{filter:'blur(12px)',opacity:.65}],
     {duration:240,easing:'ease-out'});
  }
- if(box.requestFullscreen)void box.requestFullscreen().then(()=>{box.dataset.native='true';}).catch(()=>{});
+ // Grow out of the "その他" button it was opened from, then go browser-fullscreen: in browser
+ // fullscreen the page behind is hidden, so the button would grow over black.
+ const goFullscreen=()=>{if(practiceFullscreen===box&&!box.inert&&box.requestFullscreen)void box.requestFullscreen().then(()=>{box.dataset.native='true';}).catch(()=>{});};
+ const opener=document.querySelector('#ytmls-more > summary');
+ const morph=opener?.getClientRects().length&&typeof glassMorph==='function'?glassMorph(box,opener):null;
+ if(morph){box.openedFrom=opener;morph.finished.then(goFullscreen,()=>{});}else goFullscreen();
+}
+function updatePracticeFullscreenHeader(box) {
+ // Runs on every refresh: YouTube Music often swaps the cover after the new lyrics are shown.
+ const heading=box.querySelector('.ytmls-full-head h1'),titleText=STATE.lastDisplayedTitle||'歌詞';
+ if(heading.textContent!==titleText)heading.textContent=titleText;
+ const artist=box.querySelector('.ytmls-full-artist'),artistText=STATE.lastDisplayedArtist||'';
+ if(artist.textContent!==artistText)artist.textContent=artistText;artist.hidden=!artistText;
+ const image=document.querySelector('ytmusic-player-bar .thumbnail-image-wrapper img,ytmusic-player-bar img.image,ytmusic-player #song-image img');
+ const src=image?.currentSrc||image?.src||'';const cover=box.querySelector('.ytmls-full-cover');
+ if(cover.getAttribute('src')!==src){if(src)cover.src=src;else cover.removeAttribute('src');}
+ if(cover.hidden!==!src)cover.hidden=!src;
 }
 function refreshPracticeFullscreen() {
  const box=practiceFullscreen;if(!box || box.inert)return;if(!STATE.enabled){closePracticeFullscreen(false);return;}
- paintPracticeBackground(box);
+ paintPracticeBackground(box);updatePracticeFullscreenHeader(box);
  const sig=[STATE.displayedVideoId,STATE.activeCandidateId,practiceExtrasGeneration,STATE.lines.length].join(':');const list=box.querySelector('.ytmls-full-list');
- if(sig!==practiceFullSignature){practiceFullSignature=sig;practiceFullIndex=-1;box.querySelector('h1').textContent=STATE.lastDisplayedTitle||'歌詞';const restoreFocus=list.contains(document.activeElement);list.replaceChildren();if(restoreFocus)box.focus({preventScroll:true});const renderedId=STATE.displayedVideoId,renderedLines=STATE.lines;for(let i=0;i<STATE.lines.length;i++){const b=document.createElement('button');b.className='ytmls-full-line ytmls-line';b.append(...[...(listEl?.children[i]?.childNodes||[])].map(x=>x.cloneNode(true)));if(!b.childNodes.length)b.textContent=STATE.lines[i].text;b.addEventListener('keydown',e=>handlePracticeLineKey(e,renderedId,renderedLines,b));b.addEventListener('click',()=>{if(practiceCurrent(renderedId,renderedLines)){box.manualUntil=0;box.pendingFollow=true;practiceSeek(i);}});list.append(b);}}
+ if(sig!==practiceFullSignature){practiceFullSignature=sig;practiceFullIndex=-1;const restoreFocus=list.contains(document.activeElement);list.replaceChildren();if(restoreFocus)box.focus({preventScroll:true});const renderedId=STATE.displayedVideoId,renderedLines=STATE.lines;for(let i=0;i<STATE.lines.length;i++){const b=document.createElement('button');b.className='ytmls-full-line ytmls-line';b.append(...[...(listEl?.children[i]?.childNodes||[])].map(x=>x.cloneNode(true)));if(!b.childNodes.length)b.textContent=STATE.lines[i].text;b.addEventListener('keydown',e=>handlePracticeLineKey(e,renderedId,renderedLines,b));b.addEventListener('click',()=>{if(practiceCurrent(renderedId,renderedLines)){box.manualUntil=0;box.pendingFollow=true;practiceSeek(i);}});list.append(b);}}
  syncPracticeFullscreenTracking();
 }
 function syncPracticeFullscreenTracking() {
  const box=practiceFullscreen;if(!box)return;
  const list=box.querySelector('.ytmls-full-list');
  const tracking=STATE.trackingEnabled!==false&&practiceCurrent(STATE.displayedVideoId);
- box.dataset.wordTracking=tracking?(STATE.wordTrackingStyle||'smooth'):'off';box.dataset.trackingMode=tracking?'auto':'off';
+ box.dataset.wordTracking=tracking?(STATE.wordTrackingStyle||'smooth'):'off';box.dataset.wordGlow=STATE.wordGlow===false?'off':'on';box.dataset.trackingMode=tracking?'auto':'off';
  const index=tracking?STATE.currentIndex:-1,changed=index!==practiceFullIndex;
  box.dataset.focusFade=tracking&&index>=0&&STATE.focusFade!==false?'on':'off';
  if(changed){practiceFullIndex=index;for(let i=0;i<list.children.length;i++){list.children[i].classList.toggle('active',i===index);list.children[i].classList.toggle('ytmls-active',i===index);const distance=index>=0?Math.abs(i-index):999;list.children[i].classList.toggle('ytmls-near',distance===1);list.children[i].classList.toggle('ytmls-middle',distance===2);list.children[i].classList.toggle('ytmls-upcoming',index>=0&&i>index);}box.pendingFollow=true;}
@@ -7604,22 +8415,1351 @@ function syncPracticeFullscreenTracking() {
  if(tracking&&row&&box.pendingFollow&&performance.now()>=(box.manualUntil||0)){
   const rect=list.getBoundingClientRect(),lineRect=row.getBoundingClientRect();
   const top=Math.max(0,list.scrollTop+lineRect.top-rect.top+lineRect.height/2-list.clientHeight*(STATE.trackingPosition||42)/100);
-  const smooth=changed&&!window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  list.scrollTo({top,behavior:smooth?'smooth':'instant'});box.pendingFollow=false;
+  const smooth=changed&&!window.matchMedia('(prefers-reduced-motion: reduce)').matches&&!document.documentElement.classList.contains('ytmls-lyrics-motion-lightweight');
+  cancelAnimationFrame(box.scrollFrame||0);box.scrollFrame=0;
+  delete box.dataset.browsing;
+  if(smooth&&typeof lyricsScrollEase==='function')animateFullscreenScroll(box,list,top);
+  else list.scrollTo({top,behavior:'instant'});
+  box.pendingFollow=false;
  }
+}
+// Same gentle overshoot as the lyrics panel; manual scrolling stops it.
+function animateFullscreenScroll(box,list,target) {
+ const start=list.scrollTop,startedAt=performance.now();
+ const bounce=!document.documentElement.classList.contains('ytmls-extra-motion-disabled');
+ const duration=bounce?Math.min(560,Math.max(400,360+Math.abs(target-start)*.3)):260;
+ const step=now=>{
+  box.scrollFrame=0;
+  if(practiceFullscreen!==box||performance.now()<(box.manualUntil||0))return;
+  const progress=Math.min(1,Math.max(0,(now-startedAt)/duration));
+  list.scrollTo({top:start+(target-start)*lyricsScrollEase(progress,bounce),behavior:'instant'});
+  if(progress<1)box.scrollFrame=requestAnimationFrame(step);
+ };
+ box.scrollFrame=requestAnimationFrame(step);
 }
 function ensurePracticeControls() {
  const menu=lyricsToolsEl?.querySelector('.ytmls-more-menu');if(!menu)return;
  const group = menu.querySelector('#ytmls-practice-controls');
  if (!group) return;
  if (!group.querySelector('button')) {
-  for(const [title,fn] of [['この曲の表示設定',showTrackDisplay],['全画面歌詞ビュー',openPracticeFullscreen]])practiceButton(group,title,()=>{const details=menu.closest('details');if(details)closeMoreMenu(details);fn();});
+  for(const [title,fn,icon] of [['この曲の表示設定',showTrackDisplay,'sliders'],['全画面歌詞ビュー',openPracticeFullscreen,'expand']])practiceButton(group,title,()=>{const details=menu.closest('details');if(details)closeMoreMenu(details);fn();}).dataset.icon=icon;
  }
  const available=practiceCurrent(STATE.displayedVideoId)&&STATE.lines.length>0;
  for(const button of group.querySelectorAll(':scope > button'))button.disabled=!available;
 }
 function practiceTick() {
  reportPracticeLoadError();applyPracticePrefs();ensurePracticeControls();if(typeof ensureEnhancementControls === "function")ensureEnhancementControls();refreshPracticeFullscreen();
+}
+
+// Feature: fullscreen-now.js
+// ---------- 全画面歌詞ビュー：Mac の「再生中」画面 ----------
+// Left: large artwork, title and artist, the song position, playback buttons and volume.
+// Right: the lyrics. Buttons go through apple-shell.js (YouTube Music's own hidden buttons and
+// the player's volume); without it they fall back to the <video>.
+function fullscreenNowControls() {
+ return globalThis.ytmlsAppleControls || null;
+}
+function fullscreenNowIcon(name) {
+ const icons = fullscreenNowControls()?.icons;
+ if (icons?.[name]) return icons[name];
+ const paths = {play: '<path d="M8 5.2v13.6l11-6.8z"/>', pause: '<rect x="6.5" y="5" width="3.8" height="14" rx="1"/><rect x="13.7" y="5" width="3.8" height="14" rx="1"/>', prev: '<path d="M11.5 6v12L3.5 12zm9 0v12l-8-6z"/>', next: '<path d="M12.5 6v12l8-6zm-9 0v12l8-6z"/>'};
+ return `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">${paths[name] || ''}</svg>`;
+}
+function fullscreenNowTime(seconds) {
+ if (!Number.isFinite(seconds) || seconds < 0) return '0:00';
+ const s = Math.floor(seconds);
+ return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+}
+function buildFullscreenNowPlaying(box) {
+ const head = box.querySelector('.ytmls-full-head');
+ if (!head) return;
+ box.classList.add('ytmls-full-mac');
+ const now = document.createElement('section');
+ now.className = 'ytmls-full-now';
+ now.setAttribute('aria-label', '再生中');
+ head.replaceWith(now);
+ now.append(head);
+
+ const progress = document.createElement('div');
+ progress.className = 'ytmls-full-progress';
+ progress.setAttribute('role', 'slider');
+ progress.setAttribute('aria-label', '再生位置');
+ progress.tabIndex = 0;
+ progress.innerHTML = '<span class="ytmls-full-progress-track"><span class="ytmls-full-progress-fill"></span></span><span class="ytmls-full-progress-times"><span class="ytmls-full-elapsed">0:00</span><span class="ytmls-full-remaining"></span></span>';
+ let seeking = false;
+ const ratioAt = event => {
+  const rect = progress.querySelector('.ytmls-full-progress-track').getBoundingClientRect();
+  return Math.min(1, Math.max(0, (event.clientX - rect.left) / Math.max(1, rect.width)));
+ };
+ const seekTo = ratio => {
+  const media = getVideoElement();
+  const duration = getAuthoritativeDuration(media);
+  if (!Number.isFinite(duration) || duration <= 0) return;
+  const id = getAuthoritativeVideoId();
+  if (id) requestPlayerSeek(id, ratio * duration);
+  else if (media) media.currentTime = ratio * duration;
+ };
+ progress.addEventListener('pointerdown', event => { seeking = true; progress.setPointerCapture?.(event.pointerId); progress.classList.add('is-seeking'); progress.style.setProperty('--progress', String(ratioAt(event))); event.preventDefault(); });
+ progress.addEventListener('pointermove', event => { if (seeking) progress.style.setProperty('--progress', String(ratioAt(event))); });
+ const finish = event => { if (!seeking) return; seeking = false; progress.classList.remove('is-seeking'); seekTo(ratioAt(event)); };
+ progress.addEventListener('pointerup', finish);
+ progress.addEventListener('pointercancel', finish);
+ progress.addEventListener('keydown', event => {
+  const step = {ArrowRight: 5, ArrowLeft: -5}[event.key];
+  if (step === undefined) return;
+  event.preventDefault(); event.stopPropagation();
+  const media = getVideoElement(), duration = getAuthoritativeDuration(media), time = getAuthoritativePlaybackTime(media);
+  if (Number.isFinite(duration) && duration > 0 && Number.isFinite(time)) seekTo(Math.min(1, Math.max(0, (time + step) / duration)));
+ });
+ box.nowSeeking = () => seeking;
+
+ const transport = document.createElement('div');
+ transport.className = 'ytmls-full-transport';
+ const control = (name, label, fn) => {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = `ytmls-full-transport-${name}`;
+  button.title = label;
+  button.setAttribute('aria-label', label);
+  button.innerHTML = fullscreenNowIcon(name);
+  button.addEventListener('click', fn);
+  transport.append(button);
+  return button;
+ };
+ const run = name => () => {
+  const controls = fullscreenNowControls();
+  if (controls) { controls.transport[name](); return; }
+  const media = getVideoElement();
+  if (name === 'play' && media) media.paused ? media.play() : media.pause();
+ };
+ control('prev', '前へ', run('prev'));
+ box.nowPlayButton = control('play', '再生', run('play'));
+ control('next', '次へ', run('next'));
+
+ now.append(progress, transport);
+ const volume = fullscreenNowControls()?.createVolumeControl?.('ytmls-full-volume');
+ if (volume) now.append(volume);
+ // Like the Mac's full screen player: the controls (and the pointer) fade away after a few still
+ // seconds and come back as soon as the mouse moves or a key is pressed. Not while one is in use.
+ let idleTimer = 0;
+ const wake = () => {
+  box.classList.remove('ytmls-full-idle');
+  clearTimeout(idleTimer);
+  idleTimer = setTimeout(() => {
+   if (practiceFullscreen !== box || seeking || box.matches(':has(.ytmls-full-size:hover, .ytmls-full-now:hover, .ytmls-full-corner:hover, :focus-visible)')) { wake(); return; }
+   box.classList.add('ytmls-full-idle');
+  }, 3000);
+ };
+ for (const type of ['pointermove', 'pointerdown', 'keydown', 'wheel']) box.addEventListener(type, wake, {passive: true});
+ wake();
+ updateFullscreenNowPlaying(box);
+ const loop = () => {
+  if (practiceFullscreen !== box || box.inert) return;
+  updateFullscreenNowPlaying(box);
+  // Five times a second, not every frame: the bar and the times barely move between frames.
+  box.nowTimer = setTimeout(() => { box.nowFrame = requestAnimationFrame(loop); }, 200);
+ };
+ box.nowFrame = requestAnimationFrame(loop);
+}
+function updateFullscreenNowPlaying(box) {
+ const progress = box.querySelector('.ytmls-full-progress');
+ if (!progress) return;
+ const media = getVideoElement();
+ const duration = getAuthoritativeDuration(media);
+ const time = getAuthoritativePlaybackTime(media);
+ const known = Number.isFinite(duration) && duration > 0 && Number.isFinite(time);
+ if (!box.nowSeeking?.()) {
+  const ratio = (known ? Math.min(1, Math.max(0, time / duration)) : 0).toFixed(4);
+  if (progress.style.getPropertyValue('--progress') !== ratio) progress.style.setProperty('--progress', ratio);
+ }
+ const elapsed = known ? fullscreenNowTime(time) : '0:00';
+ const remaining = known ? `-${fullscreenNowTime(duration - time)}` : '';
+ const elapsedEl = progress.querySelector('.ytmls-full-elapsed'), remainingEl = progress.querySelector('.ytmls-full-remaining');
+ if (elapsedEl.textContent !== elapsed) elapsedEl.textContent = elapsed;
+ if (remainingEl.textContent !== remaining) remainingEl.textContent = remaining;
+ const valueText = known ? `${elapsed} / ${fullscreenNowTime(duration)}` : '';
+ if (progress.getAttribute('aria-valuetext') !== valueText) progress.setAttribute('aria-valuetext', valueText);
+ const playing = Boolean(media && !media.paused);
+ const button = box.nowPlayButton;
+ if (button && button.dataset.playing !== String(playing)) {
+  button.dataset.playing = String(playing);
+  button.innerHTML = fullscreenNowIcon(playing ? 'pause' : 'play');
+  const label = playing ? '一時停止' : '再生';
+  button.title = label; button.setAttribute('aria-label', label);
+ }
+}
+
+// Feature: side-lyrics.js
+// ---------- Mac 風：右側の歌詞パネルとミニプレーヤー ----------
+// Both read the lyrics already loaded (STATE.lines) and work out the current line themselves, so
+// they keep going whether or not YouTube Music's Now Playing page (and its lyrics tab) is open.
+// apple-shell.js opens them (toolbar buttons and shortcuts) through globalThis.ytmlsSideLyrics /
+// globalThis.ytmlsMiniPlayer.
+
+function liveLyricsIndex() {
+ if (!STATE.enabled || !STATE.hasSync || !STATE.lines.length) return -1;
+ const id = getAuthoritativeVideoId();
+ if (STATE.displayedVideoId && id && STATE.displayedVideoId !== id) return -1;
+ const media = getVideoElement();
+ const time = getAuthoritativePlaybackTime(media);
+ if (!Number.isFinite(time)) return -1;
+ const adjusted = Math.max(0, time + timingOffsetSeconds(time, getAuthoritativeDuration(media)));
+ return findCurrentLineIndex(adjusted);
+}
+function liveLyricsCurrent() {
+ const id = getAuthoritativeVideoId();
+ return Boolean(STATE.lines.length && (!STATE.displayedVideoId || !id || STATE.displayedVideoId === id));
+}
+function seekLyricsLine(index) {
+ if (!liveLyricsCurrent()) return;
+ if (listEl?.children[index] && typeof practiceSeek === 'function') { practiceSeek(index); return; }
+ const line = STATE.lines[index];
+ const id = getAuthoritativeVideoId();
+ if (!line || line.time == null || !id) return;
+ const duration = getAuthoritativeDuration(getVideoElement());
+ requestPlayerSeek(id, Math.max(0, line.time - timingOffsetSeconds(line.time, duration)));
+}
+function lyricsLineText(index) {
+ return String(STATE.lines[index]?.text || '').replace(/\s+/g, ' ').trim();
+}
+function sideLyricsMessage() {
+ if (!STATE.enabled) return '歌詞シンクロはオフです';
+ if (STATE.isSearching) return '歌詞を探しています…';
+ if (!STATE.lines.length) return '歌詞はありません';
+ return '';
+}
+
+// ---- right-hand lyrics panel ----
+let sideLyricsEl = null;
+let sideLyricsSignature = '';
+let sideLyricsIndex = -2;
+let sideLyricsFrame = 0;
+let sideLyricsManualUntil = 0;
+
+function sideLyricsOpen() {
+ return Boolean(sideLyricsEl && !sideLyricsEl.hidden);
+}
+function buildSideLyrics() {
+ if (sideLyricsEl) return sideLyricsEl;
+ const pane = document.createElement('aside');
+ pane.id = 'ytmls-side-lyrics';
+ pane.setAttribute('aria-label', '歌詞');
+ pane.hidden = true;
+ const head = document.createElement('div');
+ head.className = 'ytmls-side-head';
+ const title = document.createElement('span');
+ title.className = 'ytmls-side-title';
+ title.textContent = '歌詞';
+ const close = document.createElement('button');
+ close.type = 'button';
+ close.className = 'ytmls-side-close';
+ close.title = '歌詞を閉じる';
+ close.setAttribute('aria-label', '歌詞を閉じる');
+ close.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="m7 7 10 10M17 7 7 17"/></svg>';
+ close.addEventListener('click', () => toggleSideLyrics(false));
+ head.append(title, close);
+ const list = document.createElement('div');
+ list.className = 'ytmls-side-list';
+ const pause = () => { sideLyricsManualUntil = performance.now() + (STATE.manualScrollReturnMs || 3500); };
+ list.addEventListener('wheel', pause, {passive: true});
+ list.addEventListener('touchmove', pause, {passive: true});
+ const message = document.createElement('p');
+ message.className = 'ytmls-side-message';
+ pane.append(head, message, list);
+ pane.addEventListener('keydown', event => { if (event.key === 'Escape') { event.stopPropagation(); toggleSideLyrics(false); } });
+ document.body.append(pane);
+ sideLyricsEl = pane;
+ return pane;
+}
+function renderSideLyrics() {
+ const pane = sideLyricsEl;
+ if (!pane) return;
+ const list = pane.querySelector('.ytmls-side-list');
+ const message = sideLyricsMessage();
+ const messageEl = pane.querySelector('.ytmls-side-message');
+ if (messageEl.textContent !== message) messageEl.textContent = message;
+ if (messageEl.hidden !== !message) messageEl.hidden = !message;
+ const title = pane.querySelector('.ytmls-side-title');
+ const titleText = STATE.lastDisplayedTitle || '歌詞';
+ if (title.textContent !== titleText) title.textContent = titleText;
+ const signature = [STATE.displayedVideoId, STATE.activeCandidateId, STATE.lines.length, listEl?.children.length || 0,
+  typeof practiceExtrasGeneration === 'undefined' ? 0 : practiceExtrasGeneration].join(':');
+ if (signature !== sideLyricsSignature) {
+  sideLyricsSignature = signature;
+  sideLyricsIndex = -2;
+  list.replaceChildren();
+  if (!message) {
+   for (let i = 0; i < STATE.lines.length; i++) {
+    const row = document.createElement('button');
+    row.type = 'button';
+    row.className = 'ytmls-side-line';
+    // Same content as the lyrics panel (readings included) when it is there, else the plain text.
+    const source = listEl?.children[i];
+    if (source && listEl.children.length === STATE.lines.length) row.append(...[...source.childNodes].filter(node => !node.classList?.contains?.('ytmls-extra')).map(node => node.cloneNode(true)));
+    if (!row.childNodes.length) row.textContent = STATE.lines[i].text || '♪';
+    row.addEventListener('click', () => { sideLyricsManualUntil = 0; sideLyricsIndex = -2; seekLyricsLine(i); });
+    list.append(row);
+   }
+  }
+  pane.dataset.synced = STATE.hasSync ? 'true' : 'false';
+ }
+}
+function followSideLyrics(...args) {
+ const started = globalThis.ytmlsPerfOn ? performance.now() : 0;
+ try { return followSideLyricsMeasured(...args); } finally { if (started) globalThis.ytmlsPerfAdd?.('right lyrics panel frames', performance.now() - started); }
+}
+function followSideLyricsMeasured() {
+ sideLyricsFrame = 0;
+ if (!sideLyricsOpen()) return;
+ if (!document.documentElement.classList.contains('ytmls-am')) { toggleSideLyrics(false); return; }
+ renderSideLyrics();
+ const list = sideLyricsEl.querySelector('.ytmls-side-list');
+ const index = liveLyricsIndex();
+ if (index !== sideLyricsIndex) {
+  const first = sideLyricsIndex === -2;
+  sideLyricsIndex = index;
+  [...list.children].forEach((row, i) => {
+   const distance = index >= 0 ? Math.abs(i - index) : 999;
+   row.classList.toggle('is-current', i === index);
+   row.classList.toggle('is-near', distance === 1);
+   row.classList.toggle('is-past', index >= 0 && i < index);
+  });
+  const row = list.children[index];
+  if (row && performance.now() >= sideLyricsManualUntil) {
+   const top = row.offsetTop - list.clientHeight * 0.32;
+   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches || document.documentElement.classList.contains('ytmls-lyrics-motion-lightweight');
+   list.scrollTo({top: Math.max(0, top), behavior: first || reduce ? 'instant' : 'smooth'});
+  }
+ } else if (index >= 0 && sideLyricsManualUntil && performance.now() >= sideLyricsManualUntil) {
+  sideLyricsManualUntil = 0;
+  sideLyricsIndex = -3; // scroll back to the current line on the next frame
+ }
+ sideLyricsFrame = requestAnimationFrame(followSideLyrics);
+}
+function toggleSideLyrics(force) {
+ const pane = buildSideLyrics();
+ const open = typeof force === 'boolean' ? force : pane.hidden;
+ pane.hidden = !open;
+ document.documentElement.classList.toggle('ytmls-side-lyrics-open', open);
+ if (open) {
+  sideLyricsSignature = '';
+  sideLyricsManualUntil = 0;
+  if (!sideLyricsFrame) sideLyricsFrame = requestAnimationFrame(followSideLyrics);
+ } else {
+  cancelAnimationFrame(sideLyricsFrame);
+  sideLyricsFrame = 0;
+ }
+ return open;
+}
+
+// ---- mini player (a small always-on-top window: Document Picture-in-Picture) ----
+let miniPlayerWindow = null;
+const MINI_PLAYER_CSS = `
+:root { color-scheme: dark; }
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; overflow: hidden; background: #1c1c1f; color: #fff;
+ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", Roboto, sans-serif; -webkit-font-smoothing: antialiased; user-select: none; }
+/* Moving artwork background, like the big screens: three soft shapes of the cover drifting slowly
+   (a small window, so the live blur is cheap). */
+.bg { position: fixed; inset: -30px; overflow: hidden; filter: blur(26px) saturate(170%) brightness(.6); background: #1c1c1f; }
+.bg i { position: absolute; width: 90%; aspect-ratio: 1; border-radius: 50%; background: var(--art) center / cover no-repeat; animation: drift 40s steps(400) infinite alternate; }
+.bg i:nth-child(1) { left: -20%; top: -40%; }
+.bg i:nth-child(2) { right: -25%; top: -10%; background-position: 80% 20%; animation-duration: 52s; animation-direction: alternate-reverse; }
+.bg i:nth-child(3) { left: 20%; bottom: -60%; background-position: 20% 80%; animation-duration: 46s; }
+@keyframes drift { from { transform: translate(0, 0) rotate(0deg) scale(1); } to { transform: translate(18%, 14%) rotate(150deg) scale(1.2); } }
+@media (prefers-reduced-motion: reduce) { .bg i { animation: none; } }
+.bg::after { content: ""; position: absolute; inset: 0; background: rgb(0 0 0 / .18); }
+.app { position: relative; height: 100%; display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto; gap: 10px 14px; padding: 14px; }
+.art { grid-row: 1 / 3; height: 100%; max-height: calc(100vh - 28px); aspect-ratio: 1; border-radius: 10px; object-fit: cover; background: #ffffff14; box-shadow: 0 10px 26px #0007, inset 0 0 0 1px #ffffff22; }
+.info { min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: 6px; }
+.meta { min-width: 0; }
+.title, .artist, .line, .next { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.title { font-size: 13px; font-weight: 650; }
+.artist { font-size: 12px; color: #ffffffa0; }
+.line { font-size: clamp(14px, 4.6vw, 21px); font-weight: 800; line-height: 1.25; white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; transition: opacity .25s; }
+.next { font-size: clamp(12px, 3.6vw, 16px); font-weight: 700; color: #ffffff70; }
+.line:empty, .next:empty { display: none; }
+/* Buttons on one line (lyrics at the right end), the progress with its times on the next. */
+.bottom { display: flex; flex-wrap: wrap; align-items: center; gap: 0 8px; min-width: 0; }
+.controls-end { margin-left: auto; }
+.seek { flex: 1 0 100%; display: flex; align-items: center; gap: 8px; min-width: 0; }
+.controls { display: flex; align-items: center; gap: 2px; }
+button { display: grid; place-items: center; width: 34px; height: 34px; padding: 0; border: 0; border-radius: 999px; background: transparent; color: #fffe; cursor: pointer; }
+button:hover { background: #ffffff1c; }
+button:active { transform: scale(.9); }
+button svg { width: 20px; height: 20px; display: block; }
+button.play svg { width: 26px; height: 26px; }
+.progress { flex: 1; height: 4px; border-radius: 999px; background: #ffffff2e; overflow: hidden; cursor: pointer; transition: height .15s; }
+.progress:hover { height: 6px; }
+.time { font-size: 10.5px; font-variant-numeric: tabular-nums; color: #ffffff90; min-width: 32px; text-align: center; }
+.seek .elapsed { text-align: left; } .seek .remaining { text-align: right; }
+.controls-end { display: flex; align-items: center; gap: 2px; }
+button.lyrics[aria-pressed="true"] { color: #fff; background: #ffffff26; }
+button.lyrics svg { width: 18px; height: 18px; }
+/* Lyrics off: the title and artist take the space, larger. */
+body:not(.show-lyrics) .line, body:not(.show-lyrics) .next { display: none; }
+body:not(.show-lyrics) .title { font-size: clamp(14px, 5vw, 20px); font-weight: 750; white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+body:not(.show-lyrics) .artist { font-size: clamp(12px, 3.6vw, 15px); margin-top: 3px; }
+.fill { height: 100%; background: #ffffffd0; transform-origin: left; transform: scaleX(var(--p, 0)); }
+@media (max-height: 195px) { .next { display: none; } }
+@media (max-height: 130px) { .time { display: none; } }
+@media (max-width: 300px) { .art { display: none; } .app { grid-template-columns: minmax(0, 1fr); } }
+`;
+function miniPlayerSupported() {
+ return typeof window.documentPictureInPicture?.requestWindow === 'function';
+}
+function miniPlayerIcon(name) {
+ const icons = globalThis.ytmlsAppleControls?.icons;
+ if (icons?.[name]) return icons[name];
+ return typeof fullscreenNowIcon === 'function' ? fullscreenNowIcon(name) : '';
+}
+async function toggleMiniPlayer(force) {
+ const open = typeof force === 'boolean' ? force : !miniPlayerWindow;
+ if (!open) { miniPlayerWindow?.close(); miniPlayerWindow = null; return false; }
+ if (miniPlayerWindow) { miniPlayerWindow.focus(); return true; }
+ if (!miniPlayerSupported()) return false;
+ let win;
+ try { win = await window.documentPictureInPicture.requestWindow({width: 420, height: 210}); } catch (_) { return false; }
+ miniPlayerWindow = win;
+ const doc = win.document;
+ doc.title = 'ミニプレーヤー';
+ const style = doc.createElement('style');
+ style.textContent = MINI_PLAYER_CSS;
+ doc.head.append(style);
+ doc.body.innerHTML = '<div class="bg"><i></i><i></i><i></i></div><div class="app"><img class="art" alt=""><div class="info"><div class="meta"><div class="title"></div><div class="artist"></div></div><div class="line"></div><div class="next"></div></div><div class="bottom"><div class="controls"></div><div class="controls-end"></div><div class="seek"><span class="time elapsed"></span><div class="progress"><div class="fill"></div></div><span class="time remaining"></span></div></div></div>';
+ doc.body.classList.add('show-lyrics');
+ const controls = doc.querySelector('.controls');
+ const add = (name, label, fn) => {
+  const button = doc.createElement('button');
+  button.type = 'button';
+  button.className = name;
+  button.title = label;
+  button.setAttribute('aria-label', label);
+  button.innerHTML = miniPlayerIcon(name);
+  button.addEventListener('click', fn);
+  (name === 'lyrics' ? doc.querySelector('.controls-end') : controls).append(button);
+  return button;
+ };
+ const transport = name => () => {
+  const apple = globalThis.ytmlsAppleControls;
+  if (apple) apple.transport[name]();
+  else if (name === 'play') { const media = getVideoElement(); if (media) media.paused ? media.play() : media.pause(); }
+ };
+ add('prev', '前へ', transport('prev'));
+ const play = add('play', '再生', transport('play'));
+ add('next', '次へ', transport('next'));
+ // Lyrics on / off, like the Mac mini player's lyrics button.
+ const lyricsButton = add('lyrics', '歌詞を隠す', () => {
+  const on = !doc.body.classList.contains('show-lyrics');
+  doc.body.classList.toggle('show-lyrics', on);
+  lyricsButton.setAttribute('aria-pressed', String(on));
+  lyricsButton.title = on ? '歌詞を隠す' : '歌詞を表示';
+  lyricsButton.setAttribute('aria-label', lyricsButton.title);
+ });
+ lyricsButton.setAttribute('aria-pressed', 'true');
+ doc.querySelector('.progress').addEventListener('click', event => {
+  const rect = event.currentTarget.getBoundingClientRect();
+  const media = getVideoElement(), duration = getAuthoritativeDuration(media), id = getAuthoritativeVideoId();
+  if (id && Number.isFinite(duration) && duration > 0) requestPlayerSeek(id, Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width)) * duration);
+ });
+ win.addEventListener('keydown', event => {
+  if (event.code === 'Space') { event.preventDefault(); transport('play')(); }
+ });
+ win.addEventListener('pagehide', () => { if (miniPlayerWindow === win) miniPlayerWindow = null; });
+ let shown = {};
+ const set = (selector, value, prop = 'textContent') => {
+  if (shown[selector] === value) return;
+  shown[selector] = value;
+  const el = doc.querySelector(selector);
+  if (prop === 'src') { if (value) el.src = value; else el.removeAttribute('src'); }
+  else if (prop === 'bg') el.style.setProperty('--art', value ? `url("${value.replace(/"/g, '%22')}")` : 'none');
+  else el.textContent = value;
+ };
+ const frame = () => {
+  if (miniPlayerWindow !== win || win.closed) return;
+  const image = document.querySelector('ytmusic-player-bar .thumbnail-image-wrapper img,ytmusic-player-bar img.image,ytmusic-player #song-image img');
+  const art = image?.currentSrc || image?.src || '';
+  set('.art', art, 'src');
+  set('.bg', art, 'bg');
+  set('.title', STATE.lastDisplayedTitle || document.querySelector('ytmusic-player-bar .title')?.textContent.trim() || '');
+  set('.artist', STATE.lastDisplayedArtist || '');
+  const index = liveLyricsIndex();
+  const current = liveLyricsCurrent();
+  set('.line', current ? (index >= 0 ? lyricsLineText(index) || '♪' : (STATE.hasSync ? '♪' : '')) : '');
+  set('.next', current && index + 1 < STATE.lines.length ? lyricsLineText(index + 1) : '');
+  const media = getVideoElement();
+  const duration = getAuthoritativeDuration(media), time = getAuthoritativePlaybackTime(media);
+  doc.querySelector('.fill').style.setProperty('--p', String(Number.isFinite(duration) && duration > 0 && Number.isFinite(time) ? Math.min(1, time / duration) : 0));
+  const clock = seconds => { const t = Math.max(0, Math.floor(seconds)); return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`; };
+  const known = Number.isFinite(duration) && duration > 0 && Number.isFinite(time);
+  set('.elapsed', known ? clock(time) : '');
+  set('.remaining', known ? `-${clock(duration - time)}` : '');
+  const playing = Boolean(media && !media.paused);
+  if (shown.playing !== playing) {
+   shown.playing = playing;
+   play.innerHTML = miniPlayerIcon(playing ? 'pause' : 'play');
+   play.title = playing ? '一時停止' : '再生';
+   play.setAttribute('aria-label', play.title);
+  }
+  win.requestAnimationFrame(frame);
+ };
+ win.requestAnimationFrame(frame);
+ return true;
+}
+
+globalThis.ytmlsSideLyrics = Object.freeze({toggle: toggleSideLyrics, isOpen: sideLyricsOpen});
+globalThis.ytmlsMiniPlayer = Object.freeze({toggle: toggleMiniPlayer, isOpen: () => Boolean(miniPlayerWindow), supported: miniPlayerSupported});
+
+// Feature: share-card.js
+// ---------- Lyrics share card (like Apple Music's lyrics sharing) ----------
+// Pick up to four lines; they are drawn on a card in the cover's colours with the song's artwork,
+// title and artist, to copy as an image or save as a PNG. Everything is drawn here, in the page.
+const SHARE_CARD_WIDTH = 1080, SHARE_CARD_HEIGHT = 1350, SHARE_MAX_LINES = 4;
+const SHARE_FONT = '-apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", "Segoe UI", Roboto, sans-serif';
+let shareCardEl = null;
+
+function shareArtworkUrl() {
+ const img = document.querySelector('ytmusic-player-bar img.image, ytmusic-player-bar .thumbnail-image-wrapper img, ytmusic-player #song-image img');
+ const url = img?.currentSrc || img?.src || '';
+ if (!/^https:\/\/[^/]*(ytimg\.com|googleusercontent\.com|ggpht\.com)\//.test(url)) return '';
+ return url.replace(/=w\d+-h\d+(-[^/?#]*)?$/, '=w720-h720-l90-rj').replace(/\/(?:default|mqdefault|sddefault)\.jpg/, '/hqdefault.jpg');
+}
+
+// The cover, readable for drawing if the image server allows it (else null: the card uses the
+// colours Music Glass took from it, or a plain dark gradient).
+function loadShareArtwork(url) {
+ return new Promise(resolve => {
+  if (!url) { resolve(null); return; }
+  const image = new Image();
+  image.crossOrigin = 'anonymous';
+  image.onload = () => resolve(image);
+  image.onerror = () => resolve(null);
+  image.src = url;
+ });
+}
+
+function shareWrap(ctx, text, maxWidth) {
+ const rows = [];
+ for (const paragraph of String(text).split('\n')) {
+  let row = '';
+  for (const char of paragraph) {
+   const next = row + char;
+   if (ctx.measureText(next).width <= maxWidth || !row) { row = next; continue; }
+   // Latin words break at the last space; Japanese breaks anywhere.
+   const space = row.lastIndexOf(' ');
+   if (space > 0 && /[A-Za-z0-9]/.test(char)) { rows.push(row.slice(0, space)); row = row.slice(space + 1) + char; }
+   else { rows.push(row); row = char.trim() ? char : ''; }
+  }
+  if (row) rows.push(row);
+ }
+ return rows;
+}
+
+function auroraColors() {
+ const style = getComputedStyle(document.documentElement);
+ return ['--mg-aurora-1', '--mg-aurora-2', '--mg-aurora-3'].map(key => style.getPropertyValue(key).trim()).filter(Boolean).map(value => `rgb(${value})`);
+}
+
+function drawShareCard(canvas, {lines, title, artist, artwork}) {
+ const W = SHARE_CARD_WIDTH, H = SHARE_CARD_HEIGHT;
+ canvas.width = W; canvas.height = H;
+ const ctx = canvas.getContext('2d');
+ // Background: the cover blown up, blurred and deepened; without it, its colours as a gradient.
+ const colors = auroraColors();
+ const base = ctx.createLinearGradient(0, 0, W, H);
+ base.addColorStop(0, colors[0] || '#5a2a48');
+ base.addColorStop(.55, colors[1] || '#2b2440');
+ base.addColorStop(1, colors[2] || '#161520');
+ ctx.fillStyle = base; ctx.fillRect(0, 0, W, H);
+ if (artwork) {
+  const side = Math.min(artwork.naturalWidth, artwork.naturalHeight);
+  ctx.save();
+  ctx.filter = 'blur(70px) saturate(1.6) brightness(.72)';
+  ctx.drawImage(artwork, (artwork.naturalWidth - side) / 2, (artwork.naturalHeight - side) / 2, side, side, -260, -200, H + 300, H + 300);
+  ctx.restore();
+ }
+ const veil = ctx.createLinearGradient(0, 0, 0, H);
+ veil.addColorStop(0, 'rgba(0,0,0,.12)'); veil.addColorStop(1, 'rgba(0,0,0,.42)');
+ ctx.fillStyle = veil; ctx.fillRect(0, 0, W, H);
+
+ const pad = 96;
+ // Header: artwork with a soft shadow, then title and artist.
+ const art = 168;
+ ctx.save();
+ ctx.shadowColor = 'rgba(0,0,0,.4)'; ctx.shadowBlur = 40; ctx.shadowOffsetY = 14;
+ ctx.beginPath(); ctx.roundRect(pad, pad, art, art, 22); ctx.fillStyle = 'rgba(255,255,255,.12)'; ctx.fill();
+ ctx.restore();
+ if (artwork) {
+  const side = Math.min(artwork.naturalWidth, artwork.naturalHeight);
+  ctx.save(); ctx.beginPath(); ctx.roundRect(pad, pad, art, art, 22); ctx.clip();
+  ctx.drawImage(artwork, (artwork.naturalWidth - side) / 2, (artwork.naturalHeight - side) / 2, side, side, pad, pad, art, art);
+  ctx.restore();
+ }
+ const textX = pad + art + 36, textW = W - textX - pad;
+ ctx.fillStyle = '#fff'; ctx.textBaseline = 'alphabetic';
+ ctx.font = `700 44px ${SHARE_FONT}`;
+ const titleRows = shareWrap(ctx, title || '', textW).slice(0, 2);
+ let y = pad + 62;
+ for (const row of titleRows) { ctx.fillText(row, textX, y); y += 54; }
+ ctx.fillStyle = 'rgba(255,255,255,.7)'; ctx.font = `500 34px ${SHARE_FONT}`;
+ ctx.fillText(shareWrap(ctx, artist || '', textW)[0] || '', textX, y + 2);
+
+ // The lines: large and heavy, fitted to the space between the header and the footer.
+ const top = pad + art + 90, bottom = H - pad - 70, width = W - pad * 2;
+ let size = 84, rows = [];
+ for (; size >= 44; size -= 4) {
+  ctx.font = `800 ${size}px ${SHARE_FONT}`;
+  rows = lines.map(line => shareWrap(ctx, line, width));
+  const height = rows.reduce((sum, group) => sum + group.length * size * 1.22, 0) + (rows.length - 1) * size * .5;
+  if (height <= bottom - top) break;
+ }
+ const lineHeight = size * 1.22;
+ const total = rows.reduce((sum, group) => sum + group.length * lineHeight, 0) + (rows.length - 1) * size * .5;
+ y = top + Math.max(0, (bottom - top - total) / 2) + size;
+ ctx.fillStyle = '#fff';
+ ctx.shadowColor = 'rgba(0,0,0,.25)'; ctx.shadowBlur = 24;
+ for (const group of rows) {
+  for (const row of group) { ctx.fillText(row, pad, y); y += lineHeight; }
+  y += size * .5;
+ }
+ ctx.shadowBlur = 0;
+ // Footer.
+ ctx.fillStyle = 'rgba(255,255,255,.55)'; ctx.font = `600 28px ${SHARE_FONT}`;
+ ctx.fillText('YT Music 歌詞シンクロ', pad, H - pad);
+}
+
+function closeShareCard() {
+ if (!shareCardEl) return;
+ const el = shareCardEl;
+ shareCardEl = null;
+ el.classList.remove('is-open');
+ setTimeout(() => el.remove(), 220);
+}
+
+async function openShareCard() {
+ if (shareCardEl || !STATE.lines.length) return;
+ const title = STATE.lastDisplayedTitle || '', artist = STATE.lastDisplayedArtist || '';
+ const texts = STATE.lines.map(line => String(line.text || '').trim());
+ const current = typeof liveLyricsIndex === 'function' ? liveLyricsIndex() : -1;
+ const selected = new Set();
+ // Start with the line being sung and the next one (or the first lines that have words).
+ const first = current >= 0 && texts[current] ? current : texts.findIndex(Boolean);
+ for (let i = first; i >= 0 && i < texts.length && selected.size < 2; i++) if (texts[i]) selected.add(i);
+
+ const el = document.createElement('div');
+ el.id = 'ytmls-share';
+ el.setAttribute('role', 'dialog');
+ el.setAttribute('aria-modal', 'true');
+ el.setAttribute('aria-label', '歌詞を共有');
+ el.innerHTML = `<div class="ytmls-share-sheet">
+  <div class="ytmls-share-head"><strong>歌詞を共有</strong><span class="ytmls-share-hint">行を選んでください（${SHARE_MAX_LINES}行まで）</span><button type="button" class="ytmls-share-close" aria-label="閉じる">×</button></div>
+  <div class="ytmls-share-body"><div class="ytmls-share-lines" role="listbox" aria-multiselectable="true"></div><div class="ytmls-share-preview"><canvas></canvas></div></div>
+  <div class="ytmls-share-actions"><span class="ytmls-share-status" role="status"></span><button type="button" class="ytmls-share-save">画像を保存</button><button type="button" class="ytmls-share-copy">画像をコピー</button></div>
+ </div>`;
+ document.body.append(el);
+ shareCardEl = el;
+ requestAnimationFrame(() => el.classList.add('is-open'));
+ const canvas = el.querySelector('canvas');
+ const status = el.querySelector('.ytmls-share-status');
+ const list = el.querySelector('.ytmls-share-lines');
+ const artwork = await loadShareArtwork(shareArtworkUrl());
+ let exportable = true;
+ const redraw = () => {
+  const lines = [...selected].sort((a, b) => a - b).map(i => texts[i]);
+  drawShareCard(canvas, {lines: lines.length ? lines : ['♪'], title, artist, artwork});
+  try { canvas.getContext('2d').getImageData(0, 0, 1, 1); exportable = true; } catch (_) { exportable = false; }
+ };
+ texts.forEach((text, index) => {
+  if (!text) return;
+  const row = document.createElement('button');
+  row.type = 'button';
+  row.className = 'ytmls-share-line';
+  row.setAttribute('role', 'option');
+  row.textContent = text;
+  const sync = () => row.setAttribute('aria-selected', String(selected.has(index)));
+  sync();
+  row.addEventListener('click', () => {
+   if (selected.has(index)) selected.delete(index);
+   else if (selected.size < SHARE_MAX_LINES) selected.add(index);
+   else { status.textContent = `${SHARE_MAX_LINES}行までです`; return; }
+   status.textContent = '';
+   sync(); redraw();
+  });
+  list.append(row);
+  if (index === first) requestAnimationFrame(() => { list.scrollTop = Math.max(0, row.offsetTop - 80); });
+ });
+ redraw();
+ const blob = () => new Promise((resolve, reject) => {
+  if (!exportable) { reject(new Error('artwork')); return; }
+  canvas.toBlob(value => value ? resolve(value) : reject(new Error('blob')), 'image/png');
+ });
+ el.querySelector('.ytmls-share-copy').addEventListener('click', async () => {
+  try {
+   const image = await blob();
+   await navigator.clipboard.write([new ClipboardItem({'image/png': image})]);
+   status.textContent = 'コピーしました';
+  } catch (_) { status.textContent = 'コピーできませんでした。「画像を保存」を使ってください'; }
+ });
+ el.querySelector('.ytmls-share-save').addEventListener('click', async () => {
+  try {
+   const image = await blob();
+   const link = document.createElement('a');
+   link.href = URL.createObjectURL(image);
+   link.download = `${(title || 'lyrics').replace(/[\\/:*?"<>|]+/g, '_').slice(0, 60)}.png`;
+   link.click();
+   setTimeout(() => URL.revokeObjectURL(link.href), 4000);
+   status.textContent = '保存しました';
+  } catch (_) { status.textContent = '保存できませんでした'; }
+ });
+ el.querySelector('.ytmls-share-close').addEventListener('click', closeShareCard);
+ el.addEventListener('click', event => { if (event.target === el) closeShareCard(); });
+ el.addEventListener('keydown', event => { if (event.key === 'Escape') { event.stopPropagation(); closeShareCard(); } });
+ el.querySelector('.ytmls-share-close').focus();
+}
+
+// Feature: glass-segment.js
+let glassSegmentAttachCount = 0;
+// Glass segmented control (Small / Medium / Large): a glass bead marks the chosen button.
+// Pressing lifts it at once (like iOS): it becomes a clear lens and goes under the finger. Slide
+// to move it: it follows the pointer on a spring,
+// stretches with its speed and magnifies the label under it. It never leaves the track: pulled
+// past an end it squashes against the wall, and it bounces off the walls inside the track.
+// A short tap still works as a normal button.
+
+// Rubber band past the ends: moves less and less the further it is pulled (at most `limit`).
+function glassSegmentRubber(over, limit) {
+ if (!over || limit <= 0) return 0;
+ return Math.sign(over) * limit * (1 - 1 / (Math.abs(over) / limit + 1));
+}
+
+// What the last drag did, for 診断情報 (to find out why the drop does not show on a device).
+const glassLensReport = {lastDrag: 'none', lastEnd: 'none'};
+function glassLensDiagnostics() {
+ const root = document.documentElement;
+ let supports = false, reduced = false;
+ try { supports = CSS.supports('backdrop-filter', 'url(#ytmls-lg-lens) blur(1px)'); } catch (_) {}
+ try { reduced = matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (_) {}
+ return `lensClass=${root.classList.contains('ytmls-lg-lens')} supports=${supports} filters=${Boolean(document.getElementById('ytmls-lg-filters'))}` +
+  ` lightweight=${root.classList.contains('ytmls-lyrics-motion-lightweight')} reducedMotion=${reduced} lastDrag=${glassLensReport.lastDrag} lastEnd=${glassLensReport.lastEnd}`;
+}
+
+function glassSegmentMotion() {
+ return typeof playerFeedbackEnabled !== 'function' || playerFeedbackEnabled();
+}
+
+// opts (all optional) let it run on controls that are not buttons, such as YouTube Music's tabs:
+// items() lists the choices, isSelected / isDisabled read them, activate picks one, watch names the
+// attributes that change when the choice changes, settleMs waits for a page that selects later, and
+// enabled() can switch the whole behavior off.
+function attachGlassSegment(group, opts = {}) {
+ if (!group || group.glassSegment) return group?.glassSegment;
+ const isSelected = opts.isSelected || (item => item.getAttribute('aria-pressed') === 'true');
+ const isDisabled = opts.isDisabled || (item => Boolean(item.disabled));
+ const activate = opts.activate || (item => item.click());
+ const enabled = opts.enabled || (() => true);
+ // canPress(): may a press start now (YouTube Music's tabs stay in the page, invisible, while the
+ // Now Playing page is closed; a press there must not lift a drop over the home page).
+ const canPress = opts.canPress || (() => true);
+ const settleMs = opts.settleMs || 0;
+ const thumb = document.createElement('span');
+ thumb.className = 'ytmls-seg-thumb';
+ thumb.setAttribute('aria-hidden', 'true');
+ group.prepend(thumb);
+ group.classList.add('ytmls-glass-segment');
+
+ const buttons = opts.items || (() => [...group.querySelectorAll(':scope > button')]);
+ const pressed = () => buttons().find(isSelected);
+ // The choice an event happened on (its target may be a label inside it).
+ const itemOf = node => buttons().find(item => item === node || item.contains?.(node)) || null;
+ // Layout is measured once when a drag starts and reused for every frame: reading positions right
+ // after writing styles would make the browser lay out the (large) page again on each frame.
+ let layout = null;
+ function measure() {
+  const list = buttons(), rect = group.getBoundingClientRect();
+  layout = {left: rect.left, top: rect.top, height: group.offsetHeight, list, slots: list.map(button => ({x: button.offsetLeft, w: button.offsetWidth})), pressable: canPress()};
+  return layout;
+ }
+ const slot = button => {
+  const index = layout ? layout.list.indexOf(button) : -1;
+  return index >= 0 ? layout.slots[index] : {x: button.offsetLeft, w: button.offsetWidth};
+ };
+ const groupRect = () => layout || group.getBoundingClientRect();
+ const groupHeight = () => layout ? layout.height : group.offsetHeight;
+ // Spring state: position and width follow their targets; a smoothed velocity drives the stretch.
+ const state = {x: 0, w: 0, vx: 0, vw: 0, vs: 0, tx: 0, tw: 0, frame: 0, last: 0, placed: false, dragging: false, grab: 0, squash: 0, sq: 0, vsq: 0,
+  // How lifted the drop is: 0 = the size of the bead, 1 = lifted. One spring carries it up on press
+  // (a little past, a pop) and down on release (a little under: a short squash as it lands).
+  lift: 0, vlift: 0, liftTarget: 0};
+ let drawnWidth = -1, lensSize = '';
+
+ // ---------- The drop: a real lens while dragging ----------
+ // Inside the glass menu a backdrop filter would only see the menu itself, so while dragging a
+ // clear drop is shown above the page (fixed, at the bead's place) and bends everything under it:
+ // the labels, the track and the menu glass, with colors split at its rim like the iOS tab bar.
+ let lens = null;
+ const lensAllowed = () => Boolean(document.documentElement?.classList?.contains('ytmls-lg-lens')) &&
+  !document.documentElement.classList.contains('ytmls-lyrics-motion-lightweight') &&
+  typeof group.getBoundingClientRect === 'function' && Boolean(document.documentElement);
+ // The drop covers the bead exactly as it is drawn: same anchor at a wall (it squashes against the
+ // wall like the bead, instead of shrinking toward its own middle and leaving the wall).
+ function placeLens(sx = 1, sy = 1, side = 'center') {
+  if (!lens) return;
+  if (!(layout ? layout.pressable : canPress())) { hideLens(); return; }
+  const rect = groupRect(), track = Math.max(0, groupHeight() - 6);
+  const {min, max} = bounds();
+  const trackLeft = rect.left + min, trackRight = rect.left + max + state.w;
+  const drawn = state.w * sx, lift = state.lift;
+  // Lifted it is a little bigger than the bead; landing (lift below 0) it is briefly wider and
+  // flatter, then settles to exactly the bead. Never past the track's ends.
+  let wide = 1 + .05 * lift, tall = 1 + .32 * lift;
+  if (lift < 0) { wide = 1 - lift * .34; tall = 1 + lift * .26; }
+  const width = Math.min(trackRight - trackLeft, drawn * wide), height = track * tall * sy;
+  lens.style.setProperty('--lift', Math.max(0, Math.min(1, lift)).toFixed(3));
+  let left;
+  if (side === 'left') left = rect.left + state.x;
+  else if (side === 'right') left = rect.left + state.x + state.w - width;
+  else left = rect.left + state.x + state.w / 2 - width / 2;
+  left = Math.max(trackLeft, Math.min(trackRight - width, left));
+  // Moved with the translate property (no layout); resized only when the size really changes.
+  lens.style.translate = `${left.toFixed(1)}px ${(rect.top + groupHeight() / 2 - height / 2).toFixed(1)}px`;
+  const size = `${width.toFixed(1)}|${height.toFixed(1)}`;
+  if (size !== lensSize) { lensSize = size; lens.style.width = `${width.toFixed(1)}px`; lens.style.height = `${height.toFixed(1)}px`; }
+ }
+ function showLens() {
+  const kind = press?.type || 'unknown';
+  if (lens) return;
+  if (!lensAllowed()) { glassLensReport.lastDrag = `${kind}: no drop (not allowed here)`; return; }
+  lens = document.createElement('div');
+  lens.className = 'ytmls-seg-lens';
+  lens.setAttribute('aria-hidden', 'true');
+  lensSize = '';
+  // On the root, not in <body>: a transform or filter on the page's body would move or clip it.
+  document.documentElement.append(lens);
+  group.dataset.lens = 'true';
+  placeLens();
+  const shown = lens;
+  glassLensReport.lastDrag = `${kind}: drop created`;
+  setTimeout(() => {
+   if (!shown.isConnected) return;
+   const style = getComputedStyle(shown), rect = shown.getBoundingClientRect();
+   glassLensReport.lastDrag = `${kind}: drop ${Math.round(rect.width)}x${Math.round(rect.height)} at ${Math.round(rect.left)},${Math.round(rect.top)}` +
+    ` display=${style.display} opacity=${style.opacity} backdrop=${style.backdropFilter || style.webkitBackdropFilter || 'none'}`;
+  }, 150);
+ }
+ function hideLens() {
+  if (!lens) return;
+  const leaving = lens;
+  lens = null;
+  delete group.dataset.lens;
+  leaving.classList.add('ytmls-seg-lens-out');
+  setTimeout(() => leaving.remove(), 200);
+ }
+
+ // The bead's travel inside the track for its current width.
+ function bounds(width = state.w) {
+  const list = buttons(), first = list[0], last = list.at(-1);
+  if (!first || !last) return {min: 0, max: 0};
+  return {min: slot(first).x, max: slot(last).x + slot(last).w - width};
+ }
+ function paint() {
+  const motion = glassSegmentMotion();
+  const speed = Math.min(1, Math.abs(state.vs) / 2400);
+  const stretch = motion ? speed * .22 : 0;
+  // Squash against a wall: narrower and a little taller, pressed to the wall it touches.
+  const squash = motion ? Math.max(0, Math.min(.35, state.sq)) : 0;
+  const {min, max} = bounds();
+  const side = state.x <= min + .5 ? 'left' : state.x >= max - .5 ? 'right' : 'center';
+  let sx = (1 + stretch) * (1 - squash * .6);
+  const sy = Math.min(1.1, (1 - stretch * .4) * (1 + squash * .3));
+  // Touching a wall it grows only away from it, so it never pokes out of the track.
+  if (side !== 'center') sx = Math.min(1, sx);
+  const width = Math.max(0, Math.round(state.w * 4) / 4);
+  if (width !== drawnWidth) { drawnWidth = width; thumb.style.width = `${width}px`; }
+  thumb.style.transformOrigin = side === 'center' ? 'center' : `${side} center`;
+  thumb.style.transform = `translateX(${Number(state.x.toFixed(3))}px) scale(${sx.toFixed(4)}, ${sy.toFixed(4)})`;
+  placeLens(sx, sy, side);
+ }
+ function step(...args) {
+  const started = globalThis.ytmlsPerfOn ? performance.now() : 0;
+  try { return stepMeasured(...args); } finally { if (started) globalThis.ytmlsPerfAdd?.('glass bead frames', performance.now() - started); }
+ }
+ function stepMeasured(now) {
+  state.frame = 0;
+  const dt = Math.min(.05, Math.max(.001, (now - (state.last || now)) / 1000 || .016));
+  state.last = now;
+  // Close behind the pointer while dragging; springy (overshoots and wobbles) when settling.
+  // Integrated in small fixed steps: a stiff spring over a long frame (the lens is heavy, frames
+  // can take 30 ms or more) would otherwise blow up and make the bead drift or shake.
+  // Dragging: critically damped (right behind the finger, no overshoot, no wobble).
+  const stiffness = state.dragging ? 6000 : 420, damping = state.dragging ? 155 : 17;
+  const {min, max} = bounds();
+  for (let left = dt; left > 1e-6; left -= .004) {
+   const h = Math.min(.004, left);
+   state.vx += ((state.tx - state.x) * stiffness - state.vx * damping) * h;
+   state.vw += ((state.tw - state.w) * stiffness - state.vw * damping) * h;
+   // The squash springs back on its own, so a release from the wall wobbles too.
+   state.vsq += ((state.squash - state.sq) * 700 - state.vsq * 16) * h;
+   state.x += state.vx * h; state.w += state.vw * h; state.sq += state.vsq * h;
+   state.vlift += ((state.liftTarget - state.lift) * 380 - state.vlift * 17) * h;
+   state.lift += state.vlift * h;
+   // Walls: the bead stays inside the track and bounces off, squashing with the hit.
+   if (max >= min && (state.x < min || state.x > max)) {
+    state.x = state.x < min ? min : max;
+    if (glassSegmentMotion()) state.vsq += Math.min(14, Math.abs(state.vx) / 90);
+    state.vx = -state.vx * .35;
+   }
+  }
+  if (state.sq < 0) { state.sq = 0; state.vsq = Math.abs(state.vsq) * .3; }
+  // The stretch follows a smoothed speed, so uneven pointer events do not make it flicker.
+  state.vs += (state.vx - state.vs) * Math.min(1, dt * 14);
+  // Landed to the eye (the last wobble is below a pixel): swap the heavy drop for the bead now.
+  if (lens && !state.dragging && state.liftTarget === 0 && Math.abs(state.lift) < .03 && Math.abs(state.vlift) < .4 &&
+   Math.abs(state.tx - state.x) < .5 && Math.abs(state.vx) < 15) { paint(); hideLens(); }
+  const resting = Math.abs(state.tx - state.x) < .3 && Math.abs(state.vx) < 8 && Math.abs(state.tw - state.w) < .3 && Math.abs(state.vw) < 8 &&
+   Math.abs(state.squash - state.sq) < .004 && Math.abs(state.vsq) < .05 &&
+   Math.abs(state.liftTarget - state.lift) < .006 && Math.abs(state.vlift) < .06;
+  if (resting && !state.dragging) {
+   state.x = state.tx; state.w = state.tw; state.vx = state.vw = state.vs = 0; state.sq = state.squash; state.vsq = 0; state.last = 0;
+   state.lift = state.liftTarget; state.vlift = 0;
+   paint();
+   // Landed: the drop is now exactly the bead, so they swap with a short cross-fade.
+   hideLens();
+   layout = null; // measured again for the next drag
+   return;
+  } else {
+   state.frame = requestAnimationFrame(step);
+  }
+  paint();
+ }
+ function moveTo(x, w, animate = true) {
+  state.tx = x; state.tw = w;
+  if (!animate || !state.placed || !glassSegmentMotion() || typeof requestAnimationFrame !== 'function') {
+   if (state.frame && typeof cancelAnimationFrame === 'function') cancelAnimationFrame(state.frame);
+   state.frame = 0; state.last = 0;
+   state.x = x; state.w = w; state.vx = state.vw = 0; state.sq = state.squash = state.vsq = 0; state.placed = w > 0;
+   // The animation that would have put the drop away is cancelled here, so put it away now (else
+   // it stayed on the old tab, looking like a second chosen one).
+   if (!state.dragging) { state.lift = state.liftTarget = 0; state.vlift = 0; hideLens(); }
+   paint();
+   return;
+  }
+  // Measured once for the whole glide (each frame then only writes the bead's transform; reading
+  // positions after that write made the browser lay the page out again on every frame, 60ms each
+  // on a big YouTube Music page).
+  if (!layout) measure();
+  if (!state.frame) state.frame = requestAnimationFrame(step);
+ }
+ function sync(animate = true) {
+  if (state.dragging) return;
+  layout = null;
+  const button = pressed();
+  thumb.hidden = !button;
+  if (!button) return;
+  const target = slot(button);
+  if (!target.w) return; // menu closed: placed again when it opens
+  moveTo(target.x, target.w, animate);
+ }
+ function nearest(centerX) {
+  let best = null, distance = Infinity;
+  for (const button of buttons()) {
+   const s = slot(button), d = Math.abs(s.x + s.w / 2 - centerX);
+   if (d < distance) { distance = d; best = button; }
+  }
+  return best;
+ }
+ function markUnder(button) {
+  for (const item of buttons()) item.classList.toggle('ytmls-seg-under', item === button);
+ }
+
+ // ---------- Press and drag ----------
+ // Like iOS: pressing lifts the bead at once (it turns into the lens, even before moving) and it
+ // stays centered under the pointer; releasing picks the size under the pointer. A quick tap is
+ // the same lift and release. The pointer is captured on press so every move reaches the control,
+ // and the browser's own click is swallowed (the release has already chosen).
+ let press = null, suppressClick = false;
+ function swallowNextClick() {
+  suppressClick = true;
+  setTimeout(() => { suppressClick = false; }, 0);
+ }
+ function beginDrag() {
+  if (!press || state.dragging) return;
+  measure();
+  state.dragging = true;
+  group.dataset.dragging = 'true';
+  showLens();
+  state.liftTarget = 1;
+  if (!glassSegmentMotion()) { state.lift = 1; state.vlift = 0; }
+  thumb.hidden = false;
+  const current = pressed() || press.button;
+  if (current) { const s = slot(current); state.tw = s.w; if (!state.placed) moveTo(s.x, s.w, false); }
+  // Centered under the pointer, so the size chosen on release is the one under the finger.
+  state.grab = state.tw / 2;
+  follow(press.lastX);
+ }
+ function follow(clientX) {
+  const rect = groupRect();
+  const first = buttons()[0], last = buttons().at(-1);
+  if (!first || !last) return;
+  const min = slot(first).x, max = slot(last).x + slot(last).w - state.tw;
+  const raw = clientX - rect.left - state.grab;
+  const x = Math.max(min, Math.min(max, raw));
+  // Past an end the bead stays put and squashes harder the further it is pulled.
+  const band = glassSegmentRubber(raw - x, state.tw * .35);
+  const under = nearest(x + state.tw / 2);
+  if (under) state.tw = slot(under).w;
+  markUnder(under);
+  state.tx = x;
+  state.squash = state.tw ? Math.abs(band) / state.tw : 0;
+  if (!state.frame && typeof requestAnimationFrame === 'function') state.frame = requestAnimationFrame(step);
+ }
+ function endDrag(commit) {
+  const wasDragging = state.dragging;
+  press = null;
+  if (!wasDragging) return;
+  state.dragging = false;
+  state.squash = 0;
+  // The drop is not dropped here: it glides to the chosen size and shrinks into the bead there.
+  state.liftTarget = 0;
+  if (!glassSegmentMotion()) { state.lift = 0; state.vlift = 0; hideLens(); }
+  delete group.dataset.dragging;
+  markUnder(null);
+  const target = nearest(state.tx + state.w / 2);
+  if (!state.frame && typeof requestAnimationFrame === 'function') state.frame = requestAnimationFrame(step);
+  if (target) {
+   const s = slot(target);
+   moveTo(s.x, s.w);
+   if (commit && !isDisabled(target) && !isSelected(target)) activate(target);
+   // Not taken (e.g. the song is still loading): go back to the size actually in use, so the
+   // bead never shows a size the lyrics do not have.
+   const check = () => { if (!isSelected(target)) sync(); };
+   if (settleMs) setTimeout(check, settleMs); else check();
+  }
+  swallowNextClick();
+ }
+ // The button under a point (with the pointer captured, events report the group as their target).
+ function buttonAt(clientX) {
+  const x = clientX - groupRect().left;
+  return buttons().find(button => { const s = slot(button); return x >= s.x && x < s.x + s.w; }) || null;
+ }
+ // While a drag runs, the whole window is watched (capture phase), not only this control: if the
+ // page captures the pointer for itself, or capture is lost, the drag still follows the pointer and
+ // ends where it is released.
+ const watched = ['pointermove', 'pointerup', 'pointercancel'];
+ function onWindowPointer(event) {
+  if (!press || event.pointerId !== press.id) return;
+  if (event.type === 'pointermove') {
+   if (!state.dragging) return;
+   press.lastX = event.clientX;
+   follow(event.clientX);
+   return;
+  }
+  if (event.type === 'pointerup') { noteEnd('pointerup'); follow(event.clientX); }
+  else if (!state.dragging) { stopWatching(); press = null; return; }
+  else noteEnd('pointercancel');
+  // The browser taking a drag over (selection, native drag, touch scroll) still picks the size the
+  // bead was slid to, instead of sending it back.
+  stopWatching();
+  endDrag(true);
+ }
+ function startWatching() { for (const type of watched) window.addEventListener(type, onWindowPointer, true); }
+ function stopWatching() { for (const type of watched) window.removeEventListener(type, onWindowPointer, true); }
+ function noteEnd(how) {
+  const from = press ? Math.round(press.startX) : '?', to = press ? Math.round(press.lastX) : '?';
+  glassLensReport.lastEnd = `${how} ${from}->${to}`;
+ }
+ group.addEventListener('pointerdown', event => {
+  // Only a real press lifts the drop: the automatic switch to 歌詞 sends made-up pointer events.
+  if (event.isTrusted === false) return;
+  if (event.button !== 0 || !enabled() || !canPress() || buttons().every(isDisabled)) return;
+  press = {id: event.pointerId, type: event.pointerType || 'pointer', startX: event.clientX, lastX: event.clientX, button: itemOf(event.target) || buttonAt(event.clientX)};
+  try { group.setPointerCapture(event.pointerId); } catch (_) {}
+  startWatching();
+  beginDrag();
+ });
+ // Losing the capture does not end the drag (the window still reports the pointer).
+ group.addEventListener('lostpointercapture', () => { if (state.dragging && press) glassLensReport.lastEnd = 'capture lost (still following)'; });
+ // Keep the browser from starting its own selection or drag from the labels.
+ group.addEventListener('dragstart', event => event.preventDefault());
+ group.addEventListener('selectstart', event => event.preventDefault());
+ // Pointer clicks were handled above; keyboard clicks (Enter, Space) still move the bead.
+ group.addEventListener('click', event => {
+  if (event.isTrusted && suppressClick) { event.stopPropagation(); event.preventDefault(); return; }
+  const button = itemOf(event.target);
+  if (button && !isDisabled(button) && !state.dragging) { const s = slot(button); if (s.w) moveTo(s.x, s.w); }
+ }, true);
+ // The page's own press handling (YouTube Music selects a tab on its own tap) must not also act on
+ // a press this control is handling: the release already chose.
+ for (const type of ['mousedown', 'mouseup', 'touchstart', 'touchend']) {
+  group.addEventListener(type, event => { if ((press || state.dragging || suppressClick) && event.isTrusted) event.stopPropagation(); }, true);
+ }
+ group.addEventListener('contextmenu', event => { if (press || state.dragging) event.preventDefault(); });
+
+ // A scroll or resize during a drag moves the control: measure it again.
+ const remeasure = () => { if (state.dragging) measure(); };
+ if (typeof window !== 'undefined' && window.addEventListener) {
+  window.addEventListener('scroll', remeasure, {capture: true, passive: true});
+  window.addEventListener('resize', remeasure, {passive: true});
+ }
+
+ // Follow the saved size (it changes after storage writes and in other tabs) and the layout.
+ if (typeof MutationObserver === 'function') {
+  // This control's own marker class (the label under the drop) is not a change of choice.
+  const own = value => String(value || '').split(/\s+/).filter(name => name && name !== 'ytmls-seg-under').sort().join(' ');
+  new MutationObserver(records => {
+   if (records.every(r => r.attributeName === 'class' && own(r.oldValue) === own(r.target.getAttribute('class')))) return;
+   sync();
+  }).observe(group, {subtree: true, attributes: true, attributeOldValue: true, attributeFilter: opts.watch || ['aria-pressed']});
+ }
+ if (typeof ResizeObserver === 'function') new ResizeObserver(() => sync(false)).observe(group);
+ sync(false);
+ glassSegmentAttachCount += 1;
+ group.glassSegment = {sync, state, thumb};
+ return group.glassSegment;
+}
+
+// ---------- YouTube Music's player-page tabs (次のコンテンツ / 歌詞 / コメント / 関連) ----------
+// The same draggable glass bead as the size control, on the tabs restyled as a segmented control
+// (liquid-glass.css). Only while the theme is on (html.music-glass); otherwise the tabs are untouched.
+function ytmTabSelected(tab) {
+ if (ytmExternalLyricsOpen() && tab.parentElement?.querySelector(':scope > .ytmls-external-native-label')) return ytmExternalLyricsTab(tab);
+ // YouTube Music can leave iron-selected on the previous tab for a while; aria-selected is the one
+ // it keeps right, so it decides whenever any tab has it.
+ if (tab.parentElement?.querySelector(':scope > tp-yt-paper-tab[aria-selected="true"]')) return tab.getAttribute('aria-selected') === 'true';
+ return tab.classList.contains('iron-selected');
+}
+function ytmTabDisabled(tab) {
+ if (ytmExternalLyricsTab(tab)) return false;
+ return tab.hasAttribute('disabled') || tab.getAttribute('aria-disabled') === 'true';
+}
+// YouTube Music selects a tab on a click (its tap gesture); a plain tap event is the fallback.
+// A song without YouTube Music lyrics: its 歌詞 tab is disabled and the extension shows its own lyrics
+// in its place (external-tab.js marks that tab .ytmls-external-native-label). The bead treats it as a
+// normal tab: chosen while those lyrics are open, and choosing it opens them.
+function ytmExternalLyricsTab(tab) {
+ return tab.classList.contains('ytmls-external-native-label');
+}
+function ytmExternalLyricsOpen() {
+ return document.documentElement.classList.contains('ytmls-external-lyrics-open');
+}
+function activateYtmTab(tab) {
+ if (ytmExternalLyricsTab(tab)) {
+  if (typeof openExternalLyrics === 'function') openExternalLyrics();
+  return;
+ }
+ if (ytmExternalLyricsOpen() && typeof closeExternalLyrics === 'function') { closeExternalLyrics(); if (typeof ensureLyricsMount === 'function') ensureLyricsMount(); }
+ try { tab.click(); } catch (_) {}
+ if (!ytmTabSelected(tab)) {
+  try { tab.dispatchEvent(new CustomEvent('tap', {bubbles: true, cancelable: true, composed: true})); } catch (_) {}
+ }
+}
+// YouTube Music's Now Playing controls can be pressed only while that page is open and they show.
+function ytmPlayerControlShown(el) {
+ const layout = document.querySelector('ytmusic-app-layout');
+ if (layout && (!layout.hasAttribute('player-page-open') && !layout.hasAttribute('player-fullscreened'))) return false;
+ if (typeof el?.checkVisibility === 'function' && !el.checkVisibility({opacityProperty: true, visibilityProperty: true})) return false;
+ const rect = el?.getBoundingClientRect?.();
+ return !rect || (rect.width > 0 && rect.height > 0 && rect.bottom > 0 && rect.top < (window.innerHeight || Infinity));
+}
+function ensureYtmTabGlassSegment() {
+ const root = document.documentElement;
+ if (!root?.classList.contains('music-glass')) return null;
+ // YouTube Music can leave an old tab bar in the page next to a new one: use the one that shows.
+ const all = [...document.querySelectorAll('ytmusic-player-page tp-yt-paper-tabs')];
+ // (Only asked when there are several: checkVisibility makes the browser work out the page's
+ // styles, and this runs every 300ms.)
+ const tabs = all.length === 1 ? all[0] : all.find(el => typeof el.checkVisibility !== 'function' || el.checkVisibility()) || all[0];
+ if (!tabs) return null;
+ // The tabs sit in #tabsContent inside paper-tabs (the bead must share their offset parent).
+ const first = tabs.querySelector('tp-yt-paper-tab');
+ const group = first?.parentElement;
+ // A bead left from an earlier set of tabs (YouTube Music can rebuild them in place) stays where
+ // it was and looks like a second chosen tab: only the current group keeps one.
+ for (const stale of document.querySelectorAll('ytmusic-player-page .ytmls-seg-thumb')) {
+  const owner = stale.parentElement;
+  if (owner !== group && owner?.classList.contains('ytmls-tabs-segment')) stale.remove();
+ }
+ if (group?.glassSegment) {
+  // YouTube Music may rewrite the bar's and group's classes: put the markers back.
+  tabs.classList.add('ytmls-tabs-glass');
+  group.classList.add('ytmls-tabs-segment');
+  // A tab chosen without a change the observer sees (YouTube Music swapping a tab's node, or a
+  // switch while the page was hidden): bring the bead to the chosen tab on the regular tick.
+  const segment = group.glassSegment;
+  const chosen = [...group.children].find(el => el.localName === 'tp-yt-paper-tab' && !el.classList.contains('ytmls-tab-hidden') && ytmTabSelected(el));
+  if (chosen && !segment.state.dragging && segment.lastChosen !== chosen) { segment.lastChosen = chosen; segment.sync(); }
+  return segment;
+ }
+ if (!group) return null;
+ tabs.classList.add('ytmls-tabs-glass');
+ group.classList.add('ytmls-tabs-segment');
+ return attachGlassSegment(group, {
+  items: () => [...group.children].filter(el => el.localName === 'tp-yt-paper-tab' && !el.classList.contains('ytmls-tab-hidden')),
+  isSelected: ytmTabSelected,
+  isDisabled: ytmTabDisabled,
+  activate: activateYtmTab,
+  watch: ['aria-selected', 'class'],
+  settleMs: 300,
+  enabled: () => document.documentElement.classList.contains('music-glass'),
+  canPress: () => ytmPlayerControlShown(group),
+ });
+}
+
+// ---------- YouTube Music's 曲 / 動画 switch (ytmusic-av-toggle) ----------
+// Restyled as the same segmented control as the tabs (liquid-glass.css), with the draggable bead.
+// The chosen side comes from the toggle's playback-mode (ATV = song, OMV = video); without it,
+// from a pressed/selected mark on the buttons.
+function ytmAvSelected(button) {
+ const toggle = button.closest('ytmusic-av-toggle');
+ const mode = String(toggle?.getAttribute('playback-mode') || '').toUpperCase();
+ if (mode.startsWith('ATV') || mode.startsWith('OMV')) return button.classList.contains('song-button') ? mode.startsWith('ATV') : mode.startsWith('OMV');
+ return button.getAttribute('aria-pressed') === 'true' || button.getAttribute('aria-selected') === 'true' ||
+  button.classList.contains('selected') || button.classList.contains('active') || button.hasAttribute('selected');
+}
+// Unavailable (a song without a video, for example): YouTube Music marks the toggle or its buttons.
+function ytmAvDisabled(toggle, button) {
+ const off = el => Boolean(el && (el.disabled || el.hasAttribute?.('disabled') || el.getAttribute?.('aria-disabled') === 'true'));
+ return Boolean(toggle?.hasAttribute('toggle-disabled') || toggle?.hasAttribute('disabled') || off(button));
+}
+function ensureYtmAvToggleGlass() {
+ if (!document.documentElement?.classList.contains('music-glass')) return null;
+ const toggle = document.querySelector('ytmusic-player-page ytmusic-av-toggle');
+ const song = toggle?.querySelector('.song-button');
+ const video = toggle?.querySelector('.video-button');
+ const group = song?.parentElement;
+ if (!group || !video || video.parentElement !== group) return null;
+ // The chosen side's label is white (marked here: playback-mode may be missing or named differently).
+ for (const button of [song, video]) button.classList.toggle('ytmls-av-on', ytmAvSelected(button));
+ // The whole switch looks unavailable when neither side can be chosen.
+ toggle.classList.toggle('ytmls-av-unavailable', ytmAvDisabled(toggle, song) && ytmAvDisabled(toggle, video) || ytmAvDisabled(toggle, video) && ytmAvSelected(song) || ytmAvDisabled(toggle, song) && ytmAvSelected(video));
+ if (group.glassSegment) return group.glassSegment;
+ toggle.classList.add('ytmls-av-glass');
+ group.classList.add('ytmls-av-segment');
+ const segment = attachGlassSegment(group, {
+  items: () => [...group.children].filter(el => el.classList.contains('song-button') || el.classList.contains('video-button')),
+  isSelected: ytmAvSelected,
+  isDisabled: button => ytmAvDisabled(toggle, button),
+  activate: button => button.click(),
+  watch: ['class', 'aria-pressed', 'aria-selected', 'selected', 'disabled'],
+  settleMs: 400,
+  enabled: () => document.documentElement.classList.contains('music-glass'),
+  canPress: () => ytmPlayerControlShown(group),
+ });
+ // playback-mode lives on the toggle, above the group the segment watches.
+ if (typeof MutationObserver === 'function') {
+  new MutationObserver(() => segment.sync()).observe(toggle, {attributes: true, attributeFilter: ['playback-mode', 'toggle-disabled']});
+ }
+ return segment;
+}
+
+// Feature: glass-morph.js
+// Glass surfaces grow out of the button that opens them and shrink back into it when closed,
+// like Liquid Glass: the window starts as the button's capsule, then stretches to full size on
+// a spring while its contents fade in. Used by the "その他" menu, the timing popover and the
+// lyrics tool pane. Without motion (lightweight mode, reduced motion) they open as before.
+const GLASS_MORPH_OPEN_MS = 460;
+const GLASS_MORPH_CLOSE_MS = 300;
+// Room around the surface so the clip never cuts off its shadow.
+const GLASS_MORPH_SHADOW_ROOM = 48;
+let glassMorphSpringEasing = null;
+
+// A soft spring (about 10% overshoot) as a CSS linear() curve; cubic-bezier where unsupported.
+function glassMorphEasing() {
+ if (glassMorphSpringEasing) return glassMorphSpringEasing;
+ const points = [];
+ const stiffness = 170, damping = 17, steps = 40;
+ let x = 0, v = 0;
+ const dt = 1 / 60;
+ const frames = Math.round(GLASS_MORPH_OPEN_MS / 1000 / dt);
+ for (let i = 0; i <= frames; i++) {
+  if (i % Math.max(1, Math.round(frames / steps)) === 0 || i === frames) points.push(i === frames ? 1 : Number(x.toFixed(4)));
+  v += ((1 - x) * stiffness - v * damping) * dt;
+  x += v * dt;
+ }
+ const curve = `linear(${points.join(', ')})`;
+ let supported = false;
+ try { supported = typeof CSS !== 'undefined' && CSS.supports('animation-timing-function', curve); } catch (_) {}
+ glassMorphSpringEasing = supported ? curve : 'cubic-bezier(.34, 1.4, .64, 1)';
+ return glassMorphSpringEasing;
+}
+
+function glassMorphAllowed(el) {
+ return Boolean(el?.animate) && (typeof playerFeedbackEnabled !== 'function' || playerFeedbackEnabled());
+}
+
+// The button's rectangle expressed on the surface: where on the surface the capsule starts
+// (the side nearest the button), and how far the surface must shift to sit on the button.
+function glassMorphStart(surface, anchor) {
+ const w = surface.width, h = surface.height;
+ const aw = Math.min(anchor.width, w), ah = Math.min(anchor.height, h);
+ const cx = Math.max(0, Math.min(w - aw, anchor.left - surface.left));
+ let cy;
+ if (anchor.top + anchor.height / 2 <= surface.top) cy = 0;
+ else if (anchor.top + anchor.height / 2 >= surface.bottom) cy = h - ah;
+ else cy = Math.max(0, Math.min(h - ah, anchor.top - surface.top));
+ return {
+  inset: `inset(${cy}px ${w - cx - aw}px ${h - cy - ah}px ${cx}px round ${ah / 2}px)`,
+  dx: anchor.left - (surface.left + cx), dy: anchor.top - (surface.top + cy),
+ };
+}
+
+// Stops a running morph on el: its animation and its own content fades (never other
+// animations, such as CSS ones on the children), and runs its onCancel cleanup.
+function stopGlassMorph(el) {
+ const run = el?.glassMorphRun;
+ if (!run) return false;
+ el.glassMorphRun = null;
+ el.glassMorph = null;
+ delete el.dataset.morphing;
+ run.animation.cancel();
+ for (const fade of run.fades) fade.cancel();
+ if (run.onCancel) run.onCancel();
+ return true;
+}
+
+// onDone runs when the morph completes (or at once without motion); onCancel runs instead
+// when another morph or stopGlassMorph interrupts it, so callers can undo their temporary state.
+function glassMorph(el, anchorEl, {closing = false, onDone, onCancel} = {}) {
+ const done = () => { if (onDone) onDone(); };
+ if (!el || !anchorEl?.isConnected || !glassMorphAllowed(el)) { stopGlassMorph(el); done(); return null; }
+ // Stop the previous morph before measuring: its transform would shift the rectangle.
+ stopGlassMorph(el);
+ const surface = el.getBoundingClientRect(), anchor = anchorEl.getBoundingClientRect();
+ if (!surface.width || !surface.height || !anchor.width || !anchor.height) { done(); return null; }
+ const start = glassMorphStart(surface, anchor);
+ const radius = parseFloat(getComputedStyle(el).borderTopLeftRadius) || 22;
+ const room = GLASS_MORPH_SHADOW_ROOM;
+ const capsule = {clipPath: start.inset, transform: `translate(${start.dx}px, ${start.dy}px)`};
+ // Fully open, the clip reaches past the edges (with matching rounded corners) so the shadow stays.
+ const open = {clipPath: `inset(${-room}px ${-room}px ${-room}px ${-room}px round ${radius + room}px)`, transform: 'translate(0px, 0px)'};
+ // Opening: the capsule fades in from the button. Closing: it moves fast at first, then eases
+ // into the button and melts into it instead of vanishing.
+ const keyframes = closing
+  ? [{...open, opacity: 1}, {opacity: 1, offset: .55}, {...capsule, opacity: 0}]
+  : [{...capsule, opacity: 0}, {opacity: 1, offset: .12}, {...open, opacity: 1}];
+ const animation = el.animate(keyframes, {
+  duration: closing ? GLASS_MORPH_CLOSE_MS : GLASS_MORPH_OPEN_MS,
+  easing: closing ? 'cubic-bezier(.25, .8, .25, 1)' : glassMorphEasing(),
+ });
+ // Contents fade in once the glass has room, and out first when it shrinks back.
+ const fades = [];
+ for (const child of el.children) {
+  fades.push(child.animate(closing ? [{opacity: 1}, {opacity: 0}] : [{opacity: 0}, {opacity: 0, offset: .25}, {opacity: 1}], {
+   duration: closing ? GLASS_MORPH_CLOSE_MS * .4 : GLASS_MORPH_OPEN_MS * .7, easing: 'ease-out', fill: closing ? 'forwards' : 'none',
+  }));
+ }
+ const run = {animation, fades, onCancel};
+ el.glassMorphRun = run;
+ el.glassMorph = animation;
+ el.dataset.morphing = closing ? 'closing' : 'opening';
+ animation.finished.then(() => {
+  if (el.glassMorphRun !== run) return;
+  el.glassMorphRun = null;
+  el.glassMorph = null;
+  delete el.dataset.morphing;
+  if (closing) for (const fade of fades) fade.cancel();
+  done();
+ }, () => {});
+ return animation;
 }
 
 // Feature: enhancements.js
@@ -7633,21 +9773,33 @@ function ensureEnhancementControls(){
   const sizes=document.createElement('div');sizes.className='ytmls-size-presets';sizes.setAttribute('aria-label','歌詞の文字サイズ');
   for(const [name,size] of [['小',26],['中',32],['大',40]]){const button=practiceButton(sizes,name,()=>{
    const id=practiceVideoId();if(!practiceCurrent(id)||!practiceLocalReady||!practiceSyncReady)return;
-   button.dataset.saving='true';button.disabled=true;void queuePracticeSettingsSave(()=>savePracticeEntry(id,{...practiceEntry(id),settings:{...(practiceEntry(id).settings||{}),fontSize:size}})).catch(e=>{button.title='保存できませんでした：'+e.message;}).finally(()=>{delete button.dataset.saving;button.disabled=false;});
-  });button.setAttribute('aria-label','文字サイズ '+name);}
+   // Shown at once (the lyrics and the chosen button); the save follows in order. The button
+   // stays usable while saving, so a quick change of mind is never ignored.
+   practicePendingSettings[id]={...(practicePendingSettings[id]||{}),fontSize:size};
+   applyPracticePrefs();
+   for(const other of sizes.querySelectorAll(':scope > button'))other.setAttribute('aria-pressed',String(other===button));
+   button.dataset.saving='true';
+   void queuePracticeSettingsSave(()=>savePracticeEntry(id,{...practiceEntry(id),settings:{...(practiceEntry(id).settings||{}),fontSize:size}}))
+    .then(()=>{
+     button.title='';
+     // The last choice wins: drop the pending value once its own save is done.
+     if(practicePendingSettings[id]?.fontSize===size){delete practicePendingSettings[id];applyPracticePrefs();}
+    })
+    .catch(e=>{
+     // Keep the chosen size on screen for now (it stays pending) and say why it was not kept.
+     button.title='保存できませんでした：'+e.message;
+     if(typeof reportSaveError==='function')reportSaveError(e);
+    })
+    .finally(()=>{delete button.dataset.saving;});
+  });button.setAttribute('aria-label','文字サイズ '+name);button.dataset.size=String(size);}
   display.querySelector('.ytmls-menu-label').after(sizes);
-  const mode=practiceButton(playback,'読むモード',()=>{chrome.storage.sync.set({trackingEnabled:!STATE.trackingEnabled},()=>{if(chrome.runtime.lastError)mode.title='設定を保存できませんでした';});});mode.id='ytmls-reading-mode';
-  const timing=practiceButton(playback,'同期タイミングを調整',event=>{
-   event.stopPropagation();
-   const details=menu.closest('details');
-   if(details)closeMoreMenu(details);
-   toggleTrackTimingPopover(details?.querySelector('summary') || trackTimingButtonEl);
-  });timing.id='ytmls-timing-shortcut';
+  if(typeof attachGlassSegment==='function')attachGlassSegment(sizes);
+  const mode=practiceButton(playback,'読むモード',()=>{chrome.storage.sync.set({trackingEnabled:!STATE.trackingEnabled},()=>{if(chrome.runtime.lastError)mode.title='設定を保存できませんでした';});});mode.id='ytmls-reading-mode';mode.dataset.icon='book';
+  // Timing is adjusted from the player bar's 歌詞 0.0秒 button (inside this menu on narrow windows), so no second entry here.
  }
- const mode=playback.querySelector('#ytmls-reading-mode'),modeLabel=STATE.trackingEnabled?'読むモードに切り替え':'追跡モードに切り替え';if(mode.textContent!==modeLabel)mode.textContent=modeLabel;const pressed=String(!STATE.trackingEnabled);if(mode.getAttribute('aria-pressed')!==pressed)mode.setAttribute('aria-pressed',pressed);
+ const mode=playback.querySelector('#ytmls-reading-mode'),modeLabel=STATE.trackingEnabled?'読むモードに切り替え':'追跡モードに切り替え';if(mode.textContent!==modeLabel)mode.textContent=modeLabel;mode.removeAttribute('aria-pressed');
  const available=practiceCurrent(STATE.displayedVideoId)&&STATE.lines.length>0;
- display.querySelectorAll('.ytmls-size-presets button').forEach(b=>{if(!b.dataset.saving)b.disabled=!available||!practiceLocalReady||!practiceSyncReady;});
- playback.querySelector('#ytmls-timing-shortcut').disabled=!STATE.hasSync||!trackTimingButtonEl?.isConnected||trackTimingButtonEl.disabled;
+ display.querySelectorAll('.ytmls-size-presets button').forEach(b=>{if(!b.dataset.saving)b.disabled=!available||!practiceLocalReady||!practiceSyncReady;const current=String(Number(b.dataset.size)===Number(STATE.fontSize));if(b.getAttribute('aria-pressed')!==current)b.setAttribute('aria-pressed',current);});
  const empty = panelEl.querySelector('#ytmls-empty');
  if (!empty) return;
  let emptyActions=empty.querySelector('#ytmls-empty-actions');
@@ -7660,17 +9812,28 @@ function ensureEnhancementControls(){
 
 // Feature: main.js
   // ---------- メイン ----------
-  function tick() {
+  function tick(...args) {
+   const started = globalThis.ytmlsPerfOn ? performance.now() : 0;
+   try { return tickMeasured(...args); } finally { if (started) globalThis.ytmlsPerfAdd?.('content tick (300ms)', performance.now() - started); }
+  }
+  // Each step of the regular tick is timed for the diagnostics (Perf: own=[tick:…]).
+  function tickPart(name, fn) {
+    const started = globalThis.ytmlsPerfOn ? performance.now() : 0;
+    try { return fn(); } finally { if (started) globalThis.ytmlsPerfAdd?.(`tick:${name}`, performance.now() - started); }
+  }
+  function tickMeasured() {
     if (document.hidden || !runtimeAvailable()) return;
-    if (typeof practiceTick === "function") practiceTick();
-    updateLyricsTheme();
-    ensureLyricsMount();
-    ensureVideoListener();
-    ensurePlayerBarTimingControl();
-    maintainLyricsAutoOpen();
+    if (typeof practiceTick === "function") tickPart("practiceTick", practiceTick);
+    tickPart("updateLyricsTheme", updateLyricsTheme);
+    tickPart("ensureLyricsMount", ensureLyricsMount);
+    tickPart("ensureVideoListener", ensureVideoListener);
+    tickPart("ensurePlayerBarTimingControl", ensurePlayerBarTimingControl);
+    if (typeof ensureYtmTabGlassSegment === "function") tickPart("ensureYtmTabGlassSegment", ensureYtmTabGlassSegment);
+    if (typeof ensureYtmAvToggleGlass === "function") tickPart("ensureYtmAvToggleGlass", ensureYtmAvToggleGlass);
+    tickPart("maintainLyricsAutoOpen", maintainLyricsAutoOpen);
 
     if (STATE.enabled) {
-      detectImmediateTrackTransition();
+      tickPart("detectImmediateTrackTransition", detectImmediateTrackTransition);
 
       // 歌詞取得前(hasSync=false)でも遷移ガードを必ず進める。
       // v1.6.3はここがRAF側のhasSync判定に阻まれ、endedVideoIdを
@@ -7679,17 +9842,17 @@ function ensureEnhancementControls(){
         canTrackCurrentPlayback(getVideoElement());
       }
 
-      checkTrackChange();
+      tickPart("checkTrackChange", checkTrackChange);
       if (STATE.pendingInitialHighlight && STATE.hasSync && trackingDisplayVisible()) {
         updateHighlight(getAuthoritativePlaybackTime(getVideoElement()), true);
       }
-      runAutoRecoveryWatchdog();
-      updatePlayerBarHealth();
-      updateDiagnosticsSummary();
+      tickPart("runAutoRecoveryWatchdog", runAutoRecoveryWatchdog);
+      tickPart("updatePlayerBarHealth", updatePlayerBarHealth);
+      tickPart("updateDiagnosticsSummary", updateDiagnosticsSummary);
     } else {
-      applySettings();
-      updatePlayerBarHealth();
-      updateDiagnosticsSummary();
+      tickPart("applySettings", applySettings);
+      tickPart("updatePlayerBarHealth", updatePlayerBarHealth);
+      tickPart("updateDiagnosticsSummary", updateDiagnosticsSummary);
     }
   }
 
@@ -7710,6 +9873,7 @@ function ensureEnhancementControls(){
       attributeFilter: ["page-type", "aria-selected", "selected", "aria-hidden"],
     });
     bindAutoLyricsIdleInteractionWatch();
+    bindProviderTestListener();
     loadSettings();
     initPracticeStorage();
     loadTrackTimingOffsets();
@@ -7719,7 +9883,15 @@ function ensureEnhancementControls(){
     loadPinnedLyrics();
     loadLocalLyrics();
     document.addEventListener("visibilitychange", () => { if (!document.hidden) tick(); });
-    setInterval(tick, 300);
+    // Run at the start of a frame: the page's styles and layout from the last frame are usually still
+    // valid then, so the tick's reads do not make the browser work them out again in the middle of
+    // other work (on a big YouTube Music page that was a pause of tens of milliseconds every 300ms).
+    let tickQueued = false;
+    setInterval(() => {
+      if (tickQueued || typeof requestAnimationFrame !== "function") { if (!tickQueued) tick(); return; }
+      tickQueued = true;
+      requestAnimationFrame(() => { tickQueued = false; tick(); });
+    }, 300);
     tick();
     // ページを開いた時点ですでに「次のコンテンツ」なら、無操作時だけ歌詞へ移動する。
     setTimeout(() => {

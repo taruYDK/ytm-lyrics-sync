@@ -1,6 +1,6 @@
 # YT Music 歌詞シンクロ
 
-単語ごとに同期する一部の歌詞で、行の先頭が表示されない問題を修正した3.2.1です。
+YouTube Musicの画面を、Mac版ミュージックのような見た目と操作に変えられるようになった3.3.0です。
 
 <div align="center">
 
@@ -8,7 +8,7 @@
 
 **YouTube Musicに、追いかけやすい歌詞と読み仮名を。**
 
-![Version 3.2.1](https://img.shields.io/badge/version-3.2.1-f59e0b?style=flat-square)
+![Version 3.3.0](https://img.shields.io/badge/version-3.3.0-f59e0b?style=flat-square)
 ![Edge / Chrome](https://img.shields.io/badge/browser-Edge%20%2F%20Chrome-3b82f6?style=flat-square)
 ![Manifest V3](https://img.shields.io/badge/extension-Manifest%20V3-8b5cf6?style=flat-square)
 [![MIT License](https://img.shields.io/badge/license-MIT-f59e0b?style=flat-square)](LICENSE)
@@ -24,6 +24,7 @@
 | 🎵 歌詞を追跡 | 再生に合わせて行・単語をハイライト。ふりがなも本文と一緒に追跡します。 |
 | 🔤 読み仮名を表示・編集 | 漢字にひらがな、英語にカタカナ。日本語と英語を別々にON/OFFし、行ごとの読みを修正・保存できます。 |
 | ⚙️ 曲ごとの表示設定 | 文字サイズ、日本語ふりがな、英語カタカナ読み、ローマ字の表示を曲ごとに自動保存します。 |
+| 🍎 Mac版ミュージック風の画面 | サイドバーと上部の再生コントロール、動くジャケット背景、右の歌詞パネル・次に再生、ミニプレーヤー、Mac風のショートカット。設定の「背景」でON/OFFできます。 |
 | 🖥️ 全画面歌詞ビュー | ジャケット背景で歌詞を表示し、左上の A− / A+ で文字サイズを調整できます。 |
 | 🔠 ローマ字表示 | 内蔵辞書から日本語歌詞のローマ字を作り、本文の下に表示します。 |
 | 🎨 Music Glass | ジャケットに合わせた背景テーマ。背景の濃さやスクロールバーの表示などを設定できます。 |
@@ -115,11 +116,11 @@
 
 設定画面の読み仮名OFFは、保存済みの曲別ON設定より優先されます。共通設定をONへ戻すと、その曲の設定を再び適用します。
 
-## v3.2.1の更新内容
+## v3.3.0の更新内容
 
-単語ごとに同期する一部の歌詞で、行の先頭の文字が表示されない問題を修正しました。Spaceキーの再生操作は常に有効です（切り替え設定はv3.2.0で削除）。
+YouTube Musicの画面を、Mac版ミュージックのようなサイドバーと上部の再生コントロールに置き換えられるようになりました（設定の「背景」→「Mac 版ミュージック風の画面」、初期値はON）。動くジャケット背景、右の歌詞パネル、次に再生（履歴・自動再生つき）、ミニプレーヤー、全画面歌詞のMac風レイアウトに加え、全体のガラスの見た目と動作の軽さも見直しました。
 
-[3.2.1の更新内容・更新方法](docs/releases/v3.2.1.md) · [過去の変更履歴](CHANGELOG.md)
+[3.3.0の更新内容・更新方法](docs/releases/v3.3.0.md) · [過去の変更履歴](CHANGELOG.md)
 
 ## 開発・不具合報告
 
