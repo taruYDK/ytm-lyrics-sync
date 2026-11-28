@@ -323,11 +323,11 @@ test('lyrics share card: a menu entry, up to four lines, copy and save', () => {
   assert.match(fs.readFileSync(new URL('../src/content/lyrics-panel.js', import.meta.url), 'utf8'), /openShareCard\(\)/);
 });
 
-test('Now Playing page spans the window under the floating sidebar, so its artwork keeps its size', () => {
+test('Now Playing page spans the window; the sidebar steps away and its button shows it over the page', () => {
   const js = read('apple-shell.js'), css = read('apple-shell.css');
   assert.match(js, /function fitPlayerPage\(\)/);
   assert.match(js, /attributeFilter: \['player-page-open', 'player-fullscreened'\]/, 'fitted before the page is drawn open');
   assert.match(css, /ytmusic-player-page\[style\*="--ytmls-am-page-shift"\] \{\s*margin-left: calc\(-1 \* var\(--ytmls-am-page-shift, 0px\)\) !important;/);
-  assert.doesNotMatch(css, /\[player-page-open\][^{]*\.ytmls-am-sidebar \{/, 'the sidebar stays (floating over the page)');
-  assert.match(js, /button\('collapse', '再生中の画面を閉じる（Esc）', 'collapse', closePlayerPage\)/);
+  assert.match(css, /:not\(\.ytmls-am-side-peek\) \.ytmls-am-sidebar \{\s*transform: translateX/, 'steps away unless shown over the page');
+  assert.match(js, /button\('collapse', 'サイドバーを表示', 'sidebar', \(\) => toggleSidePeek\(\)\)/, 'shows the sidebar instead of closing the page');
 });

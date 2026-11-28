@@ -1052,17 +1052,16 @@ html.ytmls-am ytmusic-app-layout[player-page-open]:not([player-fullscreened]) :i
   transition: visibility 0s linear 360ms;
 }
 
-/* ---------- Now Playing page across the whole window, the sidebar floating over it ----------
+/* ---------- Now Playing page across the whole window ----------
    The page is moved back to the window's left edge with the window's width while it is open
-   (apple-shell.js, fitPlayerPage); the sidebar stays and floats on top of it, like the glass sidebar
-   of the newest macOS, so widening or narrowing it no longer changes the page or its artwork. */
+   (apple-shell.js, fitPlayerPage), so the sidebar's width no longer changes the page or its artwork. */
 html.ytmls-am ytmusic-app-layout > ytmusic-player-page[style*="--ytmls-am-page-shift"] {
   margin-left: calc(-1 * var(--ytmls-am-page-shift, 0px)) !important;
   width: var(--ytmls-am-page-width, 100vw) !important;
   max-width: none !important;
 }
 .ytmls-am-sidebar { transition: width .42s cubic-bezier(.2, .9, .25, 1), padding .42s cubic-bezier(.2, .9, .25, 1), transform .42s cubic-bezier(.2, .9, .25, 1), opacity .3s ease; }
-/* The chevron that closes the page, at the toolbar's left end (only while the page is open). */
+/* The sidebar button at the toolbar's left end (only while the page is open). */
 .ytmls-am-collapse { display: none; }
 html.ytmls-am:has(ytmusic-app-layout[player-page-open]:not([player-fullscreened])) .ytmls-am-collapse {
   display: grid; width: 40px; height: 40px; border-radius: 999px;
@@ -1073,3 +1072,17 @@ html.ytmls-am:has(ytmusic-app-layout[player-page-open]:not([player-fullscreened]
 .ytmls-am-collapse svg { width: 20px; height: 20px; }
 @keyframes ytmls-am-collapse-in { from { opacity: 0; transform: translateX(-8px) scale(.9); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .ytmls-am-collapse { animation: none !important; } }
+/* While the Now Playing page is open the sidebar steps away (like the Mac's full screen player) and
+   the toolbar runs from the window's edge; the button at the toolbar's left end shows the sidebar
+   again over the page (the page stays open and keeps its size). */
+html.ytmls-am:has(ytmusic-app-layout[player-page-open]:not([player-fullscreened])):not(.ytmls-am-side-peek) .ytmls-am-sidebar {
+  transform: translateX(calc(-100% - 20px));
+  opacity: 0;
+  pointer-events: none;
+}
+html.ytmls-am:has(ytmusic-app-layout[player-page-open]:not([player-fullscreened])) .ytmls-am-toolbar { left: 0; }
+html.ytmls-am:has(ytmusic-app-layout[player-page-open]:not([player-fullscreened])) .ytmls-am-toolbar::before { inset: 0 0 -18px 0; }
+html.ytmls-am.ytmls-am-page-open .ytmls-am-menu { display: none !important; }
+/* Shown over the page: in front of the toolbar too, with a deeper shadow. */
+html.ytmls-am.ytmls-am-side-peek .ytmls-am-sidebar { z-index: 3; box-shadow: var(--am-hairline), 0 18px 50px rgb(0 0 0 / .5); }
+html.ytmls-am.ytmls-am-side-peek .ytmls-am-collapse { color: var(--am-accent, #fa2d48) !important; }

@@ -964,9 +964,9 @@
       button('next', '次へ', 'next', transport.next),
       button('repeat', 'リピート', 'repeat', transport.repeat),
     );
-    // While the Now Playing page is open this chevron closes it again (as do Esc and the now-playing
-    // display); the sidebar floats over the page meanwhile.
-    const collapse = button('collapse', '再生中の画面を閉じる（Esc）', 'collapse', closePlayerPage);
+    // While the Now Playing page is open the sidebar steps away (like the Mac's full screen player);
+    // this button brings it back over the page (the page stays open), and hides it again.
+    const collapse = button('collapse', 'サイドバーを表示', 'sidebar', () => toggleSidePeek());
     left.append(collapse, menu, controls);
 
     const lcd = document.createElement('div');
@@ -1189,6 +1189,19 @@
     for (let node = el; node; node = node.offsetParent) x += node.offsetLeft || 0;
     return x;
   }
+  // The sidebar shown over the open Now Playing page (until it is hidden again, the page closes or
+  // something outside the sidebar is clicked).
+  function toggleSidePeek(force) {
+    const on = typeof force === 'boolean' ? force : !root.classList.contains('ytmls-am-side-peek');
+    root.classList.toggle('ytmls-am-side-peek', on);
+    const el = document.querySelector('#ytmls-am .ytmls-am-collapse');
+    if (el) { const label = on ? 'サイドバーを隠す' : 'サイドバーを表示'; el.title = label; el.setAttribute('aria-label', label); el.setAttribute('aria-pressed', String(on)); }
+  }
+  document.addEventListener('pointerdown', event => {
+    if (!root.classList.contains('ytmls-am-side-peek')) return;
+    if (event.target?.closest?.('.ytmls-am-sidebar, .ytmls-am-collapse, ytmusic-menu-popup-renderer, tp-yt-iron-dropdown')) return;
+    toggleSidePeek(false);
+  }, true);
   let pageFitTimer = 0;
   function fitPlayerPage() {
     const layout = layoutEl();
@@ -1197,6 +1210,7 @@
     const open = active() && root.classList.contains('ytmls-am') && layout.hasAttribute('player-page-open') && !layout.hasAttribute('player-fullscreened');
     clearTimeout(pageFitTimer);
     root.classList.toggle('ytmls-am-page-open', open);
+    if (!open && root.classList.contains('ytmls-am-side-peek')) toggleSidePeek(false);
     if (!open) {
       const clear = () => { page.style.removeProperty('--ytmls-am-page-shift'); page.style.removeProperty('--ytmls-am-page-width'); };
       if (!active() || !root.classList.contains('ytmls-am')) { clear(); return; }
