@@ -319,3 +319,12 @@ test('songs without YouTube Music lyrics: the tabs\' bead moves to 歌詞 while 
   assert.match(seg, /if \(ytmExternalLyricsTab\(tab\)\) return false;/, 'that tab can be chosen with the bead');
   assert.match(css, /html\.music-glass #ytmls-external-tab, html\.music-glass #ytmls-external-tab\[aria-expanded="true"\] \{ border-bottom: 0 !important; background: transparent !important;/, 'no second pill: the bead shows it');
 });
+
+test('player tabs: only the glass bead shows the choice (no glass on a tab still marked from before)', () => {
+  const css = fs.readFileSync(new URL('../extension/liquid-glass.css', import.meta.url), 'utf8');
+  const seg = fs.readFileSync(new URL('../src/content/glass-segment.js', import.meta.url), 'utf8');
+  assert.match(css, /tp-yt-paper-tab:is\(\[aria-selected="true"\], \.iron-selected\) \{ background: transparent !important; box-shadow: none !important; \}/);
+  assert.doesNotMatch(css, /tp-yt-paper-tab:is\(\[aria-selected="true"\], \.iron-selected\) \{\s*color: #fff !important;\s*background: rgb\(255 255 255 \/ \.14\)/);
+  assert.match(seg, /tp-yt-paper-tab\[aria-selected="true"\]'\)\) return tab\.getAttribute\('aria-selected'\) === 'true';/, 'aria-selected decides over a left-behind iron-selected');
+  assert.match(seg, /if \(!state\.dragging\) \{ state\.lift = state\.liftTarget = 0; state\.vlift = 0; hideLens\(\); \}/, 'an instant move puts the drop away');
+});

@@ -475,7 +475,8 @@
 
     const lyricsTab = findLyricsTabButton();
     if (!lyricsTab) return;
-    if (nativeLyricsDisabled(lyricsTab)) { openExternalLyrics(); return; }
+    // No YouTube Music lyrics: the extension's own 歌詞 view, opened once (not again on every tick).
+    if (nativeLyricsDisabled(lyricsTab)) { if (!externalLyricsOpen) openExternalLyrics(); resetLyricsAutoOpenIdle(); return; }
     if (isLyricsTabSelected(lyricsTab) || isLyricsViewVisible()) {
       requestAnimationFrame(() => ensureLyricsMount());
       resetLyricsAutoOpenIdle();

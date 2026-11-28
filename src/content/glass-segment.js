@@ -390,7 +390,10 @@ function attachGlassSegment(group, opts = {}) {
 // (liquid-glass.css). Only while the theme is on (html.music-glass); otherwise the tabs are untouched.
 function ytmTabSelected(tab) {
  if (ytmExternalLyricsOpen() && tab.parentElement?.querySelector(':scope > .ytmls-external-native-label')) return ytmExternalLyricsTab(tab);
- return tab.getAttribute('aria-selected') === 'true' || tab.classList.contains('iron-selected');
+ // YouTube Music can leave iron-selected on the previous tab for a while; aria-selected is the one
+ // it keeps right, so it decides whenever any tab has it.
+ if (tab.parentElement?.querySelector(':scope > tp-yt-paper-tab[aria-selected="true"]')) return tab.getAttribute('aria-selected') === 'true';
+ return tab.classList.contains('iron-selected');
 }
 function ytmTabDisabled(tab) {
  if (ytmExternalLyricsTab(tab)) return false;
@@ -442,6 +445,9 @@ function ensureYtmTabGlassSegment() {
   if (owner !== group && owner?.classList.contains('ytmls-tabs-segment')) stale.remove();
  }
  if (group?.glassSegment) {
+  // YouTube Music may rewrite the bar's and group's classes: put the markers back.
+  tabs.classList.add('ytmls-tabs-glass');
+  group.classList.add('ytmls-tabs-segment');
   // A tab chosen without a change the observer sees (YouTube Music swapping a tab's node, or a
   // switch while the page was hidden): bring the bead to the chosen tab on the regular tick.
   const segment = group.glassSegment;
