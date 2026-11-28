@@ -1009,6 +1009,8 @@ function readingTokensToRomaji(tokens) {
   // YouTube MusicのタブDOM/selected属性の揺れに備えて、ラベル・paper-tabsのselected・
   // page-type renderer・タブ並びの4経路で現在タブを判定する。
   const AUTO_LYRICS_IDLE_DELAY_MS = 2000;
+  // Mac-style screen: the Now Playing page is lyrics-first, so the lyrics come up sooner.
+  const AUTO_LYRICS_MAC_DELAY_MS = 700;
   const AUTO_LYRICS_RETRY_MS = 450;
 
   function isTabActive(tab) {
@@ -1277,7 +1279,8 @@ function readingTokensToRomaji(tokens) {
 
     // 次のコンテンツを開いた後の「最後の実操作」から2秒。
     const idleStart = Math.max(STATE.lyricsAutoOpenArmedAt || 0, STATE.lastUserInteractionAt || 0);
-    if (now - idleStart < AUTO_LYRICS_IDLE_DELAY_MS) return;
+    const idleDelay = document.documentElement.classList.contains('ytmls-am') ? AUTO_LYRICS_MAC_DELAY_MS : AUTO_LYRICS_IDLE_DELAY_MS;
+    if (now - idleStart < idleDelay) return;
 
     const lyricsTab = findLyricsTabButton();
     if (!lyricsTab) return;
@@ -2483,6 +2486,9 @@ function readingTokensToRomaji(tokens) {
         `listRows=${count("ytmusic-responsive-list-item-renderer")}`,
         `chips=${count("ytmusic-chip-cloud-chip-renderer")}`,
         `playButtons=${count("ytmusic-item-thumbnail-overlay-renderer ytmusic-play-button-renderer")}`,
+        `headers=${["ytmusic-responsive-header-renderer", "ytmusic-detail-header-renderer", "ytmusic-immersive-header-renderer", "ytmusic-visual-header-renderer"].map(n => `${n.replace(/^ytmusic-|-header-renderer$/g, "")}:${count(n)}`).join(",")}`,
+        `pageButtons=[filled:${count(":is(ytmusic-browse-response, ytmusic-search-page) .yt-spec-button-shape-next--filled")} tonal:${count(":is(ytmusic-browse-response, ytmusic-search-page) .yt-spec-button-shape-next--tonal")} outline:${count(":is(ytmusic-browse-response, ytmusic-search-page) .yt-spec-button-shape-next--outline")}]`,
+        `cardShelf=${count("ytmusic-card-shelf-renderer")}`,
         `menu=${menu ? `${menu.parentElement?.localName || "-"} items:${[...new Set([...menu.querySelectorAll("[class], *")].map(el => el.localName).filter(n => /^ytmusic-.*item/.test(n)))].join("/")}` : "closed"}`,
       ].join(" ");
     } catch (_) {

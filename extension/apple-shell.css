@@ -784,3 +784,112 @@ html.ytmls-am :is(ytmusic-two-row-item-renderer, ytmusic-responsive-list-item-re
 @media (prefers-reduced-motion: reduce) {
   html.ytmls-am ytmusic-item-thumbnail-overlay-renderer ytmusic-play-button-renderer { transition: none !important; }
 }
+
+/* ---------- Album, playlist, artist and search pages, Apple-style (Mac Music-style screen only) ----------
+   Looks only (type, colour, corners, shadows); YouTube Music's own sizes and layout stay. */
+html.ytmls-am :is(ytmusic-responsive-header-renderer, ytmusic-detail-header-renderer, ytmusic-immersive-header-renderer, ytmusic-visual-header-renderer, ytmusic-card-shelf-renderer, ytmusic-shelf-renderer, ytmusic-playlist-shelf-renderer) {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", Roboto, sans-serif;
+}
+/* Album / playlist header: big artwork with a soft shadow, a heavy title, the artist in the accent colour. */
+html.ytmls-am :is(ytmusic-responsive-header-renderer, ytmusic-detail-header-renderer) :is(ytmusic-thumbnail-renderer, yt-img-shadow, #thumbnail) {
+  border-radius: 12px !important;
+  overflow: hidden;
+  box-shadow: 0 18px 44px rgb(0 0 0 / .42), 0 2px 8px rgb(0 0 0 / .24) !important;
+}
+html.ytmls-am :is(ytmusic-responsive-header-renderer, ytmusic-detail-header-renderer) :is(ytmusic-thumbnail-renderer, yt-img-shadow) img { border-radius: 12px !important; }
+html.ytmls-am :is(ytmusic-responsive-header-renderer, ytmusic-detail-header-renderer) :is(h1, h2, .title) {
+  font-weight: 800 !important;
+  letter-spacing: -.02em !important;
+}
+html.ytmls-am ytmusic-responsive-header-renderer :is(.strapline-text, .strapline-text a, .strapline a),
+html.ytmls-am ytmusic-detail-header-renderer .subtitle a:first-of-type {
+  color: var(--am-accent, #fa2d48) !important;
+  font-weight: 600 !important;
+}
+html.ytmls-am :is(ytmusic-responsive-header-renderer, ytmusic-detail-header-renderer) :is(.subtitle, .second-subtitle) {
+  color: rgb(255 255 255 / .55) !important;
+  font-weight: 500 !important;
+}
+html.ytmls-am :is(ytmusic-responsive-header-renderer, ytmusic-detail-header-renderer) :is(.description, ytmusic-description-shelf-renderer) { color: rgb(255 255 255 / .62) !important; }
+/* The big play button in the headers: the accent colour, like the Mac's red 再生 button. */
+html.ytmls-am :is(ytmusic-responsive-header-renderer, ytmusic-detail-header-renderer, ytmusic-immersive-header-renderer, ytmusic-visual-header-renderer) ytmusic-play-button-renderer {
+  --ytmusic-play-button-background-color: var(--am-accent, #fa2d48) !important;
+  --ytmusic-play-button-active-background-color: #ff4a62 !important;
+  --ytmusic-play-button-icon-color: #fff !important;
+  box-shadow: 0 6px 18px rgb(250 45 72 / .35);
+  border-radius: 999px;
+}
+/* Buttons in the content area: the filled one (再生, シャッフル …) in the accent colour, the others as glass capsules. */
+html.ytmls-am :is(ytmusic-browse-response, ytmusic-search-page) .yt-spec-button-shape-next--filled {
+  background: var(--am-accent, #fa2d48) !important;
+  color: #fff !important;
+  border: 0 !important;
+  box-shadow: 0 4px 14px rgb(250 45 72 / .28);
+}
+html.ytmls-am :is(ytmusic-browse-response, ytmusic-search-page) .yt-spec-button-shape-next--filled :is(yt-icon, .yt-spec-button-shape-next__icon, div, span) { color: #fff !important; fill: #fff !important; }
+html.ytmls-am :is(ytmusic-browse-response, ytmusic-search-page) :is(.yt-spec-button-shape-next--tonal, .yt-spec-button-shape-next--outline) {
+  background: rgb(255 255 255 / .09) !important;
+  border: 0 !important;
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / .12);
+  color: rgb(255 255 255 / .92) !important;
+}
+html.ytmls-am :is(ytmusic-browse-response, ytmusic-search-page) :is(.yt-spec-button-shape-next--tonal, .yt-spec-button-shape-next--outline):hover { background: rgb(255 255 255 / .16) !important; }
+/* Track lists: no divider lines, rounded rows and soft stripes on album and playlist pages, like the Mac. */
+html.ytmls-am :is(ytmusic-browse-response, ytmusic-search-page) ytmusic-responsive-list-item-renderer {
+  border-top: 0 !important;
+  border-bottom: 0 !important;
+  border-radius: 8px !important;
+}
+html.ytmls-am ytmusic-browse-response:has(:is(ytmusic-responsive-header-renderer, ytmusic-detail-header-renderer)) :is(ytmusic-shelf-renderer, ytmusic-playlist-shelf-renderer) ytmusic-responsive-list-item-renderer:nth-of-type(even):not(:hover):not([is-selected]) {
+  background-color: rgb(255 255 255 / .035) !important;
+}
+html.ytmls-am :is(ytmusic-browse-response, ytmusic-search-page) ytmusic-responsive-list-item-renderer .title { font-weight: 600 !important; }
+html.ytmls-am :is(ytmusic-browse-response, ytmusic-search-page) ytmusic-responsive-list-item-renderer :is(.secondary-flex-columns, .fixed-columns, .index) { color: rgb(255 255 255 / .5) !important; }
+/* Shelf headings on these pages (曲, アルバム, 人気曲 …): large and heavy, like the home page. */
+html.ytmls-am :is(ytmusic-shelf-renderer, ytmusic-card-shelf-renderer, ytmusic-music-card-shelf-header-basic-renderer) :is(h2, .title):not(ytmusic-responsive-list-item-renderer *) {
+  font-weight: 800 !important;
+  letter-spacing: -.01em;
+}
+/* Search: the top result as a glass card. */
+html.ytmls-am ytmusic-card-shelf-renderer {
+  border: 0 !important;
+  border-radius: 18px !important;
+  background: rgb(255 255 255 / .06) !important;
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / .09), 0 12px 32px rgb(0 0 0 / .22);
+}
+html.ytmls-am ytmusic-card-shelf-renderer :is(ytmusic-thumbnail-renderer, yt-img-shadow) {
+  border-radius: 10px !important;
+  overflow: hidden;
+  box-shadow: 0 8px 22px rgb(0 0 0 / .32);
+}
+html.ytmls-am ytmusic-card-shelf-renderer :is(ytmusic-thumbnail-renderer, yt-img-shadow):is([is-circle], .circle) { border-radius: 50% !important; }
+/* Artist page: the name sits heavy on the photo, which fades into the page at the bottom. */
+html.ytmls-am :is(ytmusic-immersive-header-renderer, ytmusic-visual-header-renderer) :is(h1, .title) {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", Roboto, sans-serif !important;
+  font-weight: 800 !important;
+  letter-spacing: -.025em !important;
+  text-shadow: 0 2px 18px rgb(0 0 0 / .45);
+}
+html.ytmls-am :is(ytmusic-immersive-header-renderer, ytmusic-visual-header-renderer) :is(.description, .subscription-count, .subtitle) { color: rgb(255 255 255 / .72) !important; }
+html.ytmls-am :is(ytmusic-immersive-header-renderer, ytmusic-visual-header-renderer) ytmusic-subscribe-button-renderer :is(button, .yt-spec-button-shape-next, tp-yt-paper-button) {
+  border-radius: 999px !important;
+  border: 0 !important;
+  background: rgb(255 255 255 / .14) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(170%);
+  backdrop-filter: blur(16px) saturate(170%);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / .18);
+  color: #fff !important;
+}
+
+/* ---------- Now Playing page: lyrics first ----------
+   The lines away from the one being sung soften a little, like the Mac's lyrics view. */
+html.ytmls-am:not(.ytmls-lyrics-motion-lightweight) ytmusic-player-page #ytmls-panel .ytmls-line:not(.ytmls-active):not(:hover) {
+  filter: blur(.6px);
+}
+html.ytmls-am ytmusic-player-page #ytmls-panel .ytmls-line {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", Roboto, sans-serif;
+  letter-spacing: -.02em;
+}
+@media (prefers-reduced-motion: reduce) {
+  html.ytmls-am ytmusic-player-page #ytmls-panel .ytmls-line { filter: none !important; }
+}

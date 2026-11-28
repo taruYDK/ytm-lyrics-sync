@@ -193,5 +193,13 @@ v3.2.1 より前からある部分も含めて全体を確認し、見つかっ�
       - どれも実機の作りは未確認。診断情報に `Mac pages:`（各部品の数、再生待ちの項目の中身、開いているメニューの項目の種類）を追加。
     - **再生中の画面からホームへ戻れなかった（2026-11-27）：** YouTube Music の閉じるボタン（⌄）は隠れた再生バーの中。サイドバーの項目を押すと再生中の画面を閉じてから移動、上部バーの曲名・ジャケットはもう一度押すと閉じる（`togglePlayerPage`）、Esc でも閉じる（メニュー・歌詞ツール・入力欄などが開いているときは除く）。
     - **曲／動画が使えないとき（2026-11-27）：** 動画のない曲では YouTube Music が切り替えを薄くして無効にしているが、不透明にしたため使えるように見えていた。`toggle-disabled`／`disabled`／`aria-disabled` を見て `.ytmls-av-unavailable` を付け、全体を暗く、文字と粒を薄く、カーソルを禁止マークに。
+    - **再生待ちの行の線（2026-11-28）：** 「次のコンテンツ」の行の間に YouTube Music が引く 1px の線が、行の角丸のせいで両端の曲がった薄い線に見えた。`music-glass.css` で `ytmusic-player-queue-item`（とその直下、`ytmusic-playlist-panel-video-wrapper-renderer`）の上下の線を消した。線の付いている部品は推測、実機未確認。
+    - **アルバム・プレイリスト・アーティスト・検索・再生中の画面（2026-11-28）：** `apple-shell.css` の末尾。Mac 風の画面のときだけ、見た目だけ（大きさ・配置・余白は変えない）。
+      - アルバム／プレイリストの上部（`ytmusic-responsive-header-renderer`／`ytmusic-detail-header-renderer`）：ジャケット角丸 12px＋影、題名を太く、アーティスト名を赤、大きな再生ボタンを赤。曲リストは線なし・角丸の行・偶数行に薄い縞（Mac のアルバム画面と同じ）。
+      - 中身のボタン：塗りのボタン（`.yt-spec-button-shape-next--filled`）は赤、その他（tonal／outline）はガラスのカプセル。
+      - 検索：トップの結果（`ytmusic-card-shelf-renderer`）を角丸 18px のガラスのカードに。棚の見出しを太く。
+      - アーティスト（`ytmusic-immersive-header-renderer`／`ytmusic-visual-header-renderer`）：名前を太く影付きに、登録ボタンをガラスのカプセルに、再生ボタンを赤。
+      - 再生中の画面：Mac 風の画面のときは「次のコンテンツ」から歌詞タブへの自動切り替えを無操作 2 秒→0.7 秒に（`AUTO_LYRICS_MAC_DELAY_MS`）。歌っていない行を少しぼかす（軽量表示・動きを減らす設定ではしない）。
+      - 実機の作りは未確認。診断情報の `Mac pages:` に `headers=`（どの上部が何個あるか）、`pageButtons=`（塗り／tonal／outline の数）、`cardShelf=` を足した。
     - 次の候補：再生中の画面（ジャケット＋タブ＋歌詞）を Mac の再生中画面／右の歌詞パネル風にする、全画面歌詞ビューを Mac 風にする。
   - 1（取りやめ）：左メニューを Mac のサイドバー風にする試みは、実機で揃わずユーザーの判断で戻した（`liquid-glass.css` から全部削除）。左メニューは「選択中の項目がガラスの粒」だけの状態。実機の構造：広いメニュー＝`ytmusic-guide-renderer#guide-renderer`、細いメニュー＝同じ要素の `#mini-guide-renderer`。診断情報の `Guide layout:` は残してある。

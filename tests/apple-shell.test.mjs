@@ -268,3 +268,21 @@ test('Up Next panel marks exactly one song as playing: the one whose video id is
   assert.match(shell, /queueThumbs\.findIndex\(info => info\?\.videoId === playingId\)/);
   assert.match(shell, /if \(currentIndex >= 0\) infos\[currentIndex\]\.current = true;/);
 });
+
+test('album, playlist, artist and search pages get Apple-style looks only in the Mac-style screen, without resizing', () => {
+  const css = read('apple-shell.css').replace(/\/\*[\s\S]*?\*\//g, '');
+  for (const part of ['ytmusic-responsive-header-renderer', 'ytmusic-immersive-header-renderer', 'ytmusic-card-shelf-renderer', 'yt-spec-button-shape-next--filled', 'ytmusic-playlist-shelf-renderer']) {
+    const rules = css.match(new RegExp(`[^{}]*${part}[^{}]*\\{[^}]*\\}`, 'g')) || [];
+    assert.ok(rules.length, part);
+    for (const rule of rules) {
+      for (const selector of rule.split('{')[0].split(/,(?![^()]*\))/)) assert.match(selector.trim(), /^html\.ytmls-am /, `${part} only in the Mac-style screen`);
+      assert.doesNotMatch(rule, /(^|[;{\s])(width|height|display|position|margin|padding)\s*:/, `${part} keeps YouTube Music's sizes`);
+    }
+  }
+  // Album and playlist rows: soft stripes, no dividers.
+  assert.match(css, /ytmusic-responsive-list-item-renderer:nth-of-type\(even\)/);
+  // Now Playing page: lyrics come up sooner in the Mac-style screen.
+  const autoOpen = fs.readFileSync(new URL('../src/content/auto-open.js', import.meta.url), 'utf8');
+  assert.match(autoOpen, /classList\.contains\('ytmls-am'\) \? AUTO_LYRICS_MAC_DELAY_MS : AUTO_LYRICS_IDLE_DELAY_MS/);
+  assert.match(fs.readFileSync(new URL('../src/content/lyrics-panel.js', import.meta.url), 'utf8'), /`headers=\$\{/);
+});

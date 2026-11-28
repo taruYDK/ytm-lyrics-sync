@@ -1021,6 +1021,9 @@
         `listRows=${count("ytmusic-responsive-list-item-renderer")}`,
         `chips=${count("ytmusic-chip-cloud-chip-renderer")}`,
         `playButtons=${count("ytmusic-item-thumbnail-overlay-renderer ytmusic-play-button-renderer")}`,
+        `headers=${["ytmusic-responsive-header-renderer", "ytmusic-detail-header-renderer", "ytmusic-immersive-header-renderer", "ytmusic-visual-header-renderer"].map(n => `${n.replace(/^ytmusic-|-header-renderer$/g, "")}:${count(n)}`).join(",")}`,
+        `pageButtons=[filled:${count(":is(ytmusic-browse-response, ytmusic-search-page) .yt-spec-button-shape-next--filled")} tonal:${count(":is(ytmusic-browse-response, ytmusic-search-page) .yt-spec-button-shape-next--tonal")} outline:${count(":is(ytmusic-browse-response, ytmusic-search-page) .yt-spec-button-shape-next--outline")}]`,
+        `cardShelf=${count("ytmusic-card-shelf-renderer")}`,
         `menu=${menu ? `${menu.parentElement?.localName || "-"} items:${[...new Set([...menu.querySelectorAll("[class], *")].map(el => el.localName).filter(n => /^ytmusic-.*item/.test(n)))].join("/")}` : "closed"}`,
       ].join(" ");
     } catch (_) {

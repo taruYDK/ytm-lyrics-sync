@@ -200,6 +200,8 @@
   // YouTube MusicのタブDOM/selected属性の揺れに備えて、ラベル・paper-tabsのselected・
   // page-type renderer・タブ並びの4経路で現在タブを判定する。
   const AUTO_LYRICS_IDLE_DELAY_MS = 2000;
+  // Mac-style screen: the Now Playing page is lyrics-first, so the lyrics come up sooner.
+  const AUTO_LYRICS_MAC_DELAY_MS = 700;
   const AUTO_LYRICS_RETRY_MS = 450;
 
   function isTabActive(tab) {
@@ -468,7 +470,8 @@
 
     // 次のコンテンツを開いた後の「最後の実操作」から2秒。
     const idleStart = Math.max(STATE.lyricsAutoOpenArmedAt || 0, STATE.lastUserInteractionAt || 0);
-    if (now - idleStart < AUTO_LYRICS_IDLE_DELAY_MS) return;
+    const idleDelay = document.documentElement.classList.contains('ytmls-am') ? AUTO_LYRICS_MAC_DELAY_MS : AUTO_LYRICS_IDLE_DELAY_MS;
+    if (now - idleStart < idleDelay) return;
 
     const lyricsTab = findLyricsTabButton();
     if (!lyricsTab) return;
