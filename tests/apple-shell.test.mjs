@@ -199,7 +199,7 @@ test('toolbar playback buttons: nothing of YouTube Music\'s hidden chrome can ta
   assert.match(fs.readFileSync(new URL('../src/content/lyrics-panel.js', import.meta.url), 'utf8'), /`Mac toolbar: \$\{macToolbarDiagnostics\(\)\}`/);
 });
 
-test('shuffle and repeat show what they did: repeat mode on the button, a pulse and the button's colour for shuffle', () => {
+test('shuffle and repeat show what they did: repeat mode on the button, a pulse and the button colour for shuffle', () => {
   const shell = read('apple-shell.js');
   assert.match(shell, /function repeatMode\(\)/);
   assert.match(shell, /\{off: 'リピート：オフ', all: 'リピート：すべて', one: 'リピート：1曲'\}/);
