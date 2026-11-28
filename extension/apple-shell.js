@@ -1435,7 +1435,7 @@
   }
   function refreshMeasured() {
     if (!active()) {
-      root.classList.remove('ytmls-am', 'ytmls-am-compact', 'ytmls-am-no-side', 'ytmls-am-autohide', 'ytmls-am-side-peek');
+      root.classList.remove('ytmls-am', 'ytmls-am-ambient-on', 'ytmls-am-compact', 'ytmls-am-no-side', 'ytmls-am-autohide', 'ytmls-am-side-peek');
       document.querySelectorAll('.ytmls-am-album-actions').forEach(box => box.remove());
       // Only the browser's fullscreen (the fullscreen lyrics): keep its moving background.
       if (settingsLoaded && wanted && extensionEnabled && document.fullscreenElement) updateAmbient();
@@ -1471,6 +1471,8 @@
       root.style.setProperty('--ytmls-am-side', `${layout.side}px`);
     }
     root.classList.add('ytmls-am');
+    // The window's moving background replaces Music Glass's drifting haze (see apple-shell.css).
+    root.classList.toggle('ytmls-am-ambient-on', options.ambient);
     root.classList.toggle('ytmls-am-compact', layout.side > 0 && layout.side < 160);
     root.classList.toggle('ytmls-am-no-side', layout.side < 40);
     if (layout.side >= 40) root.classList.remove('ytmls-am-drawer-open');
