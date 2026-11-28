@@ -789,7 +789,14 @@ html.ytmls-am tp-yt-iron-dropdown:has(ytmusic-menu-popup-renderer) :is(#contentW
 html.ytmls-am tp-yt-iron-dropdown:has(ytmusic-menu-popup-renderer) :is(#contentWrapper, .dropdown-content) { border: 0 !important; box-shadow: none !important; }
 html.ytmls-am ytmusic-menu-popup-renderer :is(tp-yt-paper-item, a, #navigation-endpoint):focus:not(:focus-visible) { background: transparent !important; }
 html.ytmls-am ytmusic-menu-popup-renderer tp-yt-paper-item::before { background: transparent !important; opacity: 0 !important; }
-html.ytmls-am ytmusic-menu-popup-renderer { box-shadow: 0 18px 48px rgb(0 0 0 / .42), 0 2px 8px rgb(0 0 0 / .2), inset 0 .5px 0 rgb(255 255 255 / .12) !important; }
+html.ytmls-am ytmusic-menu-popup-renderer { box-shadow: 0 18px 48px rgb(0 0 0 / .42), 0 2px 8px rgb(0 0 0 / .2) !important; border: 0 !important; }
+/* No edge line at all: the dropdown and every wrapper between it and the menu draw no border, ring
+   or shadow of their own (only the menu's soft drop shadow stays). */
+html.ytmls-am tp-yt-iron-dropdown:has(ytmusic-menu-popup-renderer),
+html.ytmls-am tp-yt-iron-dropdown:has(ytmusic-menu-popup-renderer) *:has(ytmusic-menu-popup-renderer) {
+  border: 0 !important; outline: none !important; box-shadow: none !important; background: transparent !important;
+}
+html.ytmls-am ytmusic-menu-popup-renderer :is(tp-yt-paper-listbox, #items, [role="listbox"], [role="menu"]) { border: 0 !important; box-shadow: none !important; }
 
 /* Finished like a Mac menu: snug rows, small dim icons, regular-weight text, and the row under the
    pointer filled with the accent colour (white text and icon), as the Mac highlights menu items. */
