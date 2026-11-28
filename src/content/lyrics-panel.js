@@ -1096,7 +1096,7 @@
       const chosen = tabEls.map((tab, i) => (tab.getAttribute("aria-selected") === "true" ? "a" : "") + (tab.classList.contains("iron-selected") ? "i" : "") ? i : -1).filter(i => i >= 0);
       let beadAt = "-";
       if (thumb && !thumb.hidden) { const t = thumb.getBoundingClientRect(), mid = t.left + t.width / 2; let best = Infinity; tabEls.forEach((tab, i) => { const r = tab.getBoundingClientRect(), d = Math.abs(r.left + r.width / 2 - mid); if (d < best) { best = d; beadAt = i; } }); }
-      const bead = `bars=${bars.length}(${bars.map(b => (typeof b.checkVisibility === "function" ? (b.checkVisibility() ? "v" : "h") : "?") + (b.classList.contains("ytmls-tabs-glass") ? "g" : "")).join(",")}) chosen=${chosen.join("+") || "none"} beadAt=${beadAt} thumb=${thumb ? (thumb.hidden ? "hidden" : "shown") : "none"}`;
+      const bead = `bars=${bars.length}(${bars.map(b => (typeof b.checkVisibility === "function" ? (b.checkVisibility() ? "v" : "h") : "?") + (b.classList.contains("ytmls-tabs-glass") ? "g" : "")).join(",")}) chosen=${chosen.join("+") || "none"} beadAt=${beadAt} thumb=${thumb ? (thumb.hidden ? "hidden" : "shown") : "none"} thumbs=${page.querySelectorAll(".ytmls-seg-thumb").length} groups=${page.querySelectorAll(".ytmls-tabs-segment").length} under=${tabEls.findIndex(t => t.classList.contains("ytmls-seg-under"))} lens=${document.querySelector(".ytmls-tabs-segment")?.dataset.lens || "-"}`;
       return `tabs=[${tabs.join(" | ")}] bead=[${bead}] columns=[${columns.join(", ")}] comments=[${comments.join(" ; ") || "none"}] av=[${avText}]`;
     } catch (_) {
       return "error";

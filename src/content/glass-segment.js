@@ -212,6 +212,9 @@ function attachGlassSegment(group, opts = {}) {
    if (state.frame && typeof cancelAnimationFrame === 'function') cancelAnimationFrame(state.frame);
    state.frame = 0; state.last = 0;
    state.x = x; state.w = w; state.vx = state.vw = 0; state.sq = state.squash = state.vsq = 0; state.placed = w > 0;
+   // The animation that would have put the drop away is cancelled here, so put it away now (else
+   // it stayed on the old tab, looking like a second chosen one).
+   if (!state.dragging) { state.lift = state.liftTarget = 0; state.vlift = 0; hideLens(); }
    paint();
    return;
   }
@@ -432,6 +435,12 @@ function ensureYtmTabGlassSegment() {
  // The tabs sit in #tabsContent inside paper-tabs (the bead must share their offset parent).
  const first = tabs.querySelector('tp-yt-paper-tab');
  const group = first?.parentElement;
+ // A bead left from an earlier set of tabs (YouTube Music can rebuild them in place) stays where
+ // it was and looks like a second chosen tab: only the current group keeps one.
+ for (const stale of document.querySelectorAll('ytmusic-player-page .ytmls-seg-thumb')) {
+  const owner = stale.parentElement;
+  if (owner !== group && owner?.classList.contains('ytmls-tabs-segment')) stale.remove();
+ }
  if (group?.glassSegment) {
   // A tab chosen without a change the observer sees (YouTube Music swapping a tab's node, or a
   // switch while the page was hidden): bring the bead to the chosen tab on the regular tick.
