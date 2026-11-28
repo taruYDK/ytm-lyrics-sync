@@ -947,18 +947,9 @@
     ui.sideToggle = sideToggle;
     sideHead.append(sideToggle);
     sidebar.append(sideHead, searchBox, searchToggle, ui.nav);
-    sidebar.addEventListener('pointerenter', () => clearTimeout(peekHideTimer));
-    sidebar.addEventListener('pointerleave', () => {
-      if (!peekByHover || !root.classList.contains('ytmls-am-side-peek')) return;
-      clearTimeout(peekHideTimer);
-      // Not while a search is being typed or one of its menus is open.
-      peekHideTimer = setTimeout(() => { if (peekByHover && !sidebar.contains(document.activeElement)) toggleSidePeek(false); }, 380);
-    });
-    const edge = document.createElement('div');
-    edge.className = 'ytmls-am-edge';
-    edge.setAttribute('aria-hidden', 'true');
-    edge.addEventListener('pointerenter', () => { if (!root.classList.contains('ytmls-am-side-peek')) toggleSidePeek(true, true); });
-
+    // Shown when the pointer reaches the window's left edge, hidden once it has moved well to the
+    // right of the sidebar (sidePeekPointer). Position-based, not enter / leave: those fired again
+    // and again while the sidebar slid in under a still pointer, and it flickered.
     // Toolbar
     const toolbar = document.createElement('div');
     toolbar.className = 'ytmls-am-toolbar';
@@ -1031,7 +1022,7 @@
     const scrim = document.createElement('div');
     scrim.className = 'ytmls-am-scrim';
     scrim.addEventListener('click', closeDrawer);
-    shell.append(scrim, sidebar, toolbar, edge);
+    shell.append(scrim, sidebar, toolbar);
     document.body.append(shell);
     document.addEventListener('keydown', event => {
       if (event.key !== 'Escape') return;
@@ -1209,6 +1200,28 @@
     clearTimeout(peekHideTimer);
     root.classList.toggle('ytmls-am-side-peek', on);
   }
+  function sidePeekPointer(event) {
+    if (event.pointerType === 'touch' || !root.classList.contains('ytmls-am') || document.fullscreenElement) return;
+    const x = event.clientX, shown = root.classList.contains('ytmls-am-side-peek');
+    if (!shown) {
+      clearTimeout(peekHideTimer);
+      peekHideTimer = 0;
+      // At the very edge, below the toolbar.
+      if (x <= 6 && event.clientY > (ui.lcd?.getBoundingClientRect().bottom || 64)) toggleSidePeek(true, true);
+      return;
+    }
+    if (!peekByHover) return;
+    const sidebar = document.querySelector('#ytmls-am .ytmls-am-sidebar');
+    const right = sidebar ? sidebar.getBoundingClientRect().right : 240;
+    if (x <= right + 32) { clearTimeout(peekHideTimer); peekHideTimer = 0; return; }
+    if (peekHideTimer) return;
+    peekHideTimer = setTimeout(() => {
+      peekHideTimer = 0;
+      // Not while its search is being typed in.
+      if (peekByHover && !sidebar?.contains(document.activeElement)) toggleSidePeek(false);
+    }, 320);
+  }
+  document.addEventListener('pointermove', sidePeekPointer, {passive: true});
   document.addEventListener('pointerdown', event => {
     if (!root.classList.contains('ytmls-am-side-peek')) return;
     if (event.target?.closest?.('.ytmls-am-sidebar, ytmusic-menu-popup-renderer, tp-yt-iron-dropdown')) return;

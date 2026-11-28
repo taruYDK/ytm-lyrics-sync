@@ -1076,12 +1076,9 @@ html.ytmls-am .ytmls-am-menu { display: none !important; }
 /* Shown over the page: in front of the toolbar too, with a deeper shadow. */
 html.ytmls-am.ytmls-am-side-peek .ytmls-am-sidebar { z-index: 3; box-shadow: var(--am-hairline), 0 18px 50px rgb(0 0 0 / .5); }
 /* Shown over the page it is always the wide sidebar (with labels), even in the icon-only or no-sidebar
-   layouts. The strip at the window's left edge shows it when the pointer reaches it. */
+   layouts. It shows when the pointer reaches the window's left edge (apple-shell.js, sidePeekPointer). */
 html.ytmls-am.ytmls-am-side-peek .ytmls-am-sidebar { display: flex; width: 226px; }
-.ytmls-am-edge { display: none; }
-html.ytmls-am:not(.ytmls-am-side-peek) .ytmls-am-edge {
-  display: block; position: fixed; left: 0; top: var(--ytmls-am-top, 64px); bottom: 0; width: 10px; z-index: 3; pointer-events: auto;
-}
+
 
 /* ---------- Library (プレイリスト / 曲 / アルバム / アーティスト), Apple-style ----------
    Library pages are the browse pages with a grid or a song list and filter chips but no carousels

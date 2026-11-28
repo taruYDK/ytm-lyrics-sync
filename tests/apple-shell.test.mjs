@@ -330,7 +330,8 @@ test('Now Playing page spans the window; the sidebar steps away and its button s
   assert.match(css, /ytmusic-player-page\[style\*="--ytmls-am-page-shift"\] \{\s*margin-left: calc\(-1 \* var\(--ytmls-am-page-shift, 0px\)\) !important;/);
   assert.match(css, /:not\(\.ytmls-am-side-peek\) \.ytmls-am-sidebar \{\s*transform: translateX/, 'steps away unless shown over the page');
   assert.doesNotMatch(js, /button\('collapse'/, 'no sidebar button: the left edge shows it');
-  assert.match(js, /edge\.addEventListener\('pointerenter'/, 'the window\'s left edge shows it too');
+  assert.match(js, /document\.addEventListener\('pointermove', sidePeekPointer, \{passive: true\}\)/, 'the window\'s left edge shows it, by position');
+  assert.doesNotMatch(js, /sidebar\.addEventListener\('pointerleave'/, 'no enter / leave flicker');
   assert.match(css, /html\.ytmls-am\.ytmls-am-side-peek \.ytmls-am-sidebar \{ display: flex; width: 226px; \}/, 'always the wide sidebar when shown over the page');
   assert.match(css, /html\.ytmls-am-compact:not\(\.ytmls-am-drawer-open\):not\(\.ytmls-am-side-peek\) \.ytmls-am-item-label/);
 });
@@ -352,7 +353,6 @@ test('popovers share the readable glass; library, lyrics and mini player get the
 test('every page: the sidebar stays out of the way and comes over the page from the button or the left edge', () => {
   const js = read('apple-shell.js'), css = read('apple-shell.css');
   assert.match(css, /html\.ytmls-am:not\(\.ytmls-am-side-peek\) \.ytmls-am-sidebar \{/);
-  assert.match(css, /html\.ytmls-am:not\(\.ytmls-am-side-peek\) \.ytmls-am-edge \{/);
   assert.match(css, /html\.ytmls-am \.ytmls-am-toolbar \{ left: 0; \}/);
   assert.match(js, /layout\.side >= 160 && !layoutEl\(\)\?\.hasAttribute\('player-page-open'\) && now - lastGuideNarrowAt > 4000/, 'YouTube Music\'s side menu kept narrow, at most every 4 s');
 });
