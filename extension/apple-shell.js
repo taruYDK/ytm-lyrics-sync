@@ -478,7 +478,6 @@
   }
 
   // A small "now playing" banner when the song changes (not on the first song after the page opens).
-  let lastToastTitle = null;
   let toastTimer = 0;
   function showToast(title, subtitle, art, label = '再生中') {
     if (!shell || document.hidden) return;
@@ -519,10 +518,6 @@
       ui.star.dataset.on = String(liked);
       ui.star.innerHTML = liked ? ICONS.starFilled : ICONS.star;
       ui.star.setAttribute('aria-pressed', String(liked));
-    }
-    if (title && title !== lastToastTitle) {
-      if (lastToastTitle !== null) showToast(title, subtitle, art);
-      lastToastTitle = title;
     }
     syncVolumeControls();
     if (ui.title.textContent !== title) ui.title.textContent = title;

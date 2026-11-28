@@ -357,3 +357,9 @@ test('every page: the sidebar stays out of the way and comes over the page from 
   assert.match(css, /html\.ytmls-am \.ytmls-am-toolbar \{ left: 0; \}/);
   assert.match(js, /layout\.side >= 160 && !layoutEl\(\)\?\.hasAttribute\('player-page-open'\) && now - lastGuideNarrowAt > 4000/, 'YouTube Music\'s side menu kept narrow, at most every 4 s');
 });
+
+test('no banner when the song changes (only when the mini player cannot open)', () => {
+  const js = read('apple-shell.js');
+  assert.doesNotMatch(js, /lastToastTitle/);
+  assert.equal((js.match(/showToast\(/g) || []).length, 2, 'the function and the mini player note');
+});
