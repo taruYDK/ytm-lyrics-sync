@@ -339,7 +339,26 @@
     const rect = el.getBoundingClientRect();
     return rect.width > 0 && rect.height > 0 && rect.right > 0 ? rect : null;
   }
+  // Where YouTube Music's bar and side menu are changes only when the window or the side menu
+  // changes: measured again then (resize, the menu's attributes, a layout follow), otherwise reused
+  // for a few seconds. Measuring every 700ms made the browser lay the (large) page out each time.
+  let measured = null, measuredAt = 0, measureObserver = null;
+  function invalidateMeasure() { measured = null; }
+  addEventListener('resize', invalidateMeasure);
   function measure() {
+    const now = performance.now();
+    if (measured && now - measuredAt < 5000) return {...measured};
+    if (!measureObserver && typeof MutationObserver === 'function' && q('tp-yt-app-drawer#guide')) {
+      measureObserver = new MutationObserver(invalidateMeasure);
+      for (const el of [q('tp-yt-app-drawer#guide'), layoutEl(), q('ytmusic-app')].filter(Boolean)) {
+        measureObserver.observe(el, {attributes: true, attributeFilter: ['opened', 'persistent', 'guide-collapsed', 'mini-guide-visible', 'player-page-open', 'player-fullscreened', 'is-bauhaus-sidenav-enabled']});
+      }
+    }
+    const result = measureNow();
+    if (result) { measured = result; measuredAt = now; }
+    return result && {...result};
+  }
+  function measureNow() {
     const navRect = visibleRect(q('ytmusic-nav-bar'));
     if (!navRect || navRect.height < 32 || !playerBar()) return null;
     let side = 0;
@@ -521,13 +540,17 @@
 
   // Long titles and artist lines glide sideways under the pointer, like the Mac's now-playing
   // display (the full text, then back), instead of staying cut off with "…".
+  let scrollTextGeneration = 0;
+  addEventListener('resize', () => { scrollTextGeneration += 1; });
   function setScrollingText(holder, text) {
     let inner = holder.firstElementChild;
     if (!inner) { inner = document.createElement('span'); inner.className = 'ytmls-am-scroll'; holder.replaceChildren(inner); }
-    if (inner.textContent === text && holder.dataset.measuredWidth === String(holder.clientWidth)) return;
-    inner.textContent = text;
+    // Measured again only when the text or the window changes (reading the width every refresh made
+    // the browser lay the page out each time).
+    if (inner.textContent === text && holder.dataset.measuredFor === String(scrollTextGeneration)) return;
+    if (inner.textContent !== text) inner.textContent = text;
+    holder.dataset.measuredFor = String(scrollTextGeneration);
     requestAnimationFrame(() => {
-      holder.dataset.measuredWidth = String(holder.clientWidth);
       const over = inner.scrollWidth - holder.clientWidth;
       holder.classList.toggle('is-long', over > 2);
       holder.style.setProperty('--ytmls-am-scroll', `${-Math.ceil(Math.max(0, over))}px`);
@@ -1072,7 +1095,7 @@
   // Follow the side menu every frame for a short while (after the sidebar switch).
   function followLayout(ms) {
     const until = performance.now() + ms;
-    const step = () => { refresh(); if (performance.now() < until) requestAnimationFrame(step); };
+    const step = () => { invalidateMeasure(); refresh(); if (performance.now() < until) requestAnimationFrame(step); };
     requestAnimationFrame(step);
   }
   // ---------- Moving artwork background (whole window and fullscreen lyrics) ----------
